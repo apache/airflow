@@ -51,6 +51,7 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
+from airflow.sdk.observability.trace import Trace
 from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
 
@@ -246,6 +247,7 @@ class OpenLineageListener:
     if AIRFLOW_V_3_0_PLUS:
 
         @hookimpl
+        @Trace.start_span("openlineage.success")
         def on_task_instance_success(
             self, previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance | TaskInstance
         ) -> None:

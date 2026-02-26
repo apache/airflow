@@ -18,14 +18,15 @@
 
 from __future__ import annotations
 
-import logging
 from collections import defaultdict, deque
 from collections.abc import Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pendulum
+import structlog
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.observability.traces import NO_TRACE_ID
@@ -38,7 +39,6 @@ from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     EventBufferValueType = tuple[str | None, Any]
 
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -134,14 +134,31 @@ class ExecutorConf:
         return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
 
 
+@contextmanager
+def start_ti_span(ti):
+    if isinstance(ti, workloads.TaskInstance):
+        parent_context = Trace.extract(ti.parent_context_carrier)
+    else:
+        parent_context = Trace.extract(ti.dag_run.context_carrier)
+    # Start a new span using the context from the parent.
+    # Attributes will be set once the task has finished so that all
+    # values will be available (end_time, duration, etc.).
+
+    tracer = Trace.get_tracer("dagrun")
+    with tracer.start_as_current_span(f"task.triggered.{ti.task_id}", context=parent_context) as span:
+        span.set_attribute("task_id", ti.task_id)
+        span.set_attribute("dag_id", ti.dag_id)
+        span.set_attribute("run_id", ti.run_id)
+        span.set_attribute("component", "executor")
+        yield span
+
+
 class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
 
     :param parallelism: how many jobs should run at one time.
     """
-
-    active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
     supports_multi_team: bool = False
@@ -212,10 +229,6 @@ class BaseExecutor(LoggingMixin):
             _repr += f", team_name={self.team_name!r}"
         _repr += ")"
         return _repr
-
-    @classmethod
-    def set_active_spans(cls, active_spans: ThreadSafeDict):
-        cls.active_spans = active_spans
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -378,28 +391,14 @@ class BaseExecutor(LoggingMixin):
 
             if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                 ti = item.ti
-
-                # If it's None, then the span for the current id hasn't been started.
-                if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
-                    if isinstance(ti, workloads.TaskInstance):
-                        parent_context = Trace.extract(ti.parent_context_carrier)
-                    else:
-                        parent_context = Trace.extract(ti.dag_run.context_carrier)
-                    # Start a new span using the context from the parent.
-                    # Attributes will be set once the task has finished so that all
-                    # values will be available (end_time, duration, etc.).
-
-                    span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}",
-                        parent_context=parent_context,
-                        component="task",
-                        start_as_current=False,
-                    )
-                    self.active_spans.set("ti:" + str(ti.id), span)
-                    # Inject the current context into the carrier.
-                    carrier = Trace.inject()
-                    ti.context_carrier = carrier
-
+                if isinstance(ti, workloads.TaskInstance):
+                    item.ti.context_carrier = ti.parent_context_carrier
+                    log.info("setting carrier from parent", carrier=ti.parent_context_carrier)
+                else:
+                    item.ti.context_carrier = ti.dag_run.context_carrier
+                    log.info("setting carrier from dagrun", carrier=ti.dag_run.context_carrier)
+                if not item.ti.context_carrier:
+                    raise ValueError(f"carrier={item.ti.context_carrier}")
                 workload_list.append(item)
         if workload_list:
             self._process_workloads(workload_list)

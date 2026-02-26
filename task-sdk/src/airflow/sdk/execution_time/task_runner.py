@@ -26,7 +26,7 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
@@ -36,11 +36,13 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
+from opentelemetry.trace import Status, StatusCode
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.traces.base_tracer import EmptySpan
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -121,10 +123,12 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
+from airflow.sdk.observability.trace import Trace
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
+    from opentelemetry.sdk.trace import Span
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
@@ -180,6 +184,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @Trace.start_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
@@ -723,27 +728,31 @@ def _maybe_reschedule_startup_failure(
     )
 
 
+@Trace.start_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-    )
-    bundle_instance.initialize()
+    with Trace.start_span("get_bundle"):
+        bundle_instance = DagBundlesManager().get_bundle(
+            name=bundle_info.name,
+            version=bundle_info.version,
+        )
+    with Trace.start_span("initialize"):
+        bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = BundleDagBag(
-        dag_folder=dag_absolute_path,
-        safe_mode=False,
-        load_op_links=False,
-        bundle_path=bundle_instance.path,
-        bundle_name=bundle_info.name,
-    )
+    with Trace.start_span("bundle_init"):
+        bag = BundleDagBag(
+            dag_folder=dag_absolute_path,
+            safe_mode=False,
+            load_op_links=False,
+            bundle_path=bundle_instance.path,
+            bundle_name=bundle_info.name,
+        )
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
@@ -807,6 +816,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
+@Trace.start_span("_verify_bundle_access")
 def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     Verify bundle is accessible by the current user.
@@ -843,31 +853,36 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
         )
 
 
-def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
-    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
-    # in response to us sending a request.
-    log = structlog.get_logger(logger_name="task")
+@contextmanager
+def _set_span(msg: StartupDetails):
+    log = structlog.get_logger()
+    parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    ti = msg.ti
+    span_name = f"task_run.{ti.task_id}"
+    if ti.map_index > 0:
+        span_name += f"_{ti.map_index}"
+    if not parent_context:
+        log.warning("no context carrier", carrier=msg.ti.context_carrier)
+    with Trace.start_child_span(
+        span_name=span_name,
+        parent_context=parent_context or {},
+        component="task",
+    ) as span:
+        span.set_attributes(
+            {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_id": ti.run_id,
+                "try_number": ti.try_number,
+                "map_index": ti.map_index if ti.map_index is not None else -1,
+            }
+        )
+        yield span
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
-        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
-    ):
-        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
-        os.environ.pop("KRB5CCNAME", None)
-        # entrypoint of re-exec process
 
-        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
-        reinit_supervisor_comms()
-
-        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
-        # on stdout
-        log.debug("Using serialized startup message from environment", msg=msg)
-    else:
-        # normal entry point
-        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
-
-        if not isinstance(msg, StartupDetails):
-            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-
+@Trace.start_span("startup")
+def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context]:
+    log = structlog.get_logger("task")
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -877,10 +892,11 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
-    try:
-        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
-    except Exception:
-        log.exception("error calling listener")
+    with Trace.start_span("hook.on_starting"):
+        try:
+            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+        except Exception:
+            log.exception("error calling listener")
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
@@ -914,7 +930,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
 
-    return ti, ti.get_template_context(), log
+    template_context = ti.get_template_context()
+    return ti, template_context
 
 
 def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -1209,16 +1226,19 @@ def run(
 
     try:
         # First, clear the xcom data sent from server
-        if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
-            for x in keys_to_delete:
-                log.debug("Clearing XCom with key", key=x)
-                XCom.delete(
-                    key=x,
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    run_id=ti.run_id,
-                    map_index=ti.map_index,
-                )
+        with Trace.start_span("delete xcom"):
+            if ti._ti_context_from_server and (
+                keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear
+            ):
+                for x in keys_to_delete:
+                    log.debug("Clearing XCom with key", key=x)
+                    XCom.delete(
+                        key=x,
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        run_id=ti.run_id,
+                        map_index=ti.map_index,
+                    )
 
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
@@ -1244,15 +1264,19 @@ def run(
                         )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
-                previous_rendered_map_index = ti.rendered_map_index
-                ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                # Send update only if value changed (e.g., user set context variables during execution)
-                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+                with Trace.start_span("render_map_index"):
+                    previous_rendered_map_index = ti.rendered_map_index
+                    ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                    # Send update only if value changed (e.g., user set context variables during execution)
+                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                        SUPERVISOR_COMMS.send(
+                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
+                        )
 
-        _push_xcom_if_needed(result, ti, log)
-
-        msg, state = _handle_current_task_success(context, ti)
+        with Trace.start_span("push xcom"):
+            _push_xcom_if_needed(result, ti, log)
+        with Trace.start_span("handle success"):
+            msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
@@ -1589,6 +1613,7 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@Trace.start_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
@@ -1621,35 +1646,40 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    with Trace.start_span("pre-execute"):
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+    with Trace.start_span("on_execute_callback"):
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
+    with Trace.start_span("execute") as span:
+        if task.execution_timeout:
+            from airflow.sdk.execution_time.timeout import timeout
 
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+            # TODO: handle timeout in case of deferral
+            timeout_seconds = task.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = ctx.run(execute, context=context)
+            except AirflowTaskTimeout:
+                span.add_event("task.execute.timeout")
+                task.on_kill()
+                raise
+        else:
+            result = ctx.run(execute, context=context)
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+    with Trace.start_span("post_execute_hook"):
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
 
@@ -1710,6 +1740,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+@Trace.start_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -1727,69 +1758,111 @@ def finalize(
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
-    for oe in task.operator_extra_links:
-        try:
-            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-            _xcom_push_to_db(ti, key=xcom_key, value=link)
-        except Exception:
-            log.exception(
-                "Failed to push an xcom for task operator extra link",
-                link_name=oe.name,
-                xcom_key=oe.xcom_key,
-                ti=ti,
-            )
+    with Trace.start_span("handle_extra_links"):
+        for oe in task.operator_extra_links:
+            try:
+                link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+                log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+                _xcom_push_to_db(ti, key=xcom_key, value=link)
+            except Exception:
+                log.exception(
+                    "Failed to push an xcom for task operator extra link",
+                    link_name=oe.name,
+                    xcom_key=oe.xcom_key,
+                    ti=ti,
+                )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
-        log.debug("Overwriting Rendered template fields.")
-        if ti.task.template_fields:
-            try:
-                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
-            except Exception:
-                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
+        with Trace.start_span("overwrite_rtif"):
+            log.debug("Overwriting Rendered template fields.")
+            if ti.task.template_fields:
+                try:
+                    SUPERVISOR_COMMS.send(
+                        SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task))
+                    )
+                except Exception:
+                    log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
-        _run_task_state_change_callbacks(task, "on_success_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_success(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("success_callback"):
+            _run_task_state_change_callbacks(task, "on_success_callback", context, log)
+        with Trace.start_span("listener.success_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                )
+            except Exception:
+                log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
-        _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_skipped(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("skipped_callback"):
+            _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        with Trace.start_span("listener.success_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_skipped(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                )
+            except Exception:
+                log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("retry_callback"):
+            _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
+        with Trace.start_span("listener.retry_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
+            with Trace.start_span("email_notif"):
+                _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
-        _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+        with Trace.start_span("failure_callback"):
+            _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+        with Trace.start_span("listener.failure_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
+        if error and task.email_on_failure and task.email:
+            with Trace.start_span("send_error_email"):
+                _send_error_email_notification(task, ti, context, error, log)
+
+    with Trace.start_span("listener.before_stopping"):
         try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-            )
+            get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
         except Exception:
             log.exception("error calling listener")
-        if error and task.email_on_failure and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
 
-    try:
-        get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
-    except Exception:
-        log.exception("error calling listener")
+
+def get_startup_details() -> StartupDetails:
+    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
+    # in response to us sending a request.
+    log = structlog.get_logger(logger_name="task")
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
+        # entrypoint of re-exec process
+
+        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
+        reinit_supervisor_comms()
+
+        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
+        # on stdout
+        log.debug("Using serialized startup message from environment", msg=msg)
+    else:
+        # normal entry point
+        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
+
+        if not isinstance(msg, StartupDetails):
+            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    return msg
 
 
 def main():
@@ -1800,38 +1873,61 @@ def main():
 
     stats_factory = stats_utils.get_stats_factory(Stats)
     Stats.initialize(factory=stats_factory)
+    ti = None
+    from contextlib import ExitStack
 
-    try:
+    span = EmptySpan()
+    stack = ExitStack()
+    with stack:
         try:
-            ti, context, log = startup()
-        except AirflowRescheduleException as reschedule:
-            log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-            SUPERVISOR_COMMS.send(
-                msg=RescheduleTask(
-                    reschedule_date=reschedule.reschedule_date,
-                    end_date=datetime.now(tz=timezone.utc),
+            try:
+                startup_details = get_startup_details()
+                span: Span = _set_span(msg=startup_details)
+                stack.enter_context(span)
+                ti, context = startup(msg=startup_details)
+            except AirflowRescheduleException as e:
+                log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+                SUPERVISOR_COMMS.send(
+                    msg=RescheduleTask(
+                        reschedule_date=e.reschedule_date,
+                        end_date=datetime.now(tz=timezone.utc),
+                    )
                 )
-            )
-            sys.exit(0)
-        with BundleVersionLock(
-            bundle_name=ti.bundle_instance.name,
-            bundle_version=ti.bundle_instance.version,
-        ):
-            state, _, error = run(ti, context, log)
-            context["exception"] = error
-            finalize(ti, state, context, log, error)
-    except KeyboardInterrupt:
-        log.exception("Ctrl-c hit")
-        sys.exit(2)
-    except Exception:
-        log.exception("Top level error")
-        sys.exit(1)
-    finally:
-        # Ensure the request socket is closed on the child side in all circumstances
-        # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-            with suppress(Exception):
-                SUPERVISOR_COMMS.socket.close()
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+                sys.exit(0)
+
+            with Trace.start_span("run") as span:
+                with BundleVersionLock(
+                    bundle_name=ti.bundle_instance.name,
+                    bundle_version=ti.bundle_instance.version,
+                ):
+                    state, _, error = run(ti, context, log)
+                    if error:
+                        span.record_exception(error)
+                        span.set_status(
+                            Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                        )
+                    context["exception"] = error
+                    span.set_attribute("state", state.value if state else "unknown")
+                    finalize(ti, state, context, log, error)
+        except KeyboardInterrupt as e:
+            log.exception("Ctrl-c hit")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(2)
+        except Exception as e:
+            log.exception("Top level error")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(1)
+        finally:
+            # Ensure the request socket is closed on the child side in all circumstances
+            # before the process fully terminates.
+            with Trace.start_span("close_socket"):
+                if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                    with suppress(Exception):
+                        SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:

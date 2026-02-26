@@ -22,12 +22,19 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
+from functools import wraps
+from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
 from natsort import natsorted
+from opentelemetry import context, trace
+from opentelemetry.sdk.trace import RandomIdGenerator, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Enum,
@@ -57,11 +64,14 @@ from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, rel
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
+from airflow._shared.observability.common import get_otel_data_exporter
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.otel_env_config import load_traces_env_config
+from airflow._shared.observability.traces.otel_tracer import OVERRIDE_SPAN_ID_KEY, OVERRIDE_TRACE_ID_KEY
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
-from airflow.configuration import conf as airflow_conf
+from airflow.configuration import conf, conf as airflow_conf
 from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
@@ -77,7 +87,6 @@ from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
@@ -92,19 +101,16 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
-    from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
 
-    from airflow._shared.observability.traces.base_tracer import EmptySpan
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -119,6 +125,52 @@ if TYPE_CHECKING:
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 log = structlog.get_logger(__name__)
+
+
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
+
+
+class OverrideableRandomIdGenerator(RandomIdGenerator):
+    """Lets you override the span id."""
+
+    def generate_span_id(self):
+        override = context.get_value(OVERRIDE_SPAN_ID_KEY)
+        if override is not None:
+            context.attach(context.set_value(OVERRIDE_SPAN_ID_KEY, None))
+            return override
+        return super().generate_span_id()
+
+    def generate_trace_id(self):
+        override = context.get_value(OVERRIDE_TRACE_ID_KEY)
+        if override is not None:
+            context.attach(context.set_value(OVERRIDE_TRACE_ID_KEY, None))
+            return override
+        return super().generate_trace_id()
+
+
+@contextmanager
+def override_ids(trace_id, span_id, ctx=None):
+    ctx = context.set_value(OVERRIDE_TRACE_ID_KEY, trace_id, context=ctx)
+    ctx = context.set_value(OVERRIDE_SPAN_ID_KEY, span_id, context=ctx)
+    token = context.attach(ctx)
+    try:
+        yield
+    finally:
+        context.detach(token)
+
+
+def add_span(func: Callable[PS, RT]) -> Callable[PS, RT]:
+    @wraps(func)
+    def wrapper(self, *args, **kwargs) -> RT:
+        if self.context_carrier:
+            context = Trace.extract(self.context_carrier)
+            tracer = Trace.get_tracer("dagrun")
+            with tracer.start_as_current_span(func.__name__, context=context):
+                return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class TISchedulingDecision(NamedTuple):
@@ -145,6 +197,42 @@ def _creator_note(val):
     return DagRunNote(*val)
 
 
+@contextmanager
+def use_root_context():
+    dummy_span_context = SpanContext(
+        trace_id=0x00000000000000000000000000000000,
+        span_id=0x0000000000000000,
+        is_remote=False,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED),
+    )
+    ctx = trace.set_span_in_context(trace.NonRecordingSpan(dummy_span_context))
+    token = context.attach(ctx)
+    try:
+        yield
+    finally:
+        context.detach(token)
+
+
+@contextmanager
+def start_root_span():
+    generator = RandomIdGenerator()
+    trace_id = generator.generate_trace_id()
+    span_id = generator.generate_span_id()
+    with use_root_context():
+        span_context = SpanContext(
+            trace_id=trace_id,
+            span_id=span_id,
+            is_remote=True,
+            trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        )
+        ctx = trace.set_span_in_context(trace.NonRecordingSpan(span_context))
+        token = context.attach(ctx)
+        try:
+            yield
+        finally:
+            context.detach(token)
+
+
 class DagRun(Base, LoggingMixin):
     """
     Invocation instance of a DAG.
@@ -152,8 +240,6 @@ class DagRun(Base, LoggingMixin):
     A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
     external trigger (i.e. manual runs).
     """
-
-    active_spans = ThreadSafeDict()
 
     __tablename__ = "dag_run"
 
@@ -366,7 +452,10 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier = {}
+
+        with start_root_span():
+            context_carrier = Trace.inject()
+        self.context_carrier = context_carrier
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
@@ -458,10 +547,6 @@ class DagRun(Base, LoggingMixin):
     def stats_tags(self) -> dict[str, str]:
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
 
-    @classmethod
-    def set_active_spans(cls, active_spans: ThreadSafeDict):
-        cls.active_spans = active_spans
-
     def get_state(self):
         return self._state
 
@@ -535,9 +620,6 @@ class DagRun(Base, LoggingMixin):
                 if state in State.finished_dr_states:
                     self.end_date = timezone.utcnow()
             self._state = state
-        else:
-            if state == DagRunState.QUEUED:
-                self.queued_at = timezone.utcnow()
 
     @declared_attr
     def state(self):
@@ -1016,131 +1098,40 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
-    def set_dagrun_span_attrs(self, span: Span | EmptySpan):
-        if self._state == DagRunState.FAILED:
-            span.set_attribute("airflow.dag_run.error", True)
-
-        # Explicitly set the value type to Union[...] to avoid a mypy error.
-        attributes: dict[str, AttributeValueType] = {
-            "airflow.category": "DAG runs",
-            "airflow.dag_run.dag_id": str(self.dag_id),
-            "airflow.dag_run.logical_date": str(self.logical_date),
-            "airflow.dag_run.run_id": str(self.run_id),
-            "airflow.dag_run.queued_at": str(self.queued_at),
-            "airflow.dag_run.run_start_date": str(self.start_date),
-            "airflow.dag_run.run_end_date": str(self.end_date),
-            "airflow.dag_run.run_duration": str(
-                (self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0
-            ),
-            "airflow.dag_run.state": str(self._state),
-            "airflow.dag_run.run_type": str(self.run_type),
-            "airflow.dag_run.data_interval_start": str(self.data_interval_start),
-            "airflow.dag_run.data_interval_end": str(self.data_interval_end),
-            "airflow.dag_run.conf": str(self.conf),
-        }
-        if span.is_recording():
-            span.add_event(name="airflow.dag_run.queued", timestamp=datetime_to_nano(self.queued_at))
-            span.add_event(name="airflow.dag_run.started", timestamp=datetime_to_nano(self.start_date))
-            span.add_event(name="airflow.dag_run.ended", timestamp=datetime_to_nano(self.end_date))
-        span.set_attributes(attributes)
-
-    def start_dr_spans_if_needed(self, tis: list[TI]):
-        # If there is no value in active_spans, then the span hasn't already been started.
-        if self.active_spans is not None and self.active_spans.get("dr:" + str(self.id)) is None:
-            if self.span_status == SpanStatus.NOT_STARTED or self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                dr_span = None
-                continue_ti_spans = False
-                if self.span_status == SpanStatus.NOT_STARTED:
-                    dr_span = Trace.start_root_span(
-                        span_name=f"{self.dag_id}",
-                        component="dag",
-                        start_time=self.queued_at,  # This is later converted to nano.
-                        start_as_current=False,
-                    )
-                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                    # Use the existing context_carrier to set the initial dag_run span as the parent.
-                    parent_context = Trace.extract(self.context_carrier)
-                    with Trace.start_child_span(
-                        span_name="new_scheduler", parent_context=parent_context
-                    ) as s:
-                        s.set_attribute("trace_status", "continued")
-
-                    dr_span = Trace.start_child_span(
-                        span_name=f"{self.dag_id}_continued",
-                        parent_context=parent_context,
-                        component="dag",
-                        # No start time
-                        start_as_current=False,
-                    )
-                    # After this span is started, the context_carrier will be replaced by the new one.
-                    # New task span will use this span as the parent.
-                    continue_ti_spans = True
-                carrier = Trace.inject()
-                self.context_carrier = carrier
-                self.span_status = SpanStatus.ACTIVE
-                # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                self.active_spans.set("dr:" + str(self.id), dr_span)
-                self.log.debug(
-                    "DagRun span has been started and the injected context_carrier is: %s",
-                    self.context_carrier,
-                )
-                # Start TI spans that also need continuance.
-                if continue_ti_spans:
-                    new_dagrun_context = Trace.extract(self.context_carrier)
-                    for ti in tis:
-                        if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                            ti_span = Trace.start_child_span(
-                                span_name=f"{ti.task_id}_continued",
-                                parent_context=new_dagrun_context,
-                                start_as_current=False,
-                            )
-                            ti_carrier = Trace.inject()
-                            ti.context_carrier = ti_carrier
-                            ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set(f"ti:{ti.id}", ti_span)
-            else:
-                self.log.debug(
-                    "Found span_status '%s', while updating state for dag_run '%s'",
-                    self.span_status,
-                    self.run_id,
-                )
-
-    def end_dr_span_if_needed(self):
-        if self.active_spans is not None:
-            active_span = self.active_spans.get("dr:" + str(self.id))
-            if active_span is not None:
-                self.log.debug(
-                    "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
-                    active_span.get_span_context().span_id,
-                    self.dag_id,
-                    self.run_id,
-                    self.state,
-                )
-
-                self.set_dagrun_span_attrs(span=active_span)
-                active_span.end(end_time=datetime_to_nano(self.end_date))
-                # Remove the span from the dict.
-                self.active_spans.delete("dr:" + str(self.id))
-                self.span_status = SpanStatus.ENDED
-            else:
-                if self.span_status == SpanStatus.ACTIVE:
-                    # Another scheduler has started the span.
-                    # Update the DB SpanStatus to notify the owner to end it.
-                    self.span_status = SpanStatus.SHOULD_END
-                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                    # This is a corner case where the scheduler exited gracefully
-                    # while the dag_run was almost done.
-                    # Since it reached this point, the dag has finished but there has been no time
-                    # to create a new span for the current scheduler.
-                    # There is no need for more spans, update the status on the db.
-                    self.span_status = SpanStatus.ENDED
-                else:
-                    self.log.debug(
-                        "No active span has been found for dag_id: %s, run_id: %s, state: %s",
-                        self.dag_id,
-                        self.run_id,
-                        self.state,
-                    )
+    def _emit_dagrun_span(self):
+        # resource = Resource.create(
+        #     attributes={
+        #         SERVICE_NAME: "syntheticemitter",
+        #     }
+        # )
+        otel_env_config = load_traces_env_config()
+        host = conf.get("traces", "otel_host", fallback=None)
+        port = conf.getint("traces", "otel_port")
+        ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
+        exporter = get_otel_data_exporter(
+            otel_env_config=otel_env_config,
+            host=host,
+            port=port,
+            ssl_active=ssl_active,
+        )
+        tracer_provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        processor = BatchSpanProcessor(exporter)
+        tracer_provider.add_span_processor(processor)
+        trace.set_tracer_provider(tracer_provider)
+        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
+        span = trace.get_current_span(context=ctx)
+        span_context = span.get_span_context()
+        tracer = trace.get_tracer(__name__)
+        log.warning("setting id overrides", trace_id=span_context.trace_id, span_id=span_context.span_id)
+        with override_ids(span_context.trace_id, span_context.span_id):
+            span = tracer.start_span(
+                "my-dag-run",
+                start_time=int(self.start_date.timestamp() * 1e9),
+                attributes={"airflow.dag.id": "my_dag"},
+                context=context.Context(),
+            )
+            span.set_status(StatusCode.OK)
+            span.end()
 
     @provide_session
     def update_state(
@@ -1306,11 +1297,6 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # finally, if the leaves aren't done, the dag is still running
-        else:
-            # It might need to start TI spans as well.
-            self.start_dr_spans_if_needed(tis=tis)
-
-            self.set_state(DagRunState.RUNNING)
 
         if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
             msg = (
@@ -1337,10 +1323,8 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
             )
 
-            self.end_dr_span_if_needed()
-
             session.flush()
-
+            self._emit_dagrun_span()
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
 

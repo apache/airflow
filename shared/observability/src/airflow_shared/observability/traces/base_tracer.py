@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Protocol
 
 import structlog
@@ -177,6 +178,10 @@ class EmptyTrace:
     ):
         """Get a tracer using provided node id and trace id."""
         return cls
+
+    @contextmanager
+    def start_as_current_span(self):
+        yield EMPTY_SPAN
 
     @classmethod
     def start_span(
