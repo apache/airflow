@@ -33,31 +33,21 @@ repos:
         exclude: |
           (?x)
           # TODO: These files need to be refactored to remove core coupling
-          ^src/airflow/sdk/plugins_manager\.py$|
-          ^src/airflow/sdk/io/fs\.py$|
-          ^src/airflow/sdk/definitions/decorators/__init__\.py$|
           ^src/airflow/sdk/definitions/decorators/__init__\.pyi$|
           ^src/airflow/sdk/definitions/decorators/setup_teardown\.py$|
-          ^src/airflow/sdk/definitions/connection\.py$|
           ^src/airflow/sdk/definitions/asset/__init__\.py$|
           ^src/airflow/sdk/definitions/asset/decorators\.py$|
           ^src/airflow/sdk/definitions/taskgroup\.py$|
           ^src/airflow/sdk/definitions/mappedoperator\.py$|
           ^src/airflow/sdk/definitions/deadline\.py$|
           ^src/airflow/sdk/definitions/dag\.py$|
-          ^src/airflow/sdk/log.py$|
-          ^src/airflow/sdk/io/path.py$|
-          ^src/airflow/sdk/execution_time/execute_workload.py$|
+          ^src/airflow/sdk/execution_time/execute_workload\.py$|
           ^src/airflow/sdk/definitions/_internal/types\.py$|
-          ^src/airflow/sdk/definitions/_internal/node\.py$|
           ^src/airflow/sdk/serde/serializers/kubernetes\.py$|
-          ^src/airflow/sdk/serde/serializers/iceberg\.py$|
-          ^src/airflow/sdk/serde/serializers/deltalake\.py$|
           ^src/airflow/sdk/execution_time/task_runner\.py$|
           ^src/airflow/sdk/execution_time/supervisor\.py$|
           ^src/airflow/sdk/execution_time/secrets_masker\.py$|
-          ^src/airflow/sdk/bases/operator\.py$|
-          ^src/airflow/sdk/bases/operatorlink\.py$
+          ^src/airflow/sdk/bases/operator\.py$
       - id: check-init-decorator-arguments
         name: Sync model __init__ and decorator arguments
         language: python
