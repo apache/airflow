@@ -1372,14 +1372,14 @@ class TestDagFileProcessorManager:
             "expected",
         ),
         [
-            (10, True, True, False, False),
-            (400, True, True, False, True),
-            (10, False, True, False, True),
-            (10, True, False, False, True),
-            (10, True, True, True, True),
+            (10, True, True, False, True),
+            (400, True, True, False, False),
+            (10, False, True, False, False),
+            (10, True, False, False, False),
+            (10, True, True, True, False),
         ],
     )
-    def test_should_refresh_bundle(
+    def test_should_skip_bundle_refresh(
         self,
         elapsed_time_since_refresh,
         current_version_matches_db,
@@ -1395,14 +1395,14 @@ class TestDagFileProcessorManager:
         if force_refresh:
             manager._force_refresh_bundles = {"bundleone"}
 
-        should_refresh = manager.should_refresh_bundle(
+        should_skip_refresh = manager.should_skip_refresh(
             bundle=bundle,
             elapsed_time_since_refresh=elapsed_time_since_refresh,
             current_version_matches_db=current_version_matches_db,
             previously_seen=previously_seen,
         )
 
-        assert should_refresh is expected
+        assert should_skip_refresh is expected
 
     def test_bundle_force_refresh(self):
         """Ensure the dag processor honors force refreshing a bundle."""

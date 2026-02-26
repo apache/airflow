@@ -469,7 +469,7 @@ class DagFileProcessorManager(LoggingMixin):
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
-    def should_refresh_bundle(
+    def should_skip_refresh(
         self,
         *,
         bundle: BaseDagBundle,
@@ -477,8 +477,8 @@ class DagFileProcessorManager(LoggingMixin):
         current_version_matches_db: bool,
         previously_seen: bool,
     ) -> bool:
-        """Return ``True`` when a DAG bundle should be refreshed."""
-        return not (
+        """Return ``True`` when a Dag bundle refresh should be skipped."""
+        return (
             elapsed_time_since_refresh < bundle.refresh_interval
             and current_version_matches_db
             and previously_seen
@@ -614,7 +614,7 @@ class DagFileProcessorManager(LoggingMixin):
                     current_version_matches_db = True
 
                 previously_seen = bundle.name in self._bundle_versions
-                if not self.should_refresh_bundle(
+                if self.should_skip_refresh(
                     bundle=bundle,
                     elapsed_time_since_refresh=elapsed_time_since_refresh,
                     current_version_matches_db=current_version_matches_db,
