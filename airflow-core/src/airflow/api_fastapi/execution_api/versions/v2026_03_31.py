@@ -21,6 +21,7 @@ from typing import Any
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TIDeferredStatePayload,
@@ -68,3 +69,29 @@ class AddNoteField(VersionChange):
         """Remove note field for older API versions."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("note", None)
+
+
+class MakeDagRunStartDateNullable(VersionChange):
+    """Make DagRun.start_date field nullable for runs that haven't started yet."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("start_date").had(type=UtcDateTime),)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def ensure_start_date_in_ti_run_context(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """
+        Ensure start_date is never None in DagRun for previous API versions.
+
+        Older Task SDK clients expect start_date to be non-nullable. When the
+        DagRun hasn't started yet (e.g. queued), fall back to run_after.
+        """
+        dag_run = response.body.get("dag_run")
+        if isinstance(dag_run, dict) and dag_run.get("start_date") is None:
+            dag_run["start_date"] = dag_run.get("run_after")
+
+    @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
+    def ensure_start_date_in_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Ensure start_date is never None in direct DagRun responses for previous API versions."""
+        if response.body.get("start_date") is None:
+            response.body["start_date"] = response.body.get("run_after")

@@ -167,6 +167,37 @@ class TestSparkSubmitHook:
                 extra='{"keytab": "privileged_user.keytab"}',
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_with_protocol",
+                uri="spark://spark-master:7077",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_yarn",
+                uri="yarn://yarn-master",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="mesos_uri",
+                uri="mesos://mesos-host:5050",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="k8s_uri",
+                uri="k8s://https://k8s-host:443",
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
+                conn_id="local_uri",
+                uri="spark://local",
+            )
+        )
 
     @pytest.mark.db_test
     @patch(
@@ -531,6 +562,31 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
+
+    def test_resolve_connection_spark_uri_with_protocol(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_with_protocol")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "spark://spark-master:7077"
+
+    def test_resolve_connection_spark_uri_yarn(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_yarn")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "yarn://yarn-master"
+
+    def test_resolve_connection_mesos_uri(self):
+        hook = SparkSubmitHook(conn_id="mesos_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "mesos://mesos-host:5050"
+
+    def test_resolve_connection_k8s_uri(self):
+        hook = SparkSubmitHook(conn_id="k8s_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "k8s://https://k8s-host:443"
+
+    def test_resolve_connection_local_uri(self):
+        hook = SparkSubmitHook(conn_id="local_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "local"
 
     def test_resolve_connection_custom_spark_binary_allowed_in_hook(self):
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
