@@ -141,6 +141,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
           }}
           data-testid="virtualized-list"
           display="block"
+          overflowX="auto"
           textWrap={wrap ? "pre" : "nowrap"}
           width="100%"
         >
