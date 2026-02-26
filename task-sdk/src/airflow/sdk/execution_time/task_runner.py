@@ -44,6 +44,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.traces import configure_otel
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -136,7 +137,6 @@ if TYPE_CHECKING:
     from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
-from airflow_shared.observability.traces.otel_tracer import configure_otel
 
 configure_otel()
 tracer = trace.get_tracer(__name__)

@@ -62,6 +62,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import override_ids
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -94,7 +95,6 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow_shared.observability.traces.otel_tracer import override_ids
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias

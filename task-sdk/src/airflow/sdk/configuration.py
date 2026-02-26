@@ -31,7 +31,7 @@ from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
-from airflow.sdk._shared.observability.traces.otel_tracer import configure_otel
+from airflow.sdk._shared.observability.traces import configure_otel
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
