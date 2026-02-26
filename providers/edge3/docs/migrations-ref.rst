@@ -18,7 +18,7 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow fab-db migrate``.
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db migrate``.
 
 .. warning::
 
@@ -31,13 +31,13 @@ Here's the list of all the Database Migrations that are executed via when you ru
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
-+-------------------------+------------------+---------------+------------------------------------------+
-| Revision ID             | Revises ID       | Fab Version   | Description                              |
-+=========================+==================+===============+==========================================+
-| ``63677212e6b2`` (head) | ``6709f7a774b9`` | ``3.4.0``     | Fix ORM/migration files inconsistencies. |
-+-------------------------+------------------+---------------+------------------------------------------+
-| ``6709f7a774b9`` (base) | ``None``         | ``1.4.0``     | Create User and Role tables if missing.  |
-+-------------------------+------------------+---------------+------------------------------------------+
++-------------------------+------------------+-----------------+-----------------------------------------+
+| Revision ID             | Revises ID       | Edge3 Version   | Description                             |
++=========================+==================+=================+=========================================+
+| ``8c275b6fbaa8`` (head) | ``9d34dfc2de06`` | ``3.1.0``       | Fix migration file/ORM inconsistencies. |
++-------------------------+------------------+-----------------+-----------------------------------------+
+| ``9d34dfc2de06`` (base) | ``None``         | ``3.0.0``       | Create Edge tables if missing.          |
++-------------------------+------------------+-----------------+-----------------------------------------+
 
  .. End of auto-generated table
 
