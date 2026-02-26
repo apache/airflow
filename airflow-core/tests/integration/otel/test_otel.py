@@ -258,7 +258,6 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     #       |_ task1 span (continued)
     #           |_ sub_span_1
     #               |_ sub_span_2
-    #                   |_ sub_span_3
     #           |_ sub_span_4
     #       |_ task2 span
     #
@@ -267,7 +266,6 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     #   |_ task1 span
     #       |_ sub_span_1
     #           |_ sub_span_2
-    #               |_ sub_span_3
     #       |_ sub_span_4
     #   |_ scheduler_exited span
     #   |_ new_scheduler span
@@ -280,7 +278,6 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     #   |_ task1 span
     #       |_ sub_span_1
     #           |_ sub_span_2
-    #               |_ sub_span_3
     #       |_ sub_span_4
     #   |_ scheduler_exited span
     #   |_ new_scheduler span
