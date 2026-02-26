@@ -95,6 +95,7 @@ class CeleryExecutor(BaseExecutor):
 
     # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
+    supports_multi_team: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.

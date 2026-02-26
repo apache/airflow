@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768335714
+source-date-epoch: 1772065387
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.5.0
   - 6.4.2
   - 6.4.1
   - 6.4.0
@@ -115,3 +116,27 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.trino.hooks.trino.TrinoHook
     connection-type: trino
+    ui-field-behaviour:
+      placeholders:
+        extra: |
+          {
+           "auth": "authentication type",
+           "impersonate_as_owner": "allow impersonate as owner",
+           "jwt__token": "JWT token",
+           "jwt__file": "JWT file path",
+           "certs__client_cert_path": "Client certificate path",
+           "certs__client_key_path": "Client key path",
+           "kerberos__config": "Kerberos config",
+           "kerberos__service_name": "Kerberos service name",
+           "kerberos__mutual_authentication": "Kerberos mutual authentication",
+           "kerberos__force_preemptive": "Kerberos force preemptive",
+           "kerberos__hostname_override": "Kerberos hostname override",
+           "kerberos__sanitize_mutual_error_response": "Kerberos sanitize mutual error response",
+           "kerberos__principal": "Kerberos principal",
+           "kerberos__delegate": "Kerberos delegate",
+           "kerberos__ca_bundle": "Kerberos CA bundle",
+           "session_properties": "session properties",
+           "client_tags": "Trino client tags. Example ['sales','cluster1']",
+           "timezone": "Trino timezone"
+          }
+        login: "Effective user for connection"
