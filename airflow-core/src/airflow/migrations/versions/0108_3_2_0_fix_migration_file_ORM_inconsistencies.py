@@ -20,7 +20,7 @@
 Fix migration file ORM inconsistencies.
 
 Revision ID: 888b59e02a5b
-Revises: e42d9fcd10d9
+Revises: 6222ce48e289
 Create Date: 2026-02-20 16:13:02.623981
 
 """

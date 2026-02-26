@@ -66,30 +66,24 @@ try:
                 (
                     [],
                     dict(
-                        to_revision=None,
-                        from_revision=None,
-                        show_sql_only=False,
+                        to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False
                     ),
                 ),
                 (
                     ["--show-sql-only"],
-                    dict(
-                        to_revision=None,
-                        from_revision=None,
-                        show_sql_only=True,
-                    ),
+                    dict(to_revision=None, from_revision=None, show_sql_only=True, use_migration_files=False),
                 ),
                 (
                     ["--to-revision", "abc"],
                     dict(
-                        to_revision="abc",
-                        from_revision=None,
-                        show_sql_only=False,
+                        to_revision="abc", from_revision=None, show_sql_only=False, use_migration_files=False
                     ),
                 ),
                 (
                     ["--to-revision", "abc", "--show-sql-only"],
-                    dict(to_revision="abc", from_revision=None, show_sql_only=True),
+                    dict(
+                        to_revision="abc", from_revision=None, show_sql_only=True, use_migration_files=False
+                    ),
                 ),
                 (
                     ["--to-revision", "abc", "--from-revision", "abc123", "--show-sql-only"],
@@ -97,6 +91,7 @@ try:
                         to_revision="abc",
                         from_revision="abc123",
                         show_sql_only=True,
+                        use_migration_files=False,
                     ),
                 ),
             ],
