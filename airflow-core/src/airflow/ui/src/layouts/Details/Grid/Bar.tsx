@@ -20,11 +20,19 @@ import { Flex, Box, Center, Button, Icon } from "@chakra-ui/react";
 import { LuClock, LuTriangleAlert } from "react-icons/lu";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
+
+import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
+import { BAR_HEIGHT } from "./constants";
+import {
+  getBundleVersion,
+  getMaxVersionNumber,
+  type GridRunWithVersionFlags,
+} from "./useGridRunsWithVersionFlags";
 
 const BAR_HEIGHT = 100;
 const ICON_GAP_PX = 4;
@@ -35,10 +43,11 @@ const BAR_MIN_HEIGHT_PX = 14;
 type Props = {
   readonly max: number;
   readonly onClick?: () => void;
-  readonly run: GridRunsResponse;
+  readonly run: GridRunWithVersionFlags;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
 };
 
-export const Bar = ({ max, onClick, run }: Props) => {
+export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
   const { hoveredRunId, setHoveredRunId } = useHover();
@@ -95,6 +104,17 @@ export const Bar = ({ max, onClick, run }: Props) => {
           <Icon as={LuTriangleAlert} boxSize={3} color="failed.solid" />
         </Center>
       ) : undefined}
+      {run.isBundleVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.BUNDLE_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <BundleVersionIndicator bundleVersion={getBundleVersion(run)} />
+      ) : undefined}
+      {run.isDagVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.DAG_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <DagVersionIndicator dagVersionNumber={getMaxVersionNumber(run)} orientation="vertical" />
+      ) : undefined}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}

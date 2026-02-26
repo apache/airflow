@@ -20,12 +20,13 @@ import { Box, Flex, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
+import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useOpenGroups } from "src/context/openGroups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -44,6 +45,7 @@ import {
   GRID_OUTER_PADDING_PX,
   ROW_HEIGHT,
 } from "./constants";
+import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -53,10 +55,18 @@ type Props = {
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  limit,
+  runType,
+  showGantt,
+  showVersionIndicatorMode,
+  triggeringUser,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -108,7 +118,13 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
+  // calculate version change flags
+  const runsWithVersionFlags = useGridRunsWithVersionFlags({
+    gridRuns,
+    showVersionIndicatorMode,
+  });
+
+  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
@@ -172,13 +188,19 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           </Box>
           {/* Duration bars */}
           <Flex flexDirection="row-reverse" flexShrink={0}>
-            <Flex flexShrink={0} overflow="visible" position="relative">
-              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX}px`} />
-              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2 + GRID_HEADER_ICON_SPACE_PX}px`} />
-              <DurationAxis top={`${4 + GRID_HEADER_ICON_SPACE_PX}px`} />
-              <Flex flexDirection="row-reverse" pt={`${GRID_HEADER_ICON_SPACE_PX}px`}>
-                {gridRuns?.map((dr: GridRunsResponse) => (
-                  <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
+            <Flex flexShrink={0} position="relative">
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
+              <DurationAxis top="4px" />
+              <Flex flexDirection="row-reverse">
+                {runsWithVersionFlags?.map((dr) => (
+                  <Bar
+                    key={dr.run_id}
+                    max={max}
+                    onClick={handleColumnClick}
+                    run={dr}
+                    showVersionIndicatorMode={showVersionIndicatorMode}
+                  />
                 ))}
               </Flex>
               {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
@@ -213,6 +235,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 nodes={flatNodes}
                 onCellClick={handleCellClick}
                 run={dr}
+                showVersionIndicatorMode={showVersionIndicatorMode}
                 virtualItems={virtualItems}
               />
             ))}
