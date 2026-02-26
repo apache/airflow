@@ -325,7 +325,7 @@ Team-specific configuration can be provided using environment variables with the
 
 Note the delimiters: double underscore before the team name (part of the ``AIRFLOW__`` prefix), **triple
 underscore** between the team name and section, and double underscore between section and key. The team name
-is uppercased.
+is uppercase.
 
 .. code-block:: bash
 
