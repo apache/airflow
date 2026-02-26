@@ -29,7 +29,7 @@ import {
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
@@ -45,21 +45,9 @@ export const useClearDagRun = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
-    // Get status from error
-    const status =
-      (error as unknown as { status?: number }).status ??
-      (error as unknown as { response?: { status?: number } }).response?.status;
-
-    // Skip 403 errors as they are handled by MutationCache
-    if (status === 403) {
-      return;
-    }
-
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("dagRun_one") }),
-      type: "error",
+  const onError = (error: unknown) => {
+    createErrorToaster(error, "dags:runAndTaskActions.clear.error", translate, {
+      type: translate("dagRun_one"),
     });
   };
 
