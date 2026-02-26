@@ -23,7 +23,7 @@ import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
@@ -120,9 +120,6 @@ RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{
 log = structlog.get_logger(__name__)
 
 tracer = trace.get_tracer(__name__)
-
-PS = ParamSpec("PS")
-RT = TypeVar("RT")
 
 
 class TISchedulingDecision(NamedTuple):
@@ -1018,25 +1015,6 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     def _emit_dagrun_span(self):
-        # resource = Resource.create(
-        #     attributes={
-        #         SERVICE_NAME: "syntheticemitter",
-        #     }
-        # )
-        # otel_env_config = load_traces_env_config()
-        # host = conf.get("traces", "otel_host", fallback=None)
-        # port = conf.getint("traces", "otel_port")
-        # ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
-        # exporter = get_otel_data_exporter(
-        #     otel_env_config=otel_env_config,
-        #     host=host,
-        #     port=port,
-        #     ssl_active=ssl_active,
-        # )
-        # tracer_provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
-        # processor = BatchSpanProcessor(exporter)
-        # tracer_provider.add_span_processor(processor)
-        # trace.set_tracer_provider(tracer_provider)
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
