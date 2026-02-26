@@ -51,10 +51,10 @@ class FakeDBManager(BaseDBManager):
         FakeDBManager.instances.append(self)
         FakeDBManager.last_instance = self
 
-    def resetdb(self, skip_init=False):
+    def resetdb(self, skip_init=False, use_migration_files=False):
         return self._resetdb_mock(skip_init=skip_init)
 
-    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
+    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False):
         return self._upgradedb_mock(
             to_revision=to_revision, from_revision=from_revision, show_sql_only=show_sql_only
         )

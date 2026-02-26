@@ -6708,13 +6708,6 @@ export const $ValidationError = {
         type: {
             type: 'string',
             title: 'Error Type'
-        },
-        input: {
-            title: 'Input'
-        },
-        ctx: {
-            type: 'object',
-            title: 'Context'
         }
     },
     type: 'object',
