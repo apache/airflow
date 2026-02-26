@@ -1018,12 +1018,16 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
-        log.warning("setting id overrides", trace_id=span_context.trace_id, span_id=span_context.span_id)
         with override_ids(span_context.trace_id, span_context.span_id):
             span = tracer.start_span(
-                "my-dag-run",
+                name=f"dag_run.{self.dag_id}",
                 start_time=int(self.start_date.timestamp() * 1e9),
-                attributes={"airflow.dag.id": "my_dag"},
+                attributes={
+                    "dag_id": str(self.dag_id),
+                    "run_id": self.run_id,
+                    "logical_date": self.logical_date,
+                    "partition_key": self.partition_key,
+                },
                 context=context.Context(),
             )
             span.set_status(StatusCode.OK)
