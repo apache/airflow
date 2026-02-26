@@ -93,7 +93,7 @@ def _prune_dict(val: Any, mode="strict"):
     return val
 
 
-@attrs.define
+@attrs.define(slots=False)
 class Connection:
     """
     A connection to an external data source.
@@ -124,11 +124,12 @@ class Connection:
     EXTRA_KEY = "__extra__"
 
     @overload
-    def __init__(self, *, conn_id: str, uri: str | None = None) -> None: ...
+    def __init__(self, *, conn_id: str, uri: str) -> None: ...
 
     @overload
     def __init__(
         self,
+        *,
         conn_id: str,
         conn_type: str | None = None,
         description: str | None = None,

@@ -896,7 +896,6 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
                 "password": "pass",
                 "port": 443,
                 "extra": '{"key": "value"}',
-                "uri": None,
             },
             "variable": {
                 "get_variable": "some_variable_value",

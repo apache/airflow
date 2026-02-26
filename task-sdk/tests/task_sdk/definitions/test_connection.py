@@ -388,7 +388,8 @@ class TestConnectionFromUri:
         assert conn.password == "pass"
         assert conn.port == 5432
         assert conn.schema == "db"
-        assert conn.uri is None
+        # uri should not exist as an attribute (it's init-only)
+        assert not hasattr(conn, "uri")
 
     def test_from_uri_roundtrip(self):
         """Test that from_uri and get_uri are inverse operations."""
