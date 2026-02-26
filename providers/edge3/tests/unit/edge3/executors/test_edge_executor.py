@@ -367,20 +367,21 @@ class TestEdgeExecutorMultiTeam:
         executor = EdgeExecutor()
 
         assert hasattr(executor, "conf")
-        assert executor.conf.team_name is None
         assert executor.team_name is None
+        if AIRFLOW_V_3_2_PLUS:
+            assert executor.conf.team_name is None
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
     def test_executor_with_team_name(self):
         """Test that executor with team_name has correct conf setup."""
         team_name = "test_team"
         executor = EdgeExecutor(team_name=team_name)
 
-        if AIRFLOW_V_3_2_PLUS:
-            assert executor.team_name == team_name
-            assert executor.conf.team_name == team_name
-        else:
-            assert executor.team_name is None
+        assert hasattr(executor, "conf")
+        assert executor.team_name == team_name
+        assert executor.conf.team_name == team_name
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources."""
         team_a_executor = EdgeExecutor(parallelism=2, team_name="team_a")

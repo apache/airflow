@@ -232,7 +232,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=self._execution_api_server_url(),
+                server=self._execution_api_server_url,
                 log_path=workload.log_path,
             )
             return 0
