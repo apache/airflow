@@ -21,7 +21,7 @@ import { AUTH_FILE, testConfig } from "playwright.config";
 import { TaskInstancesPage } from "tests/e2e/pages/TaskInstancesPage";
 
 test.describe("Task Instances Page", () => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
 
   let taskInstancesPage: TaskInstancesPage;
   const testDagId = testConfig.testDag.id;

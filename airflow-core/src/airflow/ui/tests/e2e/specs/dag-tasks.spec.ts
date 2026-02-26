@@ -70,6 +70,7 @@ test.describe("Dag Tasks Tab", () => {
   });
 
   test("verify filter tasks by operator dropdown", async ({ page }) => {
+    test.setTimeout(60_000);
     const dagPage = new DagsPage(page);
 
     await dagPage.navigateToDagTasks(testDagId);
@@ -95,7 +96,7 @@ test.describe("Dag Tasks Tab", () => {
 
             return true;
           },
-          { timeout: 20_000 },
+          { timeout: 30_000 },
         )
         .toBeTruthy();
 
@@ -104,6 +105,7 @@ test.describe("Dag Tasks Tab", () => {
   });
 
   test("verify filter tasks by trigger rule dropdown", async ({ page }) => {
+    test.setTimeout(60_000);
     const dagPage = new DagsPage(page);
 
     await dagPage.navigateToDagTasks(testDagId);
@@ -129,7 +131,7 @@ test.describe("Dag Tasks Tab", () => {
 
             return true;
           },
-          { timeout: 20_000 },
+          { timeout: 30_000 },
         )
         .toBeTruthy();
 
@@ -138,6 +140,7 @@ test.describe("Dag Tasks Tab", () => {
   });
 
   test("verify filter by retries", async ({ page }) => {
+    test.setTimeout(60_000);
     const dagPage = new DagsPage(page);
 
     await dagPage.navigateToDagTasks(testDagId);

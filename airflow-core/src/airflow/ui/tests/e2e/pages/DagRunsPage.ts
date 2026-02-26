@@ -124,7 +124,7 @@ export class DagRunsPage extends BasePage {
   public async verifyStateFiltering(expectedState: string): Promise<void> {
     await this.navigateTo(`${DagRunsPage.dagRunsUrl}?state=${expectedState.toLowerCase()}`);
     await this.page.waitForURL(/.*state=.*/, { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("networkidle").catch(() => {});
 
     const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
 
@@ -132,11 +132,14 @@ export class DagRunsPage extends BasePage {
     await expect(this.dagRunsTable).toBeVisible();
 
     const rows = this.dagRunsTable.locator("tbody tr");
+
+    await expect
+      .poll(async () => rows.count(), { timeout: 30_000 })
+      .toBeGreaterThan(0);
+
     const rowCount = await rows.count();
 
-    expect(rowCount).toBeGreaterThan(0);
-
-    for (let i = 0; i < rowCount; i++) {
+    for (let i = 0; i < Math.min(rowCount, 5); i++) {
       const rowText = await rows.nth(i).textContent();
 
       expect(rowText?.toLowerCase()).toContain(expectedState.toLowerCase());

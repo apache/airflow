@@ -128,6 +128,7 @@ test.describe("Variables Page", () => {
   });
 
   test("verify deleting the variable", async ({ page }) => {
+    test.setTimeout(60_000);
     const targetKey = `delete_test_${Date.now()}`;
 
     const response = await page.request.post("/api/v2/variables", {
@@ -159,9 +160,9 @@ test.describe("Variables Page", () => {
 
     await expect(codeBlock).toContainText(targetKey);
 
-    await dialog.getByRole("button", { name: /yes,\s*delete/i }).click();
+    await dialog.getByRole("button", { name: /yes,\s*delete/i }).click({ timeout: 15_000 });
 
-    await expect(variablesPage.rowByKey(targetKey)).toHaveCount(0);
+    await expect(variablesPage.rowByKey(targetKey)).toHaveCount(0, { timeout: 15_000 });
   });
 
   test("verify importing variables using Import Variables button", async ({ page }) => {

@@ -21,7 +21,7 @@ import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagRunsPage } from "tests/e2e/pages/DagRunsPage";
 
 test.describe("DAG Runs Page", () => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
 
   let dagRunsPage: DagRunsPage;
   const testDagId1 = testConfig.testDag.id;

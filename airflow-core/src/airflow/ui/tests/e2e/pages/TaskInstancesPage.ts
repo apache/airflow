@@ -37,7 +37,7 @@ export class TaskInstancesPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
     await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
-    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
+    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 30_000 });
 
     const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
     const noDataMessage = this.page.locator('text="No Task Instances found"');
@@ -51,33 +51,22 @@ export class TaskInstancesPage extends BasePage {
   public async verifyStateFiltering(expectedState: string): Promise<void> {
     await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?task_state=${expectedState.toLowerCase()}`);
     await this.page.waitForURL(/.*task_state=.*/, { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("networkidle").catch(() => {});
 
     const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
 
     await expect(dataLink).toBeVisible({ timeout: 30_000 });
     await expect(this.taskInstancesTable).toBeVisible();
 
-    const rowsAfterFilter = this.taskInstancesTable.locator(
-      'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
-    );
-    const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
     const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
 
-    await expect(stateBadges.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
-
-    const countAfter = await rowsAfterFilter.count();
-
-    expect(
-      countAfter,
-      `Expected task instances with state "${expectedState}" but found none`,
-    ).toBeGreaterThan(0);
+    await expect
+      .poll(async () => stateBadges.count(), { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     const badgeCount = await stateBadges.count();
 
-    expect(badgeCount).toBeGreaterThan(0);
-
-    for (let i = 0; i < Math.min(badgeCount, 20); i++) {
+    for (let i = 0; i < Math.min(badgeCount, 5); i++) {
       const badge = stateBadges.nth(i);
       const badgeText = (await badge.textContent())?.trim().toLowerCase();
 

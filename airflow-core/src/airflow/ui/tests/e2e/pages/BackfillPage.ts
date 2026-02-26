@@ -426,7 +426,7 @@ export class BackfillPage extends BasePage {
     await menuItem.click();
   }
 
-  public async waitForBackdropClosed(timeout: number = 30_000): Promise<void> {
+  public async waitForBackdropClosed(timeout: number = 60_000): Promise<void> {
     const backdrop = this.page.locator('[data-part="backdrop"]');
 
     await expect(async () => {

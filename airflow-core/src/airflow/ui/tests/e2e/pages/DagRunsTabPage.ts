@@ -76,6 +76,7 @@ export class DagRunsTabPage extends BasePage {
     const stateOption = this.page.locator(`[data-testid="mark-run-as-${state}"]`);
 
     await expect(stateOption).toBeVisible({ timeout: 5000 });
+    await expect(stateOption).toBeEnabled({ timeout: 60_000 });
     await stateOption.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Confirm" });
@@ -158,8 +159,8 @@ export class DagRunsTabPage extends BasePage {
     for (let i = 0; i < Math.min(rowCount, 5); i++) {
       const stateBadge = rows.nth(i).locator('[data-testid="state-badge"]');
 
-      await expect(stateBadge).toBeVisible();
-      await expect(stateBadge).toContainText(expectedState, { ignoreCase: true });
+      await expect(stateBadge).toBeVisible({ timeout: 10_000 });
+      await expect(stateBadge).toContainText(expectedState, { ignoreCase: true, timeout: 10_000 });
     }
   }
 

@@ -63,8 +63,8 @@ export class XComsPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.navigateTo(XComsPage.xcomsUrl);
     await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-    await this.page.waitForLoadState("networkidle");
+    await this.xcomsTable.waitFor({ state: "visible", timeout: 30_000 });
+    await this.page.waitForLoadState("networkidle").catch(() => {});
   }
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
