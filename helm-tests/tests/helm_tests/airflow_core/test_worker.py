@@ -1023,63 +1023,52 @@ class TestWorker:
         }
 
     @pytest.mark.parametrize(
-        ("workers_values", "expected"),
+        "workers_values",
         [
-            (
-                {
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {
+                        "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                    },
+                }
+            },
+            {
+                "celery": {
                     "kerberosInitContainer": {
                         "enabled": True,
-                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
                     }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "base"]}}},
                 },
-                {"postStart": {"exec": {"command": ["echo", "base"]}}},
-            ),
-            (
-                {
-                    "celery": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "celery"]}}
-                            },
-                        }
-                    }
-                },
-                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
-            ),
-            (
-                {
+                "celery": {
                     "kerberosInitContainer": {
                         "enabled": True,
-                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
-                    },
-                    "celery": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "celery"]}}
-                            },
-                        }
-                    },
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
                 },
-                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
-            ),
+            },
         ],
     )
-    def test_kerberos_init_container_lifecycle_hooks(self, workers_values, expected):
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": workers_values,
-            },
+            name="test-release",
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(
-                "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
-            )
-            == expected
-        )
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
+        ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
     @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),

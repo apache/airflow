@@ -1075,22 +1075,43 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.priorityClassName", docs[0]) == "test-priority"
 
-    def test_workers_container_lifecycle_webhooks_are_configurable(self):
-        docs = render_chart(
-            name="test-release",
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "containerLifecycleHooks": {
+                    "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                }
+            },
+            {
+                "kubernetes": {
+                    "containerLifecycleHooks": {
+                        "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                    }
+                }
+            },
+            {
+                "containerLifecycleHooks": {
+                    "postStart": {"exec": {"command": ["echo", "postStart", "{{ .Release.Name }}"]}}
+                },
+                "kubernetes": {
                     "containerLifecycleHooks": {
                         "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
                     }
                 },
             },
+        ],
+    )
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, workers_values):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[0].lifecycle.preStop", docs[0]) == {
-            "exec": {"command": ["echo", "preStop", "test-release"]}
+        assert jmespath.search("spec.containers[0].lifecycle", docs[0]) == {
+            "preStop": {"exec": {"command": ["echo", "preStop", "test-release"]}}
         }
 
     def test_termination_grace_period_seconds(self):
@@ -1385,7 +1406,7 @@ class TestPodTemplateFile:
             {
                 "kerberosInitContainer": {
                     "enabled": True,
-                    "securityContexts": {"container": {"runAsUser": 1000}},
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                 },
                 "kubernetes": {
                     "kerberosInitContainer": {
@@ -1398,9 +1419,7 @@ class TestPodTemplateFile:
     )
     def test_kerberos_init_container_security_context(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": workers_values,
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1410,51 +1429,45 @@ class TestPodTemplateFile:
         ) == {"runAsUser": 2000}
 
     @pytest.mark.parametrize(
-        ("workers_values", "expected"),
+        "workers_values",
         [
-            (
-                {
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {
+                        "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                    },
+                }
+            },
+            {
+                "kubernetes": {
                     "kerberosInitContainer": {
                         "enabled": True,
-                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
                     }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "base"]}}},
                 },
-                {"postStart": {"exec": {"command": ["echo", "base"]}}},
-            ),
-            (
-                {
-                    "kubernetes": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "kubernetes"]}}
-                            },
-                        }
-                    }
-                },
-                {"postStart": {"exec": {"command": ["echo", "kubernetes"]}}},
-            ),
-            (
-                {
+                "kubernetes": {
                     "kerberosInitContainer": {
                         "enabled": True,
-                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "base"]}}},
-                    },
-                    "kubernetes": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "kubernetes"]}}
-                            },
-                        }
-                    },
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
                 },
-                {"postStart": {"exec": {"command": ["echo", "kubernetes"]}}},
-            ),
+            },
         ],
     )
-    def test_kerberos_init_container_lifecycle_hooks(self, workers_values, expected):
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values):
         docs = render_chart(
+            name="test-release",
             values={
                 "workers": workers_values,
             },
@@ -1462,7 +1475,6 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert (
-            jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0])
-            == expected
-        )
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]) == {
+            "postStart": {"exec": {"command": ["echo", "test-release"]}}
+        }

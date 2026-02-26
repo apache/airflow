@@ -25,6 +25,7 @@ from fastapi import HTTPException
 
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
 
@@ -48,10 +49,12 @@ class TestLogin:
             (TEST_USER_3, TEST_ROLE_3, ["test", "marketing"]),
         ],
     )
+    @patch.object(Team, "get_all_team_names")
     @patch("airflow.api_fastapi.auth.managers.simple.services.login.get_auth_manager")
-    def test_create_token(self, get_auth_manager, auth_manager, user, role, teams):
+    def test_create_token(self, get_auth_manager, mock_get_all_team_names, auth_manager, user, role, teams):
         mock_am = Mock(wraps=auth_manager)
         get_auth_manager.return_value = mock_am
+        mock_get_all_team_names.return_value = {"test", "marketing"}
 
         with conf_vars(
             {

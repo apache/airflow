@@ -188,7 +188,12 @@ dependencies = [
     "memray>=1.19.0",
 ]
 "gunicorn" = [
-    "gunicorn>=23.0.0",
+    # Temporary upper bound due to Gunicorn 25.1.0 control-socket deadlock
+    # seen in the Airflow API server path (preload + fork).
+    # Upstream tracking:
+    # - https://github.com/benoitc/gunicorn/issues/3529
+    # - https://github.com/benoitc/gunicorn/pull/3520
+    "gunicorn>=23.0.0,<25.1.0",
 ]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
