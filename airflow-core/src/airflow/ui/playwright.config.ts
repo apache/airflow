@@ -120,5 +120,5 @@ export default defineConfig({
     viewport: undefined,
   },
 
-  workers: process.env.CI !== undefined && process.env.CI !== "" ? 5 : undefined,
+  workers: process.env.CI !== undefined && process.env.CI !== "" ? 3 : undefined,
 });
