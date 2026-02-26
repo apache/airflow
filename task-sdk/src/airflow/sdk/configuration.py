@@ -26,16 +26,12 @@ from configparser import ConfigParser
 from io import StringIO
 from typing import Any
 
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
+from airflow.sdk._shared.observability.traces.otel_tracer import configure_otel
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -271,11 +267,7 @@ def initialize_config() -> AirflowSDKConfigParser:
     return airflow_config_parser
 
 
-provider = TracerProvider()
-exporter = OTLPSpanExporter()
-span_processor = BatchSpanProcessor(exporter)
-provider.add_span_processor(span_processor)
-trace.set_tracer_provider(provider)
+configure_otel()
 
 
 def __getattr__(name: str):
