@@ -478,6 +478,16 @@ class ReferenceModels:
                 min_runs=min_runs,
             )
 
+    class JobStartDateDeadline(BaseDeadlineReference):
+        """A deadline that returns a Job's start date."""
+
+        required_kwargs = {"id"}
+
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
+            from airflow.jobs.job import Job
+
+            return _fetch_from_db(Job.start_date, session=session, **kwargs)
+
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
