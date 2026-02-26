@@ -269,6 +269,7 @@ HATCH_VERSION = "1.16.4"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
+# Pin on virtualenv is temporary for pypa/hatch#2193
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -277,7 +278,8 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  prek=={PREK_VERSION}
+  prek=={PREK_VERSION} \
+  'virtualenv<21'
 COPY . /opt/airflow
 """
 
