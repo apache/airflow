@@ -200,6 +200,7 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.ref }}
           fetch-tags: true
+          fetch-depth: 0
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
