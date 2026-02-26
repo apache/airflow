@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 import anyio
 import attrs
 import structlog
-from opentelemetry import trace
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
@@ -615,15 +614,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             capacity_left,
             tags={},
             extra_tags={"hostname": self.job.hostname},
-        )
-
-        span = trace.get_current_span()
-        span.set_attributes(
-            {
-                "trigger host": self.job.hostname,
-                "triggers running": len(self.running_triggers),
-                "capacity left": capacity_left,
-            }
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
