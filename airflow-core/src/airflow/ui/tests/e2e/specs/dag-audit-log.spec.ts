@@ -22,8 +22,6 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { EventsPage } from "tests/e2e/pages/EventsPage";
 
 test.describe("DAG Audit Log", () => {
-  test.describe.configure({ mode: "serial" });
-
   let eventsPage: EventsPage;
 
   const testDagId = testConfig.testDag.id;
