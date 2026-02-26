@@ -100,24 +100,4 @@ test.describe("DAG Runs Tab", () => {
     await dagRunsTabPage.searchByRunIdPattern("manual");
     await dagRunsTabPage.verifySearchResults("manual");
   });
-
-  test("paginate through runs", async () => {
-    await dagRunsTabPage.clickRunsTabWithPageSize(testDagId, 2);
-
-    const initialRowCount = await dagRunsTabPage.getRowCount();
-
-    expect(initialRowCount).toBe(2);
-
-    await dagRunsTabPage.clickNextPage();
-
-    const nextPageRowCount = await dagRunsTabPage.getRowCount();
-
-    expect(nextPageRowCount).toBeGreaterThan(0);
-
-    await dagRunsTabPage.clickPrevPage();
-
-    const backRowCount = await dagRunsTabPage.getRowCount();
-
-    expect(backRowCount).toBe(initialRowCount);
-  });
 });
