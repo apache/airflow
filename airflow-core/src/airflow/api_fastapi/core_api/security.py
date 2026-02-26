@@ -345,13 +345,17 @@ def permitted_pool_filter_factory(
 ReadablePoolsFilterDep = Annotated[PermittedPoolFilter, Depends(permitted_pool_filter_factory("GET"))]
 
 
-def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
-        team_name = Pool.get_team_name(pool_name) if pool_name else None
+        raw_team_name = Pool.get_team_name(pool_name) if pool_name else None
+        if raw_team_name is None:
+            with suppress(JSONDecodeError):
+                raw_team_name = (await request.json()).get("team_name")
+        team_name = Team.get_name_if_exists(raw_team_name) if raw_team_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
@@ -439,13 +443,19 @@ ReadableConnectionsFilterDep = Annotated[
 ]
 
 
-def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_connection(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
-        team_name = Connection.get_team_name(connection_id) if connection_id else None
+        raw_team_name = Connection.get_team_name(connection_id) if connection_id else None
+        if raw_team_name is None:
+            with suppress(JSONDecodeError):
+                raw_team_name = (await request.json()).get("team_name")
+        team_name = Team.get_name_if_exists(raw_team_name) if raw_team_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
@@ -580,13 +590,19 @@ ReadableVariablesFilterDep = Annotated[
 ]
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_variable(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
-        team_name = Variable.get_team_name(variable_key) if variable_key else None
+        raw_team_name = Variable.get_team_name(variable_key) if variable_key else None
+        if raw_team_name is None:
+            with suppress(JSONDecodeError):
+                raw_team_name = (await request.json()).get("team_name")
+        team_name = Team.get_name_if_exists(raw_team_name) if raw_team_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
