@@ -18,7 +18,7 @@
  */
 import type { TFunction } from "i18next";
 
-import { toaster } from "../components/ui";
+import { toaster } from "src/components/ui";
 
 /**
  * Type guard to check if an error has a status property
