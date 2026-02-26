@@ -489,6 +489,40 @@ class TestImapHook:
         assert len(list(tmp_path.iterdir())) == 1
 
     @patch(imaplib_string)
+    def test_download_mail_attachments_with_overwrite_no_extension(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="README")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=True)
+
+        assert (tmp_path / "README").exists()
+        assert not (tmp_path / "README_1").exists()
+        assert not (tmp_path / "README_2").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "README").read_bytes() == payload
+        assert len(list(tmp_path.iterdir())) == 1
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_overwrite_multi_extension(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="test.tar.gz")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=True)
+
+        assert (tmp_path / "test.tar.gz").exists()
+        assert not (tmp_path / "test.tar_1.gz").exists()
+        assert not (tmp_path / "test.tar_2.gz").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "test.tar.gz").read_bytes() == payload
+        assert len(list(tmp_path.iterdir())) == 1
+
+    @patch(imaplib_string)
     def test_download_mail_attachments_without_overwrite_creates_copy(self, mock_imaplib, tmp_path):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
@@ -505,3 +539,39 @@ class TestImapHook:
         assert (tmp_path / "test1.csv").read_bytes() == payload
         assert (tmp_path / "test1_1.csv").read_bytes() == payload
         assert (tmp_path / "test1_2.csv").read_bytes() == payload
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_no_extension(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="README")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("README", str(tmp_path), overwrite_file=False)
+
+        assert (tmp_path / "README").exists()
+        assert (tmp_path / "README_1").exists()
+        assert (tmp_path / "README_2").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "README").read_bytes() == payload
+        assert (tmp_path / "README_1").read_bytes() == payload
+        assert (tmp_path / "README_2").read_bytes() == payload
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_multi_extension(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="test.tar.gz")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("test.tar.gz", str(tmp_path), overwrite_file=False)
+
+        assert (tmp_path / "test.tar.gz").exists()
+        assert (tmp_path / "test.tar_1.gz").exists()
+        assert (tmp_path / "test.tar_2.gz").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "test.tar.gz").read_bytes() == payload
+        assert (tmp_path / "test.tar_1.gz").read_bytes() == payload
+        assert (tmp_path / "test.tar_2.gz").read_bytes() == payload
