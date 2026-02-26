@@ -624,7 +624,7 @@ class TestSecurityContext:
             {
                 "kerberosInitContainer": {
                     "enabled": True,
-                    "securityContexts": {"container": {"runAsUser": 1000}},
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                 },
                 "celery": {
                     "kerberosInitContainer": {
@@ -635,11 +635,9 @@ class TestSecurityContext:
             },
         ],
     )
-    def test_worker_kerberos_init_container_security_context(self, workers_values):
+    def test_worker_kerberos_init_container_security_contexts(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": workers_values,
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
