@@ -623,7 +623,9 @@ def test_latest_run_no_history(dag_maker, session):
     dag_maker.sync_dagbag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date
+    assert dm.next_dagrun_partition_key == "2026-01-01T00:00:00"
 
 
 @pytest.mark.db_test
@@ -657,7 +659,9 @@ def test_latest_run_with_run(dag_maker, session):
     dag_maker.sync_dag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun_partition_key == "2026-01-05T00:00:00"
 
 
 @pytest.mark.db_test
