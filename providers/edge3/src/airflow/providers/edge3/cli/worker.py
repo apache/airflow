@@ -23,7 +23,7 @@ import sys
 import traceback
 from asyncio import Task, create_task, get_running_loop, sleep
 from datetime import datetime
-from functools import cache
+from functools import cached_property
 from http import HTTPStatus
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -125,7 +125,7 @@ class EdgeWorker:
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
 
-    @cache
+    @cached_property
     def _execution_api_server_url(self) -> str | None:
         """Get the execution api server url from config or environment."""
         api_url = self.conf.get("edge", "api_url")
@@ -232,7 +232,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=self._execution_api_server_url(),
+                server=self._execution_api_server_url,
                 log_path=workload.log_path,
             )
             return 0
