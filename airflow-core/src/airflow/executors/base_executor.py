@@ -355,16 +355,13 @@ class BaseExecutor(LoggingMixin):
             if key in self.attempts:
                 del self.attempts[key]
 
+            # todo: something is weird here. why do we check hasattr -- doesn't it always have a ti?
+            #  and when what determines whether it is workloads.TaskInstance or.... something else?
             if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
-                ti = item.ti
-                if isinstance(ti, workloads.TaskInstance):
-                    item.ti.context_carrier = ti.parent_context_carrier
-                    log.info("setting carrier from parent", carrier=ti.parent_context_carrier)
+                if isinstance(item.ti, workloads.TaskInstance):
+                    item.ti.context_carrier = item.ti.parent_context_carrier
                 else:
-                    item.ti.context_carrier = ti.dag_run.context_carrier
-                    log.info("setting carrier from dagrun", carrier=ti.dag_run.context_carrier)
-                if not item.ti.context_carrier:
-                    raise ValueError(f"carrier={item.ti.context_carrier}")
+                    item.ti.context_carrier = item.ti.dag_run.context_carrier
                 workload_list.append(item)
         if workload_list:
             self._process_workloads(workload_list)
