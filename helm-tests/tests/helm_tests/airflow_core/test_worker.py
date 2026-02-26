@@ -667,14 +667,8 @@ class TestWorker:
 
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "default_cmd"),
-        [
-            ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
-            ("2.6.3", "airflow.executors.celery_executor.app"),
-        ],
-    )
-    def test_livenessprobe_default_command(self, airflow_version, default_cmd):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_livenessprobe_default_command(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -683,7 +677,7 @@ class TestWorker:
         livenessprobe_cmd = jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert default_cmd in livenessprobe_cmd[-1]
+        assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -914,7 +908,7 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.8.0", "3.0.0"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     def test_kerberos_init_container_default_different_versions(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": airflow_version},
@@ -926,7 +920,7 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.7.3"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -934,29 +928,7 @@ class TestWorker:
             {"celery": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_kerberos_init_container_enable_unsupported(self, airflow_version, workers_values):
-        docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-                "workers": workers_values,
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
-        )
-
-    @pytest.mark.parametrize("airflow_version", ["2.8.0", "3.0.0"])
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"kerberosInitContainer": {"enabled": True}},
-            {"celery": {"kerberosInitContainer": {"enabled": True}}},
-        ],
-    )
-    def test_kerberos_init_container_enable_supported(self, airflow_version, workers_values):
+    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -1051,11 +1023,69 @@ class TestWorker:
         }
 
     @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "base"]}}},
+            ),
+            (
+                {
+                    "celery": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "celery"]}}
+                            },
+                        }
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
+            ),
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                    },
+                    "celery": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "celery"]}}
+                            },
+                        }
+                    },
+                },
+                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
+            ),
+        ],
+    )
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values, expected):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
+            )
+            == expected
+        )
+
+    @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
-            ("1.10.14", "airflow worker"),
-            ("2.0.2", "airflow celery worker"),
-            ("2.1.0", "airflow celery worker"),
+            ("2.11.0", "airflow celery worker"),
+            ("3.0.0", "airflow celery worker"),
         ],
     )
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):

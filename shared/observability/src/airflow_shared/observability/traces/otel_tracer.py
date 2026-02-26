@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import random
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
@@ -26,15 +25,21 @@ from typing import TYPE_CHECKING
 import pendulum
 from opentelemetry import trace
 from opentelemetry.context import attach, create_key
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+    SimpleSpanProcessor,
+    SpanExporter,
+)
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags, Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
+from ..common import get_otel_data_exporter
+from ..otel_env_config import load_traces_env_config
 from .utils import (
     datetime_to_nano,
     parse_traceparent,
@@ -58,7 +63,7 @@ class OtelTrace:
 
     def __init__(
         self,
-        span_exporter: OTLPSpanExporter,
+        span_exporter: SpanExporter,
         use_simple_processor: bool,
         tag_string: str | None = None,
         otel_service: str | None = None,
@@ -142,9 +147,9 @@ class OtelTrace:
         links=None,
         start_time=None,
     ):
-        """Start a span; if service_name is not given, otel_service is used."""
-        if component is None:
-            component = self.otel_service
+        """Start a span."""
+        # Common practice is to use the module name.
+        component = component or __name__
 
         trace_id = self.get_current_span().get_span_context().trace_id
         tracer = self.get_tracer(component=component, trace_id=trace_id, span_id=span_id)
@@ -253,8 +258,8 @@ class OtelTrace:
         start_time=None,
         start_as_current: bool = True,
     ) -> AbstractContextManager[trace.span.Span] | trace.span.Span:
-        if component is None:
-            component = self.otel_service
+        # Common practice is to use the module name.
+        component = component or __name__
 
         tracer = self.get_tracer(component=component)
 
@@ -339,18 +344,26 @@ def get_otel_tracer(
     otel_service: str | None = None,
     debug: bool = False,
 ) -> OtelTrace:
-    """Get OTEL tracer from airflow configuration."""
+    """Get OTEL tracer from the regular OTel env variables or the airflow configuration."""
+    otel_env_config = load_traces_env_config()
+
     tag_string = cls.get_constant_tags()
 
-    protocol = "https" if ssl_active else "http"
-    # Allow transparent support for standard OpenTelemetry SDK environment variables.
-    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", f"{protocol}://{host}:{port}/v1/traces")
+    exporter = get_otel_data_exporter(
+        otel_env_config=otel_env_config,
+        host=host,
+        port=port,
+        ssl_active=ssl_active,
+    )
 
-    log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    otel_service = otel_env_config.service_name or otel_service
+
+    if otel_env_config.exporter:
+        debug = otel_env_config.exporter == "console"
+
     log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
-        span_exporter=OTLPSpanExporter(endpoint=endpoint),
+        span_exporter=exporter,
         use_simple_processor=use_simple_processor,
         tag_string=tag_string,
         otel_service=otel_service,

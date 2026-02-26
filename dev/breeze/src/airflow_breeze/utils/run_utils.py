@@ -43,6 +43,9 @@ from airflow_breeze.utils.path_utils import (
     EDGE_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_UI_DIST_PATH,
     EDGE_PLUGIN_UI_NODE_MODULES_PATH,
+    FAB_AUTH_MANAGER_WWW_DIST_PATH,
+    FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH,
+    FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH,
     FAST_API_SIMPLE_AUTH_MANAGER_NODE_MODULES_PATH,
     UI_ASSET_COMPILE_LOCK,
@@ -455,6 +458,7 @@ def _run_compile_internally(
     if dev:
         # Clean up stale lock file
         compile_lock.unlink(missing_ok=True)
+        UI_ASSET_OUT_DEV_MODE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
             return run_command(
                 command_to_execute,
@@ -511,6 +515,9 @@ def _clean_ui_assets(additional_ui_hooks: list[str]):
     if EDGE_PLUGIN_PREK_HOOK in additional_ui_hooks:
         shutil.rmtree(EDGE_PLUGIN_UI_NODE_MODULES_PATH, ignore_errors=True)
         shutil.rmtree(EDGE_PLUGIN_UI_DIST_PATH, ignore_errors=True)
+    if FAB_AUTH_MANAGER_WWW_PREK_HOOK in additional_ui_hooks:
+        shutil.rmtree(FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH, ignore_errors=True)
+        shutil.rmtree(FAB_AUTH_MANAGER_WWW_DIST_PATH, ignore_errors=True)
     get_console().print("[success]Cleaned ui assets[/]")
 
 

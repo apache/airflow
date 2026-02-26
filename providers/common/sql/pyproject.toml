@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.31.0"
+version = "1.32.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -83,7 +83,7 @@ dependencies = [
     "polars>=1.26.0"
 ]
 "sqlalchemy" = [
-    "sqlalchemy>=1.4.49",
+    "sqlalchemy>=1.4.54",
 ]
 
 [dependency-groups]
@@ -99,6 +99,7 @@ dev = [
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-odbc",
+    "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]"
 ]
 
@@ -128,8 +129,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.31.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.31.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.32.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.32.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

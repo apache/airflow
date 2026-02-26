@@ -25,6 +25,28 @@
 Changelog
 ---------
 
+0.5.3
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak CLI: provision multi‑team resources for auth manager (AIP‑67) (#61256)``
+* ``Keycloak auth manager: enforce team‑scoped authorization (AIP‑67) (#61351)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HTTP 500 on /ui/teams endpoint when using Keycloak auth manager (#62471)``
+* ``Encode id_token to avoid special characters in it. (#62429)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix race condition in auth manager initialization (#62214)" (#62404)``
+   * ``Fix race condition in auth manager initialization (#62214)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 0.5.2
 .....
 

@@ -66,6 +66,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
@@ -96,6 +97,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
@@ -247,6 +249,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         num_runs: int = conf.getint("scheduler", "num_runs"),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: Logger | None = None,
+        executors: list[BaseExecutor] | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
@@ -264,6 +267,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             key="num_stuck_in_queued_retries",
             fallback=2,
         )
+
+        self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
+        self.executor: BaseExecutor = self.executors[0]
 
         if self._enable_tracemalloc:
             import tracemalloc
@@ -427,7 +433,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
 
-        for executor in self.job.executors:
+        for executor in self.executors:
             self.log.info("Debug dump for the executor %s", executor)
             executor.debug_dump()
             self.log.info("-" * 80)
@@ -646,7 +652,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
-            for executor in self.job.executors:
+            for executor in self.executors:
                 if TYPE_CHECKING:
                     # All executors should have a name if they are initted from the executor_loader.
                     # But we need to check for None to make mypy happy.
@@ -962,7 +968,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # it. However, with multiple executors, any of which can run up to core.parallelism TIs individually,
         # we need to make sure in the scheduler now that we don't schedule more than core.parallelism totally
         # across all executors.
-        num_occupied_slots = sum([executor.slots_occupied for executor in self.job.executors])
+        num_occupied_slots = sum([executor.slots_occupied for executor in self.executors])
         parallelism = conf.getint("core", "parallelism")
         if self.job.max_tis_per_query == 0:
             max_tis = parallelism - num_occupied_slots
@@ -1304,7 +1310,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("Using DatabaseCallbackSink as callback sink.")
             callback_sink = DatabaseCallbackSink()
 
-            for executor in self.job.executors:
+            for executor in self.executors:
                 executor.job_id = self.job.id
                 executor.callback_sink = callback_sink
                 executor.start()
@@ -1317,11 +1323,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DagRun.set_active_spans(active_spans=self.active_spans)
             BaseExecutor.set_active_spans(active_spans=self.active_spans)
 
-            Stats.initialize(
-                is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-                is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-                is_otel_on=conf.getboolean("metrics", "otel_on"),
-            )
+            stats_factory = stats_utils.get_stats_factory(Stats)
+            Stats.initialize(factory=stats_factory)
 
             self._run_scheduler_loop()
 
@@ -1331,7 +1334,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
-            for executor in self.job.executors:
+            for executor in self.executors:
                 try:
                     executor.end()
                 except Exception:
@@ -1600,7 +1603,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._remove_unreferenced_triggers,
         )
 
-        if any(x.is_local for x in self.job.executors):
+        if any(x.is_local for x in self.executors):
             bundle_cleanup_mgr = BundleUsageTrackingManager()
             check_interval = conf.getint(
                 section="dag_processor",
@@ -1636,17 +1639,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Heartbeat all executors, even if they're not receiving new tasks this loop. It will be
                 # either a no-op, or they will check-in on currently running tasks and send out new
                 # events to be processed below.
-                for executor in self.job.executors:
+                for executor in self.executors:
                     executor.heartbeat()
 
                 with create_session() as session:
                     num_finished_events = 0
-                    for executor in self.job.executors:
+                    for executor in self.executors:
                         num_finished_events += self._process_executor_events(
                             executor=executor, session=session
                         )
 
-                for executor in self.job.executors:
+                for executor in self.executors:
                     try:
                         with create_session() as session:
                             self._process_task_event_logs(executor._task_event_logs, session)
@@ -1761,7 +1764,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # END: schedule TIs
 
             # Attempt to schedule even if some executors are full but not all.
-            total_free_executor_slots = sum([executor.slots_available for executor in self.job.executors])
+            total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
             if total_free_executor_slots <= 0:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
@@ -1843,6 +1846,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
+            asset_events = session.scalars(
+                select(AssetEvent).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                )
+            )
+            dag_run.consumed_asset_events.extend(asset_events)
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
@@ -1974,6 +1984,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     logical_date=dag_model.next_dagrun,
                 )
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                continue
+
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.SCHEDULED not in dag_model.allowed_run_types
+            ):
+                self.log.warning(
+                    "Dag does not allow scheduled runs; skipping",
+                    dag_id=dag_model.dag_id,
+                )
                 continue
 
             try:
@@ -2448,7 +2468,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None,
     ) -> None:
         if callback:
-            self.job.executor.send_callback(callback)
+            self.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
 
@@ -2940,7 +2960,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
                 request,
             )
-            self.job.executor.send_callback(request)
+            self.executor.send_callback(request)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )
@@ -3177,21 +3197,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if ti.executor is None:
             if not team_name:
                 # No team is specified, so just use the global default executor
-                executor = self.job.executor
+                executor = self.executor
             else:
                 # We do have a team, so we need to find the default executor for that team
-                for _executor in self.job.executors:
+                for _executor in self.executors:
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
                         executor = _executor
                         break
                 else:
                     # No executor found for that team, fall back to global default
-                    executor = self.job.executor
+                    executor = self.executor
         else:
             # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
-            for _executor in self.job.executors:
-                if ti.executor in (_executor.name.alias, _executor.name.module_path):
+            for _executor in self.executors:
+                if _executor.name and ti.executor in (_executor.name.alias, _executor.name.module_path):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor

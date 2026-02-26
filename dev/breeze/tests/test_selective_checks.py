@@ -395,7 +395,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -439,7 +439,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -467,7 +467,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
                 },
-                id="Selected Providers and docs should run when system tests are modified",
+                id="Selected Providers should run when system tests are modified",
             )
         ),
         (
@@ -864,15 +864,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-helm-tests": "true",
-                    "run-unit-tests": "true",
+                    "run-unit-tests": "false",
                     "docs-build": "true",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "Always", "test_types": "Always"}]
-                    ),
                     "providers-test-types-list-as-strings-in-json": None,
                     "run-mypy": "false",
                     "mypy-checks": "[]",
@@ -921,7 +918,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
-                "docs-build": "true",
+                "docs-build": "false",
                 # no python files changed so flynt should not run
                 "skip-prek-hooks": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
@@ -959,7 +956,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1034,7 +1031,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
@@ -1193,7 +1190,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
                 "run-helm-tests": "true",
-                "run-unit-tests": "true",
+                "run-unit-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
@@ -1321,7 +1318,7 @@ def test_excluded_providers():
         {
             "excluded-providers-as-string": json.dumps(
                 {
-                    "3.13": ["apache.beam", "fab"],
+                    "3.13": ["fab"],
                 }
             ),
         },
@@ -2047,10 +2044,7 @@ def test_expected_output_push(
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
-                "docs-build": "true",
-                "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
-                "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage oracle postgres sftp snowflake standard trino",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -2927,7 +2921,7 @@ def test_testable_providers_integrations_excludes_disabled():
     ):
         # Test with AMD runner - should exclude mssql (disabled for all CI)
         selective_checks_amd = SelectiveChecks(
-            files=("providers/tests/test_example.py",),
+            files=("providers/amazon/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
         )

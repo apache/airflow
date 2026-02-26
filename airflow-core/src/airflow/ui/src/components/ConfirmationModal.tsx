@@ -33,7 +33,7 @@ export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, o
   const { t: translate } = useTranslation("common");
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open}>
+    <Dialog.Root data-testid="confirmation-modal" onOpenChange={onOpenChange} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading>{header}</Heading>
@@ -44,12 +44,17 @@ export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, o
         <Dialog.Body>{children}</Dialog.Body>
         <Dialog.Footer>
           <Dialog.ActionTrigger asChild>
-            <Button onClick={() => onOpenChange({ open })} variant="outline">
+            <Button
+              data-testid="confirmation-cancel-button"
+              onClick={() => onOpenChange({ open })}
+              variant="outline"
+            >
               {translate("modal.cancel")}
             </Button>
           </Dialog.ActionTrigger>
           <Button
             colorPalette="brand"
+            data-testid="confirmation-confirm-button"
             onClick={() => {
               onConfirm();
               onOpenChange({ open });
