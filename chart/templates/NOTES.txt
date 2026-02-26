@@ -113,6 +113,41 @@ Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 {{- end }}
 {{- end }}
 
+{{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
+
+{{- if .Values.ingress.apiServer.host }}
+
+DEPRECATION WARNING:
+   `ingress.apiServer.host` has been renamed to `ingress.apiServer.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.apiServer.tls.enabled }}
+
+DEPRECATION WARNING:
+   `ingress.apiServer.tls` has been renamed to `ingress.apiServer.hosts[*].tls` and can be set per host.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- end }}
+
+{{- if and .Values.ingress.statsd.enabled .Values.ingress.statsd.host }}
+
+DEPRECATION WARNING:
+   `ingress.statsd.host` has been renamed to `ingress.statsd.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if and .Values.ingress.pgbouncer.enabled .Values.ingress.pgbouncer.host }}
+
+DEPRECATION WARNING:
+   `ingress.pgbouncer.host` has been renamed to `ingress.pgbouncer.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
 
 {{- if eq (include "createUserJob.isEnabled" .) "true" }}
 Default user (Airflow UI) Login credentials:
