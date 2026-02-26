@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import os
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 
 try:
-    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
     from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 except ModuleNotFoundError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 class ADLSToGCSOperator(ADLSListOperator):
     """
-    Synchronizes an Azure Data Lake Storage path with a GCS bucket.
+    Synchronizes an Azure Data Lake Storage Gen2 path with a GCS bucket.
 
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
@@ -50,7 +50,7 @@ class ADLSToGCSOperator(ADLSListOperator):
     :param replace: If true, replaces same-named files in GCS
     :param gzip: Option to compress file for upload
     :param azure_data_lake_conn_id: The connection ID to use when
-        connecting to Azure Data Lake Storage.
+        connecting to Azure Data Lake Storage Gen2.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
@@ -60,40 +60,44 @@ class ADLSToGCSOperator(ADLSListOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :return: List of destination GCS URIs in the format ``gs://bucket/object``
 
     **Examples**:
         The following Operator would copy a single file named
-        ``hello/world.avro`` from ADLS to the GCS bucket ``mybucket``. Its full
+        ``hello/world.avro`` from ADLS Gen2 to the GCS bucket ``mybucket``. Its full
         resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
 
-            copy_single_file = AdlsToGoogleCloudStorageOperator(
+            copy_single_file = ADLSToGCSOperator(
                 task_id="copy_single_file",
                 src_adls="hello/world.avro",
                 dest_gcs="gs://mybucket",
+                file_system_name="my-container",
                 replace=False,
                 azure_data_lake_conn_id="azure_data_lake_default",
                 gcp_conn_id="google_cloud_default",
             )
 
-        The following Operator would copy all parquet files from ADLS
+        The following Operator would copy all parquet files from ADLS Gen2
         to the GCS bucket ``mybucket``. ::
 
-            copy_all_files = AdlsToGoogleCloudStorageOperator(
+            copy_all_files = ADLSToGCSOperator(
                 task_id='copy_all_files',
                 src_adls='*.parquet',
                 dest_gcs='gs://mybucket',
+                file_system_name='my-container',
                 replace=False,
                 azure_data_lake_conn_id='azure_data_lake_default',
                 gcp_conn_id='google_cloud_default'
             )
 
-         The following Operator would copy all parquet files from ADLS
-         path ``/hello/world``to the GCS bucket ``mybucket``. ::
+         The following Operator would copy all parquet files from ADLS Gen2
+         path ``hello/world`` to the GCS bucket ``mybucket``. ::
 
-            copy_world_files = AdlsToGoogleCloudStorageOperator(
+            copy_world_files = ADLSToGCSOperator(
                 task_id='copy_world_files',
                 src_adls='hello/world/*.parquet',
                 dest_gcs='gs://mybucket',
+                file_system_name='my-container',
                 replace=False,
                 azure_data_lake_conn_id='azure_data_lake_default',
                 gcp_conn_id='google_cloud_default'
@@ -119,32 +123,30 @@ class ADLSToGCSOperator(ADLSListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(
-            path=src_adls,
-            azure_data_lake_conn_id=azure_data_lake_conn_id,
-            **self._validate_kwargs(kwargs),
-        )
-
-        self.src_adls = src_adls
-        self.dest_gcs = dest_gcs
-        self.replace = replace
-        self.gcp_conn_id = gcp_conn_id
-        self.gzip = gzip
-        self.google_impersonation_chain = google_impersonation_chain
-
-    @staticmethod
-    def _validate_kwargs(kwargs: dict) -> dict:
-        file_system_name = kwargs.pop("file_system_name", None)
-        if file_system_name is None:
+        file_system_name = kwargs.get("file_system_name")
+        if not file_system_name:
             raise TypeError(
                 "The 'file_system_name' parameter is required. "
                 "ADLSListOperator has been migrated from Azure Data Lake Storage Gen1 (retired) "
                 "to Gen2, which requires specifying a file system name. "
                 "Please add file_system_name='your-container-name' to your operator instantiation."
             )
-        return {"file_system_name": file_system_name, **kwargs}
 
-    def execute(self, context: Context):
+        super().__init__(
+            path=src_adls,
+            azure_data_lake_conn_id=azure_data_lake_conn_id,
+            **kwargs,
+        )
+
+        self.src_adls = src_adls
+        self.dest_gcs = dest_gcs
+        self.file_system_name = file_system_name
+        self.replace = replace
+        self.gcp_conn_id = gcp_conn_id
+        self.gzip = gzip
+        self.google_impersonation_chain = google_impersonation_chain
+
+    def execute(self, context: Context) -> list[str]:
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(
@@ -160,23 +162,31 @@ class ADLSToGCSOperator(ADLSListOperator):
             existing_files = g_hook.list(bucket_name=bucket_name, prefix=prefix)
             files = list(set(files) - set(existing_files))
 
+        destination_uris = []
         if files:
-            hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
+            hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
+            dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
 
             for obj in files:
                 with NamedTemporaryFile(mode="wb", delete=True) as f:
-                    hook.download_file(local_path=f.name, remote_path=obj)
+                    # Get the file client and download the file
+                    file_client = hook.get_file_system(self.file_system_name).get_file_client(obj)
+                    download_stream = file_client.download_file()
+                    f.write(download_stream.readall())
                     f.flush()
-                    dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
-                    dest_path = os.path.join(dest_gcs_prefix, obj)
+                    dest_path = posixpath.join(dest_gcs_prefix, obj)
                     self.log.info("Saving file to %s", dest_path)
 
                     g_hook.upload(
                         bucket_name=dest_gcs_bucket, object_name=dest_path, filename=f.name, gzip=self.gzip
                     )
 
+                    # Build and store the destination URI
+                    destination_uri = f"gs://{dest_gcs_bucket}/{dest_path}"
+                    destination_uris.append(destination_uri)
+
             self.log.info("All done, uploaded %d files to GCS", len(files))
         else:
             self.log.info("In sync, no files needed to be uploaded to GCS")
 
-        return files
+        return destination_uris
