@@ -167,7 +167,7 @@
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
   "pendingDagRun_one": "{{count}} Ausstehender Dag Lauf",
-  "pendingDagRun_other": "{{count}} Ausstehende Dag Läufe",
+  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
