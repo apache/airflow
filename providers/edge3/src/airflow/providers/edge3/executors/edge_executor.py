@@ -57,11 +57,18 @@ class EdgeExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
-        if not hasattr(self, "conf"):
-            from airflow.configuration import conf
+        # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
+        # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
+        # In such cases, fall back to the global configuration object.
+        # This allows the changes to be backwards compatible with older versions of Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration (3.2+).
+        if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
+            from airflow.configuration import conf as global_conf
 
-            self.conf = conf
-
+            self.conf = global_conf
+        # Also set team_name to None if it doesn't exist, since the Celery app creation expects it to be
+        # there (even if it's None)
         if not hasattr(self, "team_name"):
             self.team_name = None
 
