@@ -16,16 +16,18 @@
     under the License.
 
 Setting resources for containers
---------------------------------
+================================
 
-It is possible to set `resources <https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/>`__ for the Containers managed by the chart. You can define different resources for various Airflow k8s Containers. By default the resources are not set.
+It is possible to set `resources <https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/>`__ for the containers managed by the chart.
+You can define different resources for various Airflow containers. By default the resources are not set.
 
 .. note::
-    The k8s scheduler can use resources to decide which node to place the Pod on. Since a Pod resource request/limit is the sum of the resource requests/limits for each Container in the Pod, it is advised to specify resources for each Container in the Pod.
+    The Kubernetes scheduler can use resources to decide which node to place the pod on. Since a pod resource request/limit is the sum of
+    the resource requests/limits for each container in the pod, it is advised to specify resources for each container in the pod.
 
-Possible Containers where resources can be configured include:
+Possible containers where resources can be configured include:
 
-* Main Airflow Containers and their sidecars. You can add the resources for these Containers through the following parameters:
+* Main Airflow containers and their sidecars. You can add the resources for these containers through the following parameters:
 
    * ``workers.resources``
    * ``workers.logGroomerSidecar.resources``
@@ -42,13 +44,14 @@ Possible Containers where resources can be configured include:
    * ``triggerer.resources``
    * ``triggerer.logGroomerSidecar.resources``
 
-* Containers used for Airflow k8s jobs or cron jobs. You can add the resources for these Containers through the following parameters:
+* Containers used for Airflow kubernetes jobs or cron jobs. You can add the resources for these containers through the following parameters:
 
    * ``cleanup.resources``
    * ``createUserJob.resources``
    * ``migrateDatabaseJob.resources``
+   * ``databaseCleanup.resources``
 
-* Other containers that can be deployed by the chart. You can add the resources for these Containers through the following parameters:
+* Other containers that can be deployed by the chart. You can add the resources for these containers through the following parameters:
 
    * ``statsd.resources``
    * ``pgbouncer.resources``

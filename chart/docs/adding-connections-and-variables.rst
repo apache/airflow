@@ -20,18 +20,18 @@ Adding Connections, Variables and Environment Variables
 =======================================================
 
 You can programmatically add Connections, Variables and arbitrary Environment Variables to your
-Airflow deployment using the Helm chart.
+Airflow deployment using the Helm Chart.
 
 
 Connections and Sensitive Environment Variables
 -----------------------------------------------
-Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and sensitive
-environment variables into Airflow using the Helm chart. To illustrate, lets create a yaml file called ``override.yaml``
-to override values under these sections of the ``values.yaml`` file.
+Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml``, you can pass connection strings and sensitive
+environment variables into Airflow using the Helm Chart. To illustrate, lets create a yaml file called ``overwrite.yaml``
+to overwrite values under these sections of the ``values.yaml`` file.
 
 .. code-block:: yaml
 
-   # override.yaml
+   # overwrite.yaml
 
    secret:
      - envName: "AIRFLOW_CONN_GCP"
@@ -49,14 +49,17 @@ to override values under these sections of the ``values.yaml`` file.
        stringData: |
          my-secret-key: my-secret
 
+.. warning::
+
+  Due to security concerns, it is not advised to define sensitive secrets values within ``values.yaml`` file in production environment.
 
 Variables
 ---------
 Airflow supports Variables which enable users to craft dynamic Dags. You can set Variables in Airflow in three ways - UI,
 command line, and within your Dag file. See :doc:`apache-airflow:howto/variable` for more.
 
-With the Helm chart, you can also inject environment variables into Airflow. So in the example ``override.yaml`` file,
-we can override values of interest in the ``env`` section of the ``values.yaml`` file.
+With the Helm Chart, you can also inject environment variables into Airflow. In the ``overwrite.yaml`` example file,
+we can overwrite values of interest in the ``env`` section of the ``values.yaml`` file.
 
 .. code-block:: yaml
 

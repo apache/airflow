@@ -19,7 +19,7 @@
 Manage Dag files
 ================
 
-When you create new or modify existing Dag files, it is necessary to deploy them into the environment. This section will describe some basic techniques you can use.
+When you create new or modify existing Dag files, it is necessary to deploy them into the environment. This section will describe some basic techniques which you can use.
 
 Bake Dags in docker image
 -------------------------
@@ -37,26 +37,6 @@ This method requires redeploying the services in the helm chart with the new doc
 
     EOF
 
-.. note::
-
-   In Airflow images prior to version 2.0.2, there was a bug that required you to use
-   a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e Dag
-   has root group similarly as other files). In 2.0.2 this has been fixed.
-
-.. code-block:: bash
-
-    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
-    FROM apache/airflow:2.0.2
-
-    USER root
-
-    COPY --chown=airflow:root ./dags/ \${AIRFLOW_HOME}/dags/
-
-    USER airflow
-
-    EOF
-
-
 Then publish it in the accessible registry:
 
 .. code-block:: bash
@@ -71,11 +51,7 @@ Finally, update the Airflow pods with that image:
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78
 
-If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time.
-
-.. warning::
-
-    Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
+If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time as e.g. presented in the code below:
 
 .. code-block:: bash
 
@@ -87,8 +63,11 @@ If you are deploying an image with a constant tag, you need to make sure that th
 
 The randomly generated pod annotation will ensure that pods are refreshed on helm upgrade.
 
-If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName``:
+.. warning::
 
+    Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
+
+If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName`` like:
 
 .. code-block:: bash
 
@@ -98,16 +77,16 @@ If you are deploying an image from a private repository, you need to create a se
       --set images.airflow.pullPolicy=Always \
       --set registry.secretName=gitlab-registry-credentials
 
-Using git-sync
+Using Git-Sync
 --------------
 
-Mounting Dags using git-sync sidecar with persistence enabled
-.............................................................
+Mounting Dags using Git-Sync sidecar with persistence enabled
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``.
-The scheduler pod will sync Dags from a git repository onto the PVC every configured number of
-seconds. The other pods will read the synced Dags. Not all volume plugins have support for
-``ReadWriteMany`` access mode.
+This option will use a Persistent Volume Claim with ``ReadWriteMany`` access mode.
+The dag-processor pod (if standalone dag-processor is disabled it will be scheduler pod) will sync Dags from
+a git repository onto the PVC every configured number of seconds. The other pods will read the synced Dags.
+Not all volume plugins have support for ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
 
@@ -116,41 +95,41 @@ for details.
     helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
       --set dags.gitSync.enabled=true
-      # you can also override the other persistence or gitSync values
+      # You can also overwrite the other persistence or gitSync values
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
-Mounting Dags using git-sync sidecar without persistence
-........................................................
+Mounting Dags using Git-Sync sidecar without persistence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This option will use an always running Git-Sync sidecar on every dag-processor and worker and triggerer pods.
-(In Airflow 2.11 if separate dag-processor is not enabled then Git-Sync sidecar will run on scheduler for Dag parsing as well)
+This option will always use running Git-Sync sidecar on every dag-processor, worker and triggerer pods
+(In Airflow 2.11, if separate dag-processor is not enabled, the Git-Sync sidecar will run on scheduler for Dag parsing as well).
 
 The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
-seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
+seconds. If you are using the ``KubernetesExecutor``, Git-Sync will run as an init container on your worker pods.
 
 .. code-block:: bash
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=false \
       --set dags.gitSync.enabled=true
-      # you can also override the other gitSync values
+      # You can also override the other gitSync values
       # by setting the dags.gitSync.* values
       # Refer values.yaml for details
 
 
-Notes for combining git-sync and persistence
-............................................
+Notes for combining Git-Sync and persistence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-While using both git-sync and persistence for Dags is possible, it is generally not recommended unless the
-deployment manager carefully considered the trade-offs it brings. There are cases when git-sync without
+While using git-sync and persistence for Dags is possible, it is generally not recommended unless the
+Deployment Manager carefully considered the trade-offs it brings. There are cases when git-sync without
 persistence has other trade-offs (for example delays in synchronization of Dags vs. rate-limiting of Git
 servers) that can often be mitigated (for example by sending signals to git-sync containers via web-hooks
-when new commits are pushed to the repository) but there might be cases where you still might want to choose
-git-sync and Persistence together, but as a Deployment Manager you should be aware of some consequences it has.
+when new commits are pushed to the repository), but there might be cases where you still might want to choose
+git-sync and persistence together.
 
-git-sync solution is primarily designed to be used for local, POSIX-compliant volumes to checkout Git
-repositories into. Part of the process of synchronization of commits from git-sync involves checking out
+Git-sync solution is primarily designed to be used for local, POSIX-compliant volumes to checkout Git
+repositories. Part of the process of commits synchronization from git-sync involves checking out
 new version of files in a freshly created folder and swapping symbolic links to the new folder, after the
 checkout is complete. This is done to ensure that the whole Dags folder is consistent at all times. The way
 git-sync works with symbolic-link swaps, makes sure that Parsing the Dags always work on a consistent
@@ -162,7 +141,7 @@ the technology behind the persistent volumes might handle git-sync approach diff
 consequences. There are a lot of persistence solutions available for various K8S installations and each of
 them has different characteristics, so you need to carefully test and monitor your filesystem to make sure
 those undesired side effects do not affect you. Those effects might change over time or depend on parameters
-like how often the files are being scanned by the Dag File Processor, the number and complexity of your
+like how often the files are being scanned by the Dag Processor, the number and complexity of your
 Dags, how remote and how distributed your persistent volumes are, how many IOPS you allocate for some of
 the filesystem (usually highly paid feature of such filesystems is how many IOPS you can get) and many other
 factors.
@@ -176,35 +155,35 @@ networking to a much more capable and expensive options. This is difficult to co
 mitigate, so you might be suddenly faced with situation to pay a lot more for IOPS/persistence option to
 keep your Dags sufficiently synchronized to avoid inconsistencies and delays in synchronization.
 
-The side-effects that you might observe:
+The side-effects that you might observe are:
 
-* burst of networking/communication at the moment when new commit is checked out (because of the quick
+* bursts of networking/communication at the moment when new commit is checked out, because of the quick
   succession of deleting old files, creating new files, symbolic link swapping.
-* temporary lack of consistency between files in Dag folders while Dags are being synced (because of delays
-  in distributing changes to individual files for various nodes in the cluster)
+* temporary lack of consistency between files in Dag folders while Dags are being synced, because of delays
+  in distributing changes to individual files for various nodes in the cluster.
 * visible drops of performance of the persistence solution when your Dag number grows, drops that might
   amplify the side effects described above.
 * some of persistence solutions might lack filesystem functionality that git-sync needs to perform the sync
-  (for example changing permissions or creating symbolic links). While those can often be mitigated it is
+  (for example changing permissions or creating symbolic links). While those can often be mitigated, it is
   only recommended to use git-sync with fully POSIX-filesystem compliant persistence filesystems.
 
-General recommendation to use git-sync with local volumes only, and if you want to also use persistence, you
+General recommendation is to use git-sync with local volumes only, and if you want to it with persistence, you
 need to make sure that the persistence solution you use is POSIX-compliant and you monitor the side-effects
 it might have.
 
-Synchronizing multiple Git repositories with git-sync
-.....................................................
+Synchronizing multiple Git repositories with Git-Sync
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow git-sync integration in the Helm Chart, does not allow to configure multiple repositories to be
-synchronized at the same time. The Dag folder must come from single git repository. However it is possible
+Airflow git-sync integration in the Helm Chart does not allow synchronization of multiple repositories at
+the same time. The Dag folder must come from single git repository. However, it is possible
 to use `submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to create an "umbrella" repository
 that you can use to bring a number of git repositories checked out together (with ``--submodules recursive``
 option). There are success stories of Airflow users using such approach with 100s of repositories put
-together as submodules via such "umbrella" repo approach. When you choose this solution, however,
-you need to work out the way how to link the submodules, when to update the umbrella repo when "submodule"
-repository change and work out versioning approach and automate it. This might be as simple as always
-using latest versions of all the submodule repositories, or as complex as managing versioning of shared
-libraries, Dags and code across multiple teams and doing that following your release process.
+together as submodules via such "umbrella" repo approach. When you choose this solution, you need to work out
+the way how to link the submodules, when to update the umbrella repo when "submodule" repository change and
+work out versioning approach and automate it. This might be as simple as always using latest versions of all
+the submodule repositories, or as complex as managing versioning of shared libraries, Dags and code across
+multiple teams and doing that following your release process.
 
 An example of such complex approach can found in this
 `Manage Dags at scale <https://s.apache.org/airflow-manage-dags-at-scale>`_ presentation from the Airflow
@@ -214,7 +193,9 @@ Summit.
 Mounting Dags from an externally populated PVC
 ----------------------------------------------
 
-In this approach, Airflow will read the Dags from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required Dags (this won't be handled by the chart). You pass in the name of the volume claim to the chart:
+In this approach, Airflow will read the Dags from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode.
+You will have to ensure that the PVC is populated/updated with the required Dags (this won't be handled by the chart).
+You can pass the name of the volume claim to the chart by using ``dags.persistence.existingClaim`` parameter:
 
 .. code-block:: bash
 
@@ -225,51 +206,58 @@ In this approach, Airflow will read the Dags from a PVC which has ``ReadOnlyMany
 
 Mounting Dags from a private GitHub repo using Git-Sync sidecar
 ---------------------------------------------------------------
-Create a private repo on GitHub if you have not created one already.
 
-Then create your ssh keys:
+To configure mounting Dags from private GitHub repository, follow below steps:
 
-.. code-block:: bash
+1. Create a private repo on GitHub if you have not created one already.
 
-    ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+2. Then create your ssh keys:
 
-Add the public key to your private repo (under ``Settings > Deploy keys``).
+  .. code-block:: bash
 
-You have to convert the private ssh key to a base64 string. You can convert the private ssh key file like so:
+      ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
-.. code-block:: bash
+3. Add the public key to your private repo under ``Settings > Deploy keys``.
 
-    base64 <my-private-ssh-key> -w 0 > temp.txt
+4. Convert the private ssh key to a base64 string and save it's value.
 
-Then copy the string from the ``temp.txt`` file. You'll add it to your ``override-values.yaml`` next.
+  .. note::
+    You can convert the private ssh key file like so:
 
-In this example, you will create a yaml file called ``override-values.yaml`` to override values in the
-``values.yaml`` file, instead of using ``--set``:
+    .. code-block:: bash
 
-.. code-block:: yaml
+        base64 <my-private-ssh-key> -w 0 > temp.txt
 
-    dags:
-      gitSync:
-        enabled: true
-        repo: git@github.com:<username>/<private-repo-name>.git
-        branch: <branch-name>
-        subPath: ""
-        sshKeySecret: airflow-ssh-secret
-    extraSecrets:
-      airflow-ssh-secret:
-        data: |
-          gitSshKey: '<base64-converted-ssh-private-key>'
+    Then copy the string from the ``temp.txt`` file.
 
-Don't forget to copy in your private key base64 string.
+  The converted to base64 string will be used in the ``overwrite-values.yaml`` file.
 
-Finally, from the context of your Airflow Helm chart directory, you can install Airflow:
+5. Create a yaml file called ``overwrite-values.yaml`` to overwrite default values, instead of using ``--set``:
 
-.. code-block:: bash
+  .. code-block:: yaml
 
-    helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
+      dags:
+        gitSync:
+          enabled: true
+          repo: git@github.com:<username>/<private-repo-name>.git
+          branch: <branch-name>
+          subPath: ""
+          sshKeySecret: airflow-ssh-secret
+      extraSecrets:
+        airflow-ssh-secret:
+          data: |
+            gitSshKey: '<base64-converted-ssh-private-key>'
+
+   Copied base64 string should be as a value for the ``gitSshKey`` key.
+
+6. Finally, from the context of your Airflow Helm chart directory, install Airflow:
+
+  .. code-block:: bash
+
+      helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
 
 If you have done everything correctly, Git-Sync will pick up the changes you make to the Dags
 in your private GitHub repo.
 
-You should take this a step further and set ``dags.gitSync.knownHosts`` so you are not susceptible to man-in-the-middle
+You should take this a step further and set ``dags.gitSync.knownHosts``, so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.

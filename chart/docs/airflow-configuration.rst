@@ -16,14 +16,14 @@
     under the License.
 
 Configuring Airflow
--------------------
+===================
 
-The chart allows for setting arbitrary Airflow configuration in values under the ``config`` key.
-Some of the defaults in the chart differ from those of core Airflow and can be found in
+The Helm Chart allows for setting arbitrary Airflow configuration in values file under the ``config`` key.
+Some of the defaults in the chart may differ from those of core Airflow and can be found in
 `values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__.
 
 As an example of setting arbitrary configuration, the following yaml demonstrates how one would
-allow webserver users to view the config from within the UI:
+allow Airflow UI users to view the Airflow configuration directly via UI:
 
 .. code-block:: yaml
 
@@ -38,4 +38,4 @@ configuration prior to installing and deploying the service.
 
   The recommended way to load example Dags using the official Docker image and chart is to configure the ``AIRFLOW__CORE__LOAD_EXAMPLES`` environment variable
   in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref>`). The official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False``
-  set within the image, so you need to override it with an environment variable when deploying the chart in order for the examples to be present.
+  set within the image, so you need to overwrite it with an environment variable, when deploying the chart, in order for the examples to be present.

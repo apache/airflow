@@ -72,11 +72,14 @@ Features
 * Supported hybrid static executors (Airflow version ``2.11.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported multiple Executors (``2.11+``)
 * Supported AWS executors with AWS provider version ``8.21.0+``:
+
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
 * Supported AWS executors with AWS provider version ``9.9.0+``:
+
    * ``airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor``
 * Supported Edge executor with edge3 provider version ``1.0.0+``:
+
    * ``airflow.providers.edge3.executors.EdgeExecutor``
 * Supported Airflow version: ``2.11+``, ``3.0+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
@@ -90,12 +93,12 @@ Features
 * Automatic database migration after a new deployment
 * Administrator account creation during deployment
 * Kerberos secure configuration
-* One-command deployment for any type of executor. You don't need to provide other services e.g. Redis/Database to test the Airflow.
+* One-command deployment for any type of executor. You don't need to provide other services e.g. Redis/Database to test the Airflow
 
 .. _helm_chart_install:
 
-Installing the Chart
---------------------
+Installing the Helm Chart
+-------------------------
 
 To install this chart using Helm 3, run the following commands:
 
@@ -104,14 +107,14 @@ To install this chart using Helm 3, run the following commands:
     helm repo add apache-airflow https://airflow.apache.org
     helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
-The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
-section lists the parameters that can be configured during installation.
+The command deploys Airflow on the Kubernetes cluster with the default configuration in the airflow namespace.
+The :doc:`parameters-ref` section lists the parameters that can be configured during installation.
 
 
 .. tip:: List all releases using ``helm list``.
 
-Upgrading the Chart
--------------------
+Upgrading the deployed Helm Chart
+---------------------------------
 
 To upgrade the chart with the release name ``airflow``:
 
@@ -122,8 +125,11 @@ To upgrade the chart with the release name ``airflow``:
 .. note::
   To upgrade to a new version of the chart, run ``helm repo update`` first.
 
-Uninstalling the Chart
-----------------------
+.. tip::
+  By setting ``--install`` flag on the ``helm upgrade`` command, Helm Chart will be installed if it wasn't deployed before.
+
+Uninstalling the deployed Helm Chart
+------------------------------------
 
 To uninstall/delete the ``airflow`` deployment:
 
@@ -134,12 +140,12 @@ To uninstall/delete the ``airflow`` deployment:
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
 .. note::
-  Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``, for example, ``brokerUrlSecret`` or ``fernetKeySecret``.
+  Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``.
 
-Installing the Chart with Argo CD, Flux, Rancher or Terraform
--------------------------------------------------------------
+Installing the Helm Chart with Argo CD, Flux, Rancher or Terraform
+------------------------------------------------------------------
 
-When installing the chart using Argo CD, Flux, Rancher or Terraform, you MUST set the four following values, or your application
+When installing the chart using Argo CD, Flux, Rancher or Terraform, you **must** set the four following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml
@@ -153,10 +159,11 @@ will not start as the migrations will not be run:
 
 This is so these CI/CD services can perform updates without issues and preserve the immutability of Kubernetes Job manifests.
 
-This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
+.. note::
+    This applies to the chart installation with usage of ``--wait`` flag in ``helm install`` or ``helm upgrade`` command.
 
 .. note::
-    While deploying this Helm chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
+    While deploying this Helm Chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
 
 To run database migrations with Argo CD automatically, you will need to add:
 
@@ -168,9 +175,10 @@ To run database migrations with Argo CD automatically, you will need to add:
 
 This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
 
-If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
+If you use the ``CeleryExecutor`` or ``CeleryKubernetesExecutor`` with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
 
-By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
+.. note::
+    By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
 
 To avoid potential problems, it is recommended to disable these hooks by setting ``useHelmHooks=false`` as shown in the following examples:
 
@@ -202,8 +210,8 @@ For existing installations, all your resources will be recreated with a new name
 
 This won't delete existing PVCs for logs used by StatefulSets/Deployments, but it will recreate them with brand new PVCs.
 If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
-deployment. Depending on what storage backend/class you're using this procedure may vary. If you don't mind starting
-with fresh logs/redis volumes, you can just delete the old persistent volume claims, for example:
+deployment. Depending on what storage backend/class you're using, this procedure may vary. If you don't mind starting
+with fresh logs/redis volumes, you can delete the old persistent volume claims, for example:
 
 .. code-block:: bash
 

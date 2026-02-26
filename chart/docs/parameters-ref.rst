@@ -18,7 +18,7 @@
 Parameters reference
 ====================
 
-The following tables lists the configurable parameters of the Airflow chart and their default values.
+The following tables lists the configurable parameters of the Airflow chart and their default values:
 
 .. jinja:: params_ctx
 
@@ -54,10 +54,24 @@ The following tables lists the configurable parameters of the Airflow chart and 
     {% endfor %}
 
 
-Specify each parameter using the ``--set key=value[,key=value]`` argument to ``helm install``. For example,
+Specify each parameter using the ``--set key=value[,key=value]`` argument to ``helm install``:
 
 .. code-block:: bash
 
   helm install my-release apache-airflow/airflow \
     --set executor=CeleryExecutor \
-    --set enablePodLaunching=false .
+    --set enablePodLaunching=false
+
+or overwrite values by using the ``overwrite-values.yaml`` file:
+
+.. code-block:: yaml
+
+   # overwrite-values.yaml
+   executor: CeleryExecutor
+   enablePodLaunching: false
+
+and install the chart:
+
+.. code-block:: bash
+
+  helm install my-release apache-airflow/airflow --values overwrite-values.yaml

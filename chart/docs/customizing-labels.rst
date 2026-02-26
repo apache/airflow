@@ -16,12 +16,12 @@
    under the License.
 
 Customizing Labels for Pods
----------------------------
+===========================
 
-The Helm chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart, as well as component-specific labels for individual Airflow components.
+The Helm Chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart, as well as component-specific labels for individual Airflow components.
 
 Global Labels
-~~~~~~~~~~~~~
+-------------
 
 Global labels can be set using the ``labels`` parameter in your values file. These labels will be applied to all Airflow objects and pods defined in the chart:
 
@@ -31,9 +31,9 @@ Global labels can be set using the ``labels`` parameter in your values file. The
       environment: production
 
 Component-Specific Labels
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
-You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to override them as needed.
+You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to overwrite them as needed.
 
 For example, to add specific labels to different components:
 
@@ -53,7 +53,7 @@ For example, to add specific labels to different components:
       labels:
         role: worker
 
-    # Webserver specific labels
-    webserver:
+    # API Server specific labels
+    apiServer:
       labels:
         role: ui

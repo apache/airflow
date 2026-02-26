@@ -18,10 +18,13 @@
 Quick start with kind
 =====================
 
-This article will show you how to install Airflow using Helm Chart on `Kind <https://kind.sigs.k8s.io/>`__
+This article will show you how to install Airflow using Helm Chart on `Kind <https://kind.sigs.k8s.io/>`__.
 
-Install kind, and create a cluster
-----------------------------------
+Run Airflow on Kind cluster
+---------------------------
+
+Install kind and create a cluster
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We recommend testing with Kubernetes 1.30+, example:
 
@@ -36,7 +39,7 @@ Confirm it's up:
    kubectl cluster-info --context kind-kind
 
 Add Airflow Helm Stable Repo
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -44,26 +47,31 @@ Add Airflow Helm Stable Repo
    helm repo update
 
 Create namespace
-----------------
+^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
   export NAMESPACE=example-namespace
   kubectl create namespace $NAMESPACE
 
+.. note::
+    Same exported ``NAMESPACE`` variable will be used in the next instructions.
+
 Install the chart
------------------
+^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
   export RELEASE_NAME=example-release
   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
 
-Use the following code to install the chart with Example Dags:
+.. note::
+    Same exported ``RELEASE_NAME`` variable will be used in the next instructions.
+
+Use the following code to install the chart with example Dags:
 
 .. code-block:: bash
 
-  export NAMESPACE=example-namespace
   helm install $RELEASE_NAME apache-airflow/airflow \
     --namespace $NAMESPACE \
     --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
@@ -76,24 +84,24 @@ It may take a few minutes. Confirm the pods are up:
    kubectl get pods --namespace $NAMESPACE
    helm list --namespace $NAMESPACE
 
-Run the following command
-to port-forward the Airflow UI to http://localhost:8080/ to confirm
+Run the following command to port-forward the Airflow UI to http://localhost:8080/ to confirm
 Airflow is working.
 
 .. code-block:: bash
 
    kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 --namespace $NAMESPACE
 
+.. _quick-start:extending-airflow-image:
+
 Extending Airflow Image
 -----------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However, when you try it out you want to add your own Dags, custom dependencies,
-packages, or even custom providers.
+However, when you try it out you want to add your own Dags, custom dependencies, packages, or even custom providers.
 
 .. note::
    Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
-   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   when either the packages you want to install or Airflow is upgraded. Do not forget about keeping these scripts.
    Also keep in mind, that in cases when you run pure Python tasks, you can use the
    `Python Virtualenv functions <https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#pythonvirtualenvoperator>`_
    which will dynamically source and install python dependencies during runtime. Virtualenvs can also be cached.
@@ -101,9 +109,9 @@ packages, or even custom providers.
 The best way to achieve it, is to build your own, custom image.
 
 Adding Dags to your image
-.........................
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1. Create a project
+1. Create a project:
 
     .. code-block:: bash
 
@@ -137,11 +145,11 @@ Adding Dags to your image
           --set images.airflow.tag=0.0.1
 
 Adding ``apt`` packages to your image
-.....................................
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example below adds ``vim`` apt package.
 
-1. Create a project
+1. Create a project:
 
     .. code-block:: bash
 
@@ -181,11 +189,11 @@ Example below adds ``vim`` apt package.
           --set images.airflow.tag=0.0.1
 
 Adding ``PyPI`` packages to your image
-......................................
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example below adds ``lxml`` PyPI package.
 
-1. Create a project
+1. Create a project:
 
     .. code-block:: bash
 
@@ -218,7 +226,7 @@ Example below adds ``lxml`` PyPI package.
           --set images.airflow.tag=0.0.1
 
 Further extending and customizing the image
-...........................................
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend and customize the Airflow image.
