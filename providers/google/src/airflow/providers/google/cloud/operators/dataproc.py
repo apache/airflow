@@ -521,7 +521,7 @@ class ClusterGenerator:
 
         if self.cluster_tier:
             cluster_data["cluster_tier"] = self.cluster_tier
-        
+
         if self.cluster_type:
             cluster_data["cluster_type"] = self.cluster_type
 

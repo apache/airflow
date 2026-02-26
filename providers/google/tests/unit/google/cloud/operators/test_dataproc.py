@@ -758,11 +758,12 @@ class TestsClusterGenerator:
         generator = ClusterGenerator(project_id="project_id", cluster_tier="CLUSTER_TIER_STANDARD")
         cluster = generator.make()
         assert cluster["cluster_tier"] == "CLUSTER_TIER_STANDARD"
-    
+
     def test_build_with_cluster_type(self):
         generator = ClusterGenerator(project_id="project_id", cluster_type="STANDARD")
         cluster = generator.make()
         assert cluster["cluster_type"] == "STANDARD"
+
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
