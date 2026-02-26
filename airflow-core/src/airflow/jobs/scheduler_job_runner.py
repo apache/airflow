@@ -3045,7 +3045,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        Stats.gauge("asset.orphaned", getattr(deleted_orphaned_assets, "rowcount") or 0)
+        Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
 
     @staticmethod
     def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3081,7 +3081,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
             for asset in session.scalars(
-                # except_(select(assets_query.c.name, assets_query.c.uri), active_assets_query)
                 select(AssetModel)
                 .join(
                     assets_query,
