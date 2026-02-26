@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``3.0.2``
+Release: ``3.1.0``
 
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
@@ -48,7 +48,7 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.0.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.1.0/>`_.
 
 Installation
 ------------
@@ -66,7 +66,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ===================
 ``apache-airflow``                          ``>=3.0.0,!=3.1.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.0``
 ``pydantic``                                ``>=2.11.0``
 ``retryhttp``                               ``>=1.4.0``
 ``aiofiles``                                ``>=23.2.0``
@@ -93,4 +93,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.0.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.1.0/changelog.html>`_.

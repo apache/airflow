@@ -32,6 +32,31 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.13.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add Kubernetes Secrets Backend to cncf.kubernetes provider (#61527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EKSPodOperator credential refresh errors and improve error handling (#57585) (#58743)``
+* ``fix: pod_override existing init_containers (#62284)``
+* ``fix: Transient error state caused by rate limits from the container registry in 'KubernetesPodOperator' (#62215)``
+
+Misc
+~~~~
+
+* ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``(doc only) Update 'parallelism' parameter description for KubernetesJobOperator (#62468)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 10.12.4
 .......
 
