@@ -364,7 +364,8 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
+          ^\.github/skills/airflow-translations/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
