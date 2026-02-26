@@ -58,7 +58,6 @@ const handle403Error = (error: unknown) => {
       active403ToastId = toaster.create({
         description: i18n.t(
           "errors.forbidden.description",
-          "You do not have permission to perform this action.",
         ),
         title: i18n.t("errors.forbidden.title", "Insufficient Permissions"),
         type: "error",
