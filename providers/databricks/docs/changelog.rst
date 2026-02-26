@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage methods to DatabricksHook (#62179)``
+* ``Databricks OIDC token federation for Kubernetes deployment (#61458)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Add missing template fields to 'DatabricksWorkflowTaskGroup' (#61865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``cleanup test_databricks_workflow (#61907)``
+
 7.9.1
 .....
 

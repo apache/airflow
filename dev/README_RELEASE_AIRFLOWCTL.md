@@ -564,6 +564,7 @@ rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf $
 Run the check:
 
 ```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
 java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
