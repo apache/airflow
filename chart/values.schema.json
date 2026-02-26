@@ -91,7 +91,7 @@
             "x-docsSection": "Common"
         },
         "airflowVersion": {
-            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
+            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
             "default": "3.1.7",
             "x-docsSection": "Common"
@@ -1184,11 +1184,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
-                    "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
                     "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
                     "type": "boolean",
@@ -1214,11 +1209,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CELERY__CELERY_RESULT_BACKEND": {
-                    "description": "Enable ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret - Airflow 1.10.* variant",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__CELERY__RESULT_BACKEND": {
                     "description": "Enable ``AIRFLOW__CELERY__RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret",
                     "type": "boolean",
@@ -1231,11 +1221,6 @@
                 },
                 "AIRFLOW__ELASTICSEARCH__HOST": {
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__HOST`` variable to be read from the Elasticsearch Host Secret",
-                    "type": "boolean",
-                    "default": true
-                },
-                "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": {
-                    "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
                 },
@@ -1783,7 +1768,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
+                        "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
                     ]
                 },
                 "livenessProbe": {
@@ -3284,7 +3269,7 @@
                     }
                 },
                 "replicas": {
-                    "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
+                    "description": "Amount of scheduler replicas",
                     "type": "integer",
                     "default": 1
                 },
@@ -4413,7 +4398,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
+                    "description": "Enable standalone dag processor.",
                     "type": [
                         "boolean",
                         "null"
@@ -5024,7 +5009,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "exec \\\nairflow users create \"$@\"",
                         "--",
                         "-r",
                         "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}",
@@ -5386,7 +5371,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.7.0\" .Values.airflowVersion | ternary \"db migrate\" (semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\") }}"
+                        "exec \\\nairflow db migrate"
                     ]
                 },
                 "annotations": {
@@ -7367,7 +7352,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery flower\" \"flower\" }}"
+                        "exec \\\nairflow celery flower"
                     ]
                 },
                 "extraNetworkPolicies": {

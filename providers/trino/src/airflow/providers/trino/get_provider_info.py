@@ -51,6 +51,15 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.trino.hooks.trino.TrinoHook", "connection-type": "trino"}
+            {
+                "hook-class-name": "airflow.providers.trino.hooks.trino.TrinoHook",
+                "connection-type": "trino",
+                "ui-field-behaviour": {
+                    "placeholders": {
+                        "extra": '{\n "auth": "authentication type",\n "impersonate_as_owner": "allow impersonate as owner",\n "jwt__token": "JWT token",\n "jwt__file": "JWT file path",\n "certs__client_cert_path": "Client certificate path",\n "certs__client_key_path": "Client key path",\n "kerberos__config": "Kerberos config",\n "kerberos__service_name": "Kerberos service name",\n "kerberos__mutual_authentication": "Kerberos mutual authentication",\n "kerberos__force_preemptive": "Kerberos force preemptive",\n "kerberos__hostname_override": "Kerberos hostname override",\n "kerberos__sanitize_mutual_error_response": "Kerberos sanitize mutual error response",\n "kerberos__principal": "Kerberos principal",\n "kerberos__delegate": "Kerberos delegate",\n "kerberos__ca_bundle": "Kerberos CA bundle",\n "session_properties": "session properties",\n "client_tags": "Trino client tags. Example [\'sales\',\'cluster1\']",\n "timezone": "Trino timezone"\n}\n',
+                        "login": "Effective user for connection",
+                    }
+                },
+            }
         ],
     }

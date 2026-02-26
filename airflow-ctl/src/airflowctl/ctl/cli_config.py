@@ -243,6 +243,13 @@ ARG_AUTH_USERNAME = Arg(
     dest="username",
     help="The username to use for authentication",
 )
+ARG_AUTH_SKIP_KEYRING = Arg(
+    flags=("--skip-keyring",),
+    dest="skip_keyring",
+    default=False,
+    action="store_true",
+    help="Skip storing credentials in keyring",
+)
 ARG_AUTH_PASSWORD = Arg(
     flags=("--password",),
     type=str,
@@ -749,6 +756,23 @@ class CommandFactory:
         return self.group_commands_list
 
 
+def add_auth_token_to_all_commands(commands: Iterable[CLICommand]) -> list[CLICommand]:
+    """Add ARG_AUTH_TOKEN to all ActionCommands."""
+    new_commands: list[CLICommand] = []
+    for command in commands:
+        if isinstance(command, ActionCommand):
+            new_args = list(command.args)
+            if ARG_AUTH_TOKEN not in new_args:
+                new_args.append(ARG_AUTH_TOKEN)
+            new_commands.append(command._replace(args=new_args))
+        elif isinstance(command, GroupCommand):
+            new_subcommands = add_auth_token_to_all_commands(command.subcommands)
+            new_commands.append(command._replace(subcommands=new_subcommands))
+        else:
+            new_commands.append(command)
+    return new_commands
+
+
 def merge_commands(
     base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
 ) -> list[CLICommand]:
@@ -812,7 +836,13 @@ AUTH_COMMANDS = (
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
-        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
+        args=(
+            ARG_AUTH_URL,
+            ARG_AUTH_ENVIRONMENT,
+            ARG_AUTH_USERNAME,
+            ARG_AUTH_PASSWORD,
+            ARG_AUTH_SKIP_KEYRING,
+        ),
     ),
     ActionCommand(
         name="list-envs",
@@ -943,3 +973,5 @@ core_commands: list[CLICommand] = [
 core_commands = merge_commands(
     base_commands=command_factory.group_commands, commands_will_be_merged=core_commands
 )
+# Add ARG_AUTH_TOKEN to all commands
+core_commands = add_auth_token_to_all_commands(core_commands)

@@ -53,6 +53,9 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param return_gcs_uris: If True, returns full GCS URIs (e.g., ``gs://bucket/path/file.csv``).
+        If False (default), returns object names only (e.g., ``path/to/file.csv``).
+        Default will change to True in a future release.
     """
 
     template_fields: Sequence[str] = (
@@ -72,6 +75,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -81,6 +85,16 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         self.destination_bucket = destination_bucket
         self.destination_path = destination_path
         self.impersonation_chain = impersonation_chain
+        self.return_gcs_uris = return_gcs_uris
+        if not self.return_gcs_uris:
+            import warnings
+
+            warnings.warn(
+                "The default value of return_gcs_uris will change from False to True in a future release. "
+                "Please set return_gcs_uris explicitly to avoid this warning.",
+                FutureWarning,
+                stacklevel=2,
+            )
 
     def _upload_data(
         self,
@@ -110,7 +124,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
             )
         return dest_file_name
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -128,7 +142,11 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         for sheet_range in sheet_titles:
             data = sheet_hook.get_values(spreadsheet_id=self.spreadsheet_id, range_=sheet_range)
             gcs_path_to_file = self._upload_data(gcs_hook, sheet_hook, sheet_range, data)
-            destination_array.append(gcs_path_to_file)
+            if self.return_gcs_uris:
+                gcs_uri = f"gs://{self.destination_bucket}/{gcs_path_to_file}"
+                destination_array.append(gcs_uri)
+            else:
+                destination_array.append(gcs_path_to_file)
 
         context["ti"].xcom_push(key="destination_objects", value=destination_array)
         return destination_array
