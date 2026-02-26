@@ -98,25 +98,27 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                ``oracle``
-`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                    ``sftp``
-==================================================================================================================  =================
+========================================================================================================================  ====================
+Dependent package                                                                                                         Extra
+========================================================================================================================  ====================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
+`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
+========================================================================================================================  ====================
 
 Optional dependencies
 ----------------------
 
-==========  ===================================
-Extra       Dependencies
-==========  ===================================
-``amazon``  ``apache-airflow-providers-amazon``
-``oracle``  ``apache-airflow-providers-oracle``
-``sftp``    ``apache-airflow-providers-sftp``
-==========  ===================================
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``amazon``            ``apache-airflow-providers-amazon``
+``oracle``            ``apache-airflow-providers-oracle``
+``sftp``              ``apache-airflow-providers-sftp``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.0/changelog.html>`_.

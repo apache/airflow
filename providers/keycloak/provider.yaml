@@ -23,9 +23,10 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1770752732
+source-date-epoch: 1772065004
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.5.3
   - 0.5.2
   - 0.5.1
   - 0.5.0

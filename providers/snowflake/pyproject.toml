@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-snowflake"
-version = "6.9.1"
+version = "6.10.0"
 description = "Provider package apache-airflow-providers-snowflake for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-airflow-providers-common-sql>=1.27.5",  # use next version
+    "apache-airflow-providers-common-sql>=1.32.0",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
@@ -124,8 +124,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.9.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.9.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.10.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.10.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

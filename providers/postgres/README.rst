@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-postgres``
 
-Release: ``6.5.4``
+Release: ``6.6.0``
 
 
 `PostgreSQL <https://www.postgresql.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``postgres`` provider. All classes for this provi
 are in ``airflow.providers.postgres`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.6.0/>`_.
 
 Installation
 ------------
@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``apache-airflow-providers-common-sql``     ``>=1.23.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
 ``asyncpg``                                 ``>=0.30.0``
@@ -100,4 +100,4 @@ Extra                Dependencies
 ===================  =====================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.6.0/changelog.html>`_.

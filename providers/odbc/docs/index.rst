@@ -77,7 +77,7 @@ apache-airflow-providers-odbc package
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 
-Release: 4.11.1
+Release: 4.12.0
 
 Provider package
 ----------------
@@ -102,7 +102,7 @@ PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``pyodbc``                                  ``>=5.0.0; python_version < "3.13"``
 ``pyodbc``                                  ``>=5.2.0; python_version >= "3.13"``
 ==========================================  =====================================
@@ -133,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-odbc 4.11.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-odbc 4.11.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.11.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-odbc 4.12.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-odbc 4.12.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-4.12.0-py3-none-any.whl.sha512>`__)

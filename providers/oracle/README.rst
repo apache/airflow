@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-oracle``
 
-Release: ``4.4.0``
+Release: ``4.5.0``
 
 
 `Oracle <https://www.oracle.com/database/technologies/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``oracle`` provider. All classes for this provide
 are in ``airflow.providers.oracle`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.0/>`_.
 
 Installation
 ------------
@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``oracledb``                                ``>=2.0.0``
 ==========================================  ==================
 
@@ -91,4 +91,4 @@ Extra            Dependencies
 ===============  ========================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.0/changelog.html>`_.

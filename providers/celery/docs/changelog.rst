@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``docs(celery): fix wrong link in cli (#62460)``
+
+Misc
+~~~~
+
+* ``Insert a team_name similar to team conf for 2.X compat (#61923)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 3.16.0
 ......
 
