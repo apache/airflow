@@ -68,6 +68,13 @@ def upgrade() -> None:
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.create_unique_constraint(batch_op.f("ab_register_user_email_uq"), ["email"])
 
+    if op.get_context().dialect.name == "postgresql":
+        op.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_ab_user_username ON ab_user (lower(username))")
+        op.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ab_register_user_username ON ab_register_user"
+            " (lower(username))"
+        )
+
     with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("idx_user_group_id"))
         batch_op.drop_index(batch_op.f("idx_user_id"))
@@ -84,6 +91,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if op.get_context().dialect.name == "postgresql":
+        op.execute("DROP INDEX IF EXISTS idx_ab_register_user_username")
+        op.execute("DROP INDEX IF EXISTS idx_ab_user_username")
+
     with op.batch_alter_table("ab_user_role", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(batch_op.f("ab_user_role_user_id_fkey"), type_="foreignkey")
