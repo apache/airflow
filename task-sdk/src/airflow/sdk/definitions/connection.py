@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, overload
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
@@ -120,25 +120,37 @@ class Connection:
     password: str | None = None
     port: int | None = None
     extra: str | None = None
-    uri: str | None = None
 
     EXTRA_KEY = "__extra__"
 
-    _URI_FORBIDDEN_FIELDS = ("conn_type", "host", "login", "password", "schema", "port", "extra")
+    @overload
+    def __init__(self, *, conn_id: str, uri: str | None = None) -> None: ...
 
-    def __attrs_post_init__(self) -> None:
-        if self.uri is not None:
-            if any(getattr(self, f) for f in self._URI_FORBIDDEN_FIELDS):
-                raise AirflowException(
-                    "You must create an object using the URI or individual values "
-                    "(conn_type, host, login, password, schema, port or extra). "
-                    "You can't mix these two ways to create this object."
-                )
-            conn_from_uri = self.from_uri(self.uri, conn_id=self.conn_id)
-            for attr in attrs.fields(type(conn_from_uri)):
-                if attr.name != "uri":
-                    object.__setattr__(self, attr.name, getattr(conn_from_uri, attr.name))
-            object.__setattr__(self, "uri", None)
+    @overload
+    def __init__(
+        self,
+        conn_id: str,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        schema: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        port: int | None = None,
+        extra: str | None = None,
+    ) -> None: ...
+
+    def __init__(self, *, conn_id: str, uri: str | None = None, **kwargs) -> None:
+        if uri is not None and kwargs:
+            raise AirflowException(
+                "You must create an object using the URI or individual values "
+                "(conn_type, host, login, password, schema, port or extra). "
+                "You can't mix these two ways to create this object."
+            )
+        if uri is None:
+            self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
+        else:
+            self.__dict__.update(self.from_uri(uri, conn_id=conn_id).to_dict(validate=False))
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
@@ -282,8 +294,6 @@ class Connection:
     def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
         """
         Convert Connection to json-serializable dictionary.
-
-        Note: uri is init-only and is excluded from serialization.
 
         :param prune_empty: Whether or not remove empty values.
         :param validate: Validate dictionary is JSON-serializable
