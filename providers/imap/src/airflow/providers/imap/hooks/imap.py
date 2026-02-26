@@ -209,6 +209,7 @@ class ImapHook(BaseHook):
         :param overwrite_file: Specify what should happen if file already exists on disk.
             If set to True - file is overwritten.
             If set to False - new file with suffix _1, _2, etc. is created.
+            Suffix is inserted before the last extension, so files with multiple extensions, like .tar.gz, will be transformed into .tar_1.gz.
             Defaults to True to preserve existing behavior.
         :param not_found_mode: Specify what should happen if no attachment has been found.
             Supported values are 'raise', 'warn' and 'ignore'.
@@ -320,9 +321,12 @@ class ImapHook(BaseHook):
     def _create_file(
         self, name: str, payload: Any, local_output_directory: str, overwrite_file: bool
     ) -> None:
-        filename, extensions = name.split(".", 1)
-        counter = 1
-        method = "wb" if overwrite_file else "xb"
+        if overwrite_file:
+            method = "wb"
+        else:
+            method = "xb"
+            filename, extension = os.path.splitext(name)
+            counter = 1
         while True:
             file_path = self._correct_path(name, local_output_directory)
             try:
@@ -330,7 +334,7 @@ class ImapHook(BaseHook):
                     file.write(payload)
                 break
             except FileExistsError:
-                name = f"{filename}_{counter}.{extensions}"
+                name = f"{filename}_{counter}{extension}"
                 counter += 1
 
 
