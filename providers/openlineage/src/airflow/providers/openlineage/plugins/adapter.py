@@ -167,7 +167,7 @@ class OpenLineageAdapter(LoggingMixin):
                     stack.enter_context(
                         DualStatsManager.timer(
                             "ol.emit.attempts",
-                            extra_tags={"event_type": event_type, "transport_type": transport_type},
+                            legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
                         )
                     )
                 else:

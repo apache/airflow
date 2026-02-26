@@ -615,7 +615,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             "triggers.running",
             len(self.running_triggers),
             tags={},
-            extra_tags={"hostname": self.job.hostname},
+            legacy_name_tags={"hostname": self.job.hostname},
         )
 
         capacity_left = self.capacity - len(self.running_triggers)
@@ -623,7 +623,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             "triggerer.capacity_left",
             capacity_left,
             tags={},
-            extra_tags={"hostname": self.job.hostname},
+            legacy_name_tags={"hostname": self.job.hostname},
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
