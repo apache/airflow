@@ -33,6 +33,7 @@ REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
     pytest.param(DeadlineReference.AVERAGE_RUNTIME, id="average_runtime"),
+    pytest.param(DeadlineReference.JOB_START_DATE, id="job_start_date"),
 ]
 
 
@@ -89,6 +90,15 @@ class TestDeadlineAlert:
                 id="different_kwargs",
             ),
             pytest.param("not a DeadlineAlert", False, id="non_deadline_alert"),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.JOB_START_DATE,
+                    interval=timedelta(hours=1),
+                    callback=TEST_DEADLINE_CALLBACK,
+                ),
+                False,
+                id="different_reference_job",
+            ),
         ],
     )
     def test_deadline_alert_equality(self, test_alert, should_equal):

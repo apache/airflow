@@ -126,13 +126,20 @@ class DeadlineReference:
         # Deadlines that should be created when the DagRun is queued.
         DAGRUN_QUEUED: DeadlineReferenceTypes = (ReferenceModels.DagRunQueuedAtDeadline,)
 
+        # Deadlines related to background Jobs (Scheduler, etc.)
+        JOB: DeadlineReferenceTypes = (ReferenceModels.JobStartDateDeadline,)
+
         # All DagRun-related deadline types.
         DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
+
+        # INCLUDE JOBS IN THE GLOBAL LIST
+        # ALL: DeadlineReferenceTypes = DAGRUN + JOB
 
     from airflow.models.deadline import ReferenceModels
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
     DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
+    JOB_START_DATE: DeadlineReferenceType = ReferenceModels.JobStartDateDeadline()
 
     @classmethod
     def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
