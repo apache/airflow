@@ -362,17 +362,15 @@ class Timetable(Protocol):
             restriction=restriction,
         )
 
-    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
+    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo | None:
         from airflow.models.dag import get_next_data_interval
 
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if TYPE_CHECKING:
-            assert run_after is not None
-        data_interval = get_next_data_interval(self, dag_model)
+        if (run_after := timezone.coerce_datetime(dag_model.next_dagrun_create_after)) is None:
+            return None
         return DagRunInfo(
             run_after=run_after,
-            data_interval=data_interval,
-            partition_date=dag_model.next_dagrun_partition_date,
+            data_interval=get_next_data_interval(self, dag_model),
+            partition_date=timezone.coerce_datetime(dag_model.next_dagrun_partition_date),
             partition_key=dag_model.next_dagrun_partition_key,
         )
 
@@ -384,6 +382,6 @@ class Timetable(Protocol):
         return DagRunInfo(
             run_after=run_after,
             data_interval=interval,
-            partition_date=dag_run.partition_date,
+            partition_date=timezone.coerce_datetime(dag_run.partition_date),
             partition_key=dag_run.partition_key,
         )

@@ -523,10 +523,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
         suffix = f"{suffix}__{get_random_string()}"
         return run_type.generate_run_id(suffix=suffix)
 
-    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if TYPE_CHECKING:
-            assert run_after is not None
+    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo | None:
+        if (run_after := timezone.coerce_datetime(dag_model.next_dagrun_create_after)) is None:
+            return None
         partition_date, partition_key = self._get_partition_info(run_date=run_after)
         return DagRunInfo(
             run_after=run_after,

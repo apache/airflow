@@ -1998,6 +1998,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                if TYPE_CHECKING:
+                    assert next_info is not None
                 data_interval = next_info.data_interval
                 logical_date = next_info.logical_date
                 partition_key = next_info.partition_key

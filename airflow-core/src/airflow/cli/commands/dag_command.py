@@ -344,9 +344,9 @@ def dag_next_execution(args) -> None:
                 last_dagrun_info=dagrun_info,
                 restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
             )
+            yield dagrun_info
             if dagrun_info is None:
                 break
-            yield dagrun_info
 
     if args.table:
         if last_parsed_dag.timetable_partitioned:

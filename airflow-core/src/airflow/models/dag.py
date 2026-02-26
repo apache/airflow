@@ -768,8 +768,8 @@ class DagModel(Base):
             next_dagrun_create_after=str(self.next_dagrun_create_after),
             next_dagrun_data_interval_start=str(self.next_dagrun_data_interval_start),
             next_dagrun_data_interval_end=str(self.next_dagrun_data_interval_end),
-            next_dagrun_partition_key=next_dagrun_info.partition_key,
-            next_dagrun_partition_date=str(next_dagrun_info.partition_date),
+            next_dagrun_partition_key=self.next_dagrun_partition_key,
+            next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
 
     @provide_session
