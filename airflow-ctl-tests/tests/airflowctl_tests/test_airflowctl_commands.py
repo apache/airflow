@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflowctl_tests.constants import LOGIN_COMMAND
-
 
 def date_param():
     import random
@@ -44,11 +42,12 @@ def date_param():
     return random_dt.isoformat()
 
 
-ONE_DATE_PARAM = date_param()
+# Passing password via command line is insecure but acceptable for testing purposes
+# Please do not do this in production, it enables possibility of exposing your credentials
+LOGIN_COMMAND = "auth login --username airflow --password airflow"
+LOGIN_COMMAND_SKIP_KEYRING = "auth login --skip-keyring"
+LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
-    # Passing password via command line is insecure but acceptable for testing purposes
-    # Please do not do this in production, it enables possibility of exposing your credentials
-    LOGIN_COMMAND,
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -80,22 +79,22 @@ TEST_COMMANDS = [
     "dags list-version --dag-id=example_bash_operator",
     "dags list-warning",
     # Order of trigger and pause/unpause is important for test stability because state checked
-    f"dags trigger --dag-id=example_bash_operator --logical-date={ONE_DATE_PARAM} --run-after={ONE_DATE_PARAM}",
+    "dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
     # Test trigger without logical-date (should default to now)
     "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
     # DAG Run commands
-    f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}"',
+    'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     "dags update --dag-id=example_bash_operator --no-is-paused",
     # DAG Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # XCom commands - need a DAG run with completed tasks
-    f'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
-    f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
-    f'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
-    f'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
-    f'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
+    'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
+    'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key',
+    'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
+    'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key',
     # Jobs commands
     "jobs list",
     # Pools commands
@@ -124,11 +123,38 @@ TEST_COMMANDS = [
     "version --remote",
 ]
 
+DATE_PARAM_1 = date_param()
+DATE_PARAM_2 = date_param()
+TEST_COMMANDS_DEBUG_MODE = [LOGIN_COMMAND] + [test.format(date_param=DATE_PARAM_1) for test in TEST_COMMANDS]
+TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
+    test.format(date_param=DATE_PARAM_2) for test in TEST_COMMANDS
+]
+
 
 @pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
-    "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
+    "command",
+    TEST_COMMANDS_DEBUG_MODE,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_DEBUG_MODE],
 )
 def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    run_command(command)
+    env_vars = {"AIRFLOW_CLI_DEBUG_MODE": "true"}
+
+    run_command(command, env_vars, skip_login=True)
+
+
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
+@pytest.mark.parametrize(
+    "command",
+    TEST_COMMANDS_SKIP_KEYRING,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_SKIP_KEYRING],
+)
+def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
+    """Test airflowctl commands using docker-compose environment without using keyring."""
+    env_vars = {}
+    env_vars["AIRFLOW_CLI_TOKEN"] = api_token
+    env_vars["AIRFLOW_CLI_DEBUG_MODE"] = "false"
+    env_vars["AIRFLOW_CLI_ENVIRONMENT"] = "nokeyring"
+
+    run_command(command, env_vars, skip_login=True)

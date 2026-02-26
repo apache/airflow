@@ -41,7 +41,9 @@ def test_config_sensitive_masking(command: str, run_command):
     Airflow API, sensitive values (like fernet_key, sql_alchemy_conn) appear masked
     as '< hidden >' and do not leak actual secret values.
     """
-    stdout_result = run_command(command)
+
+    env_vars = {"AIRFLOW_CLI_DEBUG_MODE": "true"}
+    stdout_result = run_command(command, env_vars)
 
     # CRITICAL: Verify that sensitive values are masked
     # The Airflow API returns masked values as "< hidden >" for sensitive configs

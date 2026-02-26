@@ -38,7 +38,9 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     success_message = "[green]Login successful! Welcome to airflowctl![/green]"
     # Check is username and password are passed
     if args.username and args.password:
-        # Generate empty credentials with the api_url and env
+        if args.skip_keyring:
+            rich.print("[red]The --skip-keyring is not compatible with username and password login.")
+            sys.exit(1)
         credentials = Credentials(
             api_url=args.api_url,
             api_token="",
@@ -47,7 +49,6 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         )
         # After logging in, the token will be saved in the credentials file
         try:
-            credentials.save()
             api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
             login_response = api_client.login.login_with_username_and_password(
                 LoginBody(
@@ -78,7 +79,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         api_url=args.api_url,
         api_token=token,
         api_environment=args.env,
-    ).save()
+    ).save(args.skip_keyring)
     rich.print(success_message)
 
 
