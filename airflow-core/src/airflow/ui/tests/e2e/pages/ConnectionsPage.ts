@@ -159,7 +159,7 @@ export class ConnectionsPage extends BasePage {
       const selectTrigger = this.getConnectionTypeSelectTrigger();
 
       await expect(selectTrigger).toBeVisible({ timeout: 15_000 });
-    }).toPass({ timeout: 60_000, intervals: [1_000, 2_000, 5_000] });
+    }).toPass({ intervals: [1000, 2000, 5000], timeout: 60_000 });
 
     await this.fillConnectionForm(details);
     await this.saveConnection();
@@ -274,39 +274,6 @@ export class ConnectionsPage extends BasePage {
     }
   }
 
-  // Get the connection type select trigger (chakra-react-select custom component)
-  public getConnectionTypeSelectTrigger(): Locator {
-    const connTypeGroup = this.connectionForm
-      .locator("fieldset, [role='group']")
-      .filter({ hasText: /Connection Type/ })
-      .first();
-
-    return connTypeGroup;
-  }
-
-  public async selectConnectionType(connType: string): Promise<void> {
-    const connTypeGroup = this.getConnectionTypeSelectTrigger();
-
-    await expect(connTypeGroup).toBeVisible({ timeout: 30_000 });
-
-    // Wait for the loading spinner to disappear (connection types are fetched from API)
-    const spinner = this.connectionForm.locator('[data-testid="spinner"], .chakra-spinner').first();
-
-    await expect(spinner).toBeHidden({ timeout: 60_000 }).catch(() => {});
-
-    // Click on the select control area, using force to bypass any remaining overlay
-    const selectArea = connTypeGroup.locator("div").filter({ hasText: /Select Connection Type|Connection Type/i }).last();
-
-    await selectArea.click({ force: true, timeout: 10_000 });
-
-    await this.page.keyboard.type(connType, { delay: 50 });
-
-    const option = this.page.getByRole("option", { name: new RegExp(connType, "i") }).first();
-
-    await expect(option).toBeVisible({ timeout: 10_000 });
-    await option.click();
-  }
-
   // Get connection count from current page
   public async getConnectionCount(): Promise<number> {
     const ids = await this.getConnectionIds();
@@ -376,6 +343,16 @@ export class ConnectionsPage extends BasePage {
     return connectionIds;
   }
 
+  // Get the connection type select trigger (chakra-react-select custom component)
+  public getConnectionTypeSelectTrigger(): Locator {
+    const connTypeGroup = this.connectionForm
+      .locator("fieldset, [role='group']")
+      .filter({ hasText: /Connection Type/ })
+      .first();
+
+    return connTypeGroup;
+  }
+
   // Navigate to Connections list page
   public async navigate(): Promise<void> {
     await this.navigateTo(ConnectionsPage.connectionsListUrl);
@@ -434,6 +411,29 @@ export class ConnectionsPage extends BasePage {
         { message: "Search results did not match search term", timeout: 20_000 },
       )
       .toBeTruthy();
+  }
+
+  public async selectConnectionType(connType: string): Promise<void> {
+    const connTypeGroup = this.getConnectionTypeSelectTrigger();
+
+    await expect(connTypeGroup).toBeVisible({ timeout: 30_000 });
+
+    // Wait for the loading spinner to disappear (connection types are fetched from API)
+    const spinner = this.connectionForm.locator('[data-testid="spinner"], .chakra-spinner').first();
+
+    await expect(spinner).toBeHidden({ timeout: 60_000 }).catch(() => {});
+
+    // Click on the select control area, using force to bypass any remaining overlay
+    const selectArea = connTypeGroup.locator("div").filter({ hasText: /select connection type|connection type/i }).last();
+
+    await selectArea.click({ force: true, timeout: 10_000 });
+
+    await this.page.keyboard.type(connType, { delay: 50 });
+
+    const option = this.page.getByRole("option", { name: new RegExp(connType, "i") }).first();
+
+    await expect(option).toBeVisible({ timeout: 10_000 });
+    await option.click();
   }
 
   // Verify connection details are displayed in the list

@@ -72,14 +72,14 @@ export class AssetDetailPage extends BasePage {
     if (count > 0) {
       await expect(async () => {
         await button.click({ timeout: 10_000 });
-        await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5_000 });
+        await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
       }).toPass({ timeout: 30_000 });
       const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
 
       await expect(popoverLinks).toHaveCount(count, { timeout: 15_000 });
       await expect(async () => {
         await button.click({ timeout: 10_000 });
-        await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5_000 });
+        await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
       }).toPass({ timeout: 30_000 });
     }
   }
