@@ -53,8 +53,8 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^src/airflow/providers/edge3/migrations/versions/.*\.py$|
-          ^docs/migrations-ref\.rst$
+          ^(providers/edge3/)?src/airflow/providers/edge3/migrations/versions/.*\.py$|
+          ^(providers/edge3/)?docs/migrations-ref\.rst$
       - id: check-revision-heads-map-edge3
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
@@ -62,8 +62,8 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^src/airflow/providers/fab/migrations/versions/.*$|
-          ^src/airflow/providers/edge3/models/db\.py$
+          ^(providers/edge3/)?src/airflow/providers/edge3/migrations/versions/.*$|
+          ^(providers/edge3/)?src/airflow/providers/edge3/models/db\.py$
       - id: compile-edge-assets
         name: Compile Edge provider assets
         language: node
