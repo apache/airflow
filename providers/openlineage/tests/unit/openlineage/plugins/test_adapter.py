@@ -207,7 +207,7 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -325,7 +325,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -388,7 +388,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -508,7 +508,7 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -571,7 +571,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -692,7 +692,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -870,7 +870,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, build_ol_id, 
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -1042,7 +1042,7 @@ def test_emit_dag_complete_event(
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -1218,7 +1218,7 @@ def test_emit_dag_failed_event(
     mock_stats_incr.assert_not_called()
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")
@@ -1238,7 +1238,7 @@ def test_openlineage_adapter_stats_emit_failed(
 
     if AIRFLOW_V_3_2_PLUS:
         mock_stats_timer.assert_called_with(
-            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+            "ol.emit.attempts", legacy_name_tags={"event_type": ANY, "transport_type": ANY}
         )
     else:
         mock_stats_timer.assert_called_with("ol.emit.attempts")

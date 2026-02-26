@@ -223,7 +223,7 @@ def set_state(
             1,
             1,
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
     else:
         Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)

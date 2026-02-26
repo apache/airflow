@@ -60,22 +60,22 @@ def _get_dict_with_defined_args(
     return defined_args_dict
 
 
-def _get_args_dict_with_extra_tags_if_set(
+def _get_args_dict_with_legacy_name_tags_if_set(
     args_dict: dict[str, Any] | None = None,
     prov_tags: dict[str, Any] | None = None,
-    prov_tags_extra: dict[str, Any] | None = None,
+    prov_tags_legacy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Create a new merged tags dict if there are extra tags.
+    Create a new merged tags dict if there are legacy name tags.
 
     The new merged tags dict will replace the existing one, in the args dict.
     """
     # The args_dict already has the base tags.
-    # If there are no `extra_tags`, this method is basically
+    # If there are no `legacy_name_tags`, this method is basically
     # returning the `args_dict` unchanged.
     args_dict_full = dict(args_dict) if args_dict is not None else {}
 
-    tags_full = _get_tags_with_extra(prov_tags, prov_tags_extra)
+    tags_full = _get_tags_with_legacy(prov_tags, prov_tags_legacy)
 
     # Set `tags` only if there's something in `tags_full`.
     # If it's empty, remove any inherited key.
@@ -87,19 +87,19 @@ def _get_args_dict_with_extra_tags_if_set(
     return args_dict_full
 
 
-def _get_tags_with_extra(
+def _get_tags_with_legacy(
     prov_tags: dict[str, Any] | None = None,
-    prov_tags_extra: dict[str, Any] | None = None,
+    prov_tags_legacy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Return a new dict with all tags if extra have been provided."""
-    # If there are no extra tags then return the original tags.
+    """Return a new dict with all tags if legacy name tags have been provided."""
+    # If there are no legacy name tags then return the original tags.
     tags_full: dict[str, Any] = {}
     if prov_tags:
         tags_full.update(prov_tags)
 
-    # If there are `extra_tags`, then add them to the dict.
-    if prov_tags_extra is not None:
-        tags_full.update(prov_tags_extra)
+    # If there are `legacy_name_tags`, then add them to the dict.
+    if prov_tags_legacy is not None:
+        tags_full.update(prov_tags_legacy)
 
     return tags_full
 
@@ -158,12 +158,12 @@ class DualStatsManager:
         rate: int | float | None = None,
         *,
         tags: dict[str, Any] | None = None,
-        extra_tags: dict[str, Any] | None = None,
+        legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        if cls.export_legacy_names and extra_tags is not None:
-            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+        if cls.export_legacy_names and legacy_name_tags is not None:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
             if legacy_stat is not None:
                 # Emit legacy metric
@@ -171,8 +171,10 @@ class DualStatsManager:
             else:
                 raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
-        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
-        Stats.incr(stat, **kw_with_extra_tags_if_set)
+        kw_with_legacy_name_tags_if_set = _get_args_dict_with_legacy_name_tags_if_set(
+            kw, tags, legacy_name_tags
+        )
+        Stats.incr(stat, **kw_with_legacy_name_tags_if_set)
 
     @classmethod
     def decr(
@@ -182,12 +184,12 @@ class DualStatsManager:
         rate: int | float | None = None,
         *,
         tags: dict[str, Any] | None = None,
-        extra_tags: dict[str, Any] | None = None,
+        legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        if cls.export_legacy_names and extra_tags is not None:
-            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+        if cls.export_legacy_names and legacy_name_tags is not None:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
             if legacy_stat is not None:
                 # Emit legacy metric
@@ -195,8 +197,10 @@ class DualStatsManager:
             else:
                 raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
-        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
-        Stats.decr(stat, **kw_with_extra_tags_if_set)
+        kw_with_legacy_name_tags_if_set = _get_args_dict_with_legacy_name_tags_if_set(
+            kw, tags, legacy_name_tags
+        )
+        Stats.decr(stat, **kw_with_legacy_name_tags_if_set)
 
     @classmethod
     def gauge(
@@ -207,12 +211,12 @@ class DualStatsManager:
         delta: bool | None = None,
         *,
         tags: dict[str, Any] | None = None,
-        extra_tags: dict[str, Any] | None = None,
+        legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
         kw = _get_dict_with_defined_args(None, rate, delta, tags)
 
-        if cls.export_legacy_names and extra_tags is not None:
-            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+        if cls.export_legacy_names and legacy_name_tags is not None:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
             if legacy_stat is not None:
                 # Emit legacy metric
@@ -220,8 +224,10 @@ class DualStatsManager:
             else:
                 raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
-        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
-        Stats.gauge(stat, value, **kw_with_extra_tags_if_set)
+        kw_with_legacy_name_tags_if_set = _get_args_dict_with_legacy_name_tags_if_set(
+            kw, tags, legacy_name_tags
+        )
+        Stats.gauge(stat, value, **kw_with_legacy_name_tags_if_set)
 
     @classmethod
     def timing(
@@ -230,10 +236,10 @@ class DualStatsManager:
         dt: DeltaType,
         *,
         tags: dict[str, Any] | None = None,
-        extra_tags: dict[str, Any] | None = None,
+        legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
-        if cls.export_legacy_names and extra_tags is not None:
-            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+        if cls.export_legacy_names and legacy_name_tags is not None:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
             if legacy_stat is not None:
                 if tags:
@@ -243,10 +249,10 @@ class DualStatsManager:
             else:
                 raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
-        tags_with_extra = _get_tags_with_extra(tags, extra_tags)
+        tags_with_legacy = _get_tags_with_legacy(tags, legacy_name_tags)
 
-        if tags_with_extra:
-            Stats.timing(stat, dt, tags=tags_with_extra)
+        if tags_with_legacy:
+            Stats.timing(stat, dt, tags=tags_with_legacy)
         else:
             Stats.timing(stat, dt)
 
@@ -255,7 +261,7 @@ class DualStatsManager:
         cls,
         stat: str,
         tags: dict[str, Any] | None = None,
-        extra_tags: dict[str, Any] | None = None,
+        legacy_name_tags: dict[str, Any] | None = None,
         **kwargs,
     ):
         kw = dict(kwargs)
@@ -265,8 +271,8 @@ class DualStatsManager:
         # Used with a context manager.
         stack = ExitStack()
 
-        if cls.export_legacy_names and extra_tags is not None:
-            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+        if cls.export_legacy_names and legacy_name_tags is not None:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
             ctx_mg1: AbstractContextManager[Any] = cast(
                 "AbstractContextManager[Any]", Stats.timer(legacy_stat, **kw)
@@ -276,7 +282,9 @@ class DualStatsManager:
 
         stack.enter_context(ctx_mg1)
 
-        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
-        stack.enter_context(Stats.timer(stat, **kw_with_extra_tags_if_set))
+        kw_with_legacy_name_tags_if_set = _get_args_dict_with_legacy_name_tags_if_set(
+            kw, tags, legacy_name_tags
+        )
+        stack.enter_context(Stats.timer(stat, **kw_with_legacy_name_tags_if_set))
 
         return stack

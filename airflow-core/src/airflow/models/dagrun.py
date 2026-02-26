@@ -1191,7 +1191,7 @@ class DagRun(Base, LoggingMixin):
         with DualStatsManager.timer(
             "dagrun.dependency-check",
             tags={},
-            extra_tags=self.stats_tags,
+            legacy_name_tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1693,7 +1693,7 @@ class DagRun(Base, LoggingMixin):
             f"dagrun.duration.{self.state}",
             dt=duration,
             tags=self.stats_tags,
-            extra_tags={"dag_id": self.dag_id},
+            legacy_name_tags={"dag_id": self.dag_id},
         )
 
     @provide_session
@@ -1773,7 +1773,7 @@ class DagRun(Base, LoggingMixin):
                     DualStatsManager.incr(
                         "task_restored_to_dag",
                         tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        legacy_name_tags={"dag_id": dag.dag_id},
                     )
                     ti.state = None
             except AirflowException:
@@ -1784,7 +1784,7 @@ class DagRun(Base, LoggingMixin):
                     DualStatsManager.incr(
                         "task_removed_from_dag",
                         tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        legacy_name_tags={"dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
                 continue
@@ -1952,7 +1952,7 @@ class DagRun(Base, LoggingMixin):
                     "task_instance_created",
                     count,
                     tags=self.stats_tags,
-                    extra_tags={"task_type": task_type},
+                    legacy_name_tags={"task_type": task_type},
                 )
             session.flush()
         except IntegrityError:

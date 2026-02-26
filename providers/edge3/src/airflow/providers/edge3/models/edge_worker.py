@@ -183,42 +183,42 @@ def set_metrics(
             "edge_worker.connected",
             int(connected),
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
 
         DualStatsManager.gauge(
             "edge_worker.maintenance",
             int(maintenance),
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
 
         DualStatsManager.gauge(
             "edge_worker.jobs_active",
             jobs_active,
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
 
         DualStatsManager.gauge(
             "edge_worker.concurrency",
             concurrency,
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
 
         DualStatsManager.gauge(
             "edge_worker.free_concurrency",
             free_concurrency,
             tags={},
-            extra_tags={"worker_name": worker_name},
+            legacy_name_tags={"worker_name": worker_name},
         )
 
         DualStatsManager.gauge(
             "edge_worker.num_queues",
             len(queues),
             tags={},
-            extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
+            legacy_name_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
     else:
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
