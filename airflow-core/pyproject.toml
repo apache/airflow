@@ -19,13 +19,15 @@
 requires = [
     "GitPython==3.1.45",
     "gitdb==4.0.12",
-    "hatchling==1.27.0",
+    #"hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.9.11.17",
+    "hatchling", "hatch<1.9",
+    "virtualenv<20.26",
 ]
 build-backend = "hatchling.build"
 
