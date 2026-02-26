@@ -1,19 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -29,9 +13,8 @@ from airflow.sdk import (
     task,
 )
 
-team_a_player_stats = Asset(uri="file://incoming/player-stats/team_a.csv")
-team_b_player_stats = Asset(uri="file://incoming/player-stats/team_b.csv")
-combined_player_stats = Asset(uri="file://curated/player-stats/combined.csv")
+team_a_player_stats = Asset(uri="file://incoming/player-stats/team_a.csv", name="team_a_player_stats")
+combined_player_stats = Asset(uri="file://curated/player-stats/combined.csv", name="combined_player_stats")
 
 
 with DAG(
@@ -54,22 +37,32 @@ with DAG(
     schedule=CronPartitionTimetable("15 * * * *", timezone="UTC"),
     tags=["player-stats", "ingestion"],
 )
-def ingest_team_b_player_stats():
+def team_b_player_stats():
     """Produce hourly partitioned stats for Team B."""
+    pass
+
+
+@asset(
+    uri="file://incoming/player-stats/team_c.csv",
+    schedule=CronPartitionTimetable("30 * * * *", timezone="UTC"),
+    tags=["player-stats", "ingestion"],
+)
+def team_c_player_stats():
+    """Produce hourly partitioned stats for Team C."""
     pass
 
 
 with DAG(
     dag_id="clean_and_combine_player_stats",
     schedule=PartitionedAssetTimetable(
-        assets=team_a_player_stats & team_b_player_stats,
+        assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
         default_partition_mapper=HourlyMapper(),
     ),
     catchup=False,
     tags=["player-stats", "cleanup"],
 ):
     """
-    Combine hourly partitions from Team A and Team B into a single curated dataset.
+    Combine hourly partitions from Team A, B and C into a single curated dataset.
 
     This Dag demonstrates multi-asset partition alignment using HourlyMapper.
     """
@@ -93,23 +86,23 @@ with DAG(
     schedule=PartitionedAssetTimetable(assets=combined_player_stats),
     tags=["player-stats", "odds"],
 )
-def compute_player_odds(dag_run):
+def compute_player_odds():
     """
     Compute player odds from the combined hourly statistics.
 
     This asset is partition-aware and triggered by the combined stats asset.
     """
-    print(dag_run.partition_key)
     pass
 
 
 with DAG(
-    dag_id="player_odds_quality_check_unlikely_to_trigger",
+    dag_id="player_odds_quality_check_wont_ever_to_trigger",
     schedule=PartitionedAssetTimetable(
-        assets=combined_player_stats & Asset.ref(name="compute_player_odds"),
+        assets=(combined_player_stats & team_a_player_stats & Asset.ref(name="team_b_player_stats")),
         partition_mapper_config={
             combined_player_stats: YearlyMapper(),  # incompatible on purpose
-            Asset.ref(name="compute_player_odds"): HourlyMapper(),
+            team_a_player_stats: HourlyMapper(),
+            Asset.ref(name="team_b_player_stats"): HourlyMapper(),
         },
     ),
     catchup=False,
@@ -123,9 +116,7 @@ with DAG(
     """
 
     @task
-    def check_partition_alignment(dag_run=None):
-        """Print the partition key if the DagRun is ever created."""
-        if dag_run:
-            print(dag_run.partition_key)
+    def check_partition_alignment():
+        pass
 
     check_partition_alignment()
