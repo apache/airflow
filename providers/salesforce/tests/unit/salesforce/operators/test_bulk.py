@@ -40,13 +40,18 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
+    def test_execute_invalid_operation(self):
+        """
+        Test execute with invalid operation value (validated at execute time).
+        """
+        operator = SalesforceBulkOperator(
+            task_id="missing_operation",
+            operation="operation",
+            object_name="Account",
+            payload=[],
+        )
         with pytest.raises(ValueError, match="Operation 'operation' not found!"):
-            SalesforceBulkOperator(
-                task_id="missing_operation",
-                operation="operation",
-                object_name="Account",
-                payload=[],
-            )
+            operator.execute(context={})
 
     def test_execute_missing_object_name(self):
         """
@@ -59,15 +64,20 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
+    def test_execute_empty_object_name(self):
+        """
+        Test execute with empty object_name value (validated at execute time).
+        """
+        operator = SalesforceBulkOperator(
+            task_id="missing_object_name",
+            operation="insert",
+            object_name="",
+            payload=[],
+        )
         with pytest.raises(
             ValueError, match="The required parameter 'object_name' cannot have an empty value."
         ):
-            SalesforceBulkOperator(
-                task_id="missing_object_name",
-                operation="insert",
-                object_name="",
-                payload=[],
-            )
+            operator.execute(context={})
 
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_insert(self, mock_get_conn):
@@ -236,3 +246,14 @@ class TestSalesforceBulkOperator:
             batch_size=batch_size,
             use_serial=use_serial,
         )
+
+    def test_template_fields(self):
+        """Test that all template_fields are valid instance attributes."""
+        operator = SalesforceBulkOperator(
+            task_id="test_template",
+            operation="insert",
+            object_name="Account",
+            payload=[{"Name": "test"}],
+        )
+        for field in SalesforceBulkOperator.template_fields:
+            assert hasattr(operator, field), f"template_field '{field}' is not an operator attribute"

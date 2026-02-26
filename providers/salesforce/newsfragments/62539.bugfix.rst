@@ -1,0 +1,1 @@
+Add ``template_fields`` to ``SalesforceBulkOperator`` so Jinja templates are rendered for ``operation``, ``object_name``, ``payload``, and ``external_id_field``.
