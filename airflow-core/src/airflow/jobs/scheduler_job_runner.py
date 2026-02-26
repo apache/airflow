@@ -2081,28 +2081,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
             )
-
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            Stats.incr("asset.triggered_dagruns")
-            dag_run.consumed_asset_events.extend(asset_events)
-            self.log.info(
-                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                dag.dag_id,
-                dag_run.run_id,
-                len(asset_events),
-            )
+            if asset_events:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                Stats.incr("asset.triggered_dagruns")
+                dag_run.consumed_asset_events.extend(asset_events)
+                self.log.info(
+                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                    dag.dag_id,
+                    dag_run.run_id,
+                    len(asset_events),
+                )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
             # (e.g. 1. DagRun triggered by asset A while a new event for asset B arrives.
