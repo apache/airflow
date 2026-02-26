@@ -19,8 +19,7 @@
 
 ################################
 ## Airflow Triggerer KEDA Scaler
-#################################
-{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+################################
 {{- if and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -66,5 +65,4 @@ spec:
         {{- end }}
         query: {{ tpl .Values.triggerer.keda.query . | quote }}
   {{- end }}
-{{- end }}
 {{- end }}

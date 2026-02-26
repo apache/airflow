@@ -161,12 +161,12 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
-  "partitionedDagRun": "Partitioned Dag Run",
+  "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Received Asset Events"
   },
-  "pendingDagRun": "{{count}} Pending Dag Run",
+  "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "reset": "Reset",
   "runId": "Run ID",

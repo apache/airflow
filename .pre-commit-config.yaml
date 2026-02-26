@@ -39,7 +39,7 @@ repos:
         language: python
         language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
+    rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -56,6 +56,7 @@ repos:
         exclude:
             (?x)
             .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/instructions/|
             .github/skills/
         args:
           - "--maxlevel"
@@ -194,6 +195,7 @@ repos:
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
+          ^\.github/instructions/|
           ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
@@ -362,7 +364,8 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
+          ^\.github/skills/airflow-translations/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -625,6 +628,7 @@ repos:
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
+          ^providers/apache/spark/docs/connections/spark-submit.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|

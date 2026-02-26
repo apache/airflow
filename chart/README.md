@@ -37,13 +37,14 @@ cluster using the [Helm](https://helm.sh) package manager.
 ## Features
 
 * Supported executors (all Airflow versions): ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
-* Supported executors (Airflow version ``2.X.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported executors (Airflow version ``2.11.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported multiple Executors (``2.11+``)
 * Supported AWS executors with AWS provider version ``8.21.0+``:
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
 * Supported Edge executor with edge3 provider version ``1.0.0+``:
    * ``airflow.providers.edge3.executors.EdgeExecutor``
-* Supported Airflow version: ``1.10+``, ``2.0+``, ``3.0+``
+* Supported Airflow version: ``2.11+``, ``3.0+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
