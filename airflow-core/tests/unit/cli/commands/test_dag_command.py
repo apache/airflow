@@ -220,11 +220,11 @@ class TestCliDags:
                 "timedelta(days=-5)",
                 "CronPartitionTimetable('0 0 * * *', timezone='UTC')",
                 "False",
-                jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
+                jan_1.strftime(r"%Y-%m-%dT%H:%M:%S%z"),
                 os.linesep.join(
                     [
-                        jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
-                        (jan_1 + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
+                        jan_1.strftime(r"%Y-%m-%dT%H:%M:%S%z"),
+                        (jan_1 + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S%z"),
                     ],
                 ),
                 id="partitioned",

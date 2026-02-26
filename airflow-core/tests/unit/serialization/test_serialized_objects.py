@@ -769,39 +769,39 @@ def test_encode_timezone():
         (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
             HourlyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.HourlyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y-%m-%dT%H%z", "timezone": "UTC"},
         ),
         (
             DailyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.DailyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y-%m-%d%z", "timezone": "UTC"},
         ),
         (
             WeeklyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.WeeklyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y-%m-%d (W%V)%z", "timezone": "UTC"},
         ),
         (
             MonthlyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.MonthlyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y-%m%z", "timezone": "UTC"},
         ),
         (
             QuarterlyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.QuarterlyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y-Q{quarter}%z", "timezone": "UTC"},
         ),
         (
             YearlyMapper,
-            [],
+            ["UTC"],
             "airflow.partition_mappers.temporal.YearlyMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "%Y%z", "timezone": "UTC"},
         ),
     ],
 )
@@ -816,22 +816,22 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
 
 
 @pytest.mark.parametrize(
-    ("sdk_cls", "core_cls"),
+    ("sdk_cls", "args", "core_cls"),
     [
-        (IdentityMapper, CoreIdentityMapper),
-        (HourlyMapper, CoureHourlyMapper),
-        (DailyMapper, CoreDailyMapper),
-        (WeeklyMapper, CoreWeeklyMapper),
-        (MonthlyMapper, CoreMonthlyMapper),
-        (QuarterlyMapper, CoreQuarterlyMapper),
-        (YearlyMapper, CoreYearlyMapper),
+        (IdentityMapper, [], CoreIdentityMapper),
+        (HourlyMapper, ["UTC"], CoureHourlyMapper),
+        (DailyMapper, ["UTC"], CoreDailyMapper),
+        (WeeklyMapper, ["UTC"], CoreWeeklyMapper),
+        (MonthlyMapper, ["UTC"], CoreMonthlyMapper),
+        (QuarterlyMapper, ["UTC"], CoreQuarterlyMapper),
+        (YearlyMapper, ["UTC"], CoreYearlyMapper),
     ],
 )
-def test_decode_partition_mapper(sdk_cls, core_cls):
+def test_decode_partition_mapper(sdk_cls, args, core_cls):
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = sdk_cls()
+    partition_mapper = sdk_cls(*args)
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)
