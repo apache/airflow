@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1770751061
+source-date-epoch: 1772064024
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.3.0
   - 9.2.5
   - 9.2.4
   - 9.2.3
@@ -142,6 +143,39 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveCliHook
     connection-type: hive_cli
+    ui-field-behaviour:
+      hidden-fields:
+        - extra
+      relabeling: {}
+    conn-fields:
+      use_beeline:
+        label: Use Beeline
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: true
+      proxy_user:
+        label: Proxy User
+        schema:
+          type:
+            - string
+            - 'null'
+          default: ''
+      principal:
+        label: Principal
+        schema:
+          type:
+            - string
+            - 'null'
+          default: 'hive/_HOST@EXAMPLE.COM'
+      high_availability:
+        label: High Availability mode
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
     connection-type: hiveserver2
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook

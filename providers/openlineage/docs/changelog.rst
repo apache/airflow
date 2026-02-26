@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+2.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Consume SQL hook lineage in OpenLineage (#62171)``
+* ``feat: Add Dag Edge Labels to OpenLineage event (#62018)``
+* ``feat: Add OpenLineage support for HITL operators (#61867)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+* ``Route providers to consume Stats from common compat provider (#61812)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "feat: Add DagRun note to OL events (#62221)" (#62238)``
+   * ``feat: Add DagRun note to OL events (#62221)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Informatica provider (#57610)``
+
 2.10.2
 ......
 

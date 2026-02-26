@@ -37,6 +37,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+else:
+    TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
@@ -58,7 +65,6 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -265,6 +271,7 @@ class TestKeycloakAuthManager:
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
             ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
+            ["is_authorized_team", "GET", None, "Team#LIST", {}],
         ],
     )
     @pytest.mark.parametrize(
@@ -310,6 +317,31 @@ class TestKeycloakAuthManager:
         )
         assert result == expected
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("status_code", "expected"),
+        [
+            [200, True],
+            [401, False],
+            [403, False],
+        ],
+    )
+    def test_is_authorized_team_with_details(self, status_code, expected, auth_manager, user):
+        details = TeamDetails(name="team-a")
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager.is_authorized_team(method="GET", user=user, details=details)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_payload("client_id", "Team#LIST", {})
+        headers = auth_manager._get_headers(user.access_token)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result == expected
+
     @pytest.mark.parametrize(
         "function",
         [
@@ -321,6 +353,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_failure(self, function, auth_manager, user):
@@ -353,6 +386,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_invalid_request(self, function, auth_manager, user):
@@ -463,6 +497,7 @@ class TestKeycloakAuthManager:
                 "Variable#PUT",
             ),
             ("is_authorized_pool", "POST", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool#POST"),
+            ("is_authorized_team", "GET", TeamDetails, {"name": "team-a"}, "Team#LIST"),
         ],
     )
     def test_team_name_ignored_when_multi_team_disabled(
@@ -496,6 +531,7 @@ class TestKeycloakAuthManager:
                 "Variable:team-a#GET",
             ),
             ("is_authorized_pool", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool:team-a#GET"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
         ],
     )
     def test_with_team_name_uses_team_scoped_permission(
@@ -518,6 +554,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", ConnectionDetails(conn_id="test"), "Connection#GET"),
             ("is_authorized_variable", VariableDetails(key="test"), "Variable#GET"),
             ("is_authorized_pool", PoolDetails(name="test"), "Pool#GET"),
+            ("is_authorized_team", None, "Team#LIST"),
         ],
     )
     def test_without_team_name_uses_global_permission(
@@ -539,6 +576,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", "Connection#LIST"),
             ("is_authorized_variable", "Variable#LIST"),
             ("is_authorized_pool", "Pool#LIST"),
+            ("is_authorized_team", "Team#LIST"),
         ],
     )
     def test_list_without_team_name_uses_global_permission(
@@ -566,6 +604,7 @@ class TestKeycloakAuthManager:
             ),
             ("is_authorized_variable", VariableDetails, {"team_name": "team-a"}, "Variable:team-a#LIST"),
             ("is_authorized_pool", PoolDetails, {"team_name": "team-a"}, "Pool:team-a#LIST"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
         ],
     )
     def test_list_with_team_name_uses_team_scoped_permission(
@@ -622,6 +661,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", ConnectionDetails, {"team_name": "team-b"}),
             ("is_authorized_variable", VariableDetails, {"team_name": "team-b"}),
             ("is_authorized_pool", PoolDetails, {"team_name": "team-b"}),
+            ("is_authorized_team", TeamDetails, {"name": "team-b"}),
         ],
     )
     def test_list_with_mismatched_team_delegates_to_keycloak(

@@ -20,7 +20,6 @@
 ################################
 ## Airflow Dag Processor PodDisruptionBudget
 #################################
-{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
 {{- $enabled := .Values.dagProcessor.enabled }}
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
@@ -46,5 +45,4 @@ spec:
       component: dag-processor
       release: {{ .Release.Name }}
   {{- toYaml .Values.dagProcessor.podDisruptionBudget.config | nindent 2 }}
-{{- end }}
 {{- end }}
