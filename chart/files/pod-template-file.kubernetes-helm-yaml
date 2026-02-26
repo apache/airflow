@@ -24,6 +24,8 @@
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosInitContainer .Values.workers.kerberosInitContainer .Values) }}
+{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kubernetes.kerberosInitContainer.containerLifecycleHooks .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
@@ -53,10 +55,14 @@ spec:
     {{- if .Values.workers.extraInitContainers }}
       {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
     {{- end }}
-    {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled) }}
+    {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     - name: kerberos-init
       image: {{ template "airflow_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 8 }}
+      {{- if $containerLifecycleHooksKerberosInitContainer }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 8 }}
+      {{- end }}
       args: ["kerberos", "-o"]
       resources: {{- toYaml (.Values.workers.kubernetes.kerberosInitContainer.resources | default .Values.workers.kerberosInitContainer.resources) | nindent 8 }}
       volumeMounts:

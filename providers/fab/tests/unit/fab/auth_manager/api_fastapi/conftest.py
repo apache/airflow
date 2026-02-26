@@ -22,14 +22,12 @@ from contextlib import contextmanager
 import pytest
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import purge_cached_app
 from airflow.api_fastapi.core_api.security import get_user as get_user_dep
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 
 @pytest.fixture(scope="module")
 def fab_auth_manager():
-    purge_cached_app()
     return FabAuthManager()
 
 

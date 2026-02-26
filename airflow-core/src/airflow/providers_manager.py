@@ -427,6 +427,7 @@ class ProvidersManager(LoggingMixin):
         self._executor_class_name_set: set[str] = set()
         self._executor_without_check_set: set[tuple[str, str]] = set()
         self._queue_class_name_set: set[str] = set()
+        self._db_manager_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
@@ -582,6 +583,12 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers queue information."""
         self.initialize_providers_list()
         self._discover_queues()
+
+    @provider_info_cache("db_managers")
+    def initialize_providers_db_managers(self):
+        """Lazy initialization of providers db_managers information."""
+        self.initialize_providers_list()
+        self._discover_db_managers()
 
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
@@ -1246,6 +1253,14 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, queue_class_name, provider):
                         self._queue_class_name_set.add(queue_class_name)
 
+    def _discover_db_managers(self) -> None:
+        """Retrieve all DB managers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("db-managers"):
+                for db_manager_class_name in provider.data["db-managers"]:
+                    if _correctness_check(provider_package, db_manager_class_name, provider):
+                        self._db_manager_class_name_set.add(db_manager_class_name)
+
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1404,6 +1419,11 @@ class ProvidersManager(LoggingMixin):
     def queue_class_names(self) -> list[str]:
         self.initialize_providers_queues()
         return sorted(self._queue_class_name_set)
+
+    @property
+    def db_managers(self) -> list[str]:
+        self.initialize_providers_db_managers()
+        return sorted(self._db_manager_class_name_set)
 
     @property
     def filesystem_module_names(self) -> list[str]:

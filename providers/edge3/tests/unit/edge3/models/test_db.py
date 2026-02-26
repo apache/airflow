@@ -44,7 +44,7 @@ class TestEdgeDBManager:
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         run_db_manager = RunDBManager()
-        assert run_db_manager._managers == [EdgeDBManager]
+        assert EdgeDBManager in run_db_manager._managers
 
     @conf_vars(
         {
@@ -247,24 +247,30 @@ class TestCheckDbManagerConfig:
 
     pytestmark: list = []  # no db_test needed — purely config-based
 
-    def test_warns_when_not_configured(self):
-        """Warning is emitted when EdgeDBManager is absent from external_db_managers."""
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_warns_when_not_configured(self, mock_pm):
+        """Warning is emitted when EdgeDBManager is absent from external_db_managers and not discovered."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars({("database", "external_db_managers"): ""}):
             with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
                 check_db_manager_config()
 
-    def test_warns_when_other_manager_configured(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_warns_when_other_manager_configured(self, mock_pm):
         """Warning is emitted when a different manager is configured but not EdgeDBManager."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars({("database", "external_db_managers"): "some.other.DBManager"}):
             with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
                 check_db_manager_config()
 
-    def test_no_warn_when_configured(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_configured(self, mock_pm):
         """No warning when EdgeDBManager is properly configured."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars(
@@ -276,8 +282,10 @@ class TestCheckDbManagerConfig:
                 warnings.simplefilter("error")
                 check_db_manager_config()  # must not raise
 
-    def test_no_warn_when_configured_among_multiple(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_configured_among_multiple(self, mock_pm):
         """No warning when EdgeDBManager appears alongside other managers."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars(
@@ -287,6 +295,17 @@ class TestCheckDbManagerConfig:
                 ),
             }
         ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                check_db_manager_config()  # must not raise
+
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_discovered(self, mock_pm):
+        """No warning when EdgeDBManager is auto-discovered via ProvidersManager."""
+        mock_pm.return_value.db_managers = ["airflow.providers.edge3.models.db.EdgeDBManager"]
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars({("database", "external_db_managers"): ""}):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
                 check_db_manager_config()  # must not raise

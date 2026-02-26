@@ -71,7 +71,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", "try_number"),
         if_not_exists=True,
     )
-    op.create_index("rj_order", "edge_job", ["state", "queued_dttm", "queue"], if_not_exists=True)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("edge_job")}
+    if "rj_order" not in existing_indexes:
+        op.create_index("rj_order", "edge_job", ["state", "queued_dttm", "queue"])
     op.create_table(
         "edge_logs",
         sa.Column("dag_id", sa.String(length=250), nullable=False),

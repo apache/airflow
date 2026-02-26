@@ -29,7 +29,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
-from airflow.api_fastapi.app import purge_cached_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
@@ -51,8 +50,6 @@ def _return_appbuilder(app: Flask, db) -> AirflowAppBuilder:
 
 @contextmanager
 def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
-    _return_appbuilder.cache_clear()
-    purge_cached_app()
     static_folder = os.path.join(os.path.dirname(airflow.__file__), "www", "static")
     flask_app = Flask(__name__, static_folder=static_folder)
     webserver_config = conf.get_mandatory_value("fab", "config_file")

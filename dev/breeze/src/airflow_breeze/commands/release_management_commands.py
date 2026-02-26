@@ -260,15 +260,16 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.10.4"
+AIRFLOW_UV_VERSION = "0.10.5"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
 PREK_VERSION = "0.3.3"
-HATCH_VERSION = "1.16.3"
+HATCH_VERSION = "1.16.4"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
+# Pin on virtualenv is temporary for pypa/hatch#2193
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -277,7 +278,8 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  prek=={PREK_VERSION}
+  prek=={PREK_VERSION} \
+  'virtualenv<21'
 COPY . /opt/airflow
 """
 
@@ -2260,6 +2262,7 @@ def release_prod_images(
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
