@@ -54,7 +54,6 @@ from airflow.models.dag import DagModel
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 @pytest.mark.asyncio
@@ -431,7 +430,6 @@ class TestFastApiSecurity:
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
@@ -463,7 +461,6 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("conn_id")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
@@ -490,7 +487,6 @@ class TestFastApiSecurity:
         )
         mock_get_name_if_exists.assert_called_once_with("team1")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch.object(Connection, "get_team_name")
@@ -524,7 +520,6 @@ class TestFastApiSecurity:
             user=user,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
@@ -608,7 +603,6 @@ class TestFastApiSecurity:
             user=user,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
@@ -640,7 +634,6 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("var_key")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
@@ -667,7 +660,6 @@ class TestFastApiSecurity:
         )
         mock_get_name_if_exists.assert_called_once_with("team1")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch.object(Variable, "get_team_name")
@@ -701,7 +693,6 @@ class TestFastApiSecurity:
             user=user,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
@@ -782,7 +773,6 @@ class TestFastApiSecurity:
             user=user,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
@@ -814,7 +804,6 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("pool")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
@@ -839,7 +828,6 @@ class TestFastApiSecurity:
         )
         mock_get_name_if_exists.assert_called_once_with("team1")
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch.object(Pool, "get_team_name")
@@ -873,7 +861,6 @@ class TestFastApiSecurity:
             user=user,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
