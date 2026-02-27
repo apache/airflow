@@ -66,36 +66,12 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
-The following setting is required on the **central Airflow instance** (not the edge worker node)
-so that edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``) are created and
-migrated when running ``airflow db migrate``:
+Once the provider is installed on the **central Airflow instance**, the ``EdgeDBManager`` is
+automatically registered via the provider's built-in ``db-managers`` entry. Airflow's
+``ProvidersManager`` discovers it at startup — no manual configuration is needed.
 
-- Section ``[database]``
-
-  - ``external_db_managers``: Must include ``airflow.providers.edge3.models.db.EdgeDBManager``.
-
-    .. code-block:: ini
-
-        [database]
-        external_db_managers = airflow.providers.edge3.models.db.EdgeDBManager
-
-    Or via environment variable:
-
-    .. code-block:: bash
-
-        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS="airflow.providers.edge3.models.db.EdgeDBManager"
-
-    .. note::
-
-        If you are also using ``FabAuthManager``, include both managers as a comma-separated list:
-
-        .. code-block:: ini
-
-            [database]
-            external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager,airflow.providers.edge3.models.db.EdgeDBManager
-
-After configuring ``external_db_managers``, run the following on the central Airflow instance
-to apply the edge3 schema migrations:
+To create or migrate the edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``),
+simply run on the central Airflow instance:
 
 .. code-block:: bash
 
