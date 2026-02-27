@@ -24,6 +24,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskreschedule import TaskReschedule
 
 router = APIRouter(
@@ -31,6 +32,7 @@ router = APIRouter(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
+    dependencies=[JWTBearerDep],
 )
 
 

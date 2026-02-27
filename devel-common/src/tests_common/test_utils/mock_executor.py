@@ -58,7 +58,7 @@ class MockExecutor(BaseExecutor):
 
         # Mock JWT generator for token generation
         mock_jwt_generator = MagicMock()
-        mock_jwt_generator.generate.return_value = "mock-token"
+        mock_jwt_generator.generate_workload_token.return_value = "mock-token"
 
         self.jwt_generator = mock_jwt_generator
 

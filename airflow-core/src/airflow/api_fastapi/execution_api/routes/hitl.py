@@ -29,9 +29,10 @@ from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.hitl import HITLDetail
 
-router = APIRouter()
+router = APIRouter(dependencies=[JWTBearerDep])
 
 log = structlog.get_logger(__name__)
 
