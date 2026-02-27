@@ -241,7 +241,10 @@ class BaseExecutor(LoggingMixin):
                 )
             self.queued_callbacks[workload.callback.id] = workload
         else:
-            raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
+            raise ValueError(
+                f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
+                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+            )
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
         """

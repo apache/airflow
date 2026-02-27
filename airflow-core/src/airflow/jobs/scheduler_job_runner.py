@@ -379,14 +379,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if team_name:
             self.log.debug(
-                "Resolved team name '%s' for workload %s (dag_id=%s)",
+                "Resolved team name '%s' for task or callback %s (dag_id=%s)",
                 team_name,
                 workload,
                 dag_id,
             )
         else:
             self.log.debug(
-                "No team found for workload %s (dag_id=%s) - DAG may not have bundle or team association",
+                "No team found for task or callback %s (dag_id=%s) - DAG may not have bundle or team association",
                 workload,
                 dag_id,
             )
@@ -3268,7 +3268,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         executor = _executor
 
         if executor is not None:
-            self.log.debug("Found executor %s for workload %s (team: %s)", executor.name, workload, team_name)
+            self.log.debug(
+                "Found executor %s for task or callback %s (team: %s)", executor.name, workload, team_name
+            )
         else:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
@@ -3276,7 +3278,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
             self.log.warning(
-                "Executor, %s, was not found but a workload was configured to use it",
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
                 workload.get_executor_name(),
             )
 

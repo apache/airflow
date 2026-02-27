@@ -8220,7 +8220,8 @@ class TestSchedulerJob:
 
             # Should log a warning when no executor is found
             mock_log.warning.assert_called_once_with(
-                "Executor, %s, was not found but a workload was configured to use it", "secondary_exec"
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                "secondary_exec",
             )
 
         # Should return None since we failed to resolve an executor due to the mismatch. In practice, this
