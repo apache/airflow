@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/pydantic_ai>
+    Hooks <hooks/pydantic_ai>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/common/ai/index>
@@ -65,7 +73,7 @@
 apache-airflow-providers-common-ai package
 ------------------------------------------------------
 
-``Common AI Provider``
+AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
 Release: 0.0.1
@@ -88,8 +96,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-==================  ==================
+====================  ==================
+PIP package           Version required
+====================  ==================
+``apache-airflow``    ``>=3.0.0``
+``pydantic-ai-slim``  ``>=1.14.0``
+====================  ==================
