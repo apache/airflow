@@ -71,7 +71,7 @@ Configuring the Connection
     * ``disable_ssl`` *(bool)* – Disable SSL/TLS entirely. Default ``false``.
     * ``disable_tls`` *(bool)* – Skip ``STARTTLS``. Default ``false``.
     * ``timeout`` *(int)* – Socket timeout (seconds). Default ``30``.
-    * ``retry_limit`` *(int)* – Connection attempts before raising. Default ``5``.
+    * ``retry_limit`` *(int)* – Number of retries after the first attempt before raising. Default ``5``.
     * ``ssl_context`` – ``"default"`` | ``"none"``
       See :ref:`howto/connection:smtp:ssl-context`.
 
