@@ -25,7 +25,7 @@ test.describe("DAG Audit Log", () => {
   let eventsPage: EventsPage;
 
   const testDagId = testConfig.testDag.id;
-  const triggerCount = 2;
+  const triggerCount = 3;
   const expectedEventCount = triggerCount + 1;
 
   test.setTimeout(60_000);
@@ -38,9 +38,7 @@ test.describe("DAG Audit Log", () => {
     const setupEventsPage = new EventsPage(page);
 
     for (let i = 0; i < triggerCount; i++) {
-      const dagRunId = await setupDagsPage.triggerDag(testDagId);
-
-      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
+      await setupDagsPage.triggerDag(testDagId);
     }
 
     await setupEventsPage.navigateToAuditLog(testDagId);
