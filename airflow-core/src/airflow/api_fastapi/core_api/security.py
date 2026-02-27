@@ -352,11 +352,13 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
     ) -> None:
         pool_name = request.path_params.get("pool_name")
         for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name):
-            _requires_access(
-                is_authorized_callback=lambda team_name=team_name: get_auth_manager().is_authorized_pool(  # type: ignore[misc]
-                    method=method, details=PoolDetails(name=pool_name, team_name=team_name), user=user
-                ),
-            )
+
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_pool(
+                    method=method, details=PoolDetails(name=pool_name, team_name=tn), user=user
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
@@ -449,15 +451,15 @@ def requires_access_connection(
         for team_name in await _collect_teams_to_check(
             method, request, connection_id, Connection.get_team_name
         ):
-            _requires_access(
-                is_authorized_callback=lambda team_name=team_name: (  # type: ignore[misc]
-                    get_auth_manager().is_authorized_connection(
-                        method=method,
-                        details=ConnectionDetails(conn_id=connection_id, team_name=team_name),
-                        user=user,
-                    )
-                ),
-            )
+
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_connection(
+                    method=method,
+                    details=ConnectionDetails(conn_id=connection_id, team_name=tn),
+                    user=user,
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
@@ -593,11 +595,13 @@ def requires_access_variable(
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
         for team_name in await _collect_teams_to_check(method, request, variable_key, Variable.get_team_name):
-            _requires_access(
-                is_authorized_callback=lambda team_name=team_name: get_auth_manager().is_authorized_variable(  # type: ignore[misc]
-                    method=method, details=VariableDetails(key=variable_key, team_name=team_name), user=user
-                ),
-            )
+
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_variable(
+                    method=method, details=VariableDetails(key=variable_key, team_name=tn), user=user
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
