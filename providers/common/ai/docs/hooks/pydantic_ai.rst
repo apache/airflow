@@ -62,15 +62,6 @@ Structured Output
 Pydantic-ai's structured output works naturally through the hook.
 Define a Pydantic model for the expected output shape, then pass it as ``output_type``:
 
-.. code-block:: python
-
-    from pydantic import BaseModel
-
-
-    class SQLResult(BaseModel):
-        query: str
-        explanation: str
-
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
     :language: python
     :start-after: [START howto_hook_pydantic_ai_structured_output]

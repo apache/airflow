@@ -40,16 +40,15 @@ def example_pydantic_ai_hook():
 # [END howto_hook_pydantic_ai_basic]
 
 
-class SQLResult(BaseModel):
-    query: str
-    explanation: str
-
-
 # [START howto_hook_pydantic_ai_structured_output]
 @dag(schedule=None)
 def example_pydantic_ai_structured_output():
     @task
     def generate_sql(prompt: str) -> dict:
+        class SQLResult(BaseModel):
+            query: str
+            explanation: str
+
         hook = PydanticAIHook(llm_conn_id="pydantic_ai_default")
         agent = hook.create_agent(
             output_type=SQLResult,

@@ -147,7 +147,7 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        Validates that the model string is parseable, the provider package is
+        Validates that the model string is valid, the provider package is
         installed, and the provider class can be instantiated. Does NOT make an
         LLM API call — that would be expensive, flaky, and fail for reasons
         unrelated to connectivity (quotas, billing, rate limits).
