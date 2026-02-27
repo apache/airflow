@@ -157,7 +157,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     """
 
     PAGE = 0
-    MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
     LOG_NAME = "Elasticsearch"
 
     trigger_should_wrap = True
@@ -578,7 +577,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
-        self.MAX_LINE_PER_PAGE = 1000
+        self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
         self.index_patterns: str = conf.get("elasticsearch", "index_patterns")
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
