@@ -126,7 +126,7 @@ def check_private_classifier(pyproject: dict) -> bool:
 
 def check_build_system(pyproject: dict, shared_path: Path) -> bool:
     build_system = pyproject.get("build-system", {})
-    if build_system == {"requires": ["hatchling"], "build-backend": "hatchling.build"}:
+    if build_system["build-backend"] == "hatchling.build":
         console.print(
             f"  build-system is correct for [magenta]{shared_path.name}[/magenta] [bold green]OK[/bold green]"
         )

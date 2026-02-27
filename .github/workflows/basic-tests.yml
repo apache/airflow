@@ -329,16 +329,18 @@ jobs:
           --hook-stage manual upgrade-important-versions || true
         if: always()
         env:
+          UPGRADE_FLIT: "false"
+          UPGRADE_GITPYTHON: "false"
+          UPGRADE_GOLANG: "false"
+          UPGRADE_HATCH: "false"
+          UPGRADE_HATCHLING: "false"
+          UPGRADE_MYPY: "false"
+          UPGRADE_NODE_LTS: "false"
           UPGRADE_PIP: "false"
           UPGRADE_PYTHON: "false"
-          UPGRADE_GOLANG: "false"
-          UPGRADE_NODE_LTS: "false"
-          UPGRADE_HATCH: "false"
           UPGRADE_PYYAML: "false"
-          UPGRADE_GITPYTHON: "false"
           UPGRADE_RICH: "false"
           UPGRADE_RUFF: "false"
-          UPGRADE_MYPY: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for important versions minus uv (failing if needed)"
         run: |

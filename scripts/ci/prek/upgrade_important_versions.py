@@ -423,9 +423,11 @@ if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
     console.print("[bright_blue]Upgrading all important versions")
 
 # Package upgrade flags
+UPGRADE_FLIT_CORE: bool = get_env_bool("UPGRADE_FLIT_CORE")
 UPGRADE_GITPYTHON: bool = get_env_bool("UPGRADE_GITPYTHON")
 UPGRADE_GOLANG: bool = get_env_bool("UPGRADE_GOLANG")
 UPGRADE_HATCH: bool = get_env_bool("UPGRADE_HATCH")
+UPGRADE_HATCHLING: bool = get_env_bool("UPGRADE_HATCHLING")
 UPGRADE_MPROCS: bool = get_env_bool("UPGRADE_MPROCS")
 UPGRADE_NODE_LTS: bool = get_env_bool("UPGRADE_NODE_LTS")
 UPGRADE_PIP: bool = get_env_bool("UPGRADE_PIP")
@@ -497,6 +499,20 @@ def apply_pattern_replacements(
 
 # Configuration for packages that follow simple version constant patterns
 SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
+    "flit_core": [
+        (r"(flit_core==)([0-9.abrc]+)", "flit_core=={version}"),
+        (r"(flit_core >=)([0-9.abrc]+)", "flit_core >={version}"),
+        (r"(flit-core>=)([0-9.abrc]+)", "flit-core>={version}"),
+        (r"(flit-core==)([0-9.abrc]+)", "flit-core=={version}"),
+        (r"(flit>=)([0-9.abrc]+)", "flit>={version}"),
+        (r"(flit==)([0-9.abrc]+)", "flit=={version}"),
+    ],
+    "hatchling": [
+        (r"(hatchling==)([0-9.abrc]+)", "hatchling=={version}"),
+        (r"(hatchling>=)([0-9.abrc]+)", "hatchling>={version}"),
+        (r"(HATCHLING_VERSION = )(\"[0-9.abrc]+\")", 'HATCHLING_VERSION = "{version}"'),
+        (r"(HATCHLING_VERSION=)(\"[0-9.abrc]+\")", 'HATCHLING_VERSION="{version}"'),
+    ],
     "hatch": [
         (r"(HATCH_VERSION = )(\"[0-9.abrc]+\")", 'HATCH_VERSION = "{version}"'),
         (r"(HATCH_VERSION=)(\"[0-9.abrc]+\")", 'HATCH_VERSION="{version}"'),
@@ -553,7 +569,9 @@ def fetch_all_package_versions() -> dict[str, str]:
         "pip": get_latest_pypi_version("pip", UPGRADE_PIP),
         "uv": get_latest_pypi_version("uv", UPGRADE_UV),
         "prek": get_latest_pypi_version("prek", UPGRADE_PREK),
+        "flit_core": get_latest_pypi_version("flit_core", UPGRADE_FLIT_CORE),
         "hatch": get_latest_pypi_version("hatch", UPGRADE_HATCH),
+        "hatchling": get_latest_pypi_version("hatchling", UPGRADE_HATCHLING),
         "pyyaml": get_latest_pypi_version("PyYAML", UPGRADE_PYYAML),
         "gitpython": get_latest_pypi_version("GitPython", UPGRADE_GITPYTHON),
         "ruff": get_latest_pypi_version("ruff", UPGRADE_RUFF),
@@ -671,6 +689,167 @@ def sync_breeze_lock_file() -> None:
     )
 
 
+def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
+    """
+    Resolve the full transitive dependency list for hatchling (with virtualenv<21) using uv pip compile.
+
+    When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
+    Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
+    """
+    packages = ["hatchling", "virtualenv<21"]
+    if with_gitpython:
+        packages.append("gitpython")
+
+    result = subprocess.run(
+        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.10"],
+        input="\n".join(packages) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    # Parse output: lines like "package==version" (skip comment lines and blank lines)
+    requires: list[str] = []
+    for _line in result.stdout.splitlines():
+        line = _line.strip()
+        if not line or line.startswith("#"):
+            continue
+        # Take only the "name==version" part (strip trailing comments)
+        pkg_spec = line.split()[0]
+        # Normalise package name to canonical casing
+        pkg_name_lower = pkg_spec.split("==")[0].lower().replace("-", "_")
+        pkg_version = pkg_spec.split("==")[1] if "==" in pkg_spec else ""
+        if not pkg_version:
+            continue
+        # Use canonical casing for known packages
+        CANONICAL_NAMES = {
+            "gitpython": "GitPython",
+            "gitdb": "gitdb",
+            "smmap": "smmap",
+            "hatchling": "hatchling",
+            "packaging": "packaging",
+            "pathspec": "pathspec",
+            "pluggy": "pluggy",
+            "trove_classifiers": "trove-classifiers",
+            "tomli": "tomli",
+            "virtualenv": "virtualenv",
+            "distlib": "distlib",
+            "filelock": "filelock",
+            "platformdirs": "platformdirs",
+            "typing_extensions": "typing-extensions",
+        }
+        canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
+        if pkg_name_lower == "tomli":
+            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
+        elif pkg_name_lower == "typing_extensions":
+            # typing_extensions is built-in from Python 3.11+
+            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
+        else:
+            requires.append(f"{canonical}=={pkg_version}")
+
+    return sorted(requires, key=lambda r: r.split("==")[0].lower())
+
+
+def _build_requires_block(requires: list[str]) -> str:
+    """Render the TOML requires array content (lines between the brackets)."""
+    lines = []
+    for req in requires:
+        lines.append(f'    "{req}",')
+    return "\n".join(lines)
+
+
+def update_pyproject_build_requires(
+    hatchling_requires: list[str],
+    hatchling_with_git_requires: list[str],
+    versions: dict[str, str],
+) -> bool:
+    """
+    Scan all pyproject.toml files in the repo (excluding out/ directory).
+
+    For each file:
+    - If build-system/requires contains flit_core → upgrade to latest flit_core version (if set).
+    - If build-system uses hatchling → replace the requires list with the resolved transitive deps.
+      airflow-core/pyproject.toml gets the gitpython-inclusive list; all others get the plain list.
+
+    Returns True if any file was changed.
+    """
+    changed = False
+
+    # Pattern to match and replace the full requires = [...] block under [build-system]
+    # Handles both single-line and multi-line forms.
+    build_system_requires_re = re.compile(
+        r"(\[build-system\]\s*\n(?:[^\[]*?\n)*?requires\s*=\s*)(\[[^\]]*\])",
+        re.DOTALL,
+    )
+
+    flit_version = versions.get("flit_core", "")
+
+    for pyproject_path in sorted(AIRFLOW_ROOT_PATH.rglob("pyproject.toml")):
+        # Skip anything under the out/ directory (reproducible build snapshots)
+        if "out/" in pyproject_path.as_posix().replace(str(AIRFLOW_ROOT_PATH) + "/", ""):
+            continue
+
+        content = pyproject_path.read_text()
+
+        # Determine if this file uses flit_core or hatchling
+        build_system_match = build_system_requires_re.search(content)
+        if not build_system_match:
+            continue
+
+        requires_block = build_system_match.group(2)
+
+        if "flit_core" in requires_block or "flit-core" in requires_block:
+            # Upgrade flit_core version if requested
+            if not (UPGRADE_FLIT_CORE and flit_version):
+                continue
+            new_content = apply_simple_regex_replacements(
+                content, flit_version, SIMPLE_VERSION_PATTERNS["flit_core"]
+            )
+            if new_content != content:
+                pyproject_path.write_text(new_content)
+                console.print(f"[bright_blue]Updated flit_core in {pyproject_path}")
+                changed = True
+
+        elif "hatchling" in requires_block or "hatchling" in content:
+            if not (UPGRADE_HATCHLING and hatchling_requires):
+                continue
+            # Choose the right list
+            is_airflow_core = pyproject_path == AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
+            target_requires = hatchling_with_git_requires if is_airflow_core else hatchling_requires
+
+            new_requires_lines = _build_requires_block(target_requires)
+            new_requires_array = f"[\n{new_requires_lines}\n]"
+
+            def _replace_requires(m: re.Match[str], _new: str = new_requires_array) -> str:
+                return m.group(1) + _new
+
+            new_content = build_system_requires_re.sub(
+                _replace_requires,
+                content,
+            )
+
+            # Also apply the simple hatchling version pattern (for files that pin hatchling== elsewhere)
+            hatchling_version = next(
+                (
+                    r.split("==")[1].split(";")[0].strip()
+                    for r in target_requires
+                    if r.lower().startswith("hatchling==")
+                ),
+                "",
+            )
+            if hatchling_version:
+                new_content = apply_simple_regex_replacements(
+                    new_content, hatchling_version, SIMPLE_VERSION_PATTERNS["hatchling"]
+                )
+
+            if new_content != content:
+                pyproject_path.write_text(new_content)
+                console.print(f"[bright_blue]Updated hatchling build-system requires in {pyproject_path}")
+                changed = True
+
+    return changed
+
+
 def main() -> None:
     """Main entry point for the version upgrade script."""
     retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
@@ -680,6 +859,19 @@ def main() -> None:
     latest_python_versions = fetch_python_versions()
 
     changed = process_all_files(versions, latest_python_versions)
+
+    # Resolve hatchling transitive dependencies and update all pyproject.toml build-system sections
+    if UPGRADE_HATCHLING or UPGRADE_FLIT_CORE:
+        console.print("[bright_blue]Resolving hatchling transitive build dependencies via uv pip compile")
+        hatchling_requires = resolve_hatchling_build_requires(with_gitpython=False)
+        hatchling_with_git_requires = resolve_hatchling_build_requires(with_gitpython=True)
+        if VERBOSE:
+            console.print(f"[bright_blue]Hatchling requires: {hatchling_requires}")
+            console.print(f"[bright_blue]Hatchling+GitPython requires: {hatchling_with_git_requires}")
+        pyproject_changed = update_pyproject_build_requires(
+            hatchling_requires, hatchling_with_git_requires, versions
+        )
+        changed = changed or pyproject_changed
 
     if changed:
         sync_breeze_lock_file()
