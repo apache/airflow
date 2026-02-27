@@ -1222,7 +1222,7 @@ class DagRun(Base, LoggingMixin):
                         for ti in tis_for_dagrun_state
                         if ti.state == TaskInstanceState.FAILED and ti.end_date is not None
                     ),
-                    key=lambda ti: ti.end_date or datetime.min,
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
                     default=None,
                 )
                 callback = self.produce_dag_callback(
