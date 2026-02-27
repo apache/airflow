@@ -21,14 +21,15 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 
+@pytest.mark.db_test
 class TestSchedulerJobFlush:
     @pytest.fixture
     def scheduler_job_runner(self):
