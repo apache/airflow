@@ -248,7 +248,8 @@ AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
 RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
- gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} prek=={PREK_VERSION}
+ gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} prek=={PREK_VERSION} \
+ "virtualenv<21" # Temporary pin for https://github.com/pypa/hatch/issues/2193
 COPY . /opt/airflow
 """
 
