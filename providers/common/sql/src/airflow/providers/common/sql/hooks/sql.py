@@ -1125,3 +1125,14 @@ class DbApiHook(BaseHook):
 
         :param conn: Connection object
         """
+
+    def get_schema(self, table_name: str, schema: str | None = None) -> Any:
+        """
+        Get schema of the table.
+
+        :param table_name: table name
+        :param schema: schema name
+        """
+        columns = self.inspector.get_columns(table_name, schema=schema)
+        self.log.info(columns)
+        return columns

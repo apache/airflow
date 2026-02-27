@@ -14,4 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+from __future__ import annotations
+
+from airflow.providers.common.compat.sdk import AirflowException
+
+
+class AgentResponseEvaluationFailure(AirflowException):
+    """Exception for evals failure."""
+
+
+class PromptBuildError(AirflowException):
+    """Error when building prompt."""
+
+
+class ModelCreationError(AirflowException):
+    """Error while creating a model."""
+
+
+class ObjectStoreCreationException(AirflowException):
+    """Error while creating a DataFusion object store."""
+
+class FileFormatRegistrationException(AirflowException):
+    """Error while registering file format"""
+
+class QueryExecutionException(AirflowException):
+    """Error while executing query"""
+
+

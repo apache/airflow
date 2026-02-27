@@ -14,4 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+from __future__ import annotations
+
+from unittest.mock import patch
+
+from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
+
+from unit.common.ai.test_constants import DBApiHookForTests
+
+
+class CommonAIHookTestMixin(CommonAIHookMixin):
+    def __init__(self):
+        pass
+
+
+class TestCommonAIHookMixin:
+    def test_get_db_api_hook(self):
+        """Test to validate it fetches DBAPi based hooks"""
+        dbapi_hook = DBApiHookForTests()
+
+        common_ai_hook_mixin = CommonAIHookTestMixin()
+        with patch.object(common_ai_hook_mixin, "get_db_api_hook", return_value=dbapi_hook):
+            result = common_ai_hook_mixin.get_db_api_hook("sql_default")
+        assert result.dialect_name == "test_dialect"
