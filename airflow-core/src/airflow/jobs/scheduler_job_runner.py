@@ -98,7 +98,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.trace import Trace
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -1616,17 +1616,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         for loop_count in itertools.count(start=1):
-            with (
-                DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
-                Stats.timer("scheduler.scheduler_loop_duration") as timer,
-            ):
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        "loop_count": loop_count,
-                    }
-                )
-
+            with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
                     if self._is_tracing_enabled():
                         self._end_spans_of_externally_ended_ops(session)
@@ -1677,13 +1667,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.debug("Next timed event is in %f", next_event)
 
             self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
-            if span.is_recording():
-                span.add_event(
-                    name="Ran scheduling loop",
-                    attributes={
-                        "duration in ms": timer.duration,
-                    },
-                )
 
             if not is_unit_test and not num_queued_tis and not num_finished_events:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
@@ -1697,8 +1680,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.num_runs,
                     loop_count,
                 )
-                if span.is_recording():
-                    span.add_event("Exiting scheduler loop as requested number of runs has been reached")
                 break
 
     def _do_scheduling(self, session: Session) -> int:
@@ -1908,7 +1889,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
-    @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and logical_date same
@@ -2145,7 +2125,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return locked_backfills
 
-    @add_debug_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
@@ -2164,7 +2143,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
-        @add_debug_span
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
             span = Trace.get_current_span()
             span.set_attributes(
@@ -2279,127 +2257,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        with DebugTrace.start_root_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner"
-        ) as span:
-            span.set_attributes(
-                {
-                    "dag_id": dag_run.dag_id,
-                    "run_id": dag_run.run_id,
-                    "run_type": dag_run.run_type,
-                }
+        callback: DagCallbackRequest | None = None
+
+        dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        if not dag_model:
+            self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
+            return callback
+
+        if not dag:
+            self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
+            return callback
+
+        if (
+            dag_run.start_date
+            and dag.dagrun_timeout
+            and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+        ):
+            dag_run.set_state(DagRunState.FAILED)
+            unfinished_task_instances = session.scalars(
+                select(TI)
+                .where(TI.dag_id == dag_run.dag_id)
+                .where(TI.run_id == dag_run.run_id)
+                .where(TI.state.in_(State.unfinished))
             )
-            callback: DagCallbackRequest | None = None
-
-            dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-            dag_model = DM.get_dagmodel(dag_run.dag_id, session)
-            if not dag_model:
-                self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
-                return callback
-
-            if not dag:
-                self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
-                return callback
-
-            if (
-                dag_run.start_date
-                and dag.dagrun_timeout
-                and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
-            ):
-                dag_run.set_state(DagRunState.FAILED)
-                unfinished_task_instances = session.scalars(
-                    select(TI)
-                    .where(TI.dag_id == dag_run.dag_id)
-                    .where(TI.run_id == dag_run.run_id)
-                    .where(TI.state.in_(State.unfinished))
-                )
-                for task_instance in unfinished_task_instances:
-                    task_instance.state = TaskInstanceState.SKIPPED
-                    session.merge(task_instance)
-                session.flush()
-                self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
-
-                if dag_run.state in State.finished_dr_states and dag_run.run_type in (
-                    DagRunType.SCHEDULED,
-                    DagRunType.MANUAL,
-                    DagRunType.ASSET_TRIGGERED,
-                ):
-                    self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
-
-                dag_run_reloaded = session.scalar(
-                    select(DagRun)
-                    .where(DagRun.id == dag_run.id)
-                    .options(
-                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
-                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
-                    )
-                )
-                if dag_run_reloaded is None:
-                    # This should never happen since we just had the dag_run
-                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
-                    return None
-                dag_run = dag_run_reloaded
-                callback_to_execute = DagCallbackRequest(
-                    filepath=dag_model.relative_fileloc or "",
-                    dag_id=dag.dag_id,
-                    run_id=dag_run.run_id,
-                    bundle_name=dag_model.bundle_name,
-                    bundle_version=dag_run.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=dag_run,
-                        last_ti=dag_run.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=True,
-                    msg="timed_out",
-                )
-
-                dag_run.notify_dagrun_state_changed(msg="timed_out")
-                if dag_run.end_date and dag_run.start_date:
-                    duration = dag_run.end_date - dag_run.start_date
-                    DualStatsManager.timing(
-                        "dagrun.duration.failed",
-                        duration,
-                        tags={},
-                        extra_tags={"dag_id": dag_run.dag_id},
-                    )
-                span.set_attribute("error", True)
-                if span.is_recording():
-                    span.add_event(
-                        name="error",
-                        attributes={
-                            "message": f"Run {dag_run.run_id} of {dag_run.dag_id} has timed-out",
-                            "duration": str(duration),
-                        },
-                    )
-                return callback_to_execute
-
-            if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
-                self.log.error("Logical date is in future: %s", dag_run.logical_date)
-                return callback
-
-            if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
-                dag_run=dag_run, session=session
-            ):
-                self.log.warning(
-                    "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
-                )
-                return callback
-
-            if (
-                self._is_tracing_enabled()
-                and dag_run.scheduled_by_job_id is not None
-                and dag_run.scheduled_by_job_id != self.job.id
-                and self.active_spans.get("dr:" + str(dag_run.id)) is None
-            ):
-                # If the dag_run has been previously scheduled by another job and there is no active span,
-                # then check if the job is still healthy.
-                # If it's not healthy, then recreate the spans.
-                self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
-
-            dag_run.scheduled_by_job_id = self.job.id
-
-            # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-            schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+            for task_instance in unfinished_task_instances:
+                task_instance.state = TaskInstanceState.SKIPPED
+                session.merge(task_instance)
+            session.flush()
+            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
             if dag_run.state in State.finished_dr_states and dag_run.run_type in (
                 DagRunType.SCHEDULED,
@@ -2408,21 +2294,84 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
-            # This will do one query per dag run. We "could" build up a complex
-            # query to update all the TIs across all the logical dates and dag
-            # IDs in a single query, but it turns out that can be _very very slow_
-            # see #11147/commit ee90807ac for more details
-            if span.is_recording():
-                span.add_event(
-                    name="schedule_tis",
-                    attributes={
-                        "message": "dag_run scheduling its tis",
-                        "schedulable_tis": [_ti.task_id for _ti in schedulable_tis],
-                    },
+            dag_run_reloaded = session.scalar(
+                select(DagRun)
+                .where(DagRun.id == dag_run.id)
+                .options(
+                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                 )
-            dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+            )
+            if dag_run_reloaded is None:
+                # This should never happen since we just had the dag_run
+                self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                return None
+            dag_run = dag_run_reloaded
+            callback_to_execute = DagCallbackRequest(
+                filepath=dag_model.relative_fileloc or "",
+                dag_id=dag.dag_id,
+                run_id=dag_run.run_id,
+                bundle_name=dag_model.bundle_name,
+                bundle_version=dag_run.bundle_version,
+                context_from_server=DagRunContext(
+                    dag_run=dag_run,
+                    last_ti=dag_run.get_last_ti(dag=dag, session=session),
+                ),
+                is_failure_callback=True,
+                msg="timed_out",
+            )
 
-            return callback_to_run
+            dag_run.notify_dagrun_state_changed(msg="timed_out")
+            if dag_run.end_date and dag_run.start_date:
+                duration = dag_run.end_date - dag_run.start_date
+                DualStatsManager.timing(
+                    "dagrun.duration.failed",
+                    duration,
+                    tags={},
+                    extra_tags={"dag_id": dag_run.dag_id},
+                )
+            return callback_to_execute
+
+        if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
+            self.log.error("Logical date is in future: %s", dag_run.logical_date)
+            return callback
+
+        if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
+            dag_run=dag_run, session=session
+        ):
+            self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
+            return callback
+
+        if (
+            self._is_tracing_enabled()
+            and dag_run.scheduled_by_job_id is not None
+            and dag_run.scheduled_by_job_id != self.job.id
+            and self.active_spans.get("dr:" + str(dag_run.id)) is None
+        ):
+            # If the dag_run has been previously scheduled by another job and there is no active span,
+            # then check if the job is still healthy.
+            # If it's not healthy, then recreate the spans.
+            self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
+
+        dag_run.scheduled_by_job_id = self.job.id
+
+        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
+        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+
+        if dag_run.state in State.finished_dr_states and dag_run.run_type in (
+            DagRunType.SCHEDULED,
+            DagRunType.MANUAL,
+            DagRunType.ASSET_TRIGGERED,
+        ):
+            self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
+
+        # This will do one query per dag run. We "could" build up a complex
+        # query to update all the TIs across all the logical dates and dag
+        # IDs in a single query, but it turns out that can be _very very slow_
+        # see #11147/commit ee90807ac for more details
+        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+
+        return callback_to_run
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
         """
@@ -2688,51 +2637,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
-            pools = Pool.slots_stats(session=session)
-            for pool_name, slot_stats in pools.items():
-                normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-                DualStatsManager.gauge(
-                    "pool.open_slots",
-                    slot_stats["open"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.queued_slots",
-                    slot_stats["queued"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.running_slots",
-                    slot_stats["running"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.deferred_slots",
-                    slot_stats["deferred"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.scheduled_slots",
-                    slot_stats["scheduled"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        f"pool.open_slots.{normalized_pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{normalized_pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{normalized_pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{normalized_pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{normalized_pool_name}": slot_stats["scheduled"],
-                    }
-                )
+        pools = Pool.slots_stats(session=session)
+        for pool_name, slot_stats in pools.items():
+            normalized_pool_name = normalize_pool_name_for_stats(pool_name)
+            DualStatsManager.gauge(
+                "pool.open_slots",
+                slot_stats["open"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.queued_slots",
+                slot_stats["queued"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.running_slots",
+                slot_stats["running"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.deferred_slots",
+                slot_stats["deferred"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.scheduled_slots",
+                slot_stats["scheduled"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
