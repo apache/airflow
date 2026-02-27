@@ -2308,7 +2308,7 @@
                     }
                 },
                 "extraPorts": {
-                    "description": "Expose additional ports of Airflow Celery worker container.",
+                    "description": "Expose additional ports of Airflow Celery worker container (deprecated, use `workers.celery.extraPorts` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3038,6 +3038,14 @@
                                         }
                                     }
                                 }
+                            }
+                        },
+                        "extraPorts": {
+                            "description": "Expose additional ports of Airflow Celery worker container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
                             }
                         }
                     }
