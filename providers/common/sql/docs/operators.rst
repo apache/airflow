@@ -304,7 +304,7 @@ DataSourceConfig Parameters
 
 S3 Storage
 ----------
-.. exampleinclude:: /../../ai/src/airflow/providers/common/sql/example_dags/example_analytics.py
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_s3]
@@ -312,7 +312,7 @@ S3 Storage
 
 Local File System Storage
 -------------------------
-.. exampleinclude:: /../../ai/src/airflow/providers/common/sql/example_dags/example_analytics.py
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_local]
