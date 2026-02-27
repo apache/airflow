@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
@@ -107,7 +109,7 @@ class TestTokenTypeScopeEnforcement:
         ti_id = self.TI_ID
 
         async def mock_jwt(request: Request):
-            return TIToken(id=ti_id, claims={"scope": scope})
+            return TIToken(id=UUID(ti_id), claims={"scope": scope})
 
         app.dependency_overrides[_jwt_bearer] = mock_jwt
 
