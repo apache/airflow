@@ -84,8 +84,10 @@ def check_db_manager_config() -> None:
     # Check explicitly configured managers
     configured = conf.get("database", "external_db_managers", fallback="")
     registered = {m.strip() for m in configured.split(",") if m.strip()}
-    # Also check auto-discovered managers from installed providers
-    registered |= set(ProvidersManager().db_managers)
+    # Also check auto-discovered managers from installed providers (db_managers added in Airflow 3.2)
+    pm = ProvidersManager()
+    if hasattr(pm, "db_managers"):
+        registered |= set(pm.db_managers)
 
     if fqcn not in registered:
         warnings.warn(
