@@ -324,8 +324,13 @@ class InProcessExecutionAPI:
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            async def always_allow():
-                return TIToken(id="00000000-0000-0000-0000-000000000000", claims={"scope": "execution"})
+            async def always_allow(request: Request):
+                from uuid import UUID
+
+                ti_id = UUID(
+                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                )
+                return TIToken(id=ti_id, claims={"scope": "execution"})
 
             self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow

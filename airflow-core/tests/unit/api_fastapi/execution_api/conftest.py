@@ -45,8 +45,10 @@ def client(request: pytest.FixtureRequest):
     exec_app = _get_execution_api_app(app)
 
     async def mock_jwt_bearer(request: Request):
-        ti_id = request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
-        return TIToken(id=str(ti_id), claims={"sub": str(ti_id), "scope": "execution"})
+        from uuid import UUID
+
+        ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+        return TIToken(id=ti_id, claims={"sub": str(ti_id), "scope": "execution"})
 
     exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 
