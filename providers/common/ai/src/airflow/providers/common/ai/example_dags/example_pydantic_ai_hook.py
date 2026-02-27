@@ -21,7 +21,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.sdk import dag, task
+from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_hook_pydantic_ai_basic]

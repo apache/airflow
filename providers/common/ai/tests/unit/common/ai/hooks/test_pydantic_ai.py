@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai.models import Model
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
@@ -112,7 +111,7 @@ class TestPydanticAIHookGetConn:
         # model_id param takes priority over extra
         assert mock_infer_model.call_args[0][0] == "openai:gpt-5.3"
 
-    def test_get_conn_raises_airflow_exception_when_no_model(self):
+    def test_get_conn_raises_when_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(
             conn_id="test_conn",
@@ -120,7 +119,7 @@ class TestPydanticAIHookGetConn:
             password="sk-test-key",
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(AirflowException, match="No model specified"):
+            with pytest.raises(ValueError, match="No model specified"):
                 hook.get_conn()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)

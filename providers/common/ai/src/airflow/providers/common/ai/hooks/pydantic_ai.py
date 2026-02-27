@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
 from pydantic_ai.models import Model, infer_model
 from pydantic_ai.providers import Provider, infer_provider, infer_provider_class
 
-from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
 
@@ -95,7 +94,7 @@ class PydanticAIHook(BaseHook):
         conn = self.get_connection(self.llm_conn_id)
         model_name: str | KnownModelName = self.model_id or conn.extra_dejson.get("model", "")
         if not model_name:
-            raise AirflowException(
+            raise ValueError(
                 "No model specified. Set model_id on the hook or 'model' in the connection's extra JSON."
             )
         api_key = conn.password
@@ -131,9 +130,17 @@ class PydanticAIHook(BaseHook):
         self._model = infer_model(model_name, provider_factory=_provider_factory)
         return self._model
 
+    @overload
     def create_agent(
-        self, output_type: type[OutputT] = str, *, instructions: str, **agent_kwargs
-    ) -> Agent[None, OutputT]:
+        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
+    ) -> Agent[None, OutputT]: ...
+
+    @overload
+    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
+
+    def create_agent(
+        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
+    ) -> Agent[None, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
