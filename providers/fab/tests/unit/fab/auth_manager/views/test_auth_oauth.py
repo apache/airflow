@@ -28,6 +28,14 @@ from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthV
 class TestCustomAuthOAuthView:
     """Test CustomAuthOAuthView."""
 
+    def test_oauth_authorized_keeps_callback_route_exposed(self):
+        """Test oauth callback route is exposed on the custom view."""
+        assert hasattr(CustomAuthOAuthView.oauth_authorized, "_urls")
+        assert any(
+            route == "/oauth-authorized/<provider>"
+            for route, _methods in CustomAuthOAuthView.oauth_authorized._urls
+        )
+
     @pytest.mark.parametrize("backend", ["database", "securecookie"])
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
     def test_oauth_authorized_marks_session_modified(self, mock_conf, backend):

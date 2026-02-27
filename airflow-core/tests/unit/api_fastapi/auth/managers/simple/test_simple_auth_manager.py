@@ -307,18 +307,21 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
-        ("user_teams", "team", "expected"),
+        ("user_teams", "team", "role", "expected"),
         [
-            (None, None, False),
-            (["test"], "marketing", False),
-            (["test"], "test", True),
-            (["test", "marketing"], "test", True),
+            (None, None, None, False),
+            (["test"], "marketing", None, False),
+            (["test"], "test", None, True),
+            (["test", "marketing"], "test", None, True),
+            # Admin role can access all teams regardless of user.teams
+            ([], "team_a", "ADMIN", True),
+            (None, "team_b", "ADMIN", True),
         ],
     )
-    def test_is_authorized_team(self, auth_manager, user_teams, team, expected):
+    def test_is_authorized_team(self, auth_manager, user_teams, team, role, expected):
         result = auth_manager.is_authorized_team(
             method="GET",
-            user=SimpleAuthManagerUser(username="test", role=None, teams=user_teams),
+            user=SimpleAuthManagerUser(username="test", role=role, teams=user_teams),
             details=TeamDetails(name=team),
         )
         assert expected is result
@@ -351,3 +354,16 @@ class TestSimpleAuthManager:
             user = SimpleAuthManagerUser(username=user_id, role="user")
             result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
             assert result == expected
+
+    @conf_vars(
+        {
+            ("core", "multi_team"): "true",
+            (
+                "core",
+                "simple_auth_manager_users",
+            ): "test1:viewer,test2:viewer:test,test3:viewer:test|marketing",
+        }
+    )
+    def test_get_teams(self, auth_manager):
+        teams = auth_manager._get_teams()
+        assert teams == {"test", "marketing"}

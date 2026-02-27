@@ -104,9 +104,28 @@ def worker(
 )
 def jobs(
     session: SessionDep,
+    dag_id_pattern: str | None = None,
+    run_id_pattern: str | None = None,
+    task_id_pattern: str | None = None,
+    state: Annotated[list[TaskInstanceState] | None, Query()] = None,
+    queue_pattern: str | None = None,
+    worker_name_pattern: str | None = None,
 ) -> JobCollectionResponse:
     """Return Edge Jobs."""
-    query = select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
+    query = select(EdgeJobModel)
+    if dag_id_pattern:
+        query = query.where(EdgeJobModel.dag_id.ilike(f"%{dag_id_pattern}%"))
+    if run_id_pattern:
+        query = query.where(EdgeJobModel.run_id.ilike(f"%{run_id_pattern}%"))
+    if task_id_pattern:
+        query = query.where(EdgeJobModel.task_id.ilike(f"%{task_id_pattern}%"))
+    if state:
+        query = query.where(EdgeJobModel.state.in_([s.value for s in state]))
+    if queue_pattern:
+        query = query.where(EdgeJobModel.queue.ilike(f"%{queue_pattern}%"))
+    if worker_name_pattern:
+        query = query.where(EdgeJobModel.edge_worker.ilike(f"%{worker_name_pattern}%"))
+    query = query.order_by(EdgeJobModel.queued_dttm)
     jobs: ScalarResult[EdgeJobModel] = session.scalars(query)
 
     result = [

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .protocols import Timer
@@ -34,10 +35,7 @@ class StatsLogger(Protocol):
     def initialize(
         cls,
         *,
-        is_statsd_datadog_enabled: bool,
-        is_statsd_on: bool,
-        is_otel_on: bool,
-        reset_instance: bool = True,
+        factory: Callable,
     ) -> None:
         """Initialize the StatsLogger instance."""
 
@@ -98,10 +96,7 @@ class NoStatsLogger:
     def initialize(
         cls,
         *,
-        is_statsd_datadog_enabled: bool,
-        is_statsd_on: bool,
-        is_otel_on: bool,
-        reset_instance: bool = True,
+        factory: Callable,
     ) -> None:
         """Initialize the NoStatsLogger instance."""
 
