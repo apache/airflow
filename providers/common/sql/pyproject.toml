@@ -107,7 +107,8 @@ dev = [
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
-    "apache-airflow-providers-common-sql[sqlalchemy]"
+    "apache-airflow-providers-common-sql[sqlalchemy]",
+    "apache-airflow-providers-common-sql[datafusion]",
 ]
 
 # To build docs:
