@@ -20,9 +20,6 @@ from __future__ import annotations
 import calendar
 import logging
 
-TRACE_ID = 0
-SPAN_ID = 16
-
 log = logging.getLogger(__name__)
 
 
