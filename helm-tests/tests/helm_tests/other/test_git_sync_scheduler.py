@@ -476,3 +476,41 @@ class TestGitSyncSchedulerTest:
             )
             == readinessProbe
         )
+
+    def test_readiness_probe_configuration_recommended(self):
+        readinessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "recommendedProbeSetting": True,
+                        "readinessProbe": readinessProbe,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name == 'git-sync-init'] | [0].readinessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[?name == 'git-sync'] | [0].readinessProbe", docs[0]
+            )
+            is None
+        )

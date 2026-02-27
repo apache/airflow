@@ -312,7 +312,7 @@ If release name contains chart name it will be used as a full name.
   {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
   livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) (not .Values.dags.gitSync.recommendedProbeSetting) }}
   readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
   {{- end }}
   volumeMounts:

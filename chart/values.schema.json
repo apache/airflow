@@ -10665,7 +10665,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
                         "readinessProbe": {
-                            "description": "Readiness probe configuration for git sync container.",
+                            "description": "Readiness probe configuration for git sync container. As Git-Sync is not service-type object, the usage of the section was removed. Section itself will be removed in future release as to not break setups during upgrades.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
