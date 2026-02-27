@@ -887,11 +887,11 @@ def prepare_provider_documentation(
     suspended_packages = []
     removed_packages = []
     for provider_id in provider_distributions:
-        provider_metadata = basic_provider_checks(provider_id)
-        if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-            if not only_min_version_update:
-                get_console().print("-" * get_console().width)
         try:
+            provider_metadata = basic_provider_checks(provider_id)
+            if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+                if not only_min_version_update:
+                    get_console().print("-" * get_console().width)
             with_breaking_changes = False
             maybe_with_new_features = False
             with ci_group(
@@ -1130,6 +1130,11 @@ def prepare_provider_distributions(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    get_console().print("\n[info]Cleaning generated _api folders from docs directories")
+    for api_dir in AIRFLOW_ROOT_PATH.rglob("docs/_api"):
+        if api_dir.is_dir():
+            shutil.rmtree(api_dir, ignore_errors=True)
+            get_console().print(f"[info]Removed {api_dir}")
     distributions_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
         get_console().print(

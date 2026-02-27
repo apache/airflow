@@ -27,7 +27,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.deadline import DealineCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.ui.deadline import DeadlineCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dagrun import DagRun
@@ -71,7 +71,7 @@ def get_dag_run_deadlines(
             ).dynamic_depends(default="deadline_time")
         ),
     ],
-) -> DealineCollectionResponse:
+) -> DeadlineCollectionResponse:
     """Get all deadlines for a specific DAG run."""
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
@@ -101,4 +101,4 @@ def get_dag_run_deadlines(
 
     deadlines = session.scalars(deadlines_select)
 
-    return DealineCollectionResponse(deadlines=deadlines, total_entries=total_entries)
+    return DeadlineCollectionResponse(deadlines=deadlines, total_entries=total_entries)
