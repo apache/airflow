@@ -904,8 +904,8 @@ class TestDbtCloudHook:
 
     wait_for_job_run_status_test_args = [
         (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.SUCCESS.value, True),
-        (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, False),
-        (DbtCloudJobRunStatus.CANCELLED.value, DbtCloudJobRunStatus.SUCCESS.value, False),
+        (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, "exception"),
+        (DbtCloudJobRunStatus.CANCELLED.value, DbtCloudJobRunStatus.SUCCESS.value, "exception"),
         (DbtCloudJobRunStatus.RUNNING.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
         (DbtCloudJobRunStatus.QUEUED.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
         (DbtCloudJobRunStatus.STARTING.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
@@ -943,7 +943,7 @@ class TestDbtCloudHook:
         ):
             mock_job_run_status.return_value = job_run_status
 
-            if expected_output != "timeout":
+            if expected_output not in ("timeout", "exception"):
                 assert hook.wait_for_job_run_status(**config) == expected_output
             else:
                 with pytest.raises(DbtCloudJobRunException):

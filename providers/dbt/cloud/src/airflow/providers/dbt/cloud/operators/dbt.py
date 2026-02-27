@@ -256,9 +256,14 @@ class DbtCloudRunJobOperator(BaseOperator):
         return int(event["run_id"])
 
     def on_kill(self) -> None:
-        if self.run_id:
-            self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+        if not self.run_id:
+            return
 
+        self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+
+        # Attempt best-effort confirmation of cancellation.
+        try:
+            # This can raise a DbtCloudJobRunException under normal operation.
             if self.hook.wait_for_job_run_status(
                 run_id=self.run_id,
                 account_id=self.account_id,
@@ -267,6 +272,13 @@ class DbtCloudRunJobOperator(BaseOperator):
                 timeout=self.timeout,
             ):
                 self.log.info("Job run %s has been cancelled successfully.", self.run_id)
+
+        except DbtCloudJobRunException as exc:
+            self.log.warning(
+                "Failed to confirm cancellation of job run %s during task kill: %s",
+                self.run_id,
+                exc,
+            )
 
     @cached_property
     def hook(self):
