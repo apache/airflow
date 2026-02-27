@@ -84,7 +84,7 @@ As the context mapping describes execution of a task instance, contexts passed t
 and the task selected depends on the state of a Dag:
 
 #. On regular failure, the latest failed task is selected.
-#. On timeout, the latest started but not finished task is passed.
+#. On Dag run timeout, the latest started but not finished task is passed.
 #. If tasks are deadlocked, the latest finished task is passed.
 #. On success, the latest succeeded task is passed.
 
