@@ -2923,7 +2923,7 @@ class TestTokenTypeValidation:
     """Test token scope enforcement (workload vs execution)."""
 
     def test_workload_scope_rejected_on_default_endpoints(self, client, session, create_task_instance):
-        """workload scoped tokens should be rejected on endpoints without openapi_extra."""
+        """workload scoped tokens should be rejected on endpoints without token:workload Security scope."""
         ti = create_task_instance(task_id="test_ti_run_heartbeat", state=State.RUNNING)
         session.commit()
 

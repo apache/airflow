@@ -71,6 +71,7 @@ from typing import Any, Literal, get_args
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
 from sqlalchemy import select
@@ -206,7 +207,6 @@ class ExecutionAPIRoute(APIRoute):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        from fastapi.params import Security as SecurityParam
 
         all_scopes: set[str] = set()
         for dep in self.dependencies:

@@ -20,7 +20,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from airflow.api_fastapi.execution_api.security import DepContainer
+from airflow.api_fastapi.execution_api.deps import DepContainer
 
 router = APIRouter()
 
