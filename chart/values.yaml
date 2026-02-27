@@ -999,14 +999,19 @@ workers:
     env: []
 
   # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
+  # (deprecated, use workers.celery.waitForMigrations instead)
   waitForMigrations:
     # Whether to create init container to wait for db migrations
+    # (deprecated, use workers.celery.waitForMigrations.enabled instead)
     enabled: true
 
+    # (deprecated, use workers.celery.waitForMigrations.env instead)
     env: []
 
     # Detailed default security context for wait-for-airflow-migrations container
+    # (deprecated, use workers.celery.waitForMigrations.securityContexts instead)
     securityContexts:
+      # (deprecated, use workers.celery.waitForMigrations.securityContexts.container instead)
       container: {}
 
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
@@ -1160,6 +1165,17 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
+    waitForMigrations:
+      # Whether to create init container to wait for db migrations
+      enabled: ~
+
+      env: []
+
+      # Detailed default security context for wait-for-airflow-migrations container
+      securityContexts:
+        container: {}
 
   kubernetes:
     # Command to use in pod-template-file (templated)

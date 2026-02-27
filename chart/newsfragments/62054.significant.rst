@@ -1,0 +1,1 @@
+``workers.waitForMigrations`` section is now deprecated in favor of ``workers.celery.waitForMigrations``. Please update your configuration accordingly.
