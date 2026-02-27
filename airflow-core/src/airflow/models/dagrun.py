@@ -1222,7 +1222,7 @@ class DagRun(Base, LoggingMixin):
                         for ti in tis_for_dagrun_state
                         if ti.state == TaskInstanceState.FAILED and ti.end_date is not None
                     ),
-                    key=lambda ti: ti.end_date,
+                    key=lambda ti: ti.end_date or datetime.min,
                     default=None,
                 )
                 callback = self.produce_dag_callback(
@@ -1282,7 +1282,9 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if dag.has_on_failure_callback:
-                last_finished_ti: TI | None = max(info.finished_tis, key=lambda ti: ti.end_date, default=None)
+                last_finished_ti: TI | None = max(
+                    info.finished_tis, key=lambda ti: ti.end_date or datetime.min, default=None
+                )
                 callback = self.produce_dag_callback(
                     dag=dag,
                     success=False,
