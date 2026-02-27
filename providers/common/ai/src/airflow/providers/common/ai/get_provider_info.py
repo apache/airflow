@@ -53,4 +53,13 @@ def get_provider_info():
                 },
             }
         ],
+        "operators": [
+            {
+                "integration-name": "Pydantic AI",
+                "python-modules": ["airflow.providers.common.ai.operators.llm_sql"],
+            }
+        ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"}
+        ],
     }
