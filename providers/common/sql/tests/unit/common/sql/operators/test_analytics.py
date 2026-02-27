@@ -19,12 +19,12 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig, StorageType
-from airflow.providers.common.ai.operators.analytics import AnalyticsOperator
+from airflow.providers.common.sql.config import DataSourceConfig, StorageType
+from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
 
 
 class TestAnalyticsOperator:
@@ -50,27 +50,21 @@ class TestAnalyticsOperator:
             "col2": ["dave", "bob", "alice", "carol", "eve"],
         }
 
-        with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-            mock_get_conn.return_value = MagicMock()
+        result = operator.execute(context={})
 
-            result = operator.execute(context={})
-
-            mock_engine.register_datasource.assert_called_once()
-            mock_engine.execute_query.assert_called_once_with("SELECT * FROM users_data")
-            assert "col1" in result
-            assert "col2" in result
+        mock_engine.register_datasource.assert_called_once()
+        mock_engine.execute_query.assert_called_once_with("SELECT * FROM users_data")
+        assert "col1" in result
+        assert "col2" in result
 
     def test_execute_max_rows_exceeded(self, operator, mock_engine):
         operator.max_rows_check = 3
         mock_engine.execute_query.return_value = {"col1": [1, 2, 3, 4]}
 
-        with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-            mock_get_conn.return_value = MagicMock()
+        result = operator.execute(context={})
 
-            result = operator.execute(context={})
-
-            assert "Skipped" in result
-            assert "4 rows exceed max_rows_check (3)" in result
+        assert "Skipped" in result
+        assert "4 rows exceed max_rows_check (3)" in result
 
     def test_json_output_format(self, mock_engine):
         datasource_config = DataSourceConfig(
@@ -90,18 +84,15 @@ class TestAnalyticsOperator:
             "value": [10.1, 20.2, 30.3],
         }
 
-        with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-            mock_get_conn.return_value = MagicMock()
+        result = operator.execute(context={})
 
-            result = operator.execute(context={})
-
-            json_result = json.loads(result)
-            assert len(json_result) == 1
-            assert json_result[0]["query"] == "SELECT * FROM users_data"
-            assert len(json_result[0]["data"]) == 3
-            assert json_result[0]["data"][0] == {"id": 1, "name": "A", "value": 10.1}
-            assert json_result[0]["data"][1] == {"id": 2, "name": "B", "value": 20.2}
-            assert json_result[0]["data"][2] == {"id": 3, "name": "C", "value": 30.3}
+        json_result = json.loads(result)
+        assert len(json_result) == 1
+        assert json_result[0]["query"] == "SELECT * FROM users_data"
+        assert len(json_result[0]["data"]) == 3
+        assert json_result[0]["data"][0] == {"id": 1, "name": "A", "value": 10.1}
+        assert json_result[0]["data"][1] == {"id": 2, "name": "B", "value": 20.2}
+        assert json_result[0]["data"][2] == {"id": 3, "name": "C", "value": 30.3}
 
     def test_tabulate_output_format(self, mock_engine):
         datasource_config = DataSourceConfig(
@@ -120,13 +111,10 @@ class TestAnalyticsOperator:
             "quantity": [10, 20, 15],
         }
 
-        with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-            mock_get_conn.return_value = MagicMock()
+        result = operator.execute(context={})
 
-            result = operator.execute(context={})
-
-            assert "product" in result
-            assert "Results: SELECT * FROM users_data" in result
+        assert "product" in result
+        assert "Results: SELECT * FROM users_data" in result
 
     def test_unsupported_output_format(self, mock_engine):
         datasource_config = DataSourceConfig(
@@ -140,11 +128,8 @@ class TestAnalyticsOperator:
             result_output_format=["invalid"],  # type: ignore
         )
 
-        with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-            mock_get_conn.return_value = MagicMock()
-
-            with pytest.raises(ValueError, match="Unsupported output format"):
-                operator.execute(context={})
+        with pytest.raises(ValueError, match="Unsupported output format"):
+            operator.execute(context={})
 
     def test_execute_with_local_csv(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
@@ -165,13 +150,10 @@ class TestAnalyticsOperator:
                 engine=None,
             )
 
-            with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
-                mock_get_conn.return_value = ConnectionConfig(conn_id="")
+            result = operator.execute(context={})
 
-                result = operator.execute(context={})
-
-                assert "Alice" in result
-                assert "Bob" in result
-                assert "Results: SELECT * FROM test_csv ORDER BY name" in result
+            assert "Alice" in result
+            assert "Bob" in result
+            assert "Results: SELECT * FROM test_csv ORDER BY name" in result
         finally:
             os.unlink(csv_path)

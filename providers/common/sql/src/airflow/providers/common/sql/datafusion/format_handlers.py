@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.ai.config import FormatType
-from airflow.providers.common.ai.datafusion.base import FormatHandler
-from airflow.providers.common.ai.exceptions import FileFormatRegistrationException
+from airflow.providers.common.sql.config import FormatType
+from airflow.providers.common.sql.datafusion.base import FormatHandler
+from airflow.providers.common.sql.datafusion.exceptions import FileFormatRegistrationException
 
 if TYPE_CHECKING:
     from datafusion import SessionContext

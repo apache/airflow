@@ -62,6 +62,7 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
+    "datafusion>=50.0.0",
     # The methodtools dependency is necessary since the introduction of dialects:
     # https://github.com/apache/airflow/pull/41327/files
     "methodtools>=0.4.7"
@@ -85,12 +86,16 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
 ]
+"amazon" = [
+    "apache-airflow-providers-amazon"
+]
 
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig, StorageType
+from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig, StorageType
 
 
 class TestDataSourceConfig:
@@ -45,15 +45,6 @@ class TestDataSourceConfig:
     def test_missing_table_name_raises_error(self):
         with pytest.raises(ValueError, match="Table name must be provided for storage type"):
             DataSourceConfig(conn_id="test", uri="s3://bucket/path")
-
-    def test_invalid_schema_raises_error(self):
-        with pytest.raises(ValueError, match="Schema must be a dictionary of column names and types"):
-            DataSourceConfig(
-                conn_id="test",
-                uri="s3://bucket/path",
-                table_name="my_table",
-                schema=["col1", "col2"],  # type: ignore
-            )
 
     def test_parquet_with_partition_cols(self):
         config = DataSourceConfig(

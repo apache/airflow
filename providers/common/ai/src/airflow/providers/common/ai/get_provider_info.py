@@ -26,23 +26,4 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-common-ai",
         "name": "Common AI",
         "description": "``Common AI Provider``\n",
-        "integrations": [
-            {
-                "integration-name": "Common AI",
-                "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
-                "tags": ["software"],
-            },
-            {
-                "integration-name": "DataFusion",
-                "external-doc-url": "https://datafusion.apache.org/",
-                "how-to-guide": ["/docs/apache-airflow-providers-common-ai/operators/analytics.rst"],
-                "tags": ["software"],
-            },
-        ],
-        "operators": [
-            {
-                "integration-name": "Common AI",
-                "python-modules": ["airflow.providers.common.ai.operators.analytics"],
-            }
-        ],
     }

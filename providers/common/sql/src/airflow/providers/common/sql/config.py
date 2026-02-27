@@ -69,15 +69,10 @@ class DataSourceConfig:
     uri: str
     format: str | None = None
     table_name: str | None = None
-    schema: dict[str, str] | None = None
-    db_name: str | None = None
     storage_type: StorageType | None = None
     options: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
-
-        if self.schema is not None and not isinstance(self.schema, dict):
-            raise ValueError("Schema must be a dictionary of column names and types")
 
         self.storage_type = self._extract_storage_type
         if self.storage_type is not None and self.table_name is None:

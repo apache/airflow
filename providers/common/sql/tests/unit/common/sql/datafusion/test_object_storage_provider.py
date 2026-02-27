@@ -20,17 +20,17 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.common.ai.config import ConnectionConfig, StorageType
-from airflow.providers.common.ai.datafusion.object_storage_provider import (
+from airflow.providers.common.sql.config import ConnectionConfig, StorageType
+from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
+from airflow.providers.common.sql.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
     S3ObjectStorageProvider,
     get_object_storage_provider,
 )
-from airflow.providers.common.ai.exceptions import ObjectStoreCreationException
 
 
 class TestObjectStorageProvider:
-    @patch("airflow.providers.common.ai.datafusion.object_storage_provider.AmazonS3")
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.AmazonS3")
     def test_s3_provider_success(self, mock_s3):
         provider = S3ObjectStorageProvider()
         connection_config = ConnectionConfig(
@@ -52,13 +52,13 @@ class TestObjectStorageProvider:
         connection_config = ConnectionConfig(conn_id="aws_default")
 
         with patch(
-            "airflow.providers.common.ai.datafusion.object_storage_provider.AmazonS3",
+            "airflow.providers.common.sql.datafusion.object_storage_provider.AmazonS3",
             side_effect=Exception("Error"),
         ):
             with pytest.raises(ObjectStoreCreationException, match="Failed to create S3 object store"):
                 provider.create_object_store("s3://demo-data/path", connection_config)
 
-    @patch("airflow.providers.common.ai.datafusion.object_storage_provider.LocalFileSystem")
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem")
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
         assert provider.get_storage_type == StorageType.LOCAL
