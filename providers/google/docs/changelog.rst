@@ -109,6 +109,13 @@ Doc-only
 19.5.0
 ......
 
+.. warning::
+  We have identified the following regressions for this version.
+  - The return value of the ``GenAIGeminiCreateBatchJobOperator`` and ``GenAIGeminiGetBatchJobOperator`` were incompatible with Airflow 2. The issues fixed in the following PRs #61253 and #61842.
+  - The ``transport`` parameter broke the deferrable mode for ``CloudRunExecuteJobOperator``. The issue fixed in #61546.
+
+  The fixes will be available in version 20.0.0.
+
 Features
 ~~~~~~~~
 
