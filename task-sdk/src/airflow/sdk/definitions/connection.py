@@ -323,7 +323,6 @@ class Connection:
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
-        kwargs.pop("uri", None)  # uri is init-only, never deserialize
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
