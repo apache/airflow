@@ -113,6 +113,36 @@ def configure_testing_dag_bundle():
 
 
 @pytest.fixture
+def minimal_dagbag(tmp_path: Path):
+    """Return a lightweight DagBag containing a single no-op DAG.
+
+    Useful for any test that needs a populated DagBag but does not care about
+    complex DAG structures. The fixture creates a temporary DAG file, builds
+    a DagBag from it, and verifies the DAG was loaded successfully.
+
+    Usage in tests::
+
+        def test_something(minimal_dagbag):
+            dag = minimal_dagbag.dags["minimal_test_dag"]
+            assert dag is not None
+
+    See also: ``airflow-core/tests/conftest.py`` for fixture definition.
+    """
+    from airflow.dag_processing.dagbag import DagBag
+
+    dag_file = tmp_path / "minimal_dag.py"
+    dag_file.write_text(
+        "from airflow.sdk import DAG\n"
+        "from airflow.providers.standard.operators.empty import EmptyOperator\n"
+        "with DAG('minimal_test_dag', schedule=None) as dag:\n"
+        "    EmptyOperator(task_id='noop')\n"
+    )
+    dagbag = DagBag(dag_folder=str(tmp_path), include_examples=False)
+    assert "minimal_test_dag" in dagbag.dags, "minimal_dagbag fixture failed to load the test DAG"
+    return dagbag
+
+
+@pytest.fixture
 def test_zip_path(tmp_path: Path):
     TEST_DAGS_FOLDER = Path(__file__).parent / "unit" / "dags"
     test_zip_folder = TEST_DAGS_FOLDER / "test_zip"
