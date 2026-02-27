@@ -887,11 +887,11 @@ def prepare_provider_documentation(
     suspended_packages = []
     removed_packages = []
     for provider_id in provider_distributions:
-        provider_metadata = basic_provider_checks(provider_id)
-        if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-            if not only_min_version_update:
-                get_console().print("-" * get_console().width)
         try:
+            provider_metadata = basic_provider_checks(provider_id)
+            if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+                if not only_min_version_update:
+                    get_console().print("-" * get_console().width)
             with_breaking_changes = False
             maybe_with_new_features = False
             with ci_group(

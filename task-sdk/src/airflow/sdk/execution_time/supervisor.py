@@ -324,6 +324,28 @@ def block_orm_access():
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
 
 
+# From <linux/prctl.h>
+_PR_SET_DUMPABLE = 4
+_PR_GET_DUMPABLE = 3
+
+
+def _make_process_nondumpable() -> None:
+    """Mark the current process as non-dumpable to prevent same-UID memory access."""
+    if sys.platform != "linux":
+        return
+    try:
+        import ctypes
+
+        # CDLL(None) is dlopen(NULL) — a handle to the current process, which always
+        # includes libc symbols since CPython is linked against it.
+        libc = ctypes.CDLL(None, use_errno=True)
+        rc = libc.prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0)
+        if rc != 0:
+            log.warning("Failed to set PR_SET_DUMPABLE=0", errno=ctypes.get_errno())
+    except Exception:
+        log.warning("Unable to set PR_SET_DUMPABLE=0", exc_info=True)
+
+
 def _fork_main(
     requests: socket,
     child_stdout: socket,
@@ -2001,7 +2023,8 @@ def supervise(
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
-    # One or the other
+    _make_process_nondumpable()
+
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
