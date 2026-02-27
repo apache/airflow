@@ -26,6 +26,11 @@ from airflow_shared.template_rendering import (
 
 def test_truncate_rendered_value_prioritizes_message():
     """Test that truncation message is always shown first, content only if space allows."""
+    trunc_only = f"{TRUNCATE_PREFIX}{TRUNCATE_SUFFIX}"
+    trunc_only_len = len(trunc_only)
+    overhead = len(TRUNCATE_PREFIX) + len(TRUNCATE_SUFFIX)
+    min_length_for_content = overhead + TRUNCATE_MIN_CONTENT_LENGTH
+
     test_cases = [
         (1, "test", "Minimum value"),
         (3, "test", "At ellipsis length"),
@@ -33,9 +38,9 @@ def test_truncate_rendered_value_prioritizes_message():
         (10, "password123", "Small"),
         (20, "secret_value", "Small with content"),
         (50, "This is a test string", "Medium"),
-        (83, "Hello World", "At prefix+suffix boundary v1"),
-        (84, "Hello World", "Just above boundary v1"),
-        (86, "Hello World", "At overhead boundary v2"),
+        (overhead + 1, "Hello World", "At prefix+suffix boundary v1"),
+        (overhead + 2, "Hello World", "Just above boundary v1"),
+        (min_length_for_content - 3, "Hello World", "At overhead boundary v2"),
         (90, "short", "Normal case - short string"),
         (100, "This is a longer string", "Normal case"),
         (
@@ -49,11 +54,6 @@ def test_truncate_rendered_value_prioritizes_message():
         (100, "test's", "String with apostrophe"),
         (90, '"quoted"', "String with quotes"),
     ]
-
-    trunc_only = f"{TRUNCATE_PREFIX}{TRUNCATE_SUFFIX}"
-    trunc_only_len = len(trunc_only)
-    overhead = len(TRUNCATE_PREFIX) + len(TRUNCATE_SUFFIX)
-    min_length_for_content = overhead + TRUNCATE_MIN_CONTENT_LENGTH
 
     for max_length, rendered, description in test_cases:
         result = truncate_rendered_value(rendered, max_length)
@@ -78,6 +78,8 @@ def test_truncate_rendered_value_prioritizes_message():
 def test_truncate_rendered_value_exact_expected_output():
     """Test that truncation produces exact expected output: message first, then content when space allows."""
     trunc_only = TRUNCATE_PREFIX + TRUNCATE_SUFFIX
+    overhead = len(TRUNCATE_PREFIX) + len(TRUNCATE_SUFFIX)
+    min_length_for_content = overhead + TRUNCATE_MIN_CONTENT_LENGTH
 
     test_cases = [
         (1, "test", trunc_only),
@@ -86,9 +88,9 @@ def test_truncate_rendered_value_exact_expected_output():
         (10, "password123", trunc_only),
         (20, "secret_value", trunc_only),
         (50, "This is a test string", trunc_only),
-        (83, "Hello World", trunc_only),
-        (84, "Hello World", trunc_only),
-        (86, "Hello World", trunc_only),
+        (overhead + 1, "Hello World", trunc_only),
+        (overhead + 2, "Hello World", trunc_only),
+        (min_length_for_content - 3, "Hello World", trunc_only),
         (90, "short", TRUNCATE_PREFIX + "short" + TRUNCATE_SUFFIX),
         (100, "This is a longer string", TRUNCATE_PREFIX + "This is a longer st" + TRUNCATE_SUFFIX),
         (150, "x" * 200, TRUNCATE_PREFIX + "x" * 69 + TRUNCATE_SUFFIX),
