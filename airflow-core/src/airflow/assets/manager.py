@@ -563,7 +563,7 @@ class AssetManager(LoggingMixin):
         update_stmt = stmt.on_conflict_do_update(
             index_elements=["asset_id", "target_dag_id"],
             set_={"created_at": stmt.excluded.created_at},
-            where=(AssetDagRunQueue.c.created_at < stmt.excluded.created_at),
+            where=(AssetDagRunQueue.created_at < stmt.excluded.created_at),
         )
         session.execute(update_stmt, values)
 
