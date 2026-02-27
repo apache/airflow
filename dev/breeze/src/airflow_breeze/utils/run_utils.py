@@ -214,6 +214,10 @@ def get_environments_to_print(env: Mapping[str, str] | None):
 
 def get_prek_executable() -> str:
     """Return path to prek executable in same env as breeze (bin/prek)."""
+    prek_bin = shutil.which("prek", path=str(Path(sys.executable).parent))
+    if prek_bin is not None:
+        return prek_bin
+    # Fallback when prek is not found via which (e.g. Windows .exe resolution)
     prek_in_bin = Path(sys.executable).parent / ("prek.exe" if sys.platform == "win32" else "prek")
     return os.fspath(prek_in_bin)
 
