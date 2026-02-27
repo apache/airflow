@@ -451,7 +451,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     queue: Mapped[str] = mapped_column(String(256))
     priority_weight: Mapped[int] = mapped_column(Integer)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    custom_operator_name: Mapped[str] = mapped_column(String(1000))
+    custom_operator_name: Mapped[str] = mapped_column("operator_name", String(1000))
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
