@@ -539,6 +539,7 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files airflow-ctl --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 

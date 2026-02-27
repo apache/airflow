@@ -886,10 +886,13 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files airflow --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ```shell script
 breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC}
 ```
+
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ## Licence check
 
