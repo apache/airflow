@@ -11472,6 +11472,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
           title: Destination
           default: nav
       additionalProperties: true
@@ -12350,6 +12351,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
           - dashboard
           title: Destination
           default: nav

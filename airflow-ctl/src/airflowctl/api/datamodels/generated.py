@@ -502,6 +502,7 @@ class Destination(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
 
 
 class ExternalViewResponse(BaseModel):
@@ -708,6 +709,7 @@ class Destination1(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
     DASHBOARD = "dashboard"
 
 
