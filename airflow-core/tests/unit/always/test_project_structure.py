@@ -478,6 +478,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     MISSING_EXAMPLES_FOR_CLASSES = {
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
+        "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
         "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
