@@ -1324,11 +1324,7 @@ class DAG:
                 triggered_by=DagRunTriggeredByType.TEST,
                 triggering_user_name="dag_test",
             )
-            # Start a mock span so that one is present and not started downstream. We
-            # don't care about otel in dag.test and starting the span during dagrun update
-            # is not functioning properly in this context anyway.
-            dr.start_dr_spans_if_needed(tis=[])
-
+            # todo: add dagrun span?
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management.
