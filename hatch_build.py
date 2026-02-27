@@ -150,7 +150,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv<21",  # Temporary pin for https://github.com/pypa/hatch/issues/2193
     ],
 }
 
