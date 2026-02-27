@@ -25,5 +25,32 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-ai",
         "name": "Common AI",
-        "description": "``Common AI Provider``\n",
+        "description": "AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.\n",
+        "integrations": [
+            {
+                "integration-name": "Pydantic AI",
+                "external-doc-url": "https://ai.pydantic.dev/",
+                "tags": ["software"],
+            }
+        ],
+        "hooks": [
+            {
+                "integration-name": "Pydantic AI",
+                "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
+            }
+        ],
+        "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
+                "connection-type": "pydantic_ai",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints)",
+                        "extra": '{"model": "openai:gpt-5"}',
+                    },
+                },
+            }
+        ],
     }

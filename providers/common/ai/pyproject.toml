@@ -59,6 +59,18 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "pydantic-ai-slim>=1.14.0",
+]
+
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"anthropic" = ["pydantic-ai-slim[anthropic]"]
+"bedrock" = ["pydantic-ai-slim[bedrock]"]
+"google" = ["pydantic-ai-slim[google]"]
+"openai" = ["pydantic-ai-slim[openai]"]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
 ]
 
 [dependency-groups]
@@ -66,6 +78,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
