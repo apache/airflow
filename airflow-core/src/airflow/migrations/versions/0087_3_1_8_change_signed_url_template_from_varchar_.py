@@ -20,7 +20,7 @@
 Change ``signed_url_template`` from VARCHAR(200) to TEXT.
 
 Revision ID: 509b94a1042d
-Revises: 134de42d3cb0
+Revises: 82dbd68e6171
 Create Date: 2026-02-14 23:27:15.069945
 
 """
@@ -32,10 +32,10 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "509b94a1042d"
-down_revision = "134de42d3cb0"
+down_revision = "82dbd68e6171"
 branch_labels = None
 depends_on = None
-airflow_version = "3.2.0"
+airflow_version = "3.1.8"
 
 
 def upgrade():
