@@ -1279,7 +1279,7 @@ class DagRun(Base, LoggingMixin):
 
             if dag.has_on_failure_callback:
                 last_finished_ti: TI | None = max(
-                    info.finished_tis, key=lambda ti: ti.end_date or datetime.min, default=None
+                    info.finished_tis, key=lambda ti: ti.end_date or timezone.make_aware(datetime.min), default=None
                 )
                 callback = self.produce_dag_callback(
                     dag=dag,
