@@ -25,7 +25,6 @@ import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptio
 import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
-
 import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
 import { BAR_HEIGHT } from "./constants";
 import {
@@ -34,7 +33,6 @@ import {
   type GridRunWithVersionFlags,
 } from "./useGridRunsWithVersionFlags";
 
-const BAR_HEIGHT = 100;
 const ICON_GAP_PX = 4;
 const ICON_HEIGHT_PX = 16;
 const BAR_PADDING_BOTTOM_PX = 2;
