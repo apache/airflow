@@ -1247,7 +1247,7 @@ class DagRun(Base, LoggingMixin):
 
             if dag.has_on_success_callback:
                 last_succeeded_ti: TI | None = max(
-                    (ti for ti in tis_for_dagrun_state if ti.state == TaskInstanceState.SUCCESS),
+                    (ti for ti in tis if ti.state == TaskInstanceState.SUCCESS),
                     key=lambda ti: ti.end_date,
                     default=None,
                 )
