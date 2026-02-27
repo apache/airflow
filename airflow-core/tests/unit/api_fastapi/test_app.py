@@ -118,3 +118,96 @@ def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, 
 
     assert any(expected_message in rec.message for rec in caplog.records)
     assert not any(r.path == invalid_path for r in app.routes)
+
+
+def test_plugin_with_missing_app_key(caplog):
+    """Plugin dict without 'app' key should log error and not mount."""
+    fastapi_apps = [{"name": "bad_plugin", "url_prefix": "/test"}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+        app_module.init_plugins(app)
+    assert any("'app' key is missing" in rec.message for rec in caplog.records)
+
+
+def test_plugin_with_missing_url_prefix_key(caplog):
+    """Plugin dict without 'url_prefix' key should log error and not mount."""
+    fastapi_apps = [{"name": "bad_plugin", "app": FastAPI()}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+        app_module.init_plugins(app)
+    assert any("'url_prefix' key is missing" in rec.message for rec in caplog.records)
+
+
+def test_valid_plugin_is_mounted():
+    """A well-formed plugin should be mounted at its url_prefix."""
+    sub = FastAPI()
+    fastapi_apps = [{"name": "good_plugin", "app": sub, "url_prefix": "/myplugin"}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+        app_module.init_plugins(app)
+    paths = [r.path for r in app.routes]
+    assert "/myplugin" in paths
+
+
+@pytest.mark.parametrize("prefix", app_module.RESERVED_URL_PREFIXES)
+def test_all_reserved_prefixes_rejected(caplog, prefix):
+    """Each reserved prefix should be rejected when used by a plugin."""
+    fastapi_apps = [{"name": "test", "app": FastAPI(), "url_prefix": prefix}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+        app_module.init_plugins(app)
+    assert any("reserved url_prefix" in rec.message for rec in caplog.records)
+    assert not any(r.path == prefix for r in app.routes)
+
+
+def test_middleware_plugin_with_missing_middleware_key(caplog):
+    """Middleware dict without 'middleware' key should log error."""
+    middlewares = [{"name": "bad_mw"}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=([], middlewares)):
+        app_module.init_plugins(app)
+    assert any("'middleware' key is missing" in rec.message for rec in caplog.records)
+
+
+def test_middleware_plugin_non_callable(caplog):
+    """Middleware value that is not callable should log error."""
+    middlewares = [{"name": "bad_mw", "middleware": "not_callable"}]
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=([], middlewares)):
+        app_module.init_plugins(app)
+    assert any("should be callable" in rec.message for rec in caplog.records)
+
+
+def test_catch_all_returns_html(client):
+    """The SPA catch-all should return HTML for non-API paths."""
+    with client(apps="core") as test_client:
+        resp = test_client.get("/some/random/ui/path")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers.get("content-type", "")
+
+
+def test_deprecated_api_v1_returns_404(client):
+    """/api/v1/ paths should return 404 with removal message."""
+    with client(apps="core") as test_client:
+        resp = test_client.get("/api/v1/dags")
+        assert resp.status_code == 404
+        body = resp.json()
+        assert "/api/v1 has been removed" in body["error"]
+
+
+def test_old_health_endpoint_returns_404(client):
+    """/health should return 404 with migration message."""
+    with client(apps="core") as test_client:
+        resp = test_client.get("/health")
+        assert resp.status_code == 404
+        body = resp.json()
+        assert "/api/v2/monitor/health" in body["error"]
+
+
+def test_invalid_api_path_returns_404(client):
+    """/api/nonexistent should return 404."""
+    with client(apps="core") as test_client:
+        resp = test_client.get("/api/nonexistent")
+        assert resp.status_code == 404
+        body = resp.json()
+        assert body["error"] == "API route not found"
