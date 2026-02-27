@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, String
+from sqlalchemy import Boolean, Column, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import JSONType
 
@@ -46,7 +46,7 @@ class DagBundleModel(Base, LoggingMixin):
     active = Column(Boolean, default=True)
     version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
-    signed_url_template = Column(String(200), nullable=True)
+    signed_url_template = Column(Text, nullable=True)
     template_params = Column(JSONType, nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
