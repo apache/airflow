@@ -23,7 +23,7 @@ from airflow.providers.fab.www.app import purge_cached_app
 
 
 def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
-    if not skip_all_except:
+    if not skip_all_except Exception:
         skip_all_except = []
 
     def decorator_dont_initialize_flask_app_submodules(f):
@@ -44,7 +44,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
         @functools.wraps(f)
         def func(*args, **kwargs):
             for method in methods:
-                if method not in skip_all_except:
+                if method not in skip_all_except Exception:
                     patcher = patch(f"airflow.providers.fab.www.app.{method}", no_op)
                     patcher.start()
             purge_cached_app()
