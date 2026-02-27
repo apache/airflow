@@ -49,7 +49,8 @@ The following documents describe how to use the Breeze environment:
 * `CI tasks <08_ci_tasks.rst>`_ - describes how Breeze commands are used in our CI.
 * `Release management tasks <09_release_management_tasks.rst>`_ - describes how to use Breeze for release management tasks.
 * `UI tasks <10_ui_tasks.rst>`_ - describes how Breeze commands are used to support Apache Airflow project UI.
-* `Advanced Breeze topics <11_advanced_breeze_topics.rst>`_ - describes advanced Breeze topics/internals of Breeze.
+* `Issues tasks <11_issues_tasks.rst>`_ - describes how Breeze commands are used to manage GitHub issues.
+* `Advanced Breeze topics <12_advanced_breeze_topics.rst>`_ - describes advanced Breeze topics/internals of Breeze.
 
 You can also learn more context and Architecture Decisions taken when developing Breeze in the
 `Architecture Decision Records <adr>`_.

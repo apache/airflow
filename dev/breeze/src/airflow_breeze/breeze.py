@@ -33,6 +33,7 @@ create_directories_and_files()
 from airflow_breeze.commands import developer_commands  # noqa: I001, E402, F401
 from airflow_breeze.commands.ci_commands import ci_group  # noqa: E402
 from airflow_breeze.commands.ci_image_commands import ci_image_group  # noqa: E402
+from airflow_breeze.commands.issues_commands import issues_group  # noqa: E402
 from airflow_breeze.commands.kubernetes_commands import kubernetes_group  # noqa: E402
 from airflow_breeze.commands.production_image_commands import prod_image_group  # noqa: E402
 from airflow_breeze.commands.minor_release_command import create_minor_version_branch  # noqa: E402, F401
@@ -53,6 +54,7 @@ main.add_command(setup_group)
 main.add_command(release_management_group)
 main.add_command(sbom_group)
 main.add_command(ui_group)
+main.add_command(issues_group)
 main.add_command(workflow_run_group)
 
 if __name__ == "__main__":
