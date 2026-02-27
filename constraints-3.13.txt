@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-27T02:33:18.181621
+# This constraints file was automatically generated on 2026-02-27T14:09:17.414517
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -84,7 +84,6 @@ ansicolors==1.1.8
 anyio==4.12.1
 apache-airflow-providers-airbyte==5.3.2
 apache-airflow-providers-alibaba==3.3.4
-apache-airflow-providers-apache-beam==6.2.2
 apache-airflow-providers-apache-cassandra==3.9.2
 apache-airflow-providers-apache-flink==1.8.2
 apache-airflow-providers-apache-hdfs==4.11.3
@@ -608,13 +607,13 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.6
+uv==0.10.7
 uvicorn==0.41.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.0.0
+virtualenv==21.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.6.0

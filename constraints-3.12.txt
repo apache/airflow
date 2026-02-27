@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-27T02:32:09.543496
+# This constraints file was automatically generated on 2026-02-27T14:08:58.334320
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ adbc-driver-postgresql==1.10.0
 adbc-driver-sqlite==1.10.0
 adlfs==2026.2.0
 aenum==3.1.16
-aiobotocore==2.26.0
+aiobotocore==3.2.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -96,7 +96,6 @@ ansicolors==1.1.8
 anyio==4.12.1
 apache-airflow-providers-airbyte==5.3.2
 apache-airflow-providers-alibaba==3.3.4
-apache-airflow-providers-apache-beam==6.1.0
 apache-airflow-providers-apache-cassandra==3.9.2
 apache-airflow-providers-apache-flink==1.8.2
 apache-airflow-providers-apache-hdfs==4.11.3
@@ -121,7 +120,6 @@ apache-airflow-providers-docker==4.5.2
 apache-airflow-providers-facebook==3.9.2
 apache-airflow-providers-ftp==3.14.1
 apache-airflow-providers-github==2.11.0
-apache-airflow-providers-google==19.5.0
 apache-airflow-providers-grpc==3.9.2
 apache-airflow-providers-hashicorp==4.5.0
 apache-airflow-providers-imap==3.11.0
@@ -151,7 +149,6 @@ apache-airflow-providers-telegram==4.9.2
 apache-airflow-providers-weaviate==3.3.1
 apache-airflow-providers-yandex==4.4.0
 apache-airflow-providers-zendesk==4.11.1
-apache-beam==2.59.0
 apispec==6.9.0
 apprise==1.9.7
 argcomplete==3.6.3
@@ -165,7 +162,6 @@ asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-awswrangler==3.15.1
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.38.2
@@ -200,8 +196,8 @@ bitarray==3.8.0
 black==26.1.0
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.41.5
-botocore==1.41.5
+boto3==1.42.55
+botocore==1.42.55
 cachelib==0.13.0
 cachetools==7.0.1
 cadwyn==6.0.3
@@ -218,7 +214,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.3.1
 clickclick==20.10.2
-cloudpickle==2.2.1
+cloudpickle==3.1.1
 cohere==5.20.7
 colorama==0.4.6
 colorful==0.5.8
@@ -229,7 +225,7 @@ connexion==2.14.2
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
-cryptography==42.0.8
+cryptography==44.0.3
 curlify==3.0.0
 darabonba-core==1.0.5
 databricks-sql-connector==4.2.5
@@ -240,14 +236,13 @@ debugpy==1.8.20
 decorator==5.2.1
 defusedxml==0.7.1
 deprecation==2.1.0
-dill==0.3.1.1
+dill==0.4.1
 distlib==0.4.0
 distro==1.9.0
 dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
-duckdb==0.10.3
 durationpy==0.10
 elastic-transport==8.17.1
 elasticsearch==8.19.3
@@ -260,19 +255,18 @@ facebook_business==24.0.1
 fastapi-cli==0.0.24
 fastapi==0.133.1
 fastavro==1.12.1
-fasteners==0.20
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.24.3
 flask-babel==4.0.0
 flower==2.0.1
 frozenlist==1.8.0
-fsspec==2024.12.0
+fsspec==2026.2.0
 future==1.0.0
 gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
-gcsfs==2024.12.0
+gcsfs==2026.2.0
 geomet==1.1.0
 gevent==25.9.1
 gitdb==4.0.12
@@ -319,6 +313,7 @@ google-cloud-run==0.15.0
 google-cloud-secret-manager==2.26.0
 google-cloud-spanner==3.63.0
 google-cloud-speech==2.36.1
+google-cloud-storage-control==1.10.0
 google-cloud-storage-transfer==1.19.0
 google-cloud-storage==3.9.0
 google-cloud-tasks==2.21.0
@@ -338,7 +333,8 @@ gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.62.3
+grpcio-status==1.71.2
+grpcio-tools==1.71.2
 grpcio==1.78.0
 gssapi==1.11.1
 gunicorn==25.0.3
@@ -349,7 +345,7 @@ hf-xet==1.3.1
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
-httplib2==0.22.0
+httplib2==0.31.2
 httptools==0.7.1
 httpx==0.28.1
 huggingface_hub==1.5.0
@@ -361,7 +357,7 @@ ibmcloudant==0.11.4
 idna==3.11
 ijson==3.4.0.post0
 immutabledict==4.3.1
-importlib_metadata==8.4.0
+importlib_metadata==8.7.1
 importlib_resources==6.5.2
 impyla==0.22.0
 inflection==0.5.1
@@ -382,7 +378,6 @@ joblib==1.5.3
 jpype1==1.6.0
 jsonpath-ng==1.8.0
 jsonpath-python==1.1.4
-jsonpickle==3.4.2
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 jupyter_client==8.8.0
@@ -419,7 +414,7 @@ microsoft-kiota-http==1.9.8
 microsoft-kiota-serialization-json==1.9.8
 microsoft-kiota-serialization-text==1.9.8
 mistune==3.2.0
-mmh3==4.1.0
+mmh3==5.2.0
 more-itertools==10.8.0
 msal-extensions==1.3.1
 msal==1.35.0
@@ -440,9 +435,8 @@ nbconvert==7.17.0
 nbformat==5.10.4
 neo4j==6.1.0
 nest-asyncio==1.6.0
-numpy==1.26.4
+numpy==2.4.2
 oauthlib==3.3.1
-objsize==0.7.1
 openai==2.24.0
 opencensus-context==0.1.3
 opencensus==0.11.4
@@ -452,16 +446,16 @@ openlineage_sql==1.44.1
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
-opentelemetry-api==1.27.0
-opentelemetry-exporter-otlp-proto-common==1.27.0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-opentelemetry-exporter-otlp-proto-http==1.27.0
-opentelemetry-exporter-otlp==1.27.0
-opentelemetry-exporter-prometheus==0.48b0
-opentelemetry-proto==1.27.0
-opentelemetry-resourcedetector-gcp==1.9.0a0
-opentelemetry-sdk==1.27.0
-opentelemetry-semantic-conventions==0.48b0
+opentelemetry-api==1.39.1
+opentelemetry-exporter-otlp-proto-common==1.39.1
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
+opentelemetry-exporter-otlp-proto-http==1.39.1
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-exporter-prometheus==0.60b1
+opentelemetry-proto==1.39.1
+opentelemetry-resourcedetector-gcp==1.11.0a0
+opentelemetry-sdk==1.39.1
+opentelemetry-semantic-conventions==0.60b1
 opsgenie-sdk==2.1.5
 oracledb==3.4.2
 ordered-set==4.1.0
@@ -497,7 +491,7 @@ prometheus_client==0.24.1
 prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.1
-protobuf==4.25.8
+protobuf==5.29.6
 psutil==7.2.2
 psycopg2-binary==2.9.11
 ptyprocess==0.7.0
@@ -506,8 +500,7 @@ pure_eval==0.2.3
 py-spy==0.4.1
 py4j==0.10.9.9
 pyOpenSSL==25.1.0
-pyarrow-hotfix==0.7
-pyarrow==16.1.0
+pyarrow==23.0.1
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
@@ -519,12 +512,9 @@ pydantic-settings==2.13.1
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydata-google-auth==1.9.1
-pydot==1.4.2
 pydruid==0.6.9
-pydynamodb==0.8.1
 pyexasol==1.1.0
 pygtrie==2.5.0
-pyiceberg==0.7.1
 pykerberos==1.2.4
 pymongo==4.16.0
 pymssql==2.3.13
@@ -552,9 +542,9 @@ pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.16.2
-ray==2.47.1
+ray==2.54.0
 reactivex==4.1.0
-redis==5.3.1
+redis==6.4.0
 redshift-connector==2.1.7
 referencing==0.37.0
 regex==2026.2.19
@@ -571,9 +561,9 @@ rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
-s3fs==2024.12.0
-s3transfer==0.15.0
-sagemaker_studio==1.1.0
+s3fs==2026.2.0
+s3transfer==0.16.0
+sagemaker_studio==1.0.23
 scikit-learn==1.8.0
 scipy==1.17.1
 scramp==1.4.8
@@ -591,7 +581,7 @@ smart_open==7.5.1
 smbprotocol==1.16.0
 smmap==5.0.2
 sniffio==1.3.1
-snowflake-connector-python==4.0.0
+snowflake-connector-python==4.3.0
 snowflake-snowpark-python==1.46.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
@@ -607,12 +597,11 @@ starkbank-ecdsa==2.2.0
 starlette==0.52.1
 statsd==4.0.1
 std-uritemplate==2.0.8
-strictyaml==1.7.3
 structlog==25.5.0
 svcs==25.1.0
 tableauserverclient==0.40
 tabulate==0.9.0
-tenacity==8.5.0
+tenacity==9.1.4
 teradatasql==20.0.0.52
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
@@ -642,13 +631,13 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.6
+uv==0.10.7
 uvicorn==0.41.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.0.0
+virtualenv==21.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.6.0
@@ -658,11 +647,11 @@ websocket-client==1.9.0
 websockets==16.0
 wheel==0.46.3
 wirerope==1.0.0
-wrapt==1.17.3
+wrapt==2.1.1
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
-yandexcloud==0.328.0
+yandexcloud==0.379.0
 yarl==1.22.0
 ydb-dbapi==0.1.19
 ydb==3.26.5
