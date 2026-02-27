@@ -153,6 +153,88 @@ class TestCliAuthCommands:
             )
 
     @patch("airflowctl.api.client.keyring")
+    def test_login_prompts_for_credentials_interactively(self, mock_keyring, api_client_maker):
+        """Test that login prompts for username and password when no credentials are supplied on a TTY."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+
+        mock_keyring.set_password = mock.MagicMock()
+        mock_keyring.get_password.return_value = None
+
+        tty_stdin = mock.MagicMock()
+        tty_stdin.isatty.return_value = True
+
+        with (
+            patch("sys.stdin", tty_stdin),
+            patch("builtins.input", return_value="prompted_user"),
+            patch("airflowctl.ctl.commands.auth_command.getpass.getpass", return_value="prompted_pass"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(
+                    ["auth", "login", "--api-url", "http://localhost:8080", "--env", "staging"]
+                ),
+                api_client=api_client,
+            )
+
+        mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_staging", "TEST_TOKEN")
+
+    @patch("airflowctl.api.client.keyring")
+    def test_login_prompts_for_password_when_username_provided(self, mock_keyring, api_client_maker):
+        """Test that login prompts only for password when --username is supplied but --password is not."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+
+        mock_keyring.set_password = mock.MagicMock()
+        mock_keyring.get_password.return_value = None
+
+        tty_stdin = mock.MagicMock()
+        tty_stdin.isatty.return_value = True
+
+        with (
+            patch("sys.stdin", tty_stdin),
+            patch("builtins.input") as mock_input,
+            patch("airflowctl.ctl.commands.auth_command.getpass.getpass", return_value="prompted_pass"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(
+                    ["auth", "login", "--api-url", "http://localhost:8080", "--username", "known_user"]
+                ),
+                api_client=api_client,
+            )
+            mock_input.assert_not_called()
+
+        mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "TEST_TOKEN")
+
+    def test_login_no_credentials_non_interactive_exits(self, api_client_maker):
+        """Test that login exits with an error when no credentials are supplied in a non-interactive context."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+
+        non_tty_stdin = mock.MagicMock()
+        non_tty_stdin.isatty.return_value = False
+
+        with (
+            patch("sys.stdin", non_tty_stdin),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"]),
+                api_client=api_client,
+            )
+
+    @patch("airflowctl.api.client.keyring")
     def test_login_with_username_and_password_no_keyring_backend(self, mock_keyring, api_client_maker):
         """Test that login fails when no keyring backend is available."""
         from keyring.errors import NoKeyringError
