@@ -28,7 +28,7 @@ EXECUTION_STATES = {
 # instance is still logically in-flight and must block additional instances
 # from being scheduled.  This is intentionally separate from EXECUTION_STATES
 # so that DAG-level max_active_tasks and pool slot calculations are unaffected.
-TASK_CONCURRENCY_EXECUTION_STATES = EXECUTION_STATES | {
+TASK_CONCURRENCY_EXECUTION_STATES = ACTIVE_STATES | {
     TaskInstanceState.DEFERRED,
 }
 
