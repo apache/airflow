@@ -1,0 +1,1 @@
+Fix Task Instances list view rendering raw HTML instead of clickable links for Dag Id, Task Id, and Run Id columns.
