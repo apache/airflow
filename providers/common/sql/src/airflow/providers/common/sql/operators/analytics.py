@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow.providers.common.compat.sdk import BaseOperator, Context
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
-from airflow.sdk import BaseOperator, Context
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
