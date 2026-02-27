@@ -24,6 +24,7 @@ import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
+from opentelemetry import trace
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -92,6 +93,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
+
+tracer = trace.get_tracer(__name__)
 
 
 @dag_run_router.get(
@@ -440,6 +443,7 @@ def get_dag_runs(
         Depends(action_logging()),
     ],
 )
+@tracer.start_as_current_span("trigger_dag_run")
 def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
@@ -449,6 +453,8 @@ def trigger_dag_run(
     request: Request,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
+    span = trace.get_current_span()
+    span.set_attribute("dag_id", dag_id)
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")

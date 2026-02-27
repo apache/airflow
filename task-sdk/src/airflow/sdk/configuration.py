@@ -31,6 +31,7 @@ from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
+from airflow.sdk._shared.observability.traces import configure_otel
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -264,6 +265,9 @@ def initialize_config() -> AirflowSDKConfigParser:
     if airflow_config_parser.getboolean("core", "unit_test_mode", fallback=False):
         airflow_config_parser.load_test_config()
     return airflow_config_parser
+
+
+configure_otel()
 
 
 def __getattr__(name: str):

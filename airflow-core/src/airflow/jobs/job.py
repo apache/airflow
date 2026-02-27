@@ -24,6 +24,7 @@ from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
+from opentelemetry import trace
 from sqlalchemy import Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
@@ -35,13 +36,14 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.observability.trace import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+tracer = trace.get_tracer(__name__)
 
 
 class JobState(str, Enum):
@@ -210,7 +212,9 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with DebugTrace.start_span(span_name="heartbeat", component="Job") as span:
+
+        # Use a no-op tracer for now: we'll remove this later.
+        with trace.NoOpTracer().start_as_current_span("heartbeat") as span:
             try:
                 span.set_attribute("heartbeat", str(self.latest_heartbeat))
                 # This will cause it to load from the db
@@ -227,8 +231,6 @@ class Job(Base, LoggingMixin):
                         self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                     )
                     sleep_for = max(0, seconds_remaining)
-                if span.is_recording():
-                    span.add_event(name="sleep", attributes={"sleep_for": sleep_for})
                 sleep(sleep_for)
                 # Update last heartbeat time
                 with create_session() as session:
@@ -255,21 +257,18 @@ class Job(Base, LoggingMixin):
                     self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
                     self.heartbeat_failed = True
                     msg = f"{self.__class__.__name__} heartbeat got an exception"
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
+                    span.add_event(name="error", attributes={"message": msg})
                 if self.is_alive():
                     self.log.error(
                         "%s heartbeat failed with error. Scheduler may go into unhealthy state",
                         self.__class__.__name__,
                     )
                     msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler may go into unhealthy state"
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
+                    span.add_event(name="error", attributes={"message": msg})
                 else:
                     msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"
                     self.log.error(msg)
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
+                    span.add_event(name="error", attributes={"message": msg})
                 # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                 self.latest_heartbeat = previous_heartbeat
 
@@ -401,7 +400,6 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
-@add_debug_span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:

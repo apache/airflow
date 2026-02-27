@@ -46,6 +46,7 @@ except ImportError:
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
+from airflow._shared.observability.traces import configure_otel
 from airflow._shared.timezones.timezone import (
     initialize as initialize_timezone,
     local_timezone,
@@ -758,3 +759,5 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 # Prefix used by gunicorn workers to indicate they are ready to serve requests
 # Used by GunicornMonitor to track worker readiness via process titles
 GUNICORN_WORKER_READY_PREFIX: str = "[ready] "
+
+configure_otel()

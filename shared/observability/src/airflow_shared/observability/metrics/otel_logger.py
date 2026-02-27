@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import atexit
 import datetime
-import logging
 import random
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+import structlog
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import (
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
     from .protocols import DeltaType
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 GaugeValues = int | float
 

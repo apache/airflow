@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import structlog
-
-from .otel_env_config import OtelDataType, OtelEnvConfig
+from airflow_shared.observability.metrics.otel_logger import log
+from airflow_shared.observability.otel_env_config import OtelDataType, OtelEnvConfig
 
 if TYPE_CHECKING:
     from opentelemetry.sdk.metrics._internal.export import MetricExporter
     from opentelemetry.sdk.trace.export import SpanExporter
-
-log = structlog.getLogger(__name__)
 
 
 def get_otel_data_exporter(
@@ -85,7 +82,7 @@ def get_otel_data_exporter(
         else:
             log.warning(
                 "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
-                "OpenTelemetry is advised to be configured using the standard environment variables. "
+                "Configure the standard OpenTelemetry environment variables instead. "
                 "For more info, check the docs."
             )
         # If the environment endpoint isn't set, then assume that the airflow config is used
@@ -100,10 +97,6 @@ def get_otel_data_exporter(
         else:
             exporter = OTLPMetricExporter(endpoint=endpoint_str)
 
-    exporter_name = (
-        "OTLPSpanExporter" if otel_env_config.data_type == OtelDataType.TRACES else "OTLPMetricExporter"
-    )
-
-    log.info("[%s] Connecting to OpenTelemetry Collector at %s", exporter_name, endpoint_str)
-
+    exporter_name = exporter.__class__.__name__
+    log.info("Connecting to OpenTelemetry Collector", exporter_name=exporter_name, endpoint=endpoint_str)
     return exporter

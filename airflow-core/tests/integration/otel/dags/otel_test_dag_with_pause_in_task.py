@@ -21,18 +21,13 @@ import os
 import time
 from datetime import datetime
 
-from opentelemetry import trace
-from sqlalchemy import select
-
 from airflow import DAG
-from airflow.models import TaskInstance
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk import chain, task
-from airflow.sdk.observability.trace import Trace
-from airflow.sdk.observability.traces import otel_tracer
-from airflow.utils.session import create_session
+from airflow.sdk.opentelemetry import trace
 
-logger = logging.getLogger("airflow.otel_test_dag_with_pause_in_task")
+logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 args = {
     "owner": "airflow",
@@ -44,8 +39,6 @@ args = {
 @task
 def task1(ti):
     logger.info("Starting Task_1.")
-
-    context_carrier = ti.context_carrier
 
     dag_folder = os.path.dirname(os.path.abspath(__file__))
     control_file = os.path.join(dag_folder, "dag_control.txt")
@@ -69,62 +62,23 @@ def task1(ti):
         # Break the loop and finish with the task execution.
         break
 
-    otel_task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
-    tracer_provider = otel_task_tracer.get_otel_tracer_provider()
+    with tracer.start_as_current_span(
+        span_name="task1_sub_span1",
+        component="dag",
+    ) as s1:
+        s1.set_attribute("attr1", "val1")
+        logger.info("From task sub_span1.")
 
-    if context_carrier is not None:
-        logger.info("Found ti.context_carrier: %s.", context_carrier)
-        logger.info("Extracting the span context from the context_carrier.")
+        with tracer.start_as_current_span("task1_sub_span2") as s2:
+            s2.set_attribute("attr2", "val2")
+            logger.info("From task sub_span2.")
 
-        # If the task takes too long to execute, then the ti should be read from the db
-        # to make sure that the initial context_carrier is the same.
-        # Since Airflow 3, direct db access has been removed entirely.
-        if not AIRFLOW_V_3_0_PLUS:
-            with create_session() as session:
-                session_ti: TaskInstance = session.scalars(
-                    select(TaskInstance).where(
-                        TaskInstance.task_id == ti.task_id,
-                        TaskInstance.run_id == ti.run_id,
-                    )
-                ).one()
-            context_carrier = session_ti.context_carrier
-
-        parent_context = Trace.extract(context_carrier)
-        with otel_task_tracer.start_child_span(
-            span_name="task1_sub_span1",
-            parent_context=parent_context,
-            component="dag",
-        ) as s1:
-            s1.set_attribute("attr1", "val1")
-            logger.info("From task sub_span1.")
-
-            with otel_task_tracer.start_child_span("task1_sub_span2") as s2:
-                s2.set_attribute("attr2", "val2")
-                logger.info("From task sub_span2.")
-
-                tracer = trace.get_tracer("trace_test.tracer", tracer_provider=tracer_provider)
-                with tracer.start_as_current_span(name="task1_sub_span3") as s3:
-                    s3.set_attribute("attr3", "val3")
-                    logger.info("From task sub_span3.")
-
-        if not AIRFLOW_V_3_0_PLUS:
-            with create_session() as session:
-                session_ti: TaskInstance = session.scalars(
-                    select(TaskInstance).where(
-                        TaskInstance.task_id == ti.task_id,
-                        TaskInstance.run_id == ti.run_id,
-                    )
-                ).one()
-            context_carrier = session_ti.context_carrier
-            parent_context = Trace.extract(context_carrier)
-
-        with otel_task_tracer.start_child_span(
-            span_name="task1_sub_span4",
-            parent_context=parent_context,
-            component="dag",
-        ) as s4:
-            s4.set_attribute("attr4", "val4")
-            logger.info("From task sub_span4.")
+    with tracer.start_child_span(
+        span_name="task1_sub_span4",
+        component="dag",
+    ) as s4:
+        s4.set_attribute("attr4", "val4")
+        logger.info("From task sub_span4.")
 
     # Cleanup the control file.
     if os.path.exists(control_file):
