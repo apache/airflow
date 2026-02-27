@@ -37,6 +37,11 @@ from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -192,11 +197,14 @@ class EdgeExecutor(BaseExecutor):
                     "queue": job.queue,
                     "state": str(TaskInstanceState.FAILED),
                 }
-                Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
-                    tags=tags,
-                )
-                Stats.incr("edge_worker.ti.finish", tags=tags)
+                if DualStatsManager is not None:
+                    DualStatsManager.incr("edge_worker.ti.finish", tags={}, legacy_name_tags=tags)
+                else:
+                    Stats.incr(
+                        f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
+                        tags=tags,
+                    )
+                    Stats.incr("edge_worker.ti.finish", tags=tags)
 
         return bool(lifeless_jobs)
 

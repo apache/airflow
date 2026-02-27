@@ -160,6 +160,15 @@ class DualStatsManager:
         tags: dict[str, Any] | None = None,
         legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
+        """
+        Increases the stat counter.
+
+        Legacy name tags are cross-referenced with the registry yaml file.
+        The 'tags' and 'legacy_name_tags' dictionaries are merged.
+
+        :param tags: Extra tags that are set to both new and legacy metrics
+        :param legacy_name_tags: Tags that will be used for the legacy name metric
+        """
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
         if cls.export_legacy_names and legacy_name_tags is not None:
@@ -186,6 +195,15 @@ class DualStatsManager:
         tags: dict[str, Any] | None = None,
         legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
+        """
+        Decreases the stat counter.
+
+        Legacy name tags are cross-referenced with the registry yaml file.
+        The 'tags' and 'legacy_name_tags' dictionaries are merged.
+
+        :param tags: Extra tags that are set to both new and legacy metrics
+        :param legacy_name_tags: Tags that will be used for the legacy name metric
+        """
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
         if cls.export_legacy_names and legacy_name_tags is not None:
@@ -213,6 +231,15 @@ class DualStatsManager:
         tags: dict[str, Any] | None = None,
         legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
+        """
+        Gauges the stat.
+
+        Legacy name tags are cross-referenced with the registry yaml file.
+        The 'tags' and 'legacy_name_tags' dictionaries are merged.
+
+        :param tags: Extra tags that are set to both new and legacy metrics
+        :param legacy_name_tags: Tags that will be used for the legacy name metric
+        """
         kw = _get_dict_with_defined_args(None, rate, delta, tags)
 
         if cls.export_legacy_names and legacy_name_tags is not None:
@@ -238,6 +265,15 @@ class DualStatsManager:
         tags: dict[str, Any] | None = None,
         legacy_name_tags: dict[str, Any] | None = None,
     ) -> None:
+        """
+        Stat timing.
+
+        Legacy name tags are cross-referenced with the registry yaml file.
+        The 'tags' and 'legacy_name_tags' dictionaries are merged.
+
+        :param tags: Extra tags that are set to both new and legacy metrics
+        :param legacy_name_tags: Tags that will be used for the legacy name metric
+        """
         if cls.export_legacy_names and legacy_name_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=legacy_name_tags)
 
@@ -264,6 +300,15 @@ class DualStatsManager:
         legacy_name_tags: dict[str, Any] | None = None,
         **kwargs,
     ):
+        """
+        Stat timer with a context manager.
+
+        Legacy name tags are cross-referenced with the registry yaml file.
+        The 'tags' and 'legacy_name_tags' dictionaries are merged.
+
+        :param tags: Extra tags that are set to both new and legacy metrics
+        :param legacy_name_tags: Tags that will be used for the legacy name metric
+        """
         kw = dict(kwargs)
         if tags is not None:
             kw["tags"] = tags

@@ -1562,10 +1562,12 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(
-                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
+                    DualStatsManager.timing(
+                        "dagrun.first_task_scheduling_delay",
+                        true_delay,
+                        tags=self.stats_tags,
+                        legacy_name_tags={"dag_id": dag.dag_id},
                     )
-                    Stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 

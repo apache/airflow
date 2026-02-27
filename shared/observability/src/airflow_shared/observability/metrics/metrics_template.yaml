@@ -262,6 +262,19 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "edge_worker.ti.start"
+    description: "Number of task instances started in an edge worker"
+    type: "counter"
+    legacy_name: "edge_worker.ti.start.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "edge_worker.ti.finish"
+    description: "Number of task instances finished in an edge worker"
+    type: "counter"
+    legacy_name: "edge_worker.ti.finish.{queue}.{state}.{dag_id}.{task_id}"
+    name_variables: ["queue", "state", "dag_id", "task_id"]
+
+
   # ==========
   # Gauges
   # ==========
@@ -486,8 +499,8 @@ metrics:
   - name: "dag_processing.last_duration"
     description: "Milliseconds taken to load the given Dag file"
     type: "timer"
-    legacy_name: "dag_processing.last_duration.{dag_file}"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_duration.{bundle_name}.{file_name}"
+    name_variables: ["bundle_name", "file_name"]
 
   - name: "dagrun.duration.success"
     description: "Milliseconds taken for a DagRun to reach success state"
