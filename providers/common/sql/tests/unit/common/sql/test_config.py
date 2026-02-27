@@ -33,14 +33,16 @@ class TestDataSourceConfig:
         ("uri", "expected_type"),
         [
             ("s3://bucket/path", StorageType.S3),
-            ("http://example.com/file", StorageType.HTTP),
             ("file:///path/to/file", StorageType.LOCAL),
-            ("unknown://path", None),
         ],
     )
     def test_extract_storage_type(self, uri, expected_type):
         config = DataSourceConfig(conn_id="test", uri=uri, table_name="a_table" if expected_type else None)
         assert config.storage_type == expected_type
+
+    def test_invalid_storage_type_raises_error(self):
+        with pytest.raises(ValueError, match="Unsupported storage type for URI"):
+            DataSourceConfig(conn_id="test", uri="unknown://bucket/path", table_name="a_table")
 
     def test_missing_table_name_raises_error(self):
         with pytest.raises(ValueError, match="Table name must be provided for storage type"):

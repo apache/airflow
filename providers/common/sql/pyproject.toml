@@ -62,7 +62,6 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
-    "datafusion>=50.0.0",
     # The methodtools dependency is necessary since the introduction of dialects:
     # https://github.com/apache/airflow/pull/41327/files
     "methodtools>=0.4.7"
@@ -88,6 +87,9 @@ dependencies = [
 ]
 "amazon" = [
     "apache-airflow-providers-amazon"
+]
+"datafusion" =[
+    "datafusion>=50.0.0",
 ]
 
 [dependency-groups]

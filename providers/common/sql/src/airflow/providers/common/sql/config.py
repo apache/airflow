@@ -35,18 +35,14 @@ class FormatType(str, Enum):
 
     PARQUET = "parquet"
     CSV = "csv"
-    JSON = "json"
     AVRO = "avro"
 
 
 class StorageType(str, Enum):
     """Storage types for Data Fusion."""
 
-    GCS = "gcs"
     S3 = "s3"
-    AZURE = "azure"
     LOCAL = "local"
-    HTTP = "http"
 
 
 @dataclass
@@ -74,7 +70,9 @@ class DataSourceConfig:
 
     def __post_init__(self):
 
-        self.storage_type = self._extract_storage_type
+        if self.storage_type is None:
+            self.storage_type = self._extract_storage_type
+
         if self.storage_type is not None and self.table_name is None:
             raise ValueError("Table name must be provided for storage type")
 
@@ -83,8 +81,6 @@ class DataSourceConfig:
         """Extract storage type."""
         if self.uri.startswith("s3://"):
             return StorageType.S3
-        if self.uri.startswith("http://") or self.uri.startswith("https://"):
-            return StorageType.HTTP
         if self.uri.startswith("file://"):
             return StorageType.LOCAL
-        return None
+        raise ValueError(f"Unsupported storage type for URI: {self.uri}")

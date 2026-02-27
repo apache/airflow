@@ -113,8 +113,7 @@ class DataFusionEngine(LoggingMixin):
 
         airflow_conn = BaseHook.get_connection(conn_id)
 
-        extra_config = airflow_conn.extra_dejson if airflow_conn.extra else {}
-        credentials = self._get_credentials(airflow_conn)
+        credentials, extra_config = self._get_credentials(airflow_conn)
 
         return ConnectionConfig(
             conn_id=airflow_conn.conn_id,
@@ -122,9 +121,10 @@ class DataFusionEngine(LoggingMixin):
             extra_config=extra_config,
         )
 
-    def _get_credentials(self, conn: Connection):
+    def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
 
         credentials = {}
+        extra_config = {}
 
         match conn.conn_type:
             case "aws":
@@ -137,8 +137,8 @@ class DataFusionEngine(LoggingMixin):
                         "Failed to import AwsGenericHook. To use the S3 storage functionality, please install the "
                         "apache-airflow-providers-amazon package."
                     )
-                s3_conn: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
-                creds = s3_conn.get_credentials()
+                aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
+                creds = aws_hook.get_credentials()
                 credentials.update(
                     {
                         "access_key_id": conn.login or creds.access_key,
@@ -148,9 +148,15 @@ class DataFusionEngine(LoggingMixin):
                 )
                 credentials = self._remove_none_values(credentials)
 
+                extra_config = (
+                    {"region": conn.extra_dejson.get("region")}
+                    if conn.extra and conn.extra_dejson.get("region")
+                    else {}
+                )
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
-        return credentials
+        return credentials, extra_config
 
     @staticmethod
     def _remove_none_values(params: dict[str, Any]) -> dict[str, Any]:

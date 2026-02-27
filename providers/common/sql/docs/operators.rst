@@ -282,7 +282,7 @@ Supported File Formats
 
 .. _howto/operator:AnalyticsOperator:
 
-Use the :class:`~airflow.providers.common.ai.operators.analytics.AnalyticsOperator` to run analytic queries.
+Use the :class:`~airflow.providers.common.sql.operators.analytics.AnalyticsOperator` to run analytic queries.
 
 Parameters
 ----------

@@ -106,7 +106,6 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``sqlparse``                                ``>=0.5.1``
 ``more-itertools``                          ``>=9.0.0``
-``datafusion``                              ``>=50.0.0``
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ==================
 
