@@ -820,8 +820,11 @@ def update_pyproject_build_requires(
             new_requires_lines = _build_requires_block(target_requires)
             new_requires_array = f"[\n{new_requires_lines}\n]"
 
+            def _replace_requires(m: re.Match[str], _new: str = new_requires_array) -> str:
+                return m.group(1) + _new
+
             new_content = build_system_requires_re.sub(
-                lambda m, _new=new_requires_array: m.group(1) + _new,
+                _replace_requires,
                 content,
             )
 
