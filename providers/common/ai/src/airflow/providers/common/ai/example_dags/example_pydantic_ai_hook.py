@@ -39,6 +39,8 @@ def example_pydantic_ai_hook():
 
 # [END howto_hook_pydantic_ai_basic]
 
+example_pydantic_ai_hook()
+
 
 # [START howto_hook_pydantic_ai_structured_output]
 @dag(schedule=None)
@@ -61,3 +63,5 @@ def example_pydantic_ai_structured_output():
 
 
 # [END howto_hook_pydantic_ai_structured_output]
+
+example_pydantic_ai_structured_output()
