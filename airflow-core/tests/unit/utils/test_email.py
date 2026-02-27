@@ -324,7 +324,7 @@ class TestEmailSmtp:
             port=conf.getint("smtp", "SMTP_PORT"),
             timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
         )
-        assert mock_smtp.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT")
+        assert mock_smtp.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT") + 1
         assert not mock_smtp_ssl.called
         assert not mock_smtp.return_value.starttls.called
         assert not mock_smtp.return_value.login.called
@@ -348,7 +348,7 @@ class TestEmailSmtp:
             context=create_default_context.return_value,
         )
         assert create_default_context.called
-        assert mock_smtp_ssl.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT")
+        assert mock_smtp_ssl.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT") + 1
         assert not mock_smtp.called
         assert not mock_smtp_ssl.return_value.starttls.called
         assert not mock_smtp_ssl.return_value.login.called
@@ -377,7 +377,7 @@ class TestEmailSmtp:
             host=conf.get("smtp", "SMTP_HOST"), port=conf.getint("smtp", "SMTP_PORT"), timeout=custom_timeout
         )
         assert not mock_smtp_ssl.called
-        assert mock_smtp.call_count == 10
+        assert mock_smtp.call_count == custom_retry_limit + 1
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
