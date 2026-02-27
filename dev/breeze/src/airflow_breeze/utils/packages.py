@@ -893,6 +893,8 @@ def regenerate_pyproject_toml(
     in_required_dependencies = False
     in_optional_dependencies = False
     in_additional_devel_dependency_groups = False
+    suspended_provider_ids = get_suspended_provider_ids()
+
     for line in pyproject_toml_content.splitlines():
         if line == "dependencies = [":
             in_required_dependencies = True
@@ -946,6 +948,11 @@ def regenerate_pyproject_toml(
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
+        if provider_id in suspended_provider_ids:
+            get_console().print(
+                f"[info]Provider {provider_id} in suspended list, skipping adding to optional dependencies.\n"
+            )
+            continue
         cross_provider_dependencies.append(f'    "{get_pip_package_name(provider_id)}",')
         if f'"{provider_id}" = [' not in optional_dependencies and get_pip_package_name(
             provider_id
