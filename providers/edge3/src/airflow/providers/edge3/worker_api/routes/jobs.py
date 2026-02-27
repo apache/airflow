@@ -92,7 +92,7 @@ def fetch(
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
     if DualStatsManager is not None:
-        DualStatsManager.incr("edge_worker.ti.start", tags=tags)
+        DualStatsManager.incr("edge_worker.ti.start", tags={}, legacy_name_tags=tags)
     else:
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
         Stats.incr("edge_worker.ti.start", tags=tags)
@@ -149,10 +149,7 @@ def state(
                 "state": str(state),
             }
             if DualStatsManager is not None:
-                DualStatsManager.incr(
-                    "edge_worker.ti.finish",
-                    tags=tags,
-                )
+                DualStatsManager.incr("edge_worker.ti.finish", tags={}, legacy_name_tags=tags)
             else:
                 Stats.incr(
                     f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
