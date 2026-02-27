@@ -10649,6 +10649,11 @@
                                 }
                             ]
                         },
+                        "httpPort": {
+                            "description": "Git-Sync liveness service http bind port.",
+                            "type": "integer",
+                            "default": 1234
+                        },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",

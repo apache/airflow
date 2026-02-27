@@ -299,6 +299,11 @@ If release name contains chart name it will be used as a full name.
       value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
+    {{- else }}
+    - name: GIT_SYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
+    - name: GITSYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
     {{- end }}
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}

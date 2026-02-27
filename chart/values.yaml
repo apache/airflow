@@ -3605,6 +3605,9 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    # Git-Sync liveness service http bind port
+    httpPort: 1234
+
     readinessProbe: {}
     livenessProbe: {}
 
