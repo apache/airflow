@@ -66,6 +66,7 @@ Define a Pydantic model for the expected output shape, then pass it as ``output_
 
     from pydantic import BaseModel
 
+
     class SQLResult(BaseModel):
         query: str
         explanation: str

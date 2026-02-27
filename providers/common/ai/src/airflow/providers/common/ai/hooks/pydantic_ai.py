@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic_ai import Agent
 from pydantic_ai.models import Model, infer_model
@@ -24,6 +24,8 @@ from pydantic_ai.providers import Provider, infer_provider, infer_provider_class
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import BaseHook
+
+OutputT = TypeVar("OutputT")
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName
@@ -130,8 +132,8 @@ class PydanticAIHook(BaseHook):
         return self._model
 
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
-    ) -> Agent:
+        self, output_type: type[OutputT] = str, *, instructions: str, **agent_kwargs
+    ) -> Agent[None, OutputT]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
