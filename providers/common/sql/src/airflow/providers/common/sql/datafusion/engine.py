@@ -126,6 +126,14 @@ class DataFusionEngine(LoggingMixin):
         credentials = {}
         extra_config = {}
 
+        def _fetch_extra_configs(keys: list[str]) -> dict[str, Any]:
+            conf = {}
+            extra_dejson = conn.extra_dejson
+            for key in keys:
+                if key in extra_dejson:
+                    conf[key] = conn.extra_dejson[key]
+            return conf
+
         match conn.conn_type:
             case "aws":
                 try:
@@ -147,12 +155,7 @@ class DataFusionEngine(LoggingMixin):
                     }
                 )
                 credentials = self._remove_none_values(credentials)
-
-                extra_config = (
-                    {"region": conn.extra_dejson.get("region")}
-                    if conn.extra and conn.extra_dejson.get("region")
-                    else {}
-                )
+                extra_config = _fetch_extra_configs(["region", "endpoint"])
 
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
