@@ -1,0 +1,1 @@
+``workers.volumeClaimTemplates`` section is now deprecated in favor of ``workers.celery.volumeClaimTemplates``. Please update your configuration accordingly.

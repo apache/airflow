@@ -1013,6 +1013,7 @@ workers:
   env: []
 
   # Additional volume claim templates for Airflow Celery workers
+  # (deprecated, use `workers.celery.volumeClaimTemplates` instead)
   volumeClaimTemplates: []
   # Comment out the above and uncomment the section below to enable it.
   # Make sure to mount it under extraVolumeMounts.
@@ -1160,6 +1161,31 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Additional volume claim templates for Airflow Celery workers
+    # (deprecated, use `workers.celery.volumeClaimTemplates` instead)
+    volumeClaimTemplates: []
+    # Comment out the above and uncomment the section below to enable it.
+    # Make sure to mount it under extraVolumeMounts.
+    # volumeClaimTemplates:
+    #   - metadata:
+    #       name: data-volume-1
+    #     spec:
+    #       storageClassName: "storage-class-1"
+    #       accessModes:
+    #         - "ReadWriteOnce"
+    #       resources:
+    #         requests:
+    #           storage: "10Gi"
+    #   - metadata:
+    #       name: data-volume-2
+    #     spec:
+    #       storageClassName: "storage-class-2"
+    #       accessModes:
+    #         - "ReadWriteOnce"
+    #       resources:
+    #         requests:
+    #           storage: "20Gi"
 
   kubernetes:
     # Command to use in pod-template-file (templated)
