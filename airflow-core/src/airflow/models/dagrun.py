@@ -1217,11 +1217,7 @@ class DagRun(Base, LoggingMixin):
 
             if dag.has_on_failure_callback:
                 ti_causing_failure = max(
-                    (
-                        ti
-                        for ti in tis
-                        if ti.state == TaskInstanceState.FAILED
-                    ),
+                    (ti for ti in tis if ti.state == TaskInstanceState.FAILED),
                     key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
                     default=None,
                 )
