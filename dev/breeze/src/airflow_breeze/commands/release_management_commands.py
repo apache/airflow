@@ -265,7 +265,7 @@ AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
 PREK_VERSION = "0.3.3"
-HATCH_VERSION = "1.16.4"
+HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -278,8 +278,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  prek=={PREK_VERSION} \
-  'virtualenv<21'
+  prek=={PREK_VERSION}
 COPY . /opt/airflow
 """
 
