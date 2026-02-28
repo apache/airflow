@@ -28,6 +28,8 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from airflow.sdk import Context
 
 
@@ -86,7 +88,7 @@ class LLMOperator(BaseOperator):
         return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
 
     def execute(self, context: Context) -> Any:
-        agent = self.llm_hook.create_agent(
+        agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt)
