@@ -2118,6 +2118,29 @@ export const useConnectionServiceBulkConnections = <TData = Common.ConnectionSer
   requestBody: BulkBody_ConnectionBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Patch Connection And Test
+* Update a connection and queue an async test with revert-on-failure.
+*
+* Atomically saves the edit and creates a ConnectionTest with snapshots of the
+* pre-edit and post-edit state. If the test fails, the connection is automatically
+* reverted to its pre-edit values.
+* @param data The data for the request.
+* @param data.connectionId
+* @param data.requestBody
+* @param data.updateMask
+* @returns ConnectionSaveAndTestResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServicePatchConnectionAndTest = <TData = Common.ConnectionServicePatchConnectionAndTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: string[];
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ connectionId, requestBody, updateMask }) => ConnectionService.patchConnectionAndTest({ connectionId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
 * Patch Dag Run
 * Modify a DAG Run.
 * @param data The data for the request.

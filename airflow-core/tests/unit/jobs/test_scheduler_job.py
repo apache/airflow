@@ -67,6 +67,8 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.callback import ExecutorCallback
+from airflow.models.connection import Connection
+from airflow.models.connection_test import ConnectionTest, ConnectionTestState, snapshot_connection
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -113,6 +115,7 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_callbacks,
+    clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
@@ -9397,3 +9400,210 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
 
         assert _extract_bundle_name(ti) == "fallback-bundle"
         assert _extract_bundle_version(ti) == "fallback-v1"
+
+
+@pytest.fixture
+def scheduler_job_runner_for_connection_tests(session):
+    """Create a SchedulerJobRunner with a mock Job and supporting executor."""
+    session.execute(delete(ConnectionTest))
+    session.commit()
+
+    mock_job = mock.MagicMock(spec=Job)
+    mock_job.id = 1
+    mock_job.max_tis_per_query = 16
+    executor = LocalExecutor()
+    executor.queued_connection_tests.clear()
+    runner = SchedulerJobRunner.__new__(SchedulerJobRunner)
+    runner.job = mock_job
+    runner.executors = [executor]
+    runner.executor = executor
+    runner._log = mock.MagicMock(spec=logging.Logger)
+    return runner
+
+
+class TestDispatchConnectionTests:
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_pending_tests(self, scheduler_job_runner_for_connection_tests, session):
+        """Pending connection tests are dispatched to a supporting executor."""
+        ct = ConnectionTest(connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+        assert ct.state == ConnectionTestState.PENDING
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.QUEUED
+        assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "1",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_respects_concurrency_limit(self, scheduler_job_runner_for_connection_tests, session):
+        """Excess pending tests stay PENDING when concurrency is at capacity."""
+        ct_active = ConnectionTest(connection_id="active_conn")
+        ct_active.state = ConnectionTestState.QUEUED
+        session.add(ct_active)
+
+        ct_pending = ConnectionTest(connection_id="pending_conn")
+        session.add(ct_pending)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct_pending = session.get(ConnectionTest, ct_pending.id)
+        assert ct_pending.state == ConnectionTestState.PENDING
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_fails_fast_when_no_executor_supports(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Tests fail immediately when no executor supports connection testing."""
+        unsupporting_executor = BaseExecutor()
+        unsupporting_executor.supports_connection_test = False
+        scheduler_job_runner_for_connection_tests.executors = [unsupporting_executor]
+        scheduler_job_runner_for_connection_tests.executor = unsupporting_executor
+
+        ct = ConnectionTest(connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "No executor supports connection testing" in ct.result_message
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_with_queue_falls_back_to_global_executor(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Tests with a queue are dispatched to the global executor as fallback."""
+        ct = ConnectionTest(connection_id="test_conn", queue="gpu_workers")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.QUEUED
+        assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+
+
+class TestReapStaleConnectionTests:
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60"})
+    def test_reap_stale_queued_test(self, scheduler_job_runner_for_connection_tests, session):
+        """Stale QUEUED tests are marked as FAILED by the reaper."""
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTest(connection_id="test_conn")
+            ct.state = ConnectionTestState.QUEUED
+            session.add(ct)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "timed out" in ct.result_message
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60"})
+    def test_does_not_reap_fresh_tests(self, scheduler_job_runner_for_connection_tests, session):
+        """Fresh QUEUED tests are not reaped."""
+        ct = ConnectionTest(connection_id="test_conn")
+        ct.state = ConnectionTestState.QUEUED
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.QUEUED
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60"})
+    def test_reaper_reverts_connection_on_timeout_with_snapshot(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Stale tests with a snapshot trigger revert on timeout."""
+        clear_db_connections(add_default_connections_back=False)
+
+        conn = Connection(
+            conn_id="reaper_conn",
+            conn_type="postgres",
+            host="old-host.example.com",
+        )
+        session.add(conn)
+        session.flush()
+
+        pre_snap = snapshot_connection(conn)
+        conn.host = "new-host.example.com"
+        post_snap = snapshot_connection(conn)
+        session.flush()
+
+        initial_time = timezone.utcnow()
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTest(connection_id="reaper_conn")
+            ct.state = ConnectionTestState.QUEUED
+            ct.connection_snapshot = {"pre": pre_snap, "post": post_snap}
+            session.add(ct)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert ct.reverted is True
+        conn = session.scalar(select(Connection).filter_by(conn_id="reaper_conn"))
+        assert conn.host == "old-host.example.com"
+
+        clear_db_connections(add_default_connections_back=False)
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60"})
+    def test_reaper_no_revert_without_snapshot(self, scheduler_job_runner_for_connection_tests, session):
+        """Stale tests without a snapshot do not trigger revert."""
+        initial_time = timezone.utcnow()
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTest(connection_id="no_snap_conn")
+            ct.state = ConnectionTestState.QUEUED
+            session.add(ct)
+            session.commit()
+
+        with time_machine.travel(initial_time + timedelta(seconds=200), tick=False):
+            scheduler_job_runner_for_connection_tests._reap_stale_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert ct.reverted is False

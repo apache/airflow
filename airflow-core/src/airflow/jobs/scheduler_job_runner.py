@@ -73,7 +73,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
-from airflow.models.connection_test import ConnectionTest, ConnectionTestState
+from airflow.models.connection_test import ConnectionTest, ConnectionTestState, attempt_revert
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -3184,6 +3184,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ct.state = ConnectionTestState.FAILED
             ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
             self.log.warning("Reaped stale connection test %s", ct.id)
+            if ct.connection_snapshot:
+                attempt_revert(ct, session=session)
 
         session.flush()
 

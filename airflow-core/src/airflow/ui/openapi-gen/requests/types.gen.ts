@@ -496,6 +496,15 @@ export type ConnectionResponse = {
 };
 
 /**
+ * Response returned by the combined save-and-test endpoint.
+ */
+export type ConnectionSaveAndTestResponse = {
+    connection: ConnectionResponse;
+    test_token: string;
+    test_state: string;
+};
+
+/**
  * Response returned when an async connection test is queued.
  */
 export type ConnectionTestQueuedResponse = {
@@ -529,6 +538,7 @@ export type ConnectionTestStatusResponse = {
     state: string;
     result_message?: string | null;
     created_at: string;
+    reverted?: boolean;
 };
 
 /**
@@ -2504,6 +2514,14 @@ export type BulkConnectionsData = {
 
 export type BulkConnectionsResponse = BulkResponse;
 
+export type PatchConnectionAndTestData = {
+    connectionId: string;
+    requestBody: ConnectionBody;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchConnectionAndTestResponse = ConnectionSaveAndTestResponse;
+
 export type TestConnectionData = {
     requestBody: ConnectionBody;
 };
@@ -4475,6 +4493,37 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/{connection_id}/save-and-test': {
+        patch: {
+            req: PatchConnectionAndTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionSaveAndTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

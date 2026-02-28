@@ -1698,6 +1698,26 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
+export const $ConnectionSaveAndTestResponse = {
+    properties: {
+        connection: {
+            '$ref': '#/components/schemas/ConnectionResponse'
+        },
+        test_token: {
+            type: 'string',
+            title: 'Test Token'
+        },
+        test_state: {
+            type: 'string',
+            title: 'Test State'
+        }
+    },
+    type: 'object',
+    required: ['connection', 'test_token', 'test_state'],
+    title: 'ConnectionSaveAndTestResponse',
+    description: 'Response returned by the combined save-and-test endpoint.'
+} as const;
+
 export const $ConnectionTestQueuedResponse = {
     properties: {
         token: {
@@ -1790,6 +1810,11 @@ export const $ConnectionTestStatusResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Created At'
+        },
+        reverted: {
+            type: 'boolean',
+            title: 'Reverted',
+            default: false
         }
     },
     type: 'object',

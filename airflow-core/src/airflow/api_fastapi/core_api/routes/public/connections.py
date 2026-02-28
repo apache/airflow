@@ -41,6 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBodyPartial,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionSaveAndTestResponse,
     ConnectionTestQueuedResponse,
     ConnectionTestRequestBody,
     ConnectionTestResponse,
@@ -60,7 +61,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
-from airflow.models.connection_test import ConnectionTest
+from airflow.models.connection_test import ConnectionTest, snapshot_connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
@@ -234,6 +235,68 @@ def patch_connection(
     return connection
 
 
+@connections_router.patch(
+    "/{connection_id}/save-and-test",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())],
+)
+def patch_connection_and_test(
+    connection_id: str,
+    patch_body: ConnectionBody,
+    session: SessionDep,
+    update_mask: list[str] | None = Query(None),
+) -> ConnectionSaveAndTestResponse:
+    """
+    Update a connection and queue an async test with revert-on-failure.
+
+    Atomically saves the edit and creates a ConnectionTest with snapshots of the
+    pre-edit and post-edit state. If the test fails, the connection is automatically
+    reverted to its pre-edit values.
+    """
+    _ensure_test_connection_enabled()
+
+    if patch_body.connection_id != connection_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "The connection_id in the request body does not match the URL parameter",
+        )
+
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    if connection is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Connection with connection_id: `{connection_id}` was not found",
+        )
+
+    try:
+        ConnectionBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
+
+    pre_snapshot = snapshot_connection(connection)
+
+    update_orm_from_pydantic(connection, patch_body, update_mask)
+
+    post_snapshot = snapshot_connection(connection)
+
+    connection_test = ConnectionTest(connection_id=connection_id)
+    connection_test.connection_snapshot = {"pre": pre_snapshot, "post": post_snapshot}
+    session.add(connection_test)
+    session.flush()
+
+    return ConnectionSaveAndTestResponse(
+        connection=connection,
+        test_token=connection_test.token,
+        test_state=connection_test.state,
+    )
+
+
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     """
@@ -332,6 +395,7 @@ def get_connection_test_status(
         state=connection_test.state,
         result_message=connection_test.result_message,
         created_at=connection_test.created_at,
+        reverted=connection_test.reverted,
     )
 
 

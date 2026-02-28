@@ -1265,6 +1265,128 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 404
 
 
+class TestSaveAndTest(TestConnectionEndpoint):
+    """Tests for the combined PATCH /{connection_id}/save-and-test endpoint."""
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_save_and_test_returns_200_with_token(self, test_client, session):
+        """PATCH save-and-test updates the connection and returns a test token."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "updated-host.example.com",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["test_token"]
+        assert body["test_state"] == "pending"
+        assert body["connection"]["host"] == "updated-host.example.com"
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_save_and_test_creates_snapshot(self, test_client, session):
+        """PATCH save-and-test creates a ConnectionTest with a connection_snapshot."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "new-host.example.com",
+            },
+        )
+        assert response.status_code == 200
+        token = response.json()["test_token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        assert ct is not None
+        assert ct.connection_snapshot is not None
+        snapshot = ct.connection_snapshot
+        assert "pre" in snapshot
+        assert "post" in snapshot
+        assert snapshot["pre"]["host"] == TEST_CONN_HOST
+        assert snapshot["post"]["host"] == "new-host.example.com"
+
+    def test_save_and_test_403_when_disabled(self, test_client):
+        """PATCH save-and-test returns 403 when test_connection is disabled."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+            },
+        )
+        assert response.status_code == 403
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_save_and_test_404_for_nonexistent(self, test_client):
+        """PATCH save-and-test returns 404 for nonexistent connection."""
+        response = test_client.patch(
+            "/connections/nonexistent/save-and-test",
+            json={
+                "connection_id": "nonexistent",
+                "conn_type": "http",
+            },
+        )
+        assert response.status_code == 404
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_poll_shows_reverted_true_after_failed_test(self, test_client, session):
+        """GET status shows reverted=True after a failed test triggers a revert."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "bad-host.example.com",
+            },
+        )
+        token = response.json()["test_token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        ct.state = ConnectionTestState.FAILED
+        ct.result_message = "Connection refused"
+
+        from airflow.models.connection_test import attempt_revert
+
+        attempt_revert(ct, session=session)
+        session.commit()
+
+        poll_response = test_client.get(f"/connections/test-async/{token}")
+        assert poll_response.status_code == 200
+        body = poll_response.json()
+        assert body["reverted"] is True
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_poll_shows_reverted_false_for_success(self, test_client, session):
+        """GET status shows reverted=False for a successful test."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "good-host.example.com",
+            },
+        )
+        token = response.json()["test_token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        ct.state = ConnectionTestState.SUCCESS
+        ct.result_message = "Connection OK"
+        session.commit()
+
+        poll_response = test_client.get(f"/connections/test-async/{token}")
+        assert poll_response.status_code == 200
+        body = poll_response.json()
+        assert body["reverted"] is False
+
+
 class TestCreateDefaultConnections(TestConnectionEndpoint):
     def test_should_respond_204(self, test_client, session):
         response = test_client.post("/connections/defaults")

@@ -244,6 +244,16 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ConnectionSaveAndTestResponse(BaseModel):
+    """
+    Response returned by the combined save-and-test endpoint.
+    """
+
+    connection: ConnectionResponse
+    test_token: Annotated[str, Field(title="Test Token")]
+    test_state: Annotated[str, Field(title="Test State")]
+
+
 class ConnectionTestQueuedResponse(BaseModel):
     """
     Response returned when an async connection test is queued.
@@ -285,6 +295,7 @@ class ConnectionTestStatusResponse(BaseModel):
     state: Annotated[str, Field(title="State")]
     result_message: Annotated[str | None, Field(title="Result Message")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
+    reverted: Annotated[bool | None, Field(title="Reverted")] = False
 
 
 class CreateAssetEventsBody(BaseModel):

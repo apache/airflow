@@ -1631,6 +1631,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/connections/{connection_id}/save-and-test:
+    patch:
+      tags:
+      - Connection
+      summary: Patch Connection And Test
+      description: 'Update a connection and queue an async test with revert-on-failure.
+
+
+        Atomically saves the edit and creates a ConnectionTest with snapshots of the
+
+        pre-edit and post-edit state. If the test fails, the connection is automatically
+
+        reverted to its pre-edit values.'
+      operationId: patch_connection_and_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionSaveAndTestResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/connections/test:
     post:
       tags:
@@ -10195,6 +10272,23 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionSaveAndTestResponse:
+      properties:
+        connection:
+          $ref: '#/components/schemas/ConnectionResponse'
+        test_token:
+          type: string
+          title: Test Token
+        test_state:
+          type: string
+          title: Test State
+      type: object
+      required:
+      - connection
+      - test_token
+      - test_state
+      title: ConnectionSaveAndTestResponse
+      description: Response returned by the combined save-and-test endpoint.
     ConnectionTestQueuedResponse:
       properties:
         token:
@@ -10263,6 +10357,10 @@ components:
           type: string
           format: date-time
           title: Created At
+        reverted:
+          type: boolean
+          title: Reverted
+          default: false
       type: object
       required:
       - token
