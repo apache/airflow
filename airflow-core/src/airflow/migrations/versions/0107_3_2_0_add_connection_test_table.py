@@ -51,14 +51,8 @@ def upgrade():
         sa.Column("result_message", sa.Text(), nullable=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("callback_id", sa.Uuid(), nullable=True),
+        sa.Column("queue", sa.String(256), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_pkey")),
-        sa.ForeignKeyConstraint(
-            ["callback_id"],
-            ["callback.id"],
-            name=op.f("connection_test_callback_id_fkey"),
-            ondelete="SET NULL",
-        ),
         sa.UniqueConstraint("token", name=op.f("connection_test_token_uq")),
     )
     op.create_index(

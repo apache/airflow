@@ -505,10 +505,11 @@ export type ConnectionTestQueuedResponse = {
 };
 
 /**
- * Request body for async connection test — just the connection_id.
+ * Request body for async connection test.
  */
 export type ConnectionTestRequestBody = {
     connection_id: string;
+    queue?: string | null;
 };
 
 /**

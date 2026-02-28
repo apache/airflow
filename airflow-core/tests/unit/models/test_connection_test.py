@@ -47,59 +47,46 @@ class TestConnectionTestModel:
         assert "test_conn" in r
         assert "pending" in r
 
+    def test_queue_parameter(self):
+        ct = ConnectionTest(connection_id="test_conn", queue="my_queue")
+        assert ct.queue == "my_queue"
+
+    def test_queue_defaults_to_none(self):
+        ct = ConnectionTest(connection_id="test_conn")
+        assert ct.queue is None
+
 
 class TestRunConnectionTest:
-    def test_successful_connection_test(self, session):
-        """Worker function updates state to SUCCESS on successful test."""
-        ct = ConnectionTest(connection_id="test_conn")
-        session.add(ct)
-        session.commit()
-        ct_id = str(ct.id)
-
+    def test_successful_connection_test(self):
+        """Pure function returns (True, message) on successful test."""
         with mock.patch.object(
             Connection, "get_connection_from_secrets", return_value=mock.MagicMock()
         ) as mock_get_conn:
             mock_get_conn.return_value.test_connection.return_value = (True, "Connection OK")
-            run_connection_test(connection_id="test_conn", connection_test_id=ct_id)
+            success, message = run_connection_test(connection_id="test_conn")
 
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.state == ConnectionTestState.SUCCESS
-        assert ct.result_message == "Connection OK"
+        assert success is True
+        assert message == "Connection OK"
 
-    def test_failed_connection_test(self, session):
-        """Worker function updates state to FAILED when test_connection returns False."""
-        ct = ConnectionTest(connection_id="test_conn")
-        session.add(ct)
-        session.commit()
-        ct_id = str(ct.id)
-
+    def test_failed_connection_test(self):
+        """Pure function returns (False, message) when test_connection returns False."""
         with mock.patch.object(
             Connection, "get_connection_from_secrets", return_value=mock.MagicMock()
         ) as mock_get_conn:
             mock_get_conn.return_value.test_connection.return_value = (False, "Connection failed")
-            run_connection_test(connection_id="test_conn", connection_test_id=ct_id)
+            success, message = run_connection_test(connection_id="test_conn")
 
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.state == ConnectionTestState.FAILED
-        assert ct.result_message == "Connection failed"
+        assert success is False
+        assert message == "Connection failed"
 
-    def test_exception_during_connection_test(self, session):
-        """Worker function handles exceptions gracefully."""
-        ct = ConnectionTest(connection_id="test_conn")
-        session.add(ct)
-        session.commit()
-        ct_id = str(ct.id)
-
+    def test_exception_during_connection_test(self):
+        """Pure function returns (False, error_str) on exception."""
         with mock.patch.object(
             Connection,
             "get_connection_from_secrets",
             side_effect=Exception("Could not resolve host: db.example.com"),
         ):
-            run_connection_test(connection_id="test_conn", connection_test_id=ct_id)
+            success, message = run_connection_test(connection_id="test_conn")
 
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.state == ConnectionTestState.FAILED
-        assert "Could not resolve host" in ct.result_message
+        assert success is False
+        assert "Could not resolve host" in message
