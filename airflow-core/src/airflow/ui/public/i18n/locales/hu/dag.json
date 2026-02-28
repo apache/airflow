@@ -138,11 +138,11 @@
       "direction": "Irány",
       "label": "Szűrő",
       "mode": "Mód",
+      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, amikor más feladatokra navigál, míg a navigációs mód automatikusan frissíti az aktív szűrőt a kattintott feladatra a DAG könnyebb bejárásához.",
       "modes": {
         "static": "Statikus",
         "traverse": "Navigációs"
       },
-      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, amikor más feladatokra navigál, míg a navigációs mód automatikusan frissíti az aktív szűrőt a kattintott feladatra a DAG könnyebb bejárásához.",
       "options": {
         "both": "Mind upstream & downstream",
         "downstream": "Downstream",
