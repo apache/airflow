@@ -2107,8 +2107,9 @@ def supervise(
         exit_code = process.wait()
         end = time.monotonic()
         log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
+            "Workload finished",
+            workload_type="ExecuteTask",
+            workload_id=str(ti.id),
             exit_code=exit_code,
             duration=end - start,
             final_state=process.final_state,
