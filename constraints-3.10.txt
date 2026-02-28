@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-27T15:29:24.025870
+# This constraints file was automatically generated on 2026-02-28T09:50:23.898895
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -97,7 +97,6 @@ amqp==5.3.1
 analytics-python==1.2.9
 annotated-doc==0.0.4
 annotated-types==0.7.0
-ansicolors==1.1.8
 anyio==4.12.1
 apache-airflow-providers-airbyte==5.3.2
 apache-airflow-providers-alibaba==3.3.4
@@ -405,10 +404,10 @@ gssapi==1.11.1
 gunicorn==25.1.0
 h11==0.16.0
 h2==4.3.0
-hatch==1.16.4
+hatch==1.16.5
 hatchling==1.29.0
 hdfs==2.7.3
-hf-xet==1.3.1
+hf-xet==1.3.2
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -455,7 +454,7 @@ jsonpath-ng==1.8.0
 jsonpath-python==1.1.4
 jsonpickle==3.4.2
 jsonpointer==3.0.0
-jsonschema-path==0.4.2
+jsonschema-path==0.4.3
 jsonschema-specifications==2025.9.1
 jsonschema==4.24.1
 jupyter_client==8.8.0
@@ -557,7 +556,7 @@ pandas-gbq==0.33.0
 pandas-stubs==2.3.3.260113
 pandas==2.1.4
 pandocfilters==1.5.1
-papermill==2.6.0
+papermill==2.7.0
 paramiko==3.5.1
 parso==0.8.6
 pathable==0.5.0
@@ -577,7 +576,7 @@ plyvel==1.5.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
-prek==0.3.3
+prek==0.3.4
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.24.1
@@ -635,6 +634,7 @@ pytest==8.2.1
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
+python-discovery==1.1.0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -655,7 +655,7 @@ readme_renderer==44.0
 redis==6.4.0
 redshift-connector==2.1.11
 referencing==0.37.0
-regex==2026.2.19
+regex==2026.2.28
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -697,7 +697,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==4.0.0
-snowflake-snowpark-python==1.46.0
+snowflake-snowpark-python==1.45.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
 soupsieve==2.8.3
@@ -787,11 +787,11 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.3
 userpath==1.9.2
-uv==0.9.11
+uv==0.10.7
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.39.1
+virtualenv==21.1.0
 watchtower==3.4.0
 wcwidth==0.6.0
 weaviate-client==4.20.1
