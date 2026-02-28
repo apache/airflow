@@ -306,6 +306,85 @@ class TestSimpleAuthManager:
             is result
         )
 
+    def test_get_passwords_corrupt_json(self, auth_manager):
+        """Corrupt JSON in the password file should raise JSONDecodeError."""
+        with open(auth_manager.get_generated_password_file(), "w") as f:
+            f.write("{bad json")
+        with pytest.raises(json.JSONDecodeError):
+            auth_manager.get_passwords()
+
+    def test_get_passwords_file_not_exists(self, auth_manager):
+        """Reading passwords when the file does not exist should raise FileNotFoundError."""
+        password_file = auth_manager.get_generated_password_file()
+        if os.path.exists(password_file):
+            os.remove(password_file)
+        with pytest.raises(FileNotFoundError):
+            auth_manager.get_passwords()
+
+    def test_init_generates_random_passwords(self, auth_manager):
+        """Passwords generated for users should be unique and 16 chars long."""
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_users"): "alice:viewer,bob:viewer,carol:admin",
+            }
+        ):
+            auth_manager.init()
+            passwords = auth_manager.get_passwords()
+            assert len(passwords) == 3
+            for pw in passwords.values():
+                assert len(pw) == 16
+            assert len(set(passwords.values())) == 3
+
+    def test_init_preserves_existing_passwords(self, auth_manager):
+        """Re-running init should not overwrite passwords that already exist in the file."""
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_users"): "keepme:viewer",
+            }
+        ):
+            with open(auth_manager.get_generated_password_file(), "w") as f:
+                f.write(json.dumps({"keepme": "fixed_password"}) + "\n")
+            auth_manager.init()
+            passwords = auth_manager.get_passwords()
+            assert passwords["keepme"] == "fixed_password"
+
+    def test_init_adds_missing_users_to_existing_file(self, auth_manager):
+        """Init should add new users while keeping existing ones."""
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_users"): "existing:admin,newuser:viewer",
+            }
+        ):
+            with open(auth_manager.get_generated_password_file(), "w") as f:
+                f.write(json.dumps({"existing": "oldpw"}) + "\n")
+            auth_manager.init()
+            passwords = auth_manager.get_passwords()
+            assert passwords["existing"] == "oldpw"
+            assert "newuser" in passwords
+            assert len(passwords["newuser"]) == 16
+
+    def test_custom_password_file_path(self, auth_manager, tmp_path):
+        """When simple_auth_manager_passwords_file is set, that path should be used."""
+        custom_path = str(tmp_path / "custom_pw.json")
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_passwords_file"): custom_path,
+                ("core", "simple_auth_manager_users"): "user1:admin",
+            }
+        ):
+            auth_manager.init()
+            assert os.path.exists(custom_path)
+            with open(custom_path) as f:
+                data = json.loads(f.read().strip())
+            assert "user1" in data
+
+    def test_is_authorized_with_no_role(self, auth_manager):
+        """A user with role=None should be denied access."""
+        result = auth_manager.is_authorized_dag(
+            method="GET", user=SimpleAuthManagerUser(username="norole", role=None)
+        )
+        assert result is False
+
     @pytest.mark.parametrize(
         ("user_teams", "team", "role", "expected"),
         [

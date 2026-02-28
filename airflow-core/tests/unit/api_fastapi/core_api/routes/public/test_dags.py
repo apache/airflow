@@ -627,6 +627,83 @@ class TestGetDags(TestDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
+    def test_get_dags_multiple_tags_filter(self, session, test_client, dag_maker):
+        """Filtering by multiple tags should intersect/union correctly and return matching DAGs."""
+        with dag_maker("multi_tag_dag", session=session, tags=["alpha", "beta"]):
+            EmptyOperator(task_id="t1")
+        with dag_maker("single_tag_dag", session=session, tags=["alpha"]):
+            EmptyOperator(task_id="t1")
+        session.commit()
+
+        response = test_client.get("/dags", params={"tags": ["alpha"]})
+        assert response.status_code == 200
+        ids = [d["dag_id"] for d in response.json()["dags"]]
+        assert "multi_tag_dag" in ids
+        assert "single_tag_dag" in ids
+
+        response = test_client.get("/dags", params={"tags": ["beta"]})
+        assert response.status_code == 200
+        ids = [d["dag_id"] for d in response.json()["dags"]]
+        assert "multi_tag_dag" in ids
+        assert "single_tag_dag" not in ids
+
+    def test_get_dags_dag_id_pattern_no_match(self, test_client):
+        """dag_id_pattern that matches nothing should return empty list."""
+        response = test_client.get("/dags", params={"dag_id_pattern": "zzz_nonexistent_zzz"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 0
+        assert body["dags"] == []
+
+    def test_get_dags_negative_offset_returns_422(self, test_client):
+        """A negative offset should be rejected with a 422 validation error."""
+        response = test_client.get("/dags", params={"offset": -1})
+        assert response.status_code == 422
+
+    def test_get_dags_zero_limit(self, test_client):
+        """limit=0 should return no DAGs but still report total_entries."""
+        response = test_client.get("/dags", params={"limit": 0})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dags"] == []
+        assert body["total_entries"] >= 0
+
+    def test_get_dags_combined_owner_and_tag_filter(self, test_client):
+        """Combining owners and tags should narrow results to DAGs matching both."""
+        response = test_client.get("/dags", params={"owners": ["airflow"], "tags": ["example"]})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["dags"][0]["dag_id"] == DAG1_ID
+
+    def test_get_dags_combined_paused_and_owner(self, test_client):
+        """Filtering paused=False + specific owner should return only matching active DAGs."""
+        response = test_client.get("/dags", params={"paused": False, "owners": ["airflow"]})
+        assert response.status_code == 200
+        ids = [d["dag_id"] for d in response.json()["dags"]]
+        assert DAG1_ID in ids
+        assert DAG2_ID in ids
+
+    def test_get_dags_order_by_invalid_field_returns_422(self, test_client):
+        """Ordering by an invalid field should return a 422 error."""
+        response = test_client.get("/dags", params={"order_by": "nonexistent_field"})
+        assert response.status_code == 422
+
+    def test_get_dags_response_schema_fields(self, test_client):
+        """Verify that each DAG in the response contains the expected top-level fields."""
+        response = test_client.get("/dags", params={"limit": 1})
+        assert response.status_code == 200
+        dag = response.json()["dags"][0]
+        expected_fields = {
+            "dag_id",
+            "dag_display_name",
+            "is_paused",
+            "is_stale",
+            "owners",
+            "tags",
+        }
+        assert expected_fields.issubset(set(dag.keys()))
+
 
 class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
