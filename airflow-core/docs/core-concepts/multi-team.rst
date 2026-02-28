@@ -305,14 +305,13 @@ The following sources are **skipped** for team executors (they do not yet suppor
 - **Command execution** (``{key}_cmd``)
 - **Secrets backend** (``{key}_secret``)
 
-.. warning::
+.. note::
 
     Team-specific configuration does **not** fall back to the global environment variable or global config file
-    section. For example, if ``team_a`` does not set ``AIRFLOW__TEAM_A___CELERY__BROKER_URL`` or
-    ``[team_a=celery] broker_url``, the system will **not** check ``AIRFLOW__CELERY__BROKER_URL`` or
-    ``[celery] broker_url``. It also will not check command or secrets backends. This means that any setting a
-    team executor needs **must** be explicitly provided in the team-specific configuration (via environment
-    variable or config file section) if it differs from the built-in default.
+    settings. For example, if there is a global ``CeleryExecutor`` and a team ``CeleryExecutor`` in use, the global
+    ``CeleryExecutor`` may want to increase ``celery.worker_concurrency`` from the default of ``16`` to ``32`` by
+    overriding this configuration.  However, the team ``CeleryExecutor`` should not be forced to ``32``, it will
+    continue to use the default of ``16`` unless it is explicitly overridden with team-specific configuration.
 
 Via Environment Variables
 """""""""""""""""""""""""
