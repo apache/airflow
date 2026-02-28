@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -219,7 +220,7 @@ class BaseExecutor(LoggingMixin):
         """Add an event to the log table."""
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
-    def queue_workload(self, workload: workloads.All, session: Session) -> None:
+    def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
         if isinstance(workload, workloads.ExecuteTask):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
@@ -237,7 +238,7 @@ class BaseExecutor(LoggingMixin):
                 f"Workload must be one of: ExecuteTask, ExecuteCallback."
             )
 
-    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
+    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, ExecutorWorkload]]:
         """
         Select and return the next batch of workloads to schedule, respecting priority policy.
 
@@ -246,7 +247,7 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of available execution slots
         """
-        workloads_to_schedule: list[tuple[WorkloadKey, workloads.All]] = []
+        workloads_to_schedule: list[tuple[WorkloadKey, ExecutorWorkload]] = []
 
         if self.queued_callbacks:
             for key, workload in self.queued_callbacks.items():
@@ -262,7 +263,7 @@ class BaseExecutor(LoggingMixin):
 
         return workloads_to_schedule
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 

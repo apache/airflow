@@ -723,12 +723,13 @@ class TestWatchedSubprocess:
             "exit_code": 0,
             "duration": 0.0,
             "final_state": "deferred",
-            "event": "Task finished",
+            "event": "Workload finished",
+            "workload_type": "ExecuteTask",
+            "workload_id": str(ti.id),
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
-            "task_instance_id": str(ti.id),
         } in captured_logs
 
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
