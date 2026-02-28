@@ -310,13 +310,21 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
     """
-    Return the next logical datetime of a DAG at the command line.
+    Return information of a Dag's next execution at the command line.
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
 
-    # todo: AIP-76 determine what next execution should do for partition-driven dags
-    #  https://github.com/apache/airflow/issues/61076
+    For a traditional Dag (not using partitions), this prints the logical date
+    of the next run by default. For a Dag using partitions, the next partition
+    key is printed. A different field can be printed instead using the CLI flag
+    ``--field``.
+
+    A ``--table`` CLI flag can be used instead to print all relevant fields of
+    the next execution. What fields are considered relevant depends on the
+    schedule used by the Dag.
+
+    Use ``--num-execution`` to print more than one execution.
     """
     from airflow.models.serialized_dag import SerializedDagModel
 
