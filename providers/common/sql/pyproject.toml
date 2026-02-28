@@ -108,7 +108,7 @@ dev = [
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]",
-    "apache-airflow-providers-common-sql[datafusion]",
+    "datafusion>=50.0.0"
 ]
 
 # To build docs:
