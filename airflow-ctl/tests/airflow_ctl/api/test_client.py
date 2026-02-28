@@ -126,6 +126,38 @@ class TestCredentials:
                 "api_url": credentials.api_url,
             }
 
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_KEYRING"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_no_keyring(self, mock_keyring):
+        from keyring.errors import NoKeyringError
+
+        cli_client = ClientKind.CLI
+        mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+
+        with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
+            Credentials(client_kind=cli_client).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_no_keyring_backend_skip_keyring(self, mock_keyring):
+
+        env = "TEST_SAVE_SKIP_KEYRING"
+        cli_client = ClientKind.CLI
+        mock_keyring.set_password = MagicMock()
+        mock_keyring.get_password = MagicMock()
+
+        Credentials(client_kind=cli_client).save(skip_keyring=True)
+
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        assert os.path.exists(config_dir)
+        with open(os.path.join(config_dir, f"{env}.json")) as f:
+            credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
+            assert json.load(f) == {
+                "api_url": credentials.api_url,
+            }
+        mock_keyring.set_password.assert_not_called()
+        mock_keyring.get_password.assert_not_called()
+
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflowctl.api.client.keyring")
@@ -195,6 +227,21 @@ class TestCredentials:
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
             Credentials(client_kind=cli_client).load()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_KEYRING_BACKEND"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_no_keyring_backend_token_provided(self, mock_keyring):
+        from keyring.errors import NoKeyringError
+
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_NO_KEYRING_BACKEND.json"), "w") as f:
+            json.dump({"api_url": "http://localhost:8080"}, f)
+        mock_keyring.get_password.side_effect = NoKeyringError("no backend")
+
+        credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
+        assert credentials.api_token == "TEST_TOKEN"
 
 
 class TestBoundedGetNewPassword:

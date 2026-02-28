@@ -154,6 +154,8 @@ Or to skip the confirmation prompt:
 Configuring Team Resources
 --------------------------
 
+.. _multi-team-variables:
+
 Team-scoped Variables
 ^^^^^^^^^^^^^^^^^^^^^
 
