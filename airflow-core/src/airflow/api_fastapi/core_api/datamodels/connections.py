@@ -102,6 +102,15 @@ class ConnectionTestStatusResponse(BaseModel):
     state: str
     result_message: str | None = None
     created_at: datetime
+    reverted: bool = False
+
+
+class ConnectionSaveAndTestResponse(BaseModel):
+    """Response returned by the combined save-and-test endpoint."""
+
+    connection: ConnectionResponse
+    test_token: str
+    test_state: str
 
 
 class ConnectionHookFieldBehavior(BaseModel):

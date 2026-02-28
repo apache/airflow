@@ -22,7 +22,12 @@ from fastapi import APIRouter, HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection_test import ConnectionTestResultBody
-from airflow.models.connection_test import TERMINAL_STATES, ConnectionTest
+from airflow.models.connection_test import (
+    TERMINAL_STATES,
+    ConnectionTest,
+    ConnectionTestState,
+    attempt_revert,
+)
 
 router = APIRouter()
 
@@ -62,3 +67,6 @@ def patch_connection_test(
 
     ct.state = body.state
     ct.result_message = body.result_message
+
+    if body.state == ConnectionTestState.FAILED and ct.connection_snapshot:
+        attempt_revert(ct, session=session)
