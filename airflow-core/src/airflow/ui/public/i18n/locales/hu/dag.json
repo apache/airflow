@@ -73,6 +73,12 @@
     "navigation": "Navigáció: {{arrow}}",
     "toggleGroup": "Csoport váltása: Szóköz"
   },
+  "notFound": {
+    "back": "Vissza",
+    "backToDags": "Vissza a Dag-ekhez",
+    "message": "A \"{{dagId}}\" Dag nem létezik.",
+    "title": "Dag nem található"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Sikertelen futás",
@@ -114,6 +120,35 @@
     },
     "graphDirection": {
       "label": "Gráf iránya"
+    },
+    "showVersionIndicator": {
+      "label": "Verziójelző megjelenítése",
+      "options": {
+        "hideAll": "Összes elrejtése",
+        "showAll": "Összes megjelenítése",
+        "showBundleVersion": "Csomag verzió megjelenítése",
+        "showDagVersion": "Dag verzió megjelenítése"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktív szűrő",
+      "clearFilter": "Szűrő törlése",
+      "clickTask": "Kattints egy feladatra, hogy az legyen a szűrő gyökere",
+      "depth": "Mélység",
+      "direction": "Irány",
+      "label": "Szűrő",
+      "mode": "Mód",
+      "modes": {
+        "static": "Statikus",
+        "traverse": "Navigációs"
+      },
+      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, amikor más feladatokra navigál, míg a navigációs mód automatikusan frissíti az aktív szűrőt a kattintott feladatra a DAG könnyebb bejárásához.",
+      "options": {
+        "both": "Mind upstream & downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Kiválasztott feladat"
     }
   },
   "paramsFailed": "A paraméterek betöltése sikertelen",

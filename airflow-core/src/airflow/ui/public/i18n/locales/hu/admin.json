@@ -3,6 +3,7 @@
     "description": "Leírás",
     "key": "Kulcs",
     "name": "Név",
+    "team": "Csapat",
     "value": "Érték"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Kapcsolatok keresése",
     "test": "Kapcsolat tesztelése",
     "testDisabled": "A kapcsolat tesztelése funkció le van tiltva. Kérjük, forduljon az adminisztrátorhoz az engedélyezéshez.",
+    "testError": {
+      "title": "Kapcsolat tesztelése sikertelen"
+    },
+    "testSuccess": {
+      "title": "Kapcsolat tesztelése sikeres"
+    },
     "typeMeta": {
       "error": "Nem sikerült lekérni a kapcsolat típus metaadatait",
       "standardFields": {
@@ -74,6 +81,23 @@
   "formActions": {
     "save": "Mentés"
   },
+ "jobs": {
+  "columns": {
+    "executorClass": "Végrehajtó osztály",
+    "hostname": "Gépnév",
+    "id": "Azonosító",
+    "jobType": "Feladat típusa",
+    "latestHeartbeat": "Utolsó életjel",
+    "unixname": "Unix-felhasználónév"
+  },
+  "filters": {
+    "allStates": "Minden állapot",
+    "allTypes": "Minden típus",
+    "dagProcessorJob": "DAG-feldolgozó feladat",
+    "schedulerJob": "Ütemező feladat",
+    "triggererJob": "Triggerelő feladat"
+  }
+},
   "plugins": {
     "columns": {
       "source": "Forrás"
