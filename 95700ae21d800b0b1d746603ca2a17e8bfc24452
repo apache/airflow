@@ -1,0 +1,23 @@
+dev/breeze/src/airflow_breeze/commands/production_image_commands.py
+  6c31e8fed5b93335 574
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "95700ae21d800b0b1d746603ca2a17e8bfc24452",
+  "prompts": {
+    "6c31e8fed5b93335": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79d10d73-28a4-4036-ae88-8287000ac148",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
