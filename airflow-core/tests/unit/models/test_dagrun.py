@@ -481,6 +481,48 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
+    def test_dagrun_failure_callback_on_tasks_deadlocked(self, dag_maker, session):
+        def on_failure_callable(context):
+            assert context["dag_run"].dag_id == "test_dagrun_failure_callback_on_tasks_deadlocked"
+
+        with dag_maker(
+            dag_id="test_dagrun_failure_callback_on_tasks_deadlocked",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        ) as dag:
+            up = EmptyOperator(task_id="upstream")
+            middle = EmptyOperator(task_id="wrong")
+            down = EmptyOperator(task_id="downstream")
+
+            middle.trigger_rule = TriggerRule.ONE_FAILED
+            middle.set_upstream(up)
+            middle.set_downstream(down)
+        
+        dr = dag_maker.create_dagrun()
+
+        ti_up: TI = dr.get_task_instance(task_id=up.task_id, session=session)
+        ti_middle: TI = dr.get_task_instance(task_id=middle.task_id, session=session)
+        ti_up.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_middle.set_state(state=None, session=session)
+        ti_middle.task.trigger_rule = "invalid"
+
+        serialized_dag = dr.get_dag()  
+
+        with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
+            _, callback = dr.update_state()
+        assert execute_dag_callbacks.mock_calls == [
+            mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
+        ]
+        # Make sure the correct TI is passed on timeout
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
+        assert ti_passed.task_id == "wrong"
+
+        assert dr.state == DagRunState.FAILED
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        assert callback is None
+
     def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"

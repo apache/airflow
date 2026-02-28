@@ -150,5 +150,12 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 # Shared Libraries
 /shared/ @ashb @amoghrajesh @potiuk
 
+# Agentic instructions
+/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin
+/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin
+/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin
+/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin
+
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

@@ -85,7 +85,7 @@ and the task selected depends on the state of a Dag:
 
 #. On regular failure, the latest failed task is selected.
 #. On Dag run timeout, the latest started but not finished task is passed.
-#. If tasks are deadlocked, the latest finished task is passed.
+#. If tasks are deadlocked, a task that should have run next but couldn't is passed.
 #. On success, the latest succeeded task is passed.
 
 It's not recommended to rely on task instance variables in Dag callbacks except for human analysis, as they reflect only partial information about the Dag's state.

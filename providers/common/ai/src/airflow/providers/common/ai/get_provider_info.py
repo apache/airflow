@@ -28,10 +28,19 @@ def get_provider_info():
         "description": "AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.\n",
         "integrations": [
             {
+                "integration-name": "Common AI",
+                "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
+                ],
+                "tags": ["ai"],
+            },
+            {
                 "integration-name": "Pydantic AI",
                 "external-doc-url": "https://ai.pydantic.dev/",
-                "tags": ["software"],
-            }
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -52,5 +61,18 @@ def get_provider_info():
                     },
                 },
             }
+        ],
+        "operators": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": [
+                    "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_sql",
+                ],
+            }
+        ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"},
         ],
     }
