@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import (
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
+    IsAuthorizedDagRequest,
     IsAuthorizedPoolRequest,
     IsAuthorizedVariableRequest,
 )
@@ -62,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -174,6 +176,36 @@ def requires_access_dag(
                 details=DagDetails(id=dag_id, team_name=team_name),
                 user=user,
             )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_bulk() -> Callable[[str, BulkBody[DAGRunPatchBody], BaseUser], None]:
+    def inner(
+        dag_id: str,
+        request: BulkBody[DAGRunPatchBody],
+        user: GetUserDep,
+    ) -> None:
+        dag_id = dag_id if dag_id != "~" else None
+        team_name = DagModel.get_team_name(dag_id) if dag_id else None
+
+        requests: list[IsAuthorizedDagRequest] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for method in methods:
+                req: IsAuthorizedDagRequest = {
+                    "method": method,
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id=dag_id, team_name=team_name),
+                }
+                requests.append(req)
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            ),
         )
 
     return inner

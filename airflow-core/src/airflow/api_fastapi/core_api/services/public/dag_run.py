@@ -21,7 +21,7 @@ import asyncio
 import itertools
 import json
 import operator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
 from fastapi import HTTPException, status
@@ -31,11 +31,12 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionResponse,
+    BulkBody,
     BulkCreateAction,
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDagRunBody, DAGRunPatchStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody, DAGRunPatchStates
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -46,6 +47,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
 
     from sqlalchemy import ScalarResult
+
+
+DagRunKey: TypeAlias = tuple[str, str]
+"""Unique identifier for a DagRun as (dag_id, dag_run_id)."""
 
 
 @attrs.define
@@ -101,12 +106,21 @@ class DagRunWaiter:
             yield "\n"
 
 
-class BulkDagRunService(BulkService[BulkDagRunBody]):
+class BulkDagRunService(BulkService[DAGRunPatchBody]):
     """Service for handling bulk operations on dag runs."""
 
-    def _categorize_dag_runs(
-        self, dag_run_keys: set[tuple[str, str]]
-    ) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]], set[tuple[str, str]]]:
+    def __init__(
+        self,
+        session: SessionDep,
+        request: BulkBody[DAGRunPatchBody],
+        dag_id: str,
+    ):
+        super().__init__(session, request)
+        self.dag_id = dag_id
+
+    def categorize_dag_runs(
+        self, dag_run_keys: set[DagRunKey]
+    ) -> tuple[dict[DagRunKey, DagRun], set[DagRunKey], set[DagRunKey]]:
         dag_runs = self.session.scalars(
             select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(dag_run_keys)))
         ).all()
@@ -116,41 +130,41 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
         return dag_runs_map, matched_keys, not_found_keys
 
     def handle_bulk_create(
-        self, action: BulkCreateAction[BulkDagRunBody], results: BulkActionResponse
+        self, action: BulkCreateAction[DAGRunPatchBody], results: BulkActionResponse
     ) -> None:
         results.errors.append(
             {
-                "error": "Dag runs bulk create is not supported",
-                "status_code": status.HTTP_405_METHOD_NOT_ALLOWED,
+                "error": "Dag runs bulk create is not implemented",
+                "status_code": status.HTTP_501_NOT_IMPLEMENTED,
             }
         )
 
     def handle_bulk_update(
-        self, action: BulkUpdateAction[BulkDagRunBody], results: BulkActionResponse
+        self, action: BulkUpdateAction[DAGRunPatchBody], results: BulkActionResponse
     ) -> None:
         results.errors.append(
             {
-                "error": "Dag runs bulk update is not supported",
-                "status_code": status.HTTP_405_METHOD_NOT_ALLOWED,
+                "error": "Dag runs bulk update is not implemented",
+                "status_code": status.HTTP_501_NOT_IMPLEMENTED,
             }
         )
 
     def handle_bulk_delete(
-        self, action: BulkDeleteAction[BulkDagRunBody], results: BulkActionResponse
+        self, action: BulkDeleteAction[DAGRunPatchBody], results: BulkActionResponse
     ) -> None:
-        dag_run_keys: set[tuple[str, str]] = set()
+        dag_run_keys: set[DagRunKey] = set()
         for dag_run_entity in action.entities:
-            if isinstance(dag_run_entity, str):
+            if not isinstance(dag_run_entity, str):
                 results.errors.append(
                     {
-                        "error": "DagRun bulk delete requires objects with dag_id and dag_run_id",
+                        "error": "DagRun bulk delete requires entities to be dag_run_id strings",
                         "status_code": status.HTTP_400_BAD_REQUEST,
                     }
                 )
                 return
-            dag_run_keys.add((dag_run_entity.dag_id, dag_run_entity.dag_run_id))
+            dag_run_keys.add((self.dag_id, dag_run_entity))
 
-        dag_runs_map, matched_keys, not_found_keys = self._categorize_dag_runs(dag_run_keys)
+        dag_runs_map, matched_keys, not_found_keys = self.categorize_dag_runs(dag_run_keys)
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
