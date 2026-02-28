@@ -232,24 +232,23 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.11"
+AIRFLOW_PIP_VERSION = "26.0.1"
+AIRFLOW_UV_VERSION = "0.10.7"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
-WHEEL_VERSION = "0.44.0"
-GITPYTHON_VERSION = "3.1.43"
-RICH_VERSION = "13.9.4"
-NODE_VERSION = "22.2.0"
+WHEEL_VERSION = "0.46.3"
+GITPYTHON_VERSION = "3.1.46"
+RICH_VERSION = "14.3.3"
+NODE_VERSION = "22.22.0"
 PREK_VERSION = "0.3.2"
-HATCH_VERSION = "1.13.0"
-PYYAML_VERSION = "6.0.2"
+HATCH_VERSION = "1.16.5"
+PYYAML_VERSION = "6.0.3"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
 RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
- gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} prek=={PREK_VERSION} \
- "virtualenv<21" # Temporary pin for https://github.com/pypa/hatch/issues/2193
+ gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} prek=={PREK_VERSION}
 COPY . /opt/airflow
 """
 

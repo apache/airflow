@@ -150,7 +150,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv<21",  # Temporary pin for https://github.com/pypa/hatch/issues/2193
+        "virtualenv",
     ],
 }
 
@@ -197,7 +197,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-devscripts": [
         "click>=8.0",
         "gitpython>=3.1.40",
-        "hatch>=1.9.1",
+        "hatch>=1.16.5",
         # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
         "incremental!=24.7.0,!=24.7.1,>=22.10.0",
         "pipdeptree>=2.13.1",
