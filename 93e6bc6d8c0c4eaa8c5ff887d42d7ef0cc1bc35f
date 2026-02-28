@@ -1,0 +1,23 @@
+tests/core/test_configuration.py
+  0ee7142bb0a0a8e0 1028-1061
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.7",
+  "base_commit_sha": "93e6bc6d8c0c4eaa8c5ff887d42d7ef0cc1bc35f",
+  "prompts": {
+    "0ee7142bb0a0a8e0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cabef776-11ba-4a6f-9dde-8fb08aefd3c2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 40,
+      "total_deletions": 0,
+      "accepted_lines": 36,
+      "overriden_lines": 0
+    }
+  }
+}
