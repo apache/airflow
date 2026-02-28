@@ -26,6 +26,7 @@ import re
 import time
 import uuid
 import warnings
+from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -1614,7 +1615,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.buffersize: int | None = None
         self.page_token: str | None = None
         self.job_id: str | None = None
-        self.buffer: list = []
+        self.buffer: deque = deque()
         self.all_pages_loaded: bool = False
         self._description: list = []
 
@@ -1669,7 +1670,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.page_token = None
         self.job_id = None
         self.all_pages_loaded = False
-        self.buffer = []
+        self.buffer = deque()
 
     def fetchone(self) -> list | None:
         """Fetch the next row of a query result set."""
@@ -1709,7 +1710,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 self.flush_results()
                 return None
 
-        return self.buffer.pop(0)
+        return self.buffer.popleft()
 
     def fetchmany(self, size: int | None = None) -> list:
         """

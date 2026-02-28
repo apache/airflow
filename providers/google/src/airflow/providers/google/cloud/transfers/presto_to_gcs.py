@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -44,7 +45,7 @@ class _PrestoToGCSPrestoCursorAdapter:
 
     def __init__(self, cursor: PrestoCursor):
         self.cursor: PrestoCursor = cursor
-        self.rows: list[Any] = []
+        self.rows: deque[Any] = deque()
         self.initialized: bool = False
 
     @property
@@ -82,7 +83,7 @@ class _PrestoToGCSPrestoCursorAdapter:
     def execute(self, *args, **kwargs) -> PrestoResult:
         """Prepare and execute a database operation (query or command)."""
         self.initialized = False
-        self.rows = []
+        self.rows = deque()
         return self.cursor.execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
@@ -93,20 +94,20 @@ class _PrestoToGCSPrestoCursorAdapter:
         all parameter sequences or mappings found in the sequence seq_of_parameters.
         """
         self.initialized = False
-        self.rows = []
+        self.rows = deque()
         return self.cursor.executemany(*args, **kwargs)
 
     def peekone(self) -> Any:
         """Return the next row without consuming it."""
         self.initialized = True
         element = self.cursor.fetchone()
-        self.rows.insert(0, element)
+        self.rows.appendleft(element)
         return element
 
     def fetchone(self) -> Any:
         """Fetch the next row of a query result set, returning a single sequence, or ``None``."""
         if self.rows:
-            return self.rows.pop(0)
+            return self.rows.popleft()
         return self.cursor.fetchone()
 
     def fetchmany(self, size=None) -> list:
