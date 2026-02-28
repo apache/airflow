@@ -666,24 +666,23 @@ def test_latest_run_with_run(dag_maker, session):
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    ("schedule", "partition_key", "expected"),
+    ("schedule", "expected"),
     [
-        (
+        pytest.param(
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            "key-1",
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=None,
                 partition_date=START_DATE + datetime.timedelta(days=3),
                 partition_key="key-1",
             ),
+            id="cron-partition",
         ),
-        (
+        pytest.param(
             "0 0 * * *",
-            None,
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=DataInterval(
@@ -693,10 +692,11 @@ def test_latest_run_with_run(dag_maker, session):
                 partition_date=None,
                 partition_key=None,
             ),
+            id="cron-trigger",
         ),
     ],
 )
-def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, session):
+def test_run_info_from_dag_run(schedule, expected, dag_maker, session):
     with dag_maker(
         "test",
         start_date=START_DATE,
@@ -711,7 +711,8 @@ def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, ses
         data_interval=None,
         run_type="scheduled",
         run_after=START_DATE + datetime.timedelta(days=3),
-        partition_key=partition_key,
+        partition_key=expected.partition_key,
+        partition_date=expected.partition_date,
         session=session,
     )
     info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
