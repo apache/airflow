@@ -95,6 +95,21 @@ That is the user's fork remote. If no such remote exists, create the fork and ad
 gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
 ```
 
+Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
+in [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst) and the
+code review checklist in [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md):
+
+1. Review the full diff (`git diff main...HEAD`) and verify every change is intentional and
+   related to the task — remove any unrelated changes.
+2. Read `.github/instructions/code-review.instructions.md` and check your diff against every
+   rule — architecture boundaries, database correctness, code quality, testing requirements,
+   API correctness, and AI-generated code signals. Fix any violations before pushing.
+3. Confirm the code follows the project's coding standards and architecture boundaries
+   described in this file.
+4. Run static checks (`prek run --all-files`) and fix any failures.
+5. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
+6. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
 Then push the branch to the user's fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
