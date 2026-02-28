@@ -70,8 +70,8 @@ connection-types:
     connection-type: pinecone
     ui-field-behaviour:
       hidden-fields:
-      - port
-      - schema
+        - port
+        - schema
       relabeling:
         login: Pinecone Environment
         host: Pinecone Host
@@ -81,21 +81,21 @@ connection-types:
         label: Pinecone Region
         schema:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
       debug_curl:
         label: PINECONE_DEBUG_CURL
         schema:
           type:
-          - boolean
-          - 'null'
+            - boolean
+            - 'null'
           default: false
       project_id:
         label: Project ID
         schema:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
 
 operators:
   - integration-name: Pinecone
