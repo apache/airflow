@@ -175,9 +175,12 @@ class ConfigParams:
 
     @cached_property
     def eager_upgrade_additional_requirements_list(self) -> list[str]:
+        # grpcio 1.78.1 yanked from PyPI - caused gcloud serverless outage
+        # See https://github.com/grpc/grpc/issues/41725 and Apache Airflow #62595
+        reqs = ["grpcio!=1.78.1"]
         if self.eager_upgrade_additional_requirements:
-            return self.eager_upgrade_additional_requirements.split(" ")
-        return []
+            reqs.extend(self.eager_upgrade_additional_requirements.split(" "))
+        return reqs
 
 
 def install_local_airflow_with_eager_upgrade(config_params: ConfigParams) -> None:
