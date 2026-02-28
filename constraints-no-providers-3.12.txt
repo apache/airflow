@@ -82,7 +82,7 @@ google-re2==1.1.20251105
 googleapis-common-protos==1.72.0
 graphviz==0.21
 greenlet==3.3.2
-grpcio==1.78.1
+grpcio==1.78.0
 gssapi==1.11.1
 gunicorn==25.1.0
 h11==0.16.0

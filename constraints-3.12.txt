@@ -383,7 +383,7 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.71.2
 grpcio-tools==1.71.2
-grpcio==1.78.1
+grpcio==1.78.0
 gssapi==1.11.1
 gunicorn==25.1.0
 h11==0.16.0
