@@ -975,7 +975,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             assets = select(AssetModel).where(assets_select_condition).cte()
 
             if not AIRFLOW_V_3_2_PLUS:
-                assets = self.session.scalars(select(assets)).all()
+                assets = self.session.scalars(
+                    select(AssetModel).join(assets, AssetModel.id == AssetModel.id)
+                ).all()
 
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
