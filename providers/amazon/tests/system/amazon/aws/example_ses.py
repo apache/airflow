@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.ses import SesEmailOperator
@@ -24,23 +23,16 @@ from airflow.providers.amazon.aws.operators.ses import SesEmailOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, chain, task
+    from airflow.sdk import DAG, chain
 else:
     # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
+from system.amazon.aws.utils import SystemTestContextBuilder
 
-@task
-def get_verified_email() -> str:
-    email = os.getenv("SES_VERIFIED_EMAIL")
-    if not email:
-        raise ValueError(
-            "Please set SES_VERIFIED_EMAIL environment variable to a verified email address in your SES account"
-        )
-    return email
-
+SES_VERIFIED_EMAIL_KEY = "SES_VERIFIED_EMAIL"
+sys_test_context_task = SystemTestContextBuilder().add_variable(SES_VERIFIED_EMAIL_KEY).build()
 
 with DAG(
     dag_id="example_ses",
@@ -49,7 +41,8 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    verified_email = get_verified_email()
+    test_context = sys_test_context_task()
+    verified_email = test_context[SES_VERIFIED_EMAIL_KEY]
 
     # [START howto_operator_ses_email_basic]
     # Basic email sending
@@ -111,7 +104,7 @@ with DAG(
     # [END howto_operator_ses_email_templated]
 
     chain(
-        verified_email,
+        test_context,
         send_basic_email,
         send_email_with_cc_bcc,
         send_email_with_headers,
