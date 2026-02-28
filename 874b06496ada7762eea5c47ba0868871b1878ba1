@@ -1,0 +1,35 @@
+airflow/models/dagrun.py
+  0ee7142bb0a0a8e0 1658
+tests/utils/log/test_log_reader.py
+  0ee7142bb0a0a8e0 123,141,157,169,269
+tests/utils/test_log_handlers.py
+  0ee7142bb0a0a8e0 592,627
+airflow/configuration.py
+  0ee7142bb0a0a8e0 378-382
+tests/www/views/test_views_log.py
+  0ee7142bb0a0a8e0 302
+tests/utils/log/test_file_processor_handler.py
+  0ee7142bb0a0a8e0 64
+newsfragments/11111.bugfix.rst
+  0ee7142bb0a0a8e0 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "874b06496ada7762eea5c47ba0868871b1878ba1",
+  "prompts": {
+    "0ee7142bb0a0a8e0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cabef776-11ba-4a6f-9dde-8fb08aefd3c2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 17,
+      "total_deletions": 16,
+      "accepted_lines": 17,
+      "overriden_lines": 0
+    }
+  }
+}
