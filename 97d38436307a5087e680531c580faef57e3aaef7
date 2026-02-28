@@ -1,0 +1,27 @@
+.devcontainer/devcontainer.json
+  4cff7325bc6d2e5c 7-9
+.devcontainer/postgres/devcontainer.json
+  4cff7325bc6d2e5c 8-10
+.devcontainer/mysql/devcontainer.json
+  4cff7325bc6d2e5c 8-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.7",
+  "base_commit_sha": "97d38436307a5087e680531c580faef57e3aaef7",
+  "prompts": {
+    "4cff7325bc6d2e5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "68331c1a-7826-4a20-993b-d35beb5c95f4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 0,
+      "accepted_lines": 9,
+      "overriden_lines": 0
+    }
+  }
+}
