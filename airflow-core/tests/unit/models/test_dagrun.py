@@ -510,17 +510,17 @@ class TestDagRun:
         serialized_dag = dr.get_dag()
 
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dr.update_state()
+            _, callback = dr.update_state(execute_callbacks=True)
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
         ]
-        # Make sure the correct TI is passed on timeout
+        # Make sure the correct TI is passed on deadlock
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
         assert ti_passed.task_id == "wrong"
 
         assert dr.state == DagRunState.FAILED
-        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        # Callbacks is None as execute_callbacks=True
         assert callback is None
 
     def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
