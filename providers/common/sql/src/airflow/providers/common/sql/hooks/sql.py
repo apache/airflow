@@ -336,7 +336,7 @@ class DbApiHook(BaseHook):
         self.log.debug("engine_kwargs: %s", engine_kwargs)
         return create_engine(url=url, **engine_kwargs)
 
-    @property
+    @cached_property
     def inspector(self) -> Inspector:
         if inspect is None:
             raise AirflowOptionalProviderFeatureException(

@@ -118,6 +118,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return SimpleAuthManager._get_passwords(file)
 
     def init(self) -> None:
+        super().init()
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
@@ -359,6 +360,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             )
 
         return app
+
+    def _get_teams(self) -> set[str]:
+        users = self.get_users()
+        return {team for user in users for team in user.teams}
 
     @staticmethod
     def _is_admin(user: SimpleAuthManagerUser) -> bool:

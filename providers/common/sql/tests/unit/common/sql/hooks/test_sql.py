@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import polars as pl
@@ -332,3 +332,14 @@ class TestDbApiHook:
         else:
             df = dbapi_hook.get_df("SQL", df_type=df_type)
             assert isinstance(df, expected_type)
+
+
+def test_inspector_is_cached():
+    """inspector should return the same object on repeated access (not create N engines)."""
+    hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+    mock_engine = MagicMock()
+    with patch.object(hook, "get_sqlalchemy_engine", return_value=mock_engine) as mock_get_engine:
+        inspector1 = hook.inspector
+        inspector2 = hook.inspector
+        assert inspector1 is inspector2
+        mock_get_engine.assert_called_once()
