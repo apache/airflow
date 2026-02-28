@@ -62,6 +62,13 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook",
                 "connection-type": "spark_connect",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"password": "Token", "login": "User ID"},
+                },
+                "conn-fields": {
+                    "use_ssl": {"label": "Use SSL", "schema": {"type": ["boolean", "null"], "default": False}}
+                },
             },
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook",
@@ -70,10 +77,50 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook",
                 "connection-type": "spark_sql",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "password", "extra"],
+                    "relabeling": {},
+                },
+                "conn-fields": {
+                    "queue": {
+                        "label": "YARN queue",
+                        "description": "Default YARN queue to use",
+                        "schema": {"type": ["string", "null"]},
+                    }
+                },
             },
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook",
                 "connection-type": "spark",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "password", "extra"],
+                    "relabeling": {},
+                    "placeholders": {"keytab": "<base64 encoded Keytab Content>"},
+                },
+                "conn-fields": {
+                    "queue": {
+                        "label": "YARN queue",
+                        "description": "Default YARN queue to use",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "deploy-mode": {
+                        "label": "Deploy mode",
+                        "description": "Must be client or cluster",
+                        "schema": {"type": ["string", "null"], "default": "client"},
+                    },
+                    "spark-binary": {
+                        "label": "Spark binary",
+                        "description": "Must be one of: spark-submit, spark2-submit, spark3-submit",
+                        "schema": {"type": ["string", "null"], "default": "spark-submit"},
+                    },
+                    "namespace": {"label": "Kubernetes namespace", "schema": {"type": ["string", "null"]}},
+                    "principal": {"label": "Principal", "schema": {"type": ["string", "null"]}},
+                    "keytab": {
+                        "label": "Keytab",
+                        "description": "Run the command `base64 <your-keytab-path>` and use its output.",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                },
             },
         ],
         "task-decorators": [

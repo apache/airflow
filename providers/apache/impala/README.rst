@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-impala``
 
-Release: ``1.8.1``
+Release: ``1.9.0``
 
 
 `Apache Impala <https://impala.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.impala`` provider. All classes for this 
 are in ``airflow.providers.apache.impala`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.8.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.0/>`_.
 
 Installation
 ------------
@@ -54,8 +54,8 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``impyla``                                  ``>=0.22.0,<1.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow``                          ``>=2.11.0``
 ==========================================  ==================
 
@@ -90,4 +90,4 @@ Extra           Dependencies
 ==============  ======================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.8.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.0/changelog.html>`_.

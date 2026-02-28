@@ -96,6 +96,25 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.hive.hooks.hive.HiveCliHook",
                 "connection-type": "hive_cli",
+                "ui-field-behaviour": {"hidden-fields": ["extra"], "relabeling": {}},
+                "conn-fields": {
+                    "use_beeline": {
+                        "label": "Use Beeline",
+                        "schema": {"type": ["boolean", "null"], "default": True},
+                    },
+                    "proxy_user": {
+                        "label": "Proxy User",
+                        "schema": {"type": ["string", "null"], "default": ""},
+                    },
+                    "principal": {
+                        "label": "Principal",
+                        "schema": {"type": ["string", "null"], "default": "hive/_HOST@EXAMPLE.COM"},
+                    },
+                    "high_availability": {
+                        "label": "High Availability mode",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook",

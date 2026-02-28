@@ -89,14 +89,10 @@ class TestFlowerDeployment:
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     @pytest.mark.parametrize(
-        ("airflow_version", "expected_arg"),
-        [
-            ("2.0.2", "airflow celery flower"),
-            ("1.10.14", "airflow flower"),
-            ("2.1.0", "airflow celery flower"),
-        ],
+        "airflow_version",
+        ["2.11.0", "3.0.0"],
     )
-    def test_args_with_airflow_version(self, airflow_version, expected_arg):
+    def test_args_with_airflow_version(self, airflow_version):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
@@ -109,7 +105,7 @@ class TestFlowerDeployment:
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg}",
+            "exec \\\nairflow celery flower",
         ]
 
     @pytest.mark.parametrize(

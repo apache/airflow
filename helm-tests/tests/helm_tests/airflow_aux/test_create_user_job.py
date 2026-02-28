@@ -342,14 +342,8 @@ class TestCreateUserJob:
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "expected_arg"),
-        [
-            ("1.10.14", "airflow create_user"),
-            ("2.0.2", "airflow users create"),
-        ],
-    )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_default_command_and_args_airflow_version(self, airflow_version):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -358,10 +352,10 @@ class TestCreateUserJob:
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert [
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f'exec \\\n{expected_arg} "$@"',
+            'exec \\\nairflow users create "$@"',
             "--",
             "-r",
             "Admin",
@@ -375,7 +369,7 @@ class TestCreateUserJob:
             "user",
             "-p",
             "admin",
-        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        ]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])

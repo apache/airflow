@@ -23,6 +23,7 @@ airflowctl facilitates the seamless deployment of CLI and API features together,
 - **Authentication**: airflowctl uses authentication to ensure that only authorized users can access the system. This is done using an API Token. See more on https://airflow.apache.org/docs/apache-airflow/stable/security/api.html
 
 - **Keyring**: airflowctl uses keyring to store the API Token securely. This ensures that the Token is not stored in plain text and is only accessible to authorized users.
+   - In case no keyring is available, you can set the ``AIRFLOW_CLI_TOKEN`` environment variable or the ``--api-token`` flag for each command. Be cautious of not exposing this token to others.
 
 airflowctl API Token has its own expiration time. The default is 1 hour. You can change it in the Airflow configuration file (airflow.cfg) by setting the ``jwt_cli_expiration_time`` parameter under the ``[api_auth]`` section. The value is in seconds. This will impact all users using ``airflowctl``.
 
