@@ -498,7 +498,7 @@ class TestDagRun:
             middle.trigger_rule = TriggerRule.ONE_FAILED
             middle.set_upstream(up)
             middle.set_downstream(down)
-        
+
         dr = dag_maker.create_dagrun()
 
         ti_up: TI = dr.get_task_instance(task_id=up.task_id, session=session)
@@ -507,7 +507,7 @@ class TestDagRun:
         ti_middle.set_state(state=None, session=session)
         ti_middle.task.trigger_rule = "invalid"
 
-        serialized_dag = dr.get_dag()  
+        serialized_dag = dr.get_dag()
 
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dr.update_state()

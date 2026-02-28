@@ -1248,7 +1248,7 @@ class DagRun(Base, LoggingMixin):
             if dag.has_on_success_callback:
                 last_succeeded_ti: TI | None = max(
                     (ti for ti in tis if ti.state == TaskInstanceState.SUCCESS),
-                    key=lambda ti: ti.end_date,
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
                     default=None,
                 )
                 callback = self.produce_dag_callback(
@@ -1281,7 +1281,8 @@ class DagRun(Base, LoggingMixin):
                 unfinished_non_schedulable = (ti for ti in unfinished.tis if ti not in set(schedulable_tis))
                 finished_task_ids = {ti.task_id for ti in finished_tis}
                 blocking_ti = next(iter(
-                    ti for ti in unfinished_non_schedulable if not (
+                    ti for ti in unfinished_non_schedulable
+                    if ti.task and not (
                         ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids)
                     )
                 ), None)
