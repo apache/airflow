@@ -22,13 +22,12 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
-
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
         validate_sql as _validate_sql,
     )
+    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
