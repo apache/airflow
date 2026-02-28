@@ -2452,7 +2452,7 @@
                     ]
                 },
                 "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file. If not set, the values from global `containerLifecycleHooks` will be used. Use `workers.celery.containerLifecycleHooks` and/or `workers.kubernetes.containerLifecycleHooks` to separate value between Celery workers and pod-template-file.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                     "default": {},
@@ -2850,6 +2850,35 @@
                                 }
                             }
                         },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for Airflow Celery workers. If not set, the values from `workers.containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
                         "persistence": {
                             "description": "Persistence configuration for Airflow Celery workers.",
                             "type": "object",
@@ -3064,6 +3093,35 @@
                                     ]
                                 }
                             }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for pods created with pod-template-file. If not set, the values from `workers.containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
                         },
                         "kerberosInitContainer": {
                             "description": "Kerberos init container for pods created with pod-template-file.",
