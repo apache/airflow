@@ -20,7 +20,7 @@
 Add connection_test table.
 
 Revision ID: a7e6d4c3b2f1
-Revises: 509b94a1042d
+Revises: 888b59e02a5b
 Create Date: 2026-02-22 00:00:00.000000
 
 """
@@ -34,7 +34,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "a7e6d4c3b2f1"
-down_revision = "509b94a1042d"
+down_revision = "888b59e02a5b"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
