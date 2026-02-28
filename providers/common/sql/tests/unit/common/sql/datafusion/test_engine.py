@@ -251,3 +251,45 @@ class TestDataFusionEngine:
 
         with pytest.raises(ValueError, match="Unknown connection type dummy"):
             engine._get_credentials(mock_conn)
+
+    def test_get_schema_success(self):
+        engine = DataFusionEngine()
+        engine.df_ctx = MagicMock(spec=SessionContext)
+        mock_table = MagicMock()
+        mock_schema = MagicMock()
+        mock_schema.__str__ = lambda self: "id: int64, name: string"
+        mock_table.schema.return_value = mock_schema
+        engine.df_ctx.table.return_value = mock_table
+
+        result = engine.get_schema("test_table")
+
+        engine.df_ctx.table.assert_called_once_with("test_table")
+        mock_table.schema.assert_called_once()
+        assert result == "id: int64, name: string"
+
+    @patch.object(DataFusionEngine, "_get_connection_config")
+    def test_get_schema_with_local_csv(self, mock_get_conn):
+        mock_get_conn.return_value = None
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("name,age\nAlice,30\nBob,25\n")
+            csv_path = f.name
+
+        try:
+            engine = DataFusionEngine()
+            datasource_config = DataSourceConfig(
+                table_name="test_csv",
+                uri=f"file://{csv_path}",
+                format="csv",
+                storage_type="local",
+                conn_id="",
+            )
+
+            engine.register_datasource(datasource_config)
+
+            result = engine.get_schema("test_csv")
+
+            assert "name: string" in result
+            assert "age: int64" in result
+        finally:
+            os.unlink(csv_path)

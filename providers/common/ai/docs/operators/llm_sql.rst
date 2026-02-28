@@ -51,6 +51,53 @@ the actual column names and types:
     :start-after: [START howto_operator_llm_sql_schema]
     :end-before: [END howto_operator_llm_sql_schema]
 
+With Object Storage
+-------------------
+
+Use ``datasource_config`` to generate queries for data stored in object storage
+(e.g., S3, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
+The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
+to register the object storage source as a table so the LLM can include it in
+the schema context.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
+    :language: python
+    :start-after: [START howto_operator_llm_sql_with_object_storage]
+    :end-before: [END howto_operator_llm_sql_with_object_storage]
+
+Once the SQL is generated, you can execute it against object storage data using
+:class:`~airflow.providers.common.sql.operators.analytics.AnalyticsOperator`.
+Chain the two operators so that the generated query flows into the analytics
+execution step:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+    from airflow.providers.common.sql.config import DataSourceConfig
+    from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
+
+    datasource_config = DataSourceConfig(
+        conn_id="aws_default",
+        table_name="sales_data",
+        uri="s3://my-bucket/data/sales/",
+        format="parquet",
+    )
+
+    generate_sql = LLMSQLQueryOperator(
+        task_id="generate_sql",
+        prompt="Find the top 5 products by total sales amount",
+        llm_conn_id="pydantic_ai_default",
+        datasource_config=datasource_config,
+    )
+
+    run_query = AnalyticsOperator(
+        task_id="run_query",
+        datasource_configs=[datasource_config],
+        queries=["{{ ti.xcom_pull(task_ids='generate_sql') }}"],
+    )
+
+    generate_sql >> run_query
+
 TaskFlow Decorator
 ------------------
 

@@ -89,6 +89,7 @@ dev = [
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=26.0.0",
+    "apache-airflow-providers-common-sql[datafusion]"
 ]
 
 # To build docs:

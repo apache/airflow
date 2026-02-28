@@ -165,3 +165,8 @@ class DataFusionEngine(LoggingMixin):
     def _remove_none_values(params: dict[str, Any]) -> dict[str, Any]:
         """Filter out None values from the dictionary."""
         return {k: v for k, v in params.items() if v is not None}
+
+    def get_schema(self, table_name: str):
+        """Get the schema of a table."""
+        schema = str(self.session_context.table(table_name).schema())
+        return schema
