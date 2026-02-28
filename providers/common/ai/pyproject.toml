@@ -72,6 +72,13 @@ dependencies = [
 "common.compat" = [
     "apache-airflow-providers-common-compat"
 ]
+"sql" = [
+    "apache-airflow-providers-common-sql",
+    "sqlglot>=26.0.0",
+]
+"common.sql" = [
+    "apache-airflow-providers-common-sql"
+]
 
 [dependency-groups]
 dev = [
@@ -79,7 +86,9 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "sqlglot>=26.0.0",
 ]
 
 # To build docs:
