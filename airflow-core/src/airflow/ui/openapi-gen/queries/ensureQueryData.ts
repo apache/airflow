@@ -1560,6 +1560,29 @@ export const ensureUseDashboardServiceHistoricalMetricsData = (queryClient: Quer
 */
 export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseDashboardServiceDagStatsKeyFn(), queryFn: () => DashboardService.dagStats() });
 /**
+* Get Deadlines
+* Get all deadlines across DAG runs, with optional filtering.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.missed
+* @param data.deadlineTimeGte
+* @param data.deadlineTimeLte
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+* @returns DeadlineWithDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClient, { dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
+  dagId?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLte?: string;
+  limit?: number;
+  missed?: boolean;
+  offset?: number;
+  orderBy?: string[];
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }) });
+/**
 * Get Dag Run Deadlines
 * Get all deadlines for a specific DAG run.
 * @param data The data for the request.
@@ -1578,6 +1601,23 @@ export const ensureUseDeadlinesServiceGetDagRunDeadlinesData = (queryClient: Que
   offset?: number;
   orderBy?: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) });
+/**
+* Get Dag Deadline Alerts
+* Get all deadline alerts defined on a DAG.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+* @returns DeadlineAlertCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDeadlinesServiceGetDagDeadlineAlertsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) });
 /**
 * Structure Data
 * Get Structure Data.

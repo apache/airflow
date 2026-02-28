@@ -1921,6 +1921,26 @@ export type DashboardDagStatsResponse = {
 };
 
 /**
+ * DeadlineAlert Collection serializer for responses.
+ */
+export type DeadlineAlertCollectionResponse = {
+    deadline_alerts: Array<DeadlineAlertResponse>;
+    total_entries: number;
+};
+
+/**
+ * DeadlineAlert serializer for responses.
+ */
+export type DeadlineAlertResponse = {
+    id: string;
+    name?: string | null;
+    description?: string | null;
+    reference_type: string;
+    interval: number;
+    created_at: string;
+};
+
+/**
  * Deadline Collection serializer for responses.
  */
 export type DeadlineCollectionResponse = {
@@ -1936,6 +1956,28 @@ export type DeadlineResponse = {
     deadline_time: string;
     missed: boolean;
     created_at: string;
+    alert_name?: string | null;
+    alert_description?: string | null;
+};
+
+/**
+ * Deadline Collection serializer for responses that includes DAG and DAG run identifiers.
+ */
+export type DeadlineWithDagRunCollectionResponse = {
+    deadlines: Array<DeadlineWithDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Deadline serializer for responses that includes DAG and DAG run identifiers.
+ */
+export type DeadlineWithDagRunResponse = {
+    id: string;
+    deadline_time: string;
+    missed: boolean;
+    created_at: string;
+    dag_id: string;
+    dag_run_id: string;
     alert_name?: string | null;
     alert_description?: string | null;
 };
@@ -3580,6 +3622,21 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type DagStatsResponse2 = DashboardDagStatsResponse;
 
+export type GetDeadlinesData = {
+    dagId?: string | null;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLte?: string | null;
+    limit?: number;
+    missed?: boolean | null;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDeadlinesResponse = DeadlineWithDagRunCollectionResponse;
+
 export type GetDagRunDeadlinesData = {
     dagId: string;
     dagRunId: string;
@@ -3592,6 +3649,18 @@ export type GetDagRunDeadlinesData = {
 };
 
 export type GetDagRunDeadlinesResponse = DeadlineCollectionResponse;
+
+export type GetDagDeadlineAlertsData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -6852,6 +6921,21 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/deadlines': {
+        get: {
+            req: GetDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DeadlineWithDagRunCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines': {
         get: {
             req: GetDagRunDeadlinesData;
@@ -6860,6 +6944,25 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/deadlineAlerts': {
+        get: {
+            req: GetDagDeadlineAlertsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DeadlineAlertCollectionResponse;
                 /**
                  * Not Found
                  */
