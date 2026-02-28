@@ -54,7 +54,7 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
-    "hatch>=1.14.1",
+    "hatch>=1.16.5",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
@@ -76,8 +76,7 @@ dependencies = [
     "twine>=4.0.2",
     "tqdm>=4.67.1",
     "boto3>=1.34.90",
-    "semver>=3.0.4",
-    "virtualenv<21" # Temporary pin for https://github.com/pypa/hatch/issues/2193
+    "semver>=3.0.4"
 ]
 
 [project.scripts]
