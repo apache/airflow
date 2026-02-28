@@ -419,7 +419,10 @@ def find_matching_long_package_names(
     removed_packages: list[str] = [
         f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
-    all_packages_including_removed: list[str] = available_doc_packages + removed_packages
+    not_ready_packages: list[str] = [
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_not_ready_provider_ids()
+    ]
+    all_packages_including_removed: list[str] = available_doc_packages + removed_packages + not_ready_packages
     invalid_filters = [
         f
         for f in processed_package_filters

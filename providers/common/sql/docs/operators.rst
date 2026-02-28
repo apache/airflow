@@ -317,3 +317,14 @@ Local File System Storage
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_local]
     :end-before: [END howto_analytics_operator_with_local]
+
+Analytics TaskFlow Decorator
+----------------------------
+
+The ``@task.analytics`` decorator lets you write a function that returns the
+analytics sql queries:
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :start-after: [START howto_analytics_decorator]
+    :end-before: [END howto_analytics_decorator]

@@ -20,7 +20,7 @@ import datetime
 
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, task
 
 datasource_config_s3 = DataSourceConfig(
     conn_id="aws_default", table_name="users_data", uri="s3://bucket/path/", format="parquet"
@@ -56,3 +56,12 @@ with DAG(
     )
     analytics_with_s3 >> analytics_with_local
     # [END howto_analytics_operator_with_local]
+
+    # [START howto_analytics_decorator]
+    @task.analytics(datasource_configs=[datasource_config_s3])
+    def get_user_summary_queries():
+        return ["SELECT * FROM users_data LIMIT 10", "SELECT count(*) FROM users_data"]
+
+    # [END howto_analytics_decorator]
+
+    analytics_with_local >> get_user_summary_queries()
