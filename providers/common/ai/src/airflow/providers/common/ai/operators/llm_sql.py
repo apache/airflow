@@ -133,6 +133,7 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def execute(self, context: Context) -> str:
         schema_info = self._get_schema_context()
+
         full_system_prompt = self._build_system_prompt(schema_info)
 
         agent = self.llm_hook.create_agent(
@@ -163,8 +164,9 @@ class LLMSQLQueryOperator(LLMOperator):
         """Return schema context from manual override or database introspection."""
         if self.schema_context:
             return self.schema_context
-        if self.db_hook and self.table_names:
+        if (self.db_hook and self.table_names) or self.datasource_config:
             return self._introspect_schemas()
+
         return ""
 
     def _introspect_schemas(self) -> str:
