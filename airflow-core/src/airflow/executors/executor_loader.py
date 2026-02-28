@@ -301,7 +301,7 @@ class ExecutorLoader:
 
     @classmethod
     def lookup_executor_name_by_str(
-        cls, executor_name_str: str, team_name: str | None = None
+        cls, executor_name_str: str, team_name: str | None = None, validate_teams: bool = True
     ) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
         if (
@@ -310,7 +310,7 @@ class ExecutorLoader:
             or not _alias_to_executors_per_team
         ):
             # if we haven't loaded the executors yet, such as directly calling load_executor
-            cls._get_executor_names()
+            cls._get_executor_names(validate_teams)
 
         if executor_name := _alias_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name

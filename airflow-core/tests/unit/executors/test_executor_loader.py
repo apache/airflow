@@ -614,6 +614,27 @@ class TestExecutorLoader:
                 executor_loader.ExecutorLoader.get_executor_names(validate_teams=False)
                 mock_get_team_names.assert_not_called()
 
+    def test_lookup_executor_name_by_str_skips_db_when_validate_teams_false(self):
+        """Regression test: lookup_executor_name_by_str with validate_teams=False must not access the DB.
+
+        During DAG parsing in Airflow 3, database access is blocked. The lookup_executor_name_by_str
+        method is called from _validate_executor_fields during parsing, so it must be able to resolve
+        executor names using only local config without triggering _validate_teams_exist_in_database.
+        """
+        with conf_vars(
+            {("core", "executor"): "=LocalExecutor;team1=CeleryExecutor", ("core", "multi_team"): "True"}
+        ):
+            with patch.object(
+                executor_loader.ExecutorLoader,
+                "_validate_teams_exist_in_database",
+                side_effect=RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0"),
+            ):
+                # Should succeed without hitting the database
+                result = executor_loader.ExecutorLoader.lookup_executor_name_by_str(
+                    "LocalExecutor", validate_teams=False
+                )
+                assert result.alias == "LocalExecutor"
+
     def test_get_executor_names_default_validates_teams(self):
         """Test that get_executor_names validates teams by default."""
         with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
