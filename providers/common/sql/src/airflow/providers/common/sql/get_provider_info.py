@@ -41,6 +41,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.sql.operators.sql",
                     "airflow.providers.common.sql.operators.generic_transfer",
+                    "airflow.providers.common.sql.operators.analytics",
                 ],
             }
         ],

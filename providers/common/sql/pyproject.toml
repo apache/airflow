@@ -85,12 +85,19 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
 ]
+"amazon" = [
+    "apache-airflow-providers-amazon"
+]
+"datafusion" =[
+    "datafusion>=50.0.0",
+]
 
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -100,7 +107,8 @@ dev = [
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
-    "apache-airflow-providers-common-sql[sqlalchemy]"
+    "apache-airflow-providers-common-sql[sqlalchemy]",
+    "datafusion>=50.0.0"
 ]
 
 # To build docs:
