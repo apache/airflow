@@ -589,7 +589,7 @@ class TestFileTaskLogHandler:
 
 
 class TestFilenameRendering:
-    @conf_vars({("core", "use_historical_filename_templates"): "True"})
+    @conf_vars({("logging", "use_historical_filename_templates"): "True"})
     def test_python_formatting(self, create_log_template, create_task_instance):
         create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
@@ -624,7 +624,7 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    @conf_vars({("core", "use_historical_filename_templates"): "True"})
+    @conf_vars({("logging", "use_historical_filename_templates"): "True"})
     def test_jinja_rendering(self, create_log_template, create_task_instance):
         create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
         filename_rendering_ti = create_task_instance(

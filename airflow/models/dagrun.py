@@ -1655,7 +1655,7 @@ class DagRun(Base, LoggingMixin):
     def get_log_template(
         self, session: Session = NEW_SESSION
     ) -> LogTemplate | LogTemplatePydantic | LogTemplateDataClass:
-        if airflow_conf.getboolean("core", "use_historical_filename_templates", fallback=False):
+        if airflow_conf.getboolean("logging", "use_historical_filename_templates", fallback=False):
             return self.get_db_log_template(session=session)
         else:
             return LogTemplateDataClass(

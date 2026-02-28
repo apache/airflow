@@ -299,7 +299,7 @@ def dag_run_with_log_filename(tis):
         session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
 
 
-@conf_vars({("core", "use_historical_filename_templates"): "True"})
+@conf_vars({("logging", "use_historical_filename_templates"): "True"})
 def test_get_logs_for_changed_filename_format_db(
     log_admin_client, dag_run_with_log_filename, create_expected_log_file
 ):
