@@ -36,6 +36,7 @@
 
     Connection types <connections/pydantic_ai>
     Hooks <hooks/pydantic_ai>
+    Operators <operators/index>
 
 .. toctree::
     :hidden:
