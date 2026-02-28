@@ -1367,12 +1367,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": [
-                                {
-                                    "dag_id": DAG1_ID,
-                                    "dag_run_id": DAG1_RUN1_ID,
-                                }
-                            ],
+                            "entities": [DAG1_RUN1_ID],
                         }
                     ]
                 },
@@ -1389,12 +1384,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": [
-                                {
-                                    "dag_id": DAG1_ID,
-                                    "dag_run_id": "missing_run",
-                                }
-                            ],
+                            "entities": ["missing_run"],
                             "action_on_non_existence": "skip",
                         }
                     ]
@@ -1412,12 +1402,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": [
-                                {
-                                    "dag_id": DAG1_ID,
-                                    "dag_run_id": "missing_run",
-                                }
-                            ],
+                            "entities": ["missing_run"],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -1459,12 +1444,7 @@ class TestBulkDagRuns:
             "actions": [
                 {
                     "action": "delete",
-                    "entities": [
-                        {
-                            "dag_id": "test_running_dag",
-                            "dag_run_id": "test_running",
-                        }
-                    ],
+                    "entities": ["test_running"],
                 }
             ]
         }

@@ -34,6 +34,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
@@ -43,6 +44,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
+    requires_access_dag_run_bulk,
     requires_access_pool,
     requires_access_pool_bulk,
     requires_access_variable,
@@ -206,6 +208,58 @@ class TestFastApiSecurity:
             method="GET",
             access_entity=DagAccessEntity.CODE,
             details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_run_bulk(self, mock_get_auth_manager, mock_get_team_name):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        request = BulkBody[DAGRunPatchBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": ["run_1", "run_2"],
+                    },
+                    {
+                        "action": "create",
+                        "entities": [{}],
+                    },
+                    {
+                        "action": "update",
+                        "entities": [{"state": "failed"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+
+        requires_access_dag_run_bulk()("test_dag", request, user)
+
+        auth_manager.batch_is_authorized_dag.assert_called_once_with(
+            requests=[
+                {
+                    "method": "DELETE",
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id="test_dag", team_name="team1"),
+                },
+                {
+                    "method": "POST",
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id="test_dag", team_name="team1"),
+                },
+                {
+                    "method": "PUT",
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id="test_dag", team_name="team1"),
+                },
+            ],
             user=user,
         )
 

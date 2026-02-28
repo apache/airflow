@@ -186,10 +186,6 @@ export type BulkActionResponse = {
     }>;
 };
 
-export type BulkBody_BulkDagRunBody_ = {
-    actions: Array<(BulkCreateAction_BulkDagRunBody_ | BulkUpdateAction_BulkDagRunBody_ | BulkDeleteAction_BulkDagRunBody_)>;
-};
-
 export type BulkBody_BulkTaskInstanceBody_ = {
     actions: Array<(BulkCreateAction_BulkTaskInstanceBody_ | BulkUpdateAction_BulkTaskInstanceBody_ | BulkDeleteAction_BulkTaskInstanceBody_)>;
 };
@@ -198,24 +194,16 @@ export type BulkBody_ConnectionBody_ = {
     actions: Array<(BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_)>;
 };
 
+export type BulkBody_DAGRunPatchBody_ = {
+    actions: Array<(BulkCreateAction_DAGRunPatchBody_ | BulkUpdateAction_DAGRunPatchBody_ | BulkDeleteAction_DAGRunPatchBody_)>;
+};
+
 export type BulkBody_PoolBody_ = {
     actions: Array<(BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_)>;
 };
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
-};
-
-export type BulkCreateAction_BulkDagRunBody_ = {
-    /**
-     * The action to be performed on the entities.
-     */
-    action: "create";
-    /**
-     * A list of entities to be created.
-     */
-    entities: Array<BulkDagRunBody>;
-    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -239,6 +227,18 @@ export type BulkCreateAction_ConnectionBody_ = {
      * A list of entities to be created.
      */
     entities: Array<ConnectionBody>;
+    action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<DAGRunPatchBody>;
     action_on_existence?: BulkActionOnExistence;
 };
 
@@ -266,26 +266,6 @@ export type BulkCreateAction_VariableBody_ = {
     action_on_existence?: BulkActionOnExistence;
 };
 
-/**
- * Request body for bulk delete dag runs.
- */
-export type BulkDagRunBody = {
-    dag_id: string;
-    dag_run_id: string;
-};
-
-export type BulkDeleteAction_BulkDagRunBody_ = {
-    /**
-     * The action to be performed on the entities.
-     */
-    action: "delete";
-    /**
-     * A list of entity id/key or entity objects to be deleted.
-     */
-    entities: Array<(string | BulkDagRunBody)>;
-    action_on_non_existence?: BulkActionNotOnExistence;
-};
-
 export type BulkDeleteAction_BulkTaskInstanceBody_ = {
     /**
      * The action to be performed on the entities.
@@ -307,6 +287,18 @@ export type BulkDeleteAction_ConnectionBody_ = {
      * A list of entity id/key or entity objects to be deleted.
      */
     entities: Array<(string | ConnectionBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | DAGRunPatchBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -372,22 +364,6 @@ export type BulkTaskInstanceBody = {
     dag_run_id?: string | null;
 };
 
-export type BulkUpdateAction_BulkDagRunBody_ = {
-    /**
-     * The action to be performed on the entities.
-     */
-    action: "update";
-    /**
-     * A list of entities to be updated.
-     */
-    entities: Array<BulkDagRunBody>;
-    /**
-     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
-     */
-    update_mask?: Array<(string)> | null;
-    action_on_non_existence?: BulkActionNotOnExistence;
-};
-
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
     /**
      * The action to be performed on the entities.
@@ -413,6 +389,22 @@ export type BulkUpdateAction_ConnectionBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<ConnectionBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<DAGRunPatchBody>;
     /**
      * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
      */
@@ -2573,7 +2565,7 @@ export type PatchDagRunResponse = DAGRunResponse;
 
 export type BulkDagRunsData = {
     dagId: string;
-    requestBody: BulkBody_BulkDagRunBody_;
+    requestBody: BulkBody_DAGRunPatchBody_;
 };
 
 export type BulkDagRunsResponse = BulkResponse;
