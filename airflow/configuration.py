@@ -375,6 +375,11 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("logging", "use_historical_filename_templates"): (
+            "core",
+            "use_historical_filename_templates",
+            "2.11.2",
+        ),
         ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
         ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
