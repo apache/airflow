@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
@@ -332,6 +332,41 @@ class TestDbApiHook:
         else:
             df = dbapi_hook.get_df("SQL", df_type=df_type)
             assert isinstance(df, expected_type)
+
+
+class TestDbApiHookGetTableSchema:
+    @pytest.mark.db_test
+    def test_get_table_schema(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "id", "type": "INTEGER", "nullable": True},
+            {"name": "name", "type": "VARCHAR(255)", "nullable": False},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_schema("users")
+
+        assert result == [
+            {"name": "id", "type": "INTEGER"},
+            {"name": "name", "type": "VARCHAR(255)"},
+        ]
+        mock_inspector.get_columns.assert_called_once_with("users", schema=None)
+
+    @pytest.mark.db_test
+    def test_get_table_schema_with_schema(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "col1", "type": "TEXT"},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            dbapi_hook.get_table_schema("my_table", schema="my_schema")
+
+        mock_inspector.get_columns.assert_called_once_with("my_table", schema="my_schema")
 
 
 def test_inspector_is_cached():
