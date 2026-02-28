@@ -1792,23 +1792,14 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.mark.parametrize(
         ("requirements", "expected_mismatch"),
         [
-            # pendulum<3 with host v3 → mismatch
             (["pendulum<3"], True),
-            # pendulum>=3 with host v3 → no mismatch
             (["pendulum>=3"], False),
-            # pendulum==2.1.2 with host v3 → mismatch
             (["pendulum==2.1.2"], True),
-            # pendulum>=3.0.1 with host v3 → no mismatch (still allows 3.x)
             (["pendulum>=3.0.1"], False),
-            # pendulum (bare, no specifier) → no mismatch
             (["pendulum"], False),
-            # pendulum>=2,<4 with host v3 → no mismatch (3.x allowed)
             (["pendulum>=2,<4"], False),
-            # pendulum~=2.1.0 with host v3 → mismatch (only 2.1.x)
             (["pendulum~=2.1.0"], True),
-            # no pendulum at all → no mismatch
             (["requests"], False),
-            # empty requirements → no mismatch
             ([], False),
         ],
     )

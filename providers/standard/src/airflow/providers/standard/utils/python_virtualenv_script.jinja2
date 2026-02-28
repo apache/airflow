@@ -79,8 +79,6 @@ arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
 
 {% if pendulum_version_mismatch | default(false) %}
-# Pendulum version mismatch: the host serialized pendulum objects as native datetime.
-# Convert them back to pendulum DateTime using the virtualenv's pendulum version.
 import datetime as _dt
 
 try:
