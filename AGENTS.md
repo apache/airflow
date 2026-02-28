@@ -17,9 +17,13 @@
 - **Run a Python script:** `breeze run python dev/my_script.py`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint/format (runs on host):** `prek run --all-files`
-- **Lint with ruff only:** `prek run ruff --all-files`
-- **Format with ruff only:** `prek run ruff-format --all-files`
+- **Lint/format (runs on host):** `prek run --ref-from <target_branch>`
+- **Lint with ruff only:** `prek run ruff --ref-from <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --ref-from <target_branch>`
+
+`<target_branch>` is the branch the PR will be merged into — usually `main`, but could be
+`v3-1-test` when creating a PR for the 3.1 branch.
+
 - **Build docs:** `breeze build-docs`
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
@@ -106,7 +110,7 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
-4. Run static checks (`prek run --all-files`) and fix any failures.
+4. Run static checks (`prek run --ref-from <target_branch>`) and fix any failures.
 5. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
 6. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
