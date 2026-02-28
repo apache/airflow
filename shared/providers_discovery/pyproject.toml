@@ -41,7 +41,19 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "distlib==0.4.0",
+    "filelock==3.24.3",
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "platformdirs==4.9.2",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+    "typing-extensions==4.15.0; python_version < '3.11'",
+    "virtualenv==20.39.1",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

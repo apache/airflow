@@ -81,6 +81,51 @@ Write commit messages focused on user impact, not implementation details.
 Add a newsfragment for user-visible changes:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
 
+### Creating Pull Requests
+
+**Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
+directly to `main`.
+
+Before pushing, determine the GitHub username with `gh api user -q .login` and identify the
+user's fork remote from the existing remotes. Run `git remote -v` and look for a remote
+pointing to `github.com:<GITHUB_USER>/airflow.git` where `<GITHUB_USER>` is **not** `apache`.
+That is the user's fork remote. If no such remote exists, create the fork and add it:
+
+```bash
+gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
+```
+
+Then push the branch to the user's fork remote and open the PR creation page in the browser
+with the body pre-filled (including the generative AI disclosure already checked):
+
+```bash
+git push -u <GITHUB_USER> <branch-name>
+gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
+Brief description of the changes.
+
+closes: #ISSUE  (if applicable)
+
+---
+
+##### Was generative AI tooling used to co-author this PR?
+
+- [X] Yes — <Agent Name and Version>
+
+Generated-by: <Agent Name and Version> following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
+
+EOF
+)"
+```
+
+The `--web` flag opens the browser so the user can review and submit. The `--body` flag
+pre-fills the PR template with the generative AI disclosure already completed.
+
+Remind the user to:
+
+1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
+2. Add a brief description of the changes at the top of the body.
+3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
+
 ## Boundaries
 
 - **Ask first**
