@@ -81,21 +81,20 @@ def validate_sql(
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
-    statements = [s for s in statements if s is not None]
-    if not statements:
+    parsed: list[exp.Expression] = [s for s in statements if s is not None]
+    if not parsed:
         raise SQLSafetyError("Empty SQL input.")
 
-    if not allow_multiple_statements and len(statements) > 1:
+    if not allow_multiple_statements and len(parsed) > 1:
         raise SQLSafetyError(
-            f"Multiple statements detected ({len(statements)}). "
-            "Only single statements are allowed by default."
+            f"Multiple statements detected ({len(parsed)}). Only single statements are allowed by default."
         )
 
-    for stmt in statements:
+    for stmt in parsed:
         if not isinstance(stmt, types):
             allowed_names = ", ".join(t.__name__ for t in types)
             raise SQLSafetyError(
                 f"Statement type '{type(stmt).__name__}' is not allowed. Allowed types: {allowed_names}"
             )
 
-    return statements
+    return parsed
