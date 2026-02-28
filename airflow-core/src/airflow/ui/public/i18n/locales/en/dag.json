@@ -166,6 +166,7 @@
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
+    "partitionedRuns": "Partitioned Runs",
     "renderedTemplates": "Rendered Templates",
     "requiredActions": "Required Actions",
     "runs": "Runs",
