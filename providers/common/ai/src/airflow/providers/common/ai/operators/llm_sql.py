@@ -22,6 +22,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
@@ -38,6 +40,7 @@ from airflow.providers.common.compat.sdk import BaseHook
 if TYPE_CHECKING:
     from sqlglot import exp
 
+    from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
 
@@ -101,6 +104,7 @@ class LLMSQLQueryOperator(LLMOperator):
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expression], ...] = DEFAULT_ALLOWED_TYPES,
         dialect: str | None = None,
+        datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)  # SQL operator always returns str
@@ -111,6 +115,7 @@ class LLMSQLQueryOperator(LLMOperator):
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
         self.dialect = dialect
+        self.datasource_config = datasource_config
 
     @cached_property
     def db_hook(self) -> DbApiHook | None:
@@ -178,7 +183,18 @@ class LLMSQLQueryOperator(LLMOperator):
                 f"None of the requested tables ({self.table_names}) returned schema information. "
                 "Check that the table names are correct and the database connection has access."
             )
+
+        if self.datasource_config:
+            object_storage_schema = self._introspect_object_storage_schema()
+            parts.append(f"Table: {self.datasource_config.table_name}\nColumns: {object_storage_schema}")
+
         return "\n\n".join(parts)
+
+    def _introspect_object_storage_schema(self):
+        """Use DataFusion Engine to get the schema of object stores."""
+        engine = DataFusionEngine()
+        engine.register_datasource(self.datasource_config)
+        return engine.get_schema(self.datasource_config.table_name)
 
     def _build_system_prompt(self, schema_info: str) -> str:
         """Construct the system prompt for the LLM."""
