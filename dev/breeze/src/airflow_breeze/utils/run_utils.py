@@ -212,16 +212,6 @@ def get_environments_to_print(env: Mapping[str, str] | None):
     return env_to_print
 
 
-def get_prek_executable() -> str:
-    """Return path to prek executable in same env as breeze (bin/prek)."""
-    prek_bin = shutil.which("prek", path=str(Path(sys.executable).parent))
-    if prek_bin is not None:
-        return prek_bin
-    # Fallback when prek is not found via which (e.g. Windows .exe resolution)
-    prek_in_bin = Path(sys.executable).parent / ("prek.exe" if sys.platform == "win32" else "prek")
-    return os.fspath(prek_in_bin)
-
-
 def assert_prek_installed():
     """
     Check if prek is installed in the right version.
@@ -235,17 +225,16 @@ def assert_prek_installed():
     prek_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
     min_prek_version = prek_config["minimum_prek_version"]
 
-    prek_executable = get_prek_executable()
-    get_console().print("[info]Checking prek installed[/]")
+    get_console().print(f"[info]Checking prek installed for {sys.executable}[/]")
     need_to_reinstall_prek = False
     try:
         command_result = run_command(
-            [prek_executable, "--version"],
+            [sys.executable, "-m", "prek", "--version"],
             capture_output=True,
             text=True,
             check=False,
         )
-        if command_result and command_result.returncode == 0:
+        if command_result.returncode == 0:
             if command_result.stdout:
                 prek_version = command_result.stdout.split(" ")[1].strip()
                 if Version(prek_version) >= Version(min_prek_version):
@@ -256,10 +245,7 @@ def assert_prek_installed():
                 else:
                     get_console().print(
                         f"\n[error]Package name prek version is wrong. It should be "
-                        f"at least {min_prek_version} and is {prek_version}.[/]\n"
-                    )
-                    get_console().print(
-                        "[info]Reinstall breeze: 'uv tool install -e ./dev/breeze --force'[/]\n"
+                        f"at least {min_prek_version} and is {prek_version}.[/]\n\n"
                     )
                     sys.exit(1)
             else:
@@ -269,8 +255,7 @@ def assert_prek_installed():
         else:
             need_to_reinstall_prek = True
             get_console().print("\n[error]Error checking for prek-installation:[/]\n")
-            if command_result and command_result.stderr:
-                get_console().print(command_result.stderr)
+            get_console().print(command_result.stderr)
     except FileNotFoundError as e:
         need_to_reinstall_prek = True
         get_console().print(f"\n[error]Error checking for prek installation: [/]\n{e}\n")
@@ -548,7 +533,9 @@ def run_compile_ui_assets(
             "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
-        get_prek_executable(),
+        sys.executable,
+        "-m",
+        "prek",
         "run",
         "--hook-stage",
         "manual",
