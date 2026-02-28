@@ -1,0 +1,27 @@
+dev/breeze/doc/09_release_management_tasks.rst
+  6c31e8fed5b93335 192-209
+dev/breeze/src/airflow_breeze/commands/release_management_commands.py
+  6c31e8fed5b93335 1875-1881
+dev/breeze/src/airflow_breeze/commands/release_management_commands_config.py
+  6c31e8fed5b93335 28,272-288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "21044711039a7113a5b0843e39a985411e9d4e34",
+  "prompts": {
+    "6c31e8fed5b93335": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79d10d73-28a4-4036-ae88-8287000ac148",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 44,
+      "total_deletions": 4,
+      "accepted_lines": 44,
+      "overriden_lines": 0
+    }
+  }
+}
