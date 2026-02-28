@@ -1025,6 +1025,42 @@ class TestDeprecatedConf:
 
     @conf_vars(
         {
+            ("logging", "use_historical_filename_templates"): None,
+            ("core", "use_historical_filename_templates"): None,
+        }
+    )
+    def test_deprecated_use_historical_filename_templates(self):
+        """Test that core.use_historical_filename_templates is deprecated in favor of logging section."""
+        with set_deprecated_options(
+            deprecated_options={
+                ("logging", "use_historical_filename_templates"): (
+                    "core",
+                    "use_historical_filename_templates",
+                    "2.11.2",
+                )
+            }
+        ):
+            conf.remove_option("core", "use_historical_filename_templates")
+            conf.remove_option("logging", "use_historical_filename_templates")
+
+            with pytest.warns(DeprecationWarning):
+                with mock.patch.dict("os.environ", AIRFLOW__CORE__USE_HISTORICAL_FILENAME_TEMPLATES="True"):
+                    assert conf.get("logging", "use_historical_filename_templates") == "True"
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=r"The use_historical_filename_templates option in \[core\]",
+            ):
+                with mock.patch.dict("os.environ", AIRFLOW__CORE__USE_HISTORICAL_FILENAME_TEMPLATES="True"):
+                    assert conf.get("core", "use_historical_filename_templates") == "True"
+
+            with pytest.warns(DeprecationWarning), conf_vars(
+                {("core", "use_historical_filename_templates"): "True"}
+            ):
+                assert conf.get("logging", "use_historical_filename_templates") == "True"
+
+    @conf_vars(
+        {
             ("celery", "result_backend"): None,
             ("celery", "celery_result_backend"): None,
             ("celery", "celery_result_backend_cmd"): None,
