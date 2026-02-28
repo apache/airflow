@@ -35,10 +35,9 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from airflow.executors import workloads
+from airflow.executors import workloads as _workloads
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads.callback import execute_callback_workload
-from airflow.utils.state import CallbackState, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -51,23 +50,13 @@ else:
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.executors.workloads.types import WorkloadResultType
-
-
-def _get_executor_process_title_prefix(team_name: str | None) -> str:
-    """
-    Build the process title prefix for LocalExecutor workers.
-
-    :param team_name: Team name from executor configuration
-    """
-    team_suffix = f" [{team_name}]" if team_name else ""
-    return f"airflow worker -- LocalExecutor{team_suffix}:"
+    TaskInstanceStateType = tuple[_workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
 def _run_worker(
     logger_name: str,
-    input: SimpleQueue[workloads.All | None],
-    output: Queue[WorkloadResultType],
+    input: SimpleQueue[_workloads.All | None],
+    output: Queue[TaskInstanceStateType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
@@ -79,8 +68,11 @@ def _run_worker(
     log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
+    # Create team suffix for process title
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+
     while True:
-        setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} <idle>", log)
+        setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: <idle>", log)
         try:
             workload = input.get()
         except EOFError:
@@ -95,33 +87,34 @@ def _run_worker(
             # Received poison pill, no more tasks to run
             return
 
+        if isinstance(workload, _workloads.TestConnection):
+            with unread_messages:
+                unread_messages.value -= 1
+            _execute_connection_test(log, workload, team_conf)
+            continue
+
+        if not isinstance(workload, _workloads.ExecuteTask):
+            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
+
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
             unread_messages.value -= 1
-
-        # Handle different workload types
-        if isinstance(workload, workloads.ExecuteTask):
-            try:
-                _execute_work(log, workload, team_conf)
-                output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
-            except Exception as e:
-                log.exception("Task execution failed.")
-                output.put((workload.ti.key, TaskInstanceState.FAILED, e))
-
-        elif isinstance(workload, workloads.ExecuteCallback):
-            output.put((workload.callback.id, CallbackState.RUNNING, None))
-            try:
-                _execute_callback(log, workload, team_conf)
-                output.put((workload.callback.id, CallbackState.SUCCESS, None))
-            except Exception as e:
-                log.exception("Callback execution failed")
-                output.put((workload.callback.id, CallbackState.FAILED, e))
-
+        key = None
+        if ti := getattr(workload, "ti", None):
+            key = ti.key
         else:
-            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
+            raise TypeError(f"Don't know how to get ti key from {type(workload).__name__}")
+
+        try:
+            _execute_work(log, workload, team_conf)
+
+            output.put((key, TaskInstanceState.SUCCESS, None))
+        except Exception as e:
+            log.exception("uhoh")
+            output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
+def _execute_work(log: Logger, workload: _workloads.ExecuteTask, team_conf) -> None:
     """
     Execute command received and stores result state in queue.
 
@@ -131,7 +124,9 @@ def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> No
     """
     from airflow.sdk.execution_time.supervisor import supervise
 
-    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.ti.id}", log)
+    # Create team suffix for process title
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+    setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: {workload.ti.id}", log)
 
     base_url = team_conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default
@@ -152,20 +147,64 @@ def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> No
     )
 
 
-def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_conf) -> None:
+def _execute_connection_test(log: Logger, workload: _workloads.TestConnection, team_conf) -> None:
     """
-    Execute a callback workload.
+    Execute a connection test workload with a timeout.
+
+    Results are reported back via the Execution API (workers must not access the metadata DB directly).
 
     :param log: Logger instance
-    :param workload: The ExecuteCallback workload to execute
+    :param workload: The TestConnection workload to execute
     :param team_conf: Team-specific executor configuration
     """
-    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.callback.id}", log)
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-    success, error_msg = execute_callback_workload(workload.callback, log)
+    import httpx
 
-    if not success:
-        raise RuntimeError(error_msg or "Callback execution failed")
+    from airflow.models.connection_test import run_connection_test
+
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+    setproctitle(
+        f"airflow worker -- LocalExecutor{team_suffix}: connection-test {workload.connection_id}", log
+    )
+
+    # Build execution API URL (same pattern as _execute_work)
+    base_url = team_conf.get("api", "base_url", fallback="/")
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    api_url = f"{base_url.rstrip('/')}/execution/connection-tests/{workload.connection_test_id}"
+    headers = {"Authorization": f"Bearer {workload.token}"}
+
+    def _patch(state: str, result_message: str | None = None) -> None:
+        payload: dict[str, str] = {"state": state}
+        if result_message is not None:
+            payload["result_message"] = result_message
+        httpx.patch(api_url, json=payload, headers=headers)
+
+    try:
+        _patch("running")
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(
+                run_connection_test,
+                connection_id=workload.connection_id,
+            )
+            success, message = future.result(timeout=workload.timeout)
+
+        _patch("success" if success else "failed", message)
+    except TimeoutError:
+        log.error(
+            "Connection test timed out after %ds",
+            workload.timeout,
+            connection_id=workload.connection_id,
+        )
+        _patch("failed", f"Connection test timed out after {workload.timeout}s")
+    except Exception:
+        log.exception("Connection test failed unexpectedly", connection_id=workload.connection_id)
+        try:
+            _patch("failed", "Connection test failed unexpectedly")
+        except Exception:
+            log.exception("Failed to report connection test failure")
 
 
 class LocalExecutor(BaseExecutor):
@@ -181,11 +220,11 @@ class LocalExecutor(BaseExecutor):
     is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
     supports_multi_team: bool = True
+    supports_connection_test: bool = True
     serve_logs: bool = True
-    supports_callbacks: bool = True
 
-    activity_queue: SimpleQueue[workloads.All | None]
-    result_queue: SimpleQueue[WorkloadResultType]
+    activity_queue: SimpleQueue[_workloads.All | None]
+    result_queue: SimpleQueue[TaskInstanceStateType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
@@ -328,14 +367,11 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def _process_workloads(self, workload_list):
-        for workload in workload_list:
+    def _process_workloads(self, workloads):
+        for workload in workloads:
             self.activity_queue.put(workload)
-            # Remove from appropriate queue based on workload type
-            if isinstance(workload, workloads.ExecuteTask):
+            if isinstance(workload, _workloads.ExecuteTask):
                 del self.queued_tasks[workload.ti.key]
-            elif isinstance(workload, workloads.ExecuteCallback):
-                del self.queued_callbacks[workload.callback.id]
         with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
+            self._unread_messages.value += len(workloads)
         self._check_workers()

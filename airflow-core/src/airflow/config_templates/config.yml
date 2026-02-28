@@ -481,6 +481,24 @@ core:
       type: string
       example: ~
       default: "Disabled"
+    connection_test_timeout:
+      description: |
+        Maximum number of seconds an async connection test is allowed to run
+        before it is considered timed out. The scheduler reaper uses this value
+        plus a grace period to mark stale tests as failed.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "60"
+    max_connection_test_concurrency:
+      description: |
+        Maximum number of connection tests that can be active (QUEUED + RUNNING)
+        at the same time. Excess tests will remain in PENDING state until slots
+        become available.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "4"
     max_templated_field_length:
       description: |
         The maximum length of the rendered template field. If the value to be stored in the
@@ -2549,6 +2567,23 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
+    connection_test_dispatch_interval:
+      description: |
+        How often (in seconds) the scheduler should check for pending
+        connection tests and dispatch them to an executor.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "2.0"
+    connection_test_reaper_interval:
+      description: |
+        How often (in seconds) the scheduler should check for stale
+        connection tests (QUEUED or RUNNING past their timeout + grace period)
+        and mark them as failed.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "30.0"
     allowed_run_id_pattern:
       description: |
         The run_id pattern used to verify the validity of user input to the run_id parameter when

@@ -80,9 +80,10 @@ class ConnectionTestResponse(BaseModel):
 
 
 class ConnectionTestRequestBody(StrictBaseModel):
-    """Request body for async connection test — just the connection_id."""
+    """Request body for async connection test."""
 
     connection_id: str
+    queue: str | None = None
 
 
 class ConnectionTestQueuedResponse(BaseModel):

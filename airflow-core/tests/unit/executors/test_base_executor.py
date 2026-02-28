@@ -407,6 +407,38 @@ def test_repr():
     assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
 
 
+def test_supports_connection_test_default_value():
+    assert not BaseExecutor.supports_connection_test
+
+
+def test_queue_connection_test_workload_rejected_by_default():
+    """BaseExecutor (supports_connection_test=False) rejects TestConnection workloads."""
+    import uuid
+
+    executor = BaseExecutor()
+    wl = workloads.TestConnection.make(
+        connection_test_id=uuid.uuid4(),
+        connection_id="test_conn",
+    )
+    with pytest.raises(ValueError, match="does not support connection testing"):
+        executor.queue_workload(wl, session=mock.MagicMock())
+
+
+def test_queue_connection_test_workload_accepted_when_supported():
+    """An executor with supports_connection_test=True accepts TestConnection workloads."""
+    import uuid
+
+    executor = LocalExecutor()
+    executor.queued_connection_tests.clear()
+    wl = workloads.TestConnection.make(
+        connection_test_id=uuid.uuid4(),
+        connection_id="test_conn",
+    )
+    executor.queue_workload(wl, session=mock.MagicMock())
+    assert len(executor.queued_connection_tests) == 1
+    assert executor.queued_connection_tests[0] is wl
+
+
 @mock.patch.dict("os.environ", {}, clear=True)
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""

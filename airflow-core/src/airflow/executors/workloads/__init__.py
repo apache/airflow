@@ -24,11 +24,12 @@ from pydantic import Field
 
 from airflow.executors.workloads.base import BaseWorkload, BundleInfo
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
+from airflow.executors.workloads.connection_test import TestConnection
 from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 
 All = Annotated[
-    ExecuteTask | ExecuteCallback | RunTrigger,
+    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection,
     Field(discriminator="type"),
 ]
 
@@ -43,4 +44,5 @@ __all__ = [
     "ExecuteTask",
     "TaskInstance",
     "TaskInstanceDTO",
+    "TestConnection",
 ]

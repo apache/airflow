@@ -1724,13 +1724,24 @@ export const $ConnectionTestRequestBody = {
         connection_id: {
             type: 'string',
             title: 'Connection Id'
+        },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['connection_id'],
     title: 'ConnectionTestRequestBody',
-    description: 'Request body for async connection test — just the connection_id.'
+    description: 'Request body for async connection test.'
 } as const;
 
 export const $ConnectionTestResponse = {

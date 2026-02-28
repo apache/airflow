@@ -29,8 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, B
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
-from airflow.models.callback import Callback
-from airflow.models.connection_test import RUN_CONNECTION_TEST_PATH, ConnectionTest, ConnectionTestState
+from airflow.models.connection_test import ConnectionTest, ConnectionTestState
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -1182,7 +1181,7 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         body = response.json()
         assert "token" in body
         assert body["connection_id"] == TEST_CONN_ID
-        assert body["state"] == "queued"
+        assert body["state"] == "pending"
         assert len(body["token"]) > 0
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -1214,8 +1213,8 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert "was not found" in response.json()["detail"]
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_post_creates_connection_test_and_callback(self, test_client, session):
-        """POST creates both a ConnectionTest row and an ExecutorCallback."""
+    def test_post_creates_connection_test_row(self, test_client, session):
+        """POST creates a ConnectionTest row in PENDING state."""
         self.create_connection()
         response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
         assert response.status_code == 202
@@ -1224,17 +1223,11 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         assert ct is not None
         assert ct.connection_id == TEST_CONN_ID
-        assert ct.state == "queued"
-        assert ct.callback_id is not None
-
-        cb = session.get(Callback, ct.callback_id)
-        assert cb is not None
-        assert cb.data["path"] == RUN_CONNECTION_TEST_PATH
-        assert cb.data["kwargs"]["connection_id"] == TEST_CONN_ID
+        assert ct.state == "pending"
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_get_status_returns_queued(self, test_client, session):
-        """GET /connections/test-async/{connection_test_token} returns current status."""
+    def test_get_status_returns_pending(self, test_client, session):
+        """GET /connections/test-async/{token} returns current status (pending before scheduler dispatch)."""
         self.create_connection()
         post_response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
         token = post_response.json()["token"]
@@ -1244,7 +1237,7 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         body = response.json()
         assert body["token"] == token
         assert body["connection_id"] == TEST_CONN_ID
-        assert body["state"] == "queued"
+        assert body["state"] == "pending"
         assert body["result_message"] is None
         assert "created_at" in body
 

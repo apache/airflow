@@ -256,13 +256,14 @@ class ConnectionTestQueuedResponse(BaseModel):
 
 class ConnectionTestRequestBody(BaseModel):
     """
-    Request body for async connection test — just the connection_id.
+    Request body for async connection test.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     connection_id: Annotated[str, Field(title="Connection Id")]
+    queue: Annotated[str | None, Field(title="Queue")] = None
 
 
 class ConnectionTestResponse(BaseModel):

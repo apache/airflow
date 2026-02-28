@@ -19,20 +19,16 @@ from __future__ import annotations
 import secrets
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Index, String, Text, Uuid
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Index, String, Text, Uuid
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    from airflow.models.callback import Callback, ExecutorCallback
 
 log = structlog.get_logger(__name__)
 
@@ -52,31 +48,9 @@ class ConnectionTestState(str, Enum):
 
 TERMINAL_STATES = frozenset((ConnectionTestState.SUCCESS, ConnectionTestState.FAILED))
 
-# Path used by ExecutorCallback to locate the worker function.
-RUN_CONNECTION_TEST_PATH = "airflow.models.connection_test.run_connection_test"
-
-
-class _ImportPathCallbackDef:
-    """
-    Minimal implementation of ImportPathExecutorCallbackDefProtocol.
-
-    ExecutorCallback.__init__ expects an object satisfying this protocol, but no concrete
-    implementation exists in airflow-core — the only one (SyncCallback) lives in the task-sdk.
-    Once #61153 lands and ExecuteCallback.make() is decoupled from DagRun, this adapter can
-    be replaced with the proper factory method.
-    """
-
-    def __init__(self, path: str, kwargs: dict, executor: str | None = None):
-        self.path = path
-        self.kwargs = kwargs
-        self.executor = executor
-
-    def serialize(self) -> dict:
-        return {"path": self.path, "kwargs": self.kwargs, "executor": self.executor}
-
 
 class ConnectionTest(Base):
-    """Tracks an async connection test dispatched to a worker via ExecutorCallback."""
+    """Tracks an async connection test dispatched to a worker via a TestConnection workload."""
 
     __tablename__ = "connection_test"
 
@@ -89,17 +63,14 @@ class ConnectionTest(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
-
-    callback_id: Mapped[UUID | None] = mapped_column(
-        Uuid(), ForeignKey("callback.id", ondelete="SET NULL"), nullable=True
-    )
-    callback: Mapped[Callback | None] = relationship("Callback", uselist=False)
+    queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
     __table_args__ = (Index("idx_connection_test_state_created_at", state, created_at),)
 
-    def __init__(self, *, connection_id: str, **kwargs):
+    def __init__(self, *, connection_id: str, queue: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.connection_id = connection_id
+        self.queue = queue
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
 
@@ -109,48 +80,19 @@ class ConnectionTest(Base):
             f" connection_id={self.connection_id!r} state={self.state}>"
         )
 
-    def create_callback(self) -> ExecutorCallback:
-        """Create an ExecutorCallback that will run the connection test on a worker."""
-        from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
 
-        callback_def = _ImportPathCallbackDef(
-            path=RUN_CONNECTION_TEST_PATH,
-            kwargs={
-                "connection_id": self.connection_id,
-                "connection_test_id": str(self.id),
-            },
-        )
-        return ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
-
-
-def run_connection_test(*, connection_id: str, connection_test_id: str) -> None:
+def run_connection_test(*, connection_id: str) -> tuple[bool, str]:
     """
-    Worker-side function to execute a connection test.
+    Worker-side pure function to execute a connection test.
 
-    This is the function referenced by the ExecutorCallback's import path.
-    It fetches the connection, runs test_connection(), and reports results
-    back by updating the ConnectionTest row directly.
+    Returns a (success, message) tuple. The caller is responsible for
+    reporting the result back via the Execution API.
     """
     from airflow.models.connection import Connection
-    from airflow.utils.session import create_session
-
-    connection_test_uuid = UUID(connection_test_id)
-
-    with create_session() as session:
-        ct = session.get(ConnectionTest, connection_test_uuid)
-        if ct:
-            ct.state = ConnectionTestState.RUNNING
 
     try:
         conn = Connection.get_connection_from_secrets(connection_id)
-        test_status, test_message = conn.test_connection()
+        return conn.test_connection()
     except Exception as e:
-        test_status = False
-        test_message = str(e)
         log.exception("Connection test failed", connection_id=connection_id)
-
-    with create_session() as session:
-        ct = session.get(ConnectionTest, connection_test_uuid)
-        if ct:
-            ct.result_message = test_message
-            ct.state = ConnectionTestState.SUCCESS if test_status else ConnectionTestState.FAILED
+        return False, str(e)

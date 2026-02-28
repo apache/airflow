@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supports_callbacks: bool = False
     supports_multi_team: bool = False
+    supports_connection_test: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -186,6 +187,7 @@ class BaseExecutor(LoggingMixin):
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_connection_tests: deque[workloads.TestConnection] = deque()
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -220,6 +222,7 @@ class BaseExecutor(LoggingMixin):
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
+<<<<<<< HEAD
         if isinstance(workload, workloads.ExecuteTask):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
@@ -231,10 +234,14 @@ class BaseExecutor(LoggingMixin):
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
             self.queued_callbacks[workload.callback.id] = workload
+        elif isinstance(workload, workloads.TestConnection):
+            if not self.supports_connection_test:
+                raise ValueError(f"Executor {type(self).__name__} does not support connection testing")
+            self.queued_connection_tests.append(workload)
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
-                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+                f"Workload must be one of: ExecuteTask, ExecuteCallback, TestConnection."
             )
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
@@ -305,9 +312,29 @@ class BaseExecutor(LoggingMixin):
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
+        if self.supports_connection_test and self.queued_connection_tests:
+            self.trigger_connection_tests()
+
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def trigger_connection_tests(self, max_tests: int | None = None) -> None:
+        """
+        Process queued connection tests.
+
+        :param max_tests: Maximum number of tests to trigger. Defaults to all queued.
+        """
+        if not self.queued_connection_tests:
+            return
+
+        count = max_tests if max_tests is not None else len(self.queued_connection_tests)
+        test_workloads: list[workloads.TestConnection] = []
+        for _ in range(min(count, len(self.queued_connection_tests))):
+            test_workloads.append(self.queued_connection_tests.popleft())
+
+        if test_workloads:
+            self._process_workloads(test_workloads)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (

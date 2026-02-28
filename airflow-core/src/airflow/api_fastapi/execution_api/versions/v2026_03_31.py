@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -27,6 +27,16 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIRunContext,
 )
+
+
+class AddConnectionTestEndpoint(VersionChange):
+    """Add connection-tests endpoint for async connection testing."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
+    )
 
 
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):

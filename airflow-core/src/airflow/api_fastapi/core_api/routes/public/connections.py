@@ -60,10 +60,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
-from airflow.models.connection_test import (
-    ConnectionTest,
-    ConnectionTestState,
-)
+from airflow.models.connection_test import ConnectionTest
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
@@ -296,17 +293,9 @@ def test_connection_async(
             "Connection must be saved before testing.",
         )
 
-    connection_test = ConnectionTest(connection_id=test_body.connection_id)
+    connection_test = ConnectionTest(connection_id=test_body.connection_id, queue=test_body.queue)
     session.add(connection_test)
     session.flush()
-
-    callback = connection_test.create_callback()
-    session.add(callback)
-    session.flush()
-
-    connection_test.callback_id = callback.id
-    connection_test.state = ConnectionTestState.QUEUED
-    callback.queue()
 
     return ConnectionTestQueuedResponse(
         token=connection_test.token,
