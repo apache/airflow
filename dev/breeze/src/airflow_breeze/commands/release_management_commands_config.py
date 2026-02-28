@@ -25,6 +25,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "start-rc-process",
         "start-release",
         "release-prod-images",
+        "merge-prod-images",
         "generate-issue-content-core",
     ],
 }
@@ -266,11 +267,25 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Release PROD IMAGE flags",
             "options": [
                 "--airflow-version",
-                "--chicken-egg-providers",
                 "--commit-sha",
                 "--dockerhub-repo",
-                "--limit-python",
-                "--limit-platform",
+                "--include-pre-release",
+                "--metadata-folder",
+                "--platform",
+                "--python",
+                "--skip-latest",
+                "--slim-images",
+            ],
+        }
+    ],
+    "breeze release-management merge-prod-images": [
+        {
+            "name": "Merge PROD IMAGE flags",
+            "options": [
+                "--airflow-version",
+                "--dockerhub-repo",
+                "--metadata-folder",
+                "--python",
                 "--skip-latest",
                 "--slim-images",
             ],
