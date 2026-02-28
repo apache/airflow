@@ -45,6 +45,8 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     KIND_VERSION,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PUBLIC_AMD_RUNNERS,
+    PUBLIC_ARM_RUNNERS,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -1504,3 +1506,11 @@ class SelectiveChecks:
     @cached_property
     def force_pip(self):
         return FORCE_PIP_LABEL in self._pr_labels
+
+    @cached_property
+    def amd_runners(self) -> str:
+        return PUBLIC_AMD_RUNNERS
+
+    @cached_property
+    def arm_runners(self) -> str:
+        return PUBLIC_ARM_RUNNERS

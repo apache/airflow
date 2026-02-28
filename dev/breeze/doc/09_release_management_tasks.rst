@@ -189,6 +189,24 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+Merging production images
+"""""""""""""""""""""""""
+
+When images are built separately per platform (e.g. amd64 and arm64), they need to be merged into
+multi-platform manifests. The ``merge-prod-images`` command reads digest metadata files produced by
+``release-prod-images --metadata-folder`` and creates the merged multi-platform images.
+
+.. code-block:: bash
+
+     breeze release-management merge-prod-images --airflow-version 2.4.0 --metadata-folder dist
+
+These are all of the available flags for the ``merge-prod-images`` command:
+
+.. image:: ./images/output_release-management_merge-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_merge-prod-images.svg
+  :width: 100%
+  :alt: Breeze release management merge prod images
+
 Adding git tags for providers
 """""""""""""""""""""""""""""
 

@@ -47,6 +47,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
@@ -199,6 +200,24 @@ REGULAR_DOC_PACKAGES = [
     "helm-chart",
     "apache-airflow-providers",
 ]
+
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.10": "3.10.19",
+    "3.11": "3.11.14",
+    "3.12": "3.12.12",
+    "3.13": "3.13.12",
+}
+
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+
+# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
+RUNNERS_TYPE_CROSS_MAPPING = {
+    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
+    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
+    "windows-2022": '["windows-2022"]',
+    "windows-2025": '["windows-2025"]',
+}
 
 
 @clearable_cache
