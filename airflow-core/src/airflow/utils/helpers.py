@@ -296,7 +296,7 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
-def filter_kwargs(callable_obj: object, kwargs: dict) -> dict:
+def filter_kwargs(callable_obj: Callable[..., Any], kwargs: dict) -> dict:
     """
     Filter kwargs to only include parameters the callable accepts.
 
