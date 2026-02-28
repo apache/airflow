@@ -104,6 +104,21 @@ def _process_batch(
         for login in non_collab_logins:
             get_console().print(f"  Removing [red]{login}[/] from issue #{issue.number}")
             issue.remove_from_assignees(login)
+            comment = (
+                f"@{login} We are unassigning you from this issue as part of our "
+                f"updated [assignment policy]"
+                f"(https://github.com/apache/airflow/blob/main/"
+                f"contributing-docs/04_how_to_contribute.rst"
+                f"#contribute-code-changes).\n\n"
+                f"This is not meant to discourage your contribution — quite the opposite! "
+                f"You are still very welcome to work on this issue and submit a PR for it. "
+                f"Simply comment that you are working on it and open a PR when ready.\n\n"
+                f"We found that formal assignments were not working well, as they often "
+                f"prevented others from contributing when the assignee was not actively "
+                f"working on the issue."
+            )
+            get_console().print(f"  Commenting on issue #{issue.number} about @{login}")
+            issue.create_comment(comment)
             unassigned_count += 1
     return unassigned_count
 
