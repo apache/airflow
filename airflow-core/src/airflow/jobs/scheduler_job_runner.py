@@ -85,7 +85,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.callback import Callback
+from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -95,6 +95,7 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.metrics import stats_utils
@@ -115,7 +116,7 @@ from airflow.utils.sqlalchemy import (
     prohibit_commit,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -130,7 +131,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.executors.workloads.types import SchedulerWorkload
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -359,32 +360,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Return dict with all None values to ensure graceful degradation
             return {}
 
-    def _get_task_team_name(self, task_instance: TaskInstance, session: Session) -> str | None:
+    def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
-        Resolve team name for a task instance using the DAG > Bundle > Team relationship chain.
+        Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
 
-        TaskInstance > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Workload > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
 
-        :param task_instance: The TaskInstance to resolve team name for
+        :param workload: The Workload to resolve team name for
         :param session: Database session for queries
         :return: Team name if found or None
         """
         # Use the batch query function with a single DAG ID
-        dag_id_to_team_name = self._get_team_names_for_dag_ids([task_instance.dag_id], session)
-        team_name = dag_id_to_team_name.get(task_instance.dag_id)
+        if dag_id := workload.get_dag_id():
+            dag_id_to_team_name = self._get_team_names_for_dag_ids([dag_id], session)
+            team_name = dag_id_to_team_name.get(dag_id)
+        else:
+            team_name = None  # mypy didn't like the implicit defaulting to None
 
         if team_name:
             self.log.debug(
-                "Resolved team name '%s' for task %s (dag_id=%s)",
+                "Resolved team name '%s' for task or callback %s (dag_id=%s)",
                 team_name,
-                task_instance.task_id,
-                task_instance.dag_id,
+                workload,
+                dag_id,
             )
         else:
             self.log.debug(
-                "No team found for task %s (dag_id=%s) - DAG may not have bundle or team association",
-                task_instance.task_id,
-                task_instance.dag_id,
+                "No team found for task or callback %s (dag_id=%s) - DAG may not have bundle or team association",
+                workload,
+                dag_id,
             )
 
         return team_name
@@ -981,7 +985,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         # Sort queued TIs to their respective executor
-        executor_to_queued_tis = self._executor_to_tis(queued_tis, session)
+        executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
                 "Trying to enqueue tasks: %s for executor: %s",
@@ -992,6 +996,75 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
 
         return len(queued_tis)
+
+    def _enqueue_executor_callbacks(self, session: Session) -> None:
+        """
+        Enqueue ExecutorCallback workloads to executors.
+
+        Similar to _enqueue_task_instances, but for callbacks that need to run on executors.
+        Queries for QUEUED ExecutorCallback instances and routes them to the appropriate executor.
+
+        :param session: The database session
+        """
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
+        max_callbacks = conf.getint("core", "parallelism") - num_occupied_slots
+
+        if max_callbacks <= 0:
+            self.log.debug("No available slots for callbacks; all executors at capacity")
+            return
+
+        pending_callbacks = session.scalars(
+            select(ExecutorCallback)
+            .where(ExecutorCallback.type == CallbackType.EXECUTOR)
+            .where(ExecutorCallback.state == CallbackState.PENDING)
+            .order_by(ExecutorCallback.priority_weight.desc())
+            .limit(max_callbacks)
+        ).all()
+
+        if not pending_callbacks:
+            return
+
+        # Route callbacks to executors using the generalized routing method
+        executor_to_callbacks = self._executor_to_workloads(pending_callbacks, session)
+
+        # Enqueue callbacks for each executor
+        for executor, callbacks in executor_to_callbacks.items():
+            for callback in callbacks:
+                if not isinstance(callback, ExecutorCallback):
+                    # Can't happen since we queried ExecutorCallback, but satisfies mypy.
+                    continue
+
+                # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
+                #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
+                #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
+                if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
+                    self.log.error(
+                        "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
+                        "This indicates a bug in callback creation. Skipping callback.",
+                        callback.id,
+                    )
+                    continue
+
+                dag_run_id = callback.data["dag_run_id"]
+                dag_run = session.get(DagRun, dag_run_id)
+
+                if dag_run is None:
+                    self.log.warning(
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        dag_run_id,
+                        callback.id,
+                    )
+                    continue
+
+                workload = workloads.ExecuteCallback.make(
+                    callback=callback,
+                    dag_run=dag_run,
+                    generator=executor.jwt_generator,
+                )
+
+                executor.queue_workload(workload, session=session)
+                callback.state = CallbackState.QUEUED
+                session.add(callback)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1055,21 +1128,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
+        callback_keys_with_events: list[str] = []
 
-        # Report execution
-        for ti_key, (state, _) in event_buffer.items():
-            # We create map (dag_id, task_id, logical_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
+        # Report execution - handle both task and callback events
+        for key, (state, _) in event_buffer.items():
+            if isinstance(key, TaskInstanceKey):
+                ti_primary_key_to_try_number_map[key.primary] = key.try_number
+                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+                if state in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.SUCCESS,
+                    TaskInstanceState.QUEUED,
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.RESTARTING,
+                ):
+                    tis_with_right_state.append(key)
+            else:
+                # Callback event (key is string UUID)
+                cls.logger().info("Received executor event with state %s for callback %s", state, key)
+                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                    callback_keys_with_events.append(key)
 
-            cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (
-                TaskInstanceState.FAILED,
-                TaskInstanceState.SUCCESS,
-                TaskInstanceState.QUEUED,
-                TaskInstanceState.RUNNING,
-                TaskInstanceState.RESTARTING,
-            ):
-                tis_with_right_state.append(ti_key)
+        # Handle callback state events
+        for callback_id in callback_keys_with_events:
+            state, info = event_buffer.pop(callback_id)
+            callback = session.get(Callback, callback_id)
+            if not callback:
+                # This should not normally happen - we just received an event for this callback.
+                # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
+                cls.logger().warning(
+                    "Callback %s not found in database (may have been cascade deleted)", callback_id
+                )
+                continue
+
+            if state == CallbackState.RUNNING:
+                callback.state = CallbackState.RUNNING
+                cls.logger().info("Callback %s is currently running", callback_id)
+            elif state == CallbackState.SUCCESS:
+                callback.state = CallbackState.SUCCESS
+                cls.logger().info("Callback %s completed successfully", callback_id)
+            elif state == CallbackState.FAILED:
+                callback.state = CallbackState.FAILED
+                callback.output = str(info) if info else "Execution failed"
+                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            session.add(callback)
 
         # Return if no finished tasks
         if not tis_with_right_state:
@@ -1656,6 +1758,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     ):
                         deadline.handle_miss(session)
+
+                    # Route ExecutorCallback workloads to executors (similar to task routing)
+                    self._enqueue_executor_callbacks(session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -2434,7 +2539,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduled) up to 2 times before failing the task.
         """
         tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
-        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued, session).items():
+        for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
                     executor.revoke_task(ti=ti)
@@ -2725,7 +2830,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     to_reset: list[TaskInstance] = []
-                    exec_to_tis = self._executor_to_tis(tis_to_adopt_or_reset, session)
+                    exec_to_tis = self._executor_to_workloads(tis_to_adopt_or_reset, session)
                     for executor, tis in exec_to_tis.items():
                         to_reset.extend(executor.try_adopt_task_instances(tis))
 
@@ -3074,50 +3179,57 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _executor_to_tis(
+    def _executor_to_workloads(
         self,
-        tis: Iterable[TaskInstance],
+        workloads: Iterable[SchedulerWorkload],
         session,
         dag_id_to_team_name: dict[str, str | None] | None = None,
-    ) -> dict[BaseExecutor, list[TaskInstance]]:
-        """Organize TIs into lists per their respective executor."""
-        tis_iter: Iterable[TaskInstance]
+    ) -> dict[BaseExecutor, list[SchedulerWorkload]]:
+        """Organize workloads into lists per their respective executor."""
+        workloads_iter: Iterable[SchedulerWorkload]
         if conf.getboolean("core", "multi_team"):
             if dag_id_to_team_name is None:
-                if isinstance(tis, list):
-                    tis_list = tis
+                if isinstance(workloads, list):
+                    workloads_list = workloads
                 else:
-                    tis_list = list(tis)
-                if tis_list:
+                    workloads_list = list(workloads)
+                if workloads_list:
                     dag_id_to_team_name = self._get_team_names_for_dag_ids(
-                        {ti.dag_id for ti in tis_list}, session
+                        {
+                            dag_id
+                            for workload in workloads_list
+                            if (dag_id := workload.get_dag_id()) is not None
+                        },
+                        session,
                     )
                 else:
                     dag_id_to_team_name = {}
-                tis_iter = tis_list
+                workloads_iter = workloads_list
             else:
-                tis_iter = tis
+                workloads_iter = workloads
         else:
             dag_id_to_team_name = {}
-            tis_iter = tis
+            workloads_iter = workloads
 
-        _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
-        for ti in tis_iter:
-            if executor_obj := self._try_to_load_executor(
-                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
-            ):
-                _executor_to_tis[executor_obj].append(ti)
+        _executor_to_workloads: defaultdict[BaseExecutor, list[SchedulerWorkload]] = defaultdict(list)
+        for workload in workloads_iter:
+            _dag_id = workload.get_dag_id()
+            _team = dag_id_to_team_name.get(_dag_id, NOTSET) if _dag_id else NOTSET
+            if executor_obj := self._try_to_load_executor(workload, session, team_name=_team):
+                _executor_to_workloads[executor_obj].append(workload)
 
-        return _executor_to_tis
+        return _executor_to_workloads
 
-    def _try_to_load_executor(self, ti: TaskInstance, session, team_name=NOTSET) -> BaseExecutor | None:
+    def _try_to_load_executor(
+        self, workload: SchedulerWorkload, session, team_name=NOTSET
+    ) -> BaseExecutor | None:
         """
         Try to load the given executor.
 
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
 
-        :param ti: TaskInstance to load executor for
+        :param workload: SchedulerWorkload (TaskInstance or ExecutorCallback) to load executor for
         :param session: Database session for queries
         :param team_name: Optional pre-resolved team name. If NOTSET and multi-team is enabled,
                          will query the database to resolve team name. None indicates global team.
@@ -3126,17 +3238,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if conf.getboolean("core", "multi_team"):
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
-                team_name = self._get_task_team_name(ti, session)
+                team_name = self._get_workload_team_name(workload, session)
         else:
             team_name = None
-        # Firstly, check if there is no executor set on the TaskInstance, if not, we need to fetch the default
-        # (either globally or for the team)
-        if ti.executor is None:
+        # If there is no executor set on the workload fetch the default (either globally or for the team)
+        if workload.get_executor_name() is None:
             if not team_name:
-                # No team is specified, so just use the global default executor
+                # No team is specified, use the global default executor
                 executor = self.executor
             else:
-                # We do have a team, so we need to find the default executor for that team
+                # We do have a team, use the default executor for that team
                 for _executor in self.executors:
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
@@ -3146,22 +3257,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # No executor found for that team, fall back to global default
                     executor = self.executor
         else:
-            # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
+            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
             for _executor in self.executors:
-                if _executor.name and ti.executor in (_executor.name.alias, _executor.name.module_path):
+                if _executor.name and workload.get_executor_name() in (
+                    _executor.name.alias,
+                    _executor.name.module_path,
+                ):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor
 
         if executor is not None:
-            self.log.debug("Found executor %s for task %s (team: %s)", executor.name, ti, team_name)
+            self.log.debug(
+                "Found executor %s for task or callback %s (team: %s)", executor.name, workload, team_name
+            )
         else:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
             # they request is available and if not, disallow the DAG to be scheduled.
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
-            self.log.warning("Executor, %s, was not found but a Task was configured to use it", ti.executor)
+            self.log.warning(
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                workload.get_executor_name(),
+            )
 
         return executor
 

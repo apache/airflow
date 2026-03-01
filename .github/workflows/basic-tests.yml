@@ -70,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.10.6"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.7"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -139,7 +139,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
@@ -427,7 +427,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Set up Airflow home directory"

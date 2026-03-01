@@ -691,12 +691,12 @@ def sync_breeze_lock_file() -> None:
 
 def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
     """
-    Resolve the full transitive dependency list for hatchling (with virtualenv<21) using uv pip compile.
+    Resolve the full transitive dependency list for hatchling using uv pip compile.
 
     When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
     Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
     """
-    packages = ["hatchling", "virtualenv<21"]
+    packages = ["hatchling"]
     if with_gitpython:
         packages.append("gitpython")
 
