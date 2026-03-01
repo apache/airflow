@@ -29,6 +29,7 @@ import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
+import signal
 import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
@@ -38,6 +39,7 @@ import structlog
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads.callback import execute_callback_workload
+from airflow.models.connection_test import ConnectionTestState, run_connection_test
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -173,62 +175,63 @@ def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_con
 
 def _execute_connection_test(log: Logger, workload: workloads.TestConnection, team_conf) -> None:
     """
-    Execute a connection test workload with a timeout.
+    Execute a connection test workload.
 
-    Results are reported back via the Execution API (workers must not access the metadata DB directly).
+    Results are reported back via the Execution API.
 
     :param log: Logger instance
     :param workload: The TestConnection workload to execute
     :param team_conf: Team-specific executor configuration
     """
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError
-
-    import httpx
-
-    from airflow.models.connection_test import run_connection_test
+    from airflow.sdk.api.client import Client
 
     setproctitle(
         f"{_get_executor_process_title_prefix(team_conf.team_name)} connection-test {workload.connection_id}",
         log,
     )
 
-    # Build execution API URL (same pattern as _execute_work)
     base_url = team_conf.get("api", "base_url", fallback="/")
     if base_url.startswith("/"):
         base_url = f"http://localhost:8080{base_url}"
-    api_url = f"{base_url.rstrip('/')}/execution/connection-tests/{workload.connection_test_id}"
-    headers = {"Authorization": f"Bearer {workload.token}"}
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    server = team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
 
-    def _patch(state: str, result_message: str | None = None) -> None:
-        payload: dict[str, str] = {"state": state}
-        if result_message is not None:
-            payload["result_message"] = result_message
-        httpx.patch(api_url, json=payload, headers=headers)
+    client: Client = Client(base_url=server, token=workload.token)
 
+    def _handle_timeout(signum, frame):
+        raise TimeoutError(f"Connection test timed out after {workload.timeout}s")
+
+    signal.signal(signal.SIGALRM, _handle_timeout)
+    signal.alarm(workload.timeout)
     try:
-        _patch("running")
+        client.connection_tests.update_state(workload.connection_test_id, ConnectionTestState.RUNNING)
+        success, message = run_connection_test(connection_id=workload.connection_id)
 
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(
-                run_connection_test,
-                connection_id=workload.connection_id,
-            )
-            success, message = future.result(timeout=workload.timeout)
-
-        _patch("success" if success else "failed", message)
+        state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
+        client.connection_tests.update_state(workload.connection_test_id, state, message)
     except TimeoutError:
         log.error(
             "Connection test timed out after %ds",
             workload.timeout,
             connection_id=workload.connection_id,
         )
-        _patch("failed", f"Connection test timed out after {workload.timeout}s")
+        client.connection_tests.update_state(
+            workload.connection_test_id,
+            ConnectionTestState.FAILED,
+            f"Connection test timed out after {workload.timeout}s",
+        )
     except Exception:
         log.exception("Connection test failed unexpectedly", connection_id=workload.connection_id)
         try:
-            _patch("failed", "Connection test failed unexpectedly")
+            client.connection_tests.update_state(
+                workload.connection_test_id,
+                ConnectionTestState.FAILED,
+                "Connection test failed unexpectedly",
+            )
         except Exception:
             log.exception("Failed to report connection test failure")
+    finally:
+        signal.alarm(0)
 
 
 class LocalExecutor(BaseExecutor):
