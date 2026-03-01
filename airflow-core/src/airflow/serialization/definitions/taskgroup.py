@@ -22,6 +22,7 @@ import copy
 import functools
 import operator
 import weakref
+from collections import deque
 from typing import TYPE_CHECKING
 
 import attrs
@@ -188,9 +189,9 @@ class SerializedTaskGroup(DAGNode):
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
-        groups_to_visit = [self]
+        groups_to_visit = deque([self])
         while groups_to_visit:
-            for child in groups_to_visit.pop(0).children.values():
+            for child in groups_to_visit.popleft().children.values():
                 if isinstance(child, (SerializedMappedOperator, SerializedBaseOperator)):
                     yield child
                 elif isinstance(child, SerializedTaskGroup):

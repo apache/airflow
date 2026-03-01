@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import (
@@ -61,10 +62,12 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param dataset_id: The dataset id.
     :param group_id: The workspace id.
     :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.
-    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
+    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_completion`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
+    :param wait_for_completion: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
+    :param deferrable: This parameter is deprecated and no longer has any effect. The operator now always uses deferrable execution when ``wait_for_completion=True``.
     """
 
     template_fields: Sequence[str] = (
@@ -86,13 +89,19 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         request_body: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if "deferrable" in kwargs or deferrable is not True:
+            self.log.warning(
+                "The PowerBIDatasetRefreshOperator now always uses deferrable execution when wait_for_completion=True."
+            )
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
-        self.wait_for_termination = True
+        self.wait_for_completion = wait_for_completion
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
@@ -108,63 +117,76 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
-        if self.wait_for_termination:
-            self.defer(
-                trigger=PowerBITrigger(
-                    conn_id=self.conn_id,
-                    group_id=self.group_id,
-                    dataset_id=self.dataset_id,
-                    timeout=self.timeout,
-                    proxies=self.proxies,
-                    api_version=self.api_version,
-                    check_interval=self.check_interval,
-                    wait_for_termination=self.wait_for_termination,
-                    request_body=self.request_body,
-                ),
-                method_name=self.get_refresh_status.__name__,
+        if not self.wait_for_completion:
+            # Fire and forget - synchronous execution, no deferral
+            hook = PowerBIHook(
+                conn_id=self.conn_id, proxies=self.proxies, api_version=self.api_version, timeout=self.timeout
             )
 
-    def get_refresh_status(self, context: Context, event: dict[str, str] | None = None):
-        """Push the refresh Id to XCom then runs the Trigger to wait for refresh completion."""
-        if event:
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
+            dataset_refresh_id = hook.trigger_dataset_refresh(
+                dataset_id=self.dataset_id,
+                group_id=self.group_id,
+                request_body=self.request_body,
+            )
 
-            dataset_refresh_id = event["dataset_refresh_id"]
+            if dataset_refresh_id:
+                self.log.info("Triggered dataset refresh %s (fire-and-forget)", dataset_refresh_id)
+                context["ti"].xcom_push(
+                    key=f"{self.task_id}.powerbi_dataset_refresh_id",
+                    value=dataset_refresh_id,
+                )
+            else:
+                raise AirflowException("Failed to trigger dataset refresh")
+            return
+
+        # Wait for termination - use deferrable trigger
+        self.defer(
+            trigger=PowerBITrigger(
+                conn_id=self.conn_id,
+                group_id=self.group_id,
+                dataset_id=self.dataset_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                api_version=self.api_version,
+                check_interval=self.check_interval,
+                wait_for_termination=self.wait_for_completion,
+                request_body=self.request_body,
+            ),
+            method_name=self.execute_complete.__name__,
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Handle trigger completion and push results to XCom or raise an exception.
+
+        :param context: Airflow context dictionary
+        :param event: Event dict from trigger with status and dataset_refresh_id
+        """
+        if not event:
+            return
+
+        # Success - push both ID and status to XCom
+        dataset_refresh_id = event.get("dataset_refresh_id")
+        dataset_refresh_status = event.get("dataset_refresh_status")
 
         if dataset_refresh_id:
             context["ti"].xcom_push(
-                key=f"{self.task_id}.powerbi_dataset_refresh_Id",
+                key=f"{self.task_id}.powerbi_dataset_refresh_id",
                 value=dataset_refresh_id,
             )
-            self.defer(
-                trigger=PowerBITrigger(
-                    conn_id=self.conn_id,
-                    group_id=self.group_id,
-                    dataset_id=self.dataset_id,
-                    dataset_refresh_id=dataset_refresh_id,
-                    timeout=self.timeout,
-                    proxies=self.proxies,
-                    api_version=self.api_version,
-                    check_interval=self.check_interval,
-                    wait_for_termination=self.wait_for_termination,
-                ),
-                method_name=self.execute_complete.__name__,
-            )
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> Any:
-        """
-        Return immediately - callback for when the trigger fires.
-
-        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
-        """
-        if event:
+        if dataset_refresh_status:
             context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
-                value=event["dataset_refresh_status"],
+                value=dataset_refresh_status,
             )
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
+
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        self.log.info(
+            "Dataset refresh %s completed with status: %s", dataset_refresh_id, dataset_refresh_status
+        )
 
 
 class PowerBIWorkspaceListOperator(BaseOperator):

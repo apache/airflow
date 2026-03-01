@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -29,6 +29,7 @@ import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
@@ -43,14 +44,20 @@ import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
+type ColumnProps = {
+  readonly open: boolean;
+  readonly translate: TFunction;
+};
+
 const getColumns = ({
   allRowsSelected,
   multiTeam,
   onRowSelect,
   onSelectAll,
+  open,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
@@ -83,12 +90,28 @@ const getColumns = ({
     },
     {
       accessorKey: "value",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
+      cell: ({ row }) => (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.value.length : undefined}
+            showTooltip
+            text={row.original.value}
+          />
+        </Box>
+      ),
       header: translate("columns.value"),
     },
     {
       accessorKey: "description",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
+      cell: ({ row }) => (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.description?.length : undefined}
+            showTooltip
+            text={row.original.description}
+          />
+        </Box>
+      ),
       header: translate("columns.description"),
     },
     {
@@ -129,6 +152,7 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
   const { pagination, sorting } = tableURLState;
@@ -154,6 +178,7 @@ export const Variables = () => {
     multiTeam: multiTeamEnabled,
     onRowSelect: handleRowSelect,
     onSelectAll: handleSelectAll,
+    open,
     selectedRows,
     translate,
   });
@@ -184,6 +209,12 @@ export const Variables = () => {
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
           <Spacer />
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:expand.collapse")}
+            expandLabel={translate("common:expand.expand")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>

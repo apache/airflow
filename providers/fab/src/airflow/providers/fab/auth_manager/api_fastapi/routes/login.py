@@ -23,17 +23,15 @@ from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.routes.router import auth_router
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-login_router = AirflowRouter(tags=["FabAuthManager"])
 
-
-@login_router.post(
+@auth_router.post(
     "/token",
     response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
@@ -45,7 +43,7 @@ def create_token(request: Request, body: dict[str, Any] = Body(...)) -> LoginRes
         return FABAuthManagerLogin.create_token(headers=dict(request.headers), body=body)
 
 
-@login_router.post(
+@auth_router.post(
     "/token/cli",
     response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
@@ -61,7 +59,7 @@ def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> Logi
         )
 
 
-@login_router.get(
+@auth_router.get(
     "/logout",
     status_code=status.HTTP_307_TEMPORARY_REDIRECT,
 )

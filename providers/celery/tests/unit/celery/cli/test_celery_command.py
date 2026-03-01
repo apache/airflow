@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
+import logging
 import os
 import sys
 from io import StringIO
@@ -632,3 +633,54 @@ def test_stale_bundle_cleanup(mock_process):
     assert len(calls) == 1
     actual = [x.kwargs["target"] for x in calls]
     assert actual[0].__name__ == "bundle_cleanup_main"
+
+
+class TestLoggerSetupHandler:
+    """Tests for logger_setup_handler that configures celery logging."""
+
+    def test_logger_setup_handler_uses_task_formatter_when_separation_enabled(self):
+        """When celery_stdout_stderr_separation is True, handlers should use TaskFormatter."""
+        from celery.app.log import TaskFormatter
+
+        logger = MagicMock(spec=logging.Logger)
+        logger.handlers = []
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "True"}):
+            celery_command.logger_setup_handler(logger)
+
+        assert len(logger.handlers) == 2
+        stdout_handler, stderr_handler = logger.handlers
+        assert isinstance(stdout_handler.formatter, TaskFormatter)
+        assert isinstance(stderr_handler.formatter, TaskFormatter)
+
+    def test_logger_setup_handler_stdout_stderr_split(self):
+        """Verify stdout handler filters errors out, stderr handler only gets errors and above."""
+        logger = MagicMock(spec=logging.Logger)
+        logger.handlers = []
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "True"}):
+            celery_command.logger_setup_handler(logger)
+
+        stdout_handler, stderr_handler = logger.handlers
+
+        # stdout handler should have a filter that rejects ERROR and above
+        assert len(stdout_handler.filters) == 1
+        error_record = logging.LogRecord("test", logging.ERROR, "", 0, "msg", (), None)
+        warning_record = logging.LogRecord("test", logging.WARNING, "", 0, "msg", (), None)
+        assert stdout_handler.filters[0].filter(error_record) is False
+        assert stdout_handler.filters[0].filter(warning_record) is True
+
+        # stderr handler level should be ERROR
+        assert stderr_handler.level == logging.ERROR
+
+    def test_logger_setup_handler_noop_when_separation_disabled(self):
+        """When celery_stdout_stderr_separation is False, logger handlers should not be modified."""
+        logger = MagicMock(spec=logging.Logger)
+        original_handlers = [logging.StreamHandler()]
+        logger.handlers = original_handlers.copy()
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "False"}):
+            celery_command.logger_setup_handler(logger)
+
+        # Handlers should remain unchanged
+        assert logger.handlers == original_handlers

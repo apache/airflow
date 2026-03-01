@@ -292,6 +292,8 @@ class KiotaRequestAdapterHook(BaseHook):
                     if authority.endswith(domain_name):
                         return None
             return proxies
+        if proxies:
+            return proxies
         return None
 
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:

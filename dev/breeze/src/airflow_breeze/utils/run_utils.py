@@ -40,6 +40,14 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    EDGE_PLUGIN_PREK_HOOK,
+    EDGE_PLUGIN_UI_DIST_PATH,
+    EDGE_PLUGIN_UI_NODE_MODULES_PATH,
+    FAB_AUTH_MANAGER_WWW_DIST_PATH,
+    FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH,
+    FAB_AUTH_MANAGER_WWW_PREK_HOOK,
+    FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH,
+    FAST_API_SIMPLE_AUTH_MANAGER_NODE_MODULES_PATH,
     UI_ASSET_COMPILE_LOCK,
     UI_ASSET_HASH_PATH,
     UI_ASSET_OUT_DEV_MODE_FILE,
@@ -448,6 +456,9 @@ def _run_compile_internally(
 
     env = os.environ.copy()
     if dev:
+        # Clean up stale lock file
+        compile_lock.unlink(missing_ok=True)
+        UI_ASSET_OUT_DEV_MODE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
             return run_command(
                 command_to_execute,
@@ -494,11 +505,19 @@ def kill_process_group(gid: int):
         os.killpg(gid, signal.SIGTERM)
 
 
-def clean_ui_assets():
+def _clean_ui_assets(additional_ui_hooks: list[str]):
     get_console().print("[info]Cleaning ui assets[/]")
     UI_ASSET_HASH_PATH.unlink(missing_ok=True)
     shutil.rmtree(UI_NODE_MODULES_PATH, ignore_errors=True)
     shutil.rmtree(UI_DIST_PATH, ignore_errors=True)
+    shutil.rmtree(FAST_API_SIMPLE_AUTH_MANAGER_NODE_MODULES_PATH, ignore_errors=True)
+    shutil.rmtree(FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH, ignore_errors=True)
+    if EDGE_PLUGIN_PREK_HOOK in additional_ui_hooks:
+        shutil.rmtree(EDGE_PLUGIN_UI_NODE_MODULES_PATH, ignore_errors=True)
+        shutil.rmtree(EDGE_PLUGIN_UI_DIST_PATH, ignore_errors=True)
+    if FAB_AUTH_MANAGER_WWW_PREK_HOOK in additional_ui_hooks:
+        shutil.rmtree(FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH, ignore_errors=True)
+        shutil.rmtree(FAB_AUTH_MANAGER_WWW_DIST_PATH, ignore_errors=True)
     get_console().print("[success]Cleaned ui assets[/]")
 
 
@@ -506,9 +525,10 @@ def run_compile_ui_assets(
     dev: bool,
     run_in_background: bool,
     force_clean: bool,
+    additional_ui_hooks: list[str],
 ):
     if force_clean:
-        clean_ui_assets()
+        _clean_ui_assets(additional_ui_hooks)
     if dev:
         get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
         get_console().print(
@@ -522,6 +542,7 @@ def run_compile_ui_assets(
         "--hook-stage",
         "manual",
         "compile-ui-assets-dev" if dev else "compile-ui-assets",
+        *additional_ui_hooks,
         "--all-files",
         "--verbose",
     ]

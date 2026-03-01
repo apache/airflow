@@ -853,6 +853,7 @@ rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-provide
 Run the check:
 
 ```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-providers-src/.rat-excludes
 java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
 ```
 
@@ -1037,8 +1038,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 
@@ -1174,11 +1177,8 @@ ls ${SOURCE_DIR}/*<provider>*
 # Remove them
 svn rm ${SOURCE_DIR}/*<provider>*
 
-# Create providers folder if it does not exist
-# All latest releases are kept in this one folder without version sub-folder
-cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
-mkdir -pv providers
-cd providers
+# All latest releases are kept in this providers folder without version sub-folder
+cd "${ASF_DIST_PARENT}/asf-dist/release/airflow/providers"
 
 # Copy your providers with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
@@ -1203,7 +1203,8 @@ svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n"): release prepa
 ```
 
 Verify that the packages appear in
-[providers](https://dist.apache.org/repos/dist/release/airflow/providers)
+[providers](https://dist.apache.org/repos/dist/release/airflow/providers) and the (always first)
+`apache_airflow_providers-RELEASE_DATE-source.tar.gz` file should have the right RELEASE_DATE.
 
 You are expected to see all latest versions of providers.
 The ones you are about to release (with new version) and the ones that are not part of the current release.

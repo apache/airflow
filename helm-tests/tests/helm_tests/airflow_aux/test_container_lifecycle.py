@@ -107,8 +107,30 @@ class TestContainerLifecycleHooks:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) != LIFECYCLE_PARSED
 
     # <local>.containerLifecycleWebhooks > containerLifecycleWebhooks
-    @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
-    def test_check_main_container_setting(self, hook_type):
+    @pytest.mark.parametrize(
+        ("hook_type", "workers_values"),
+        [
+            ("preStop", {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}),
+            ("preStop", {"celery": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}}),
+            (
+                "preStop",
+                {
+                    "containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE},
+                    "celery": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}},
+                },
+            ),
+            ("postStart", {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}),
+            ("postStart", {"celery": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}}),
+            (
+                "postStart",
+                {
+                    "containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE},
+                    "celery": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}},
+                },
+            ),
+        ],
+    )
+    def test_check_main_container_setting(self, hook_type, workers_values):
         docs = render_chart(
             name=RELEASE_NAME,
             values={
@@ -116,7 +138,7 @@ class TestContainerLifecycleHooks:
                 "flower": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "scheduler": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "webserver": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
-                "workers": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
+                "workers": workers_values,
                 "migrateDatabaseJob": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "triggerer": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "redis": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},

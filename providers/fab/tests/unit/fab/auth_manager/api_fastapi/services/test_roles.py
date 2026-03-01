@@ -320,7 +320,7 @@ class TestRolesService:
         out = FABAuthManagerRoles.patch_role(
             body=body,
             name="viewer",
-            update_mask=["actions"],
+            update_mask="actions",
         )
         assert out.name == "viewer"
         assert out.permissions
@@ -346,7 +346,7 @@ class TestRolesService:
         out = FABAuthManagerRoles.patch_role(
             body=body,
             name="viewer",
-            update_mask=["name"],
+            update_mask="name",
         )
         assert out.name == "viewer1"
         assert out.permissions

@@ -67,6 +67,9 @@ def git_repo(tmp_path_factory):
 
 
 def assert_repo_is_closed(bundle: GitDagBundle):
+    # When .git was pruned, repo is cleared and there is nothing to close
+    if getattr(bundle, "repo", None) is None:
+        return
     # cat-file processes get left around if the repo is not closed, so check it was
     assert bundle.repo.git.cat_file_all is None
     assert bundle.bare_repo.git.cat_file_all is None
@@ -265,6 +268,45 @@ class TestGitDagBundle:
         assert bundle.get_current_version() == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_second_initialize_reuses_pruned_worktree_without_recloning(self, mock_githook, git_repo):
+        """When version path exists without .git (pruned), second initialize() uses it and does not re-clone."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+        version = starting_commit.hexsha
+        bundle_name = "test_pruned_reuse"
+
+        # First init: clone and prune (default)
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle1.initialize()
+        assert not (bundle1.repo_path / ".git").exists()
+        assert bundle1.get_current_version() == version
+        version_path = bundle1.repo_path
+
+        # Second init: same name and version; should detect pruned worktree and skip clone
+        with patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone:
+            bundle2 = GitDagBundle(
+                name=bundle_name,
+                git_conn_id=CONN_HTTPS,
+                version=version,
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                prune_dotgit_folder=True,
+            )
+            bundle2.initialize()
+            mock_clone.assert_not_called()
+
+        assert bundle2.repo_path == version_path
+        assert bundle2.get_current_version() == version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
 
     @pytest.mark.parametrize(
         "amend",
@@ -715,14 +757,15 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        ("conn_id", "expected_hook_type", "exception_expected"),
+        ("conn_id", "repo_url", "expected_hook_type", "exception_expected"),
         [
-            ("my_test_git", GitHook, False),
-            ("something-else", None, True),
+            ("my_test_git", None, GitHook, False),
+            ("something-else", None, None, True),
+            ("something-else", "https://github.com/apache/airflow.git", None, False),
         ],
     )
     def test_repo_url_access_missing_connection_raises_exception(
-        self, conn_id, expected_hook_type, exception_expected
+        self, conn_id, repo_url, expected_hook_type, exception_expected
     ):
         if exception_expected:
             with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
@@ -730,14 +773,30 @@ class TestGitDagBundle:
                     name="testa",
                     tracking_ref="main",
                     git_conn_id=conn_id,
+                    repo_url=repo_url,
                 )
         else:
             bundle = GitDagBundle(
                 name="testa",
                 tracking_ref="main",
                 git_conn_id=conn_id,
+                repo_url=repo_url,
             )
-            assert isinstance(bundle.hook, expected_hook_type)
+            if expected_hook_type is None:
+                assert bundle.hook is None
+            else:
+                assert isinstance(bundle.hook, expected_hook_type)
+
+    def test_public_repository_works_without_connection(self):
+        """Test that public repositories work without any connection defined."""
+        bundle = GitDagBundle(
+            name="public-repo",
+            tracking_ref="main",
+            repo_url="https://github.com/apache/airflow.git",
+            git_conn_id="nonexistent_connection",
+        )
+        assert bundle.hook is None
+        assert bundle.repo_url == "https://github.com/apache/airflow.git"
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):

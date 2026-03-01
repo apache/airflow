@@ -260,11 +260,80 @@ class TestPinotDbApiHook:
         self.cur.fetchall.return_value = result_sets
         assert result_sets == self.db_hook().get_records(statement)
 
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.send_sql_hook_lineage")
+    def test_get_records_hook_lineage(self, mock_send_lineage):
+        statement = "SQL"
+        hook = self.db_hook()
+        hook.get_records(statement)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
     def test_get_first(self):
         statement = "SQL"
         result_sets = [("row1",), ("row2",)]
         self.cur.fetchone.return_value = result_sets[0]
         assert result_sets[0] == self.db_hook().get_first(statement)
+
+    @mock.patch("airflow.providers.apache.pinot.hooks.pinot.send_sql_hook_lineage")
+    def test_get_first_hook_lineage(self, mock_send_lineage):
+        statement = "SQL"
+        hook = self.db_hook()
+        hook.get_first(statement)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        hook = self.db_hook()
+        self.cur.fetchall.return_value = []
+
+        hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        statement = "SELECT 1"
+        parameters = ("x",)
+        hook = self.db_hook()
+        hook.get_df(statement, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        statement = "SELECT 1"
+        parameters = ("x",)
+        hook = self.db_hook()
+        list(hook.get_df_by_chunks(statement, parameters=parameters, chunksize=1))
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] == parameters
 
     def test_get_df_pandas(self):
         statement = "SQL"

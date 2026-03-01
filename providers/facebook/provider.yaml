@@ -22,6 +22,7 @@ description: |
     `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334958
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
