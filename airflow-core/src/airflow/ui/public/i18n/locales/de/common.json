@@ -166,7 +166,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
-  "pendingDagRun_one": "{{count}} Ausstehender Dag Lauf",
+  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
   "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
