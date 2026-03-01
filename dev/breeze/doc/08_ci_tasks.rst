@@ -132,6 +132,24 @@ These are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
+Milestone Tag Assistant
+-----------------------
+
+The bot will only be triggered when a new push event occurs on the ``main`` or ``v3-1-test`` branches. It will leave a comment in the corresponding PR (similar to how the current ``automatic-backport`` bot behaves) and set the milestone if it matches the rules below, and it will skip if the PRs that already have a milestone set.
+
+There are two cases for the current rules:
+- **CI-related**: no need to set milestone
+- **Patch release**: default to the **latest patch-release milestone**
+  - has a label like ``backport-to-v3-1-test``
+  - is merged to ``v3-1-test`` version branch
+
+If it cannot determine which milestone should be added, it also adds a comment to remind the committer who merged the PR to add the corresponding milestone. This automation ensures that all PRs that should be included in the patch release are properly tagged, making the release manager's life easier.
+
+.. image:: ./images/output_ci_set-milestone.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_milestone-tag-assistant.svg
+  :width: 100%
+  :alt: Milestone Tag Assistant
+
 -----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how

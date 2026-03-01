@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.migrations.db_types import TIMESTAMP, StringID
@@ -51,7 +50,7 @@ def upgrade():
 
     op.create_table(
         "dag_version",
-        sa.Column("id", UUIDType(binary=False), nullable=False),
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("created_at", TIMESTAMP(), nullable=False, default=timezone.utcnow),
@@ -77,9 +76,9 @@ def upgrade():
 
     with op.batch_alter_table("dag_code") as batch_op:
         batch_op.drop_column("fileloc_hash")
-        batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
+        batch_op.add_column(sa.Column("id", sa.Uuid(), nullable=False))
         batch_op.create_primary_key("dag_code_pkey", ["id"])
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False), nullable=False))
+        batch_op.add_column(sa.Column("dag_version_id", sa.Uuid(), nullable=False))
         batch_op.add_column(sa.Column("source_code_hash", sa.String(length=32), nullable=False))
         batch_op.add_column(sa.Column("dag_id", StringID(), nullable=False))
         batch_op.add_column(sa.Column("created_at", TIMESTAMP(), default=timezone.utcnow, nullable=False))
@@ -99,8 +98,8 @@ def upgrade():
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")
-        batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False), nullable=False))
+        batch_op.add_column(sa.Column("id", sa.Uuid(), nullable=False))
+        batch_op.add_column(sa.Column("dag_version_id", sa.Uuid(), nullable=False))
         batch_op.add_column(sa.Column("created_at", TIMESTAMP(), default=timezone.utcnow, nullable=False))
         batch_op.create_primary_key("serialized_dag_pkey", ["id"])
         batch_op.create_foreign_key(
@@ -113,7 +112,7 @@ def upgrade():
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
+        batch_op.add_column(sa.Column("dag_version_id", sa.Uuid()))
         batch_op.create_foreign_key(
             batch_op.f("task_instance_dag_version_id_fkey"),
             "dag_version",
@@ -123,11 +122,11 @@ def upgrade():
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
+        batch_op.add_column(sa.Column("dag_version_id", sa.Uuid()))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("dag_hash")
-        batch_op.add_column(sa.Column("created_dag_version_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("created_dag_version_id", sa.Uuid(), nullable=True))
         batch_op.create_foreign_key(
             "created_dag_version_id_fkey",
             "dag_version",

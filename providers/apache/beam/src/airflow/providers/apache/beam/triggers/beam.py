@@ -41,7 +41,7 @@ class BeamPipelineBaseTrigger(BaseTrigger):
         try:
             from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import GCSAsyncHook. To use the GCSAsyncHook functionality, please install the "

@@ -64,7 +64,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -131,7 +130,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -201,7 +199,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--use-mprocs",
+                "--terminal-multiplexer",
                 "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
@@ -246,7 +244,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -296,6 +293,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
+                "--forward-ports",
                 "--tty",
             ],
         },
@@ -307,7 +305,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {

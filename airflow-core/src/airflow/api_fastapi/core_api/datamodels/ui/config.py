@@ -23,7 +23,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class ConfigResponse(BaseModel):
     """configuration serializer."""
 
-    page_size: int
+    fallback_page_limit: int
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool
     instance_name: str
@@ -34,4 +34,5 @@ class ConfigResponse(BaseModel):
     dashboard_alert: list[UIAlert]
     show_external_log_redirect: bool
     external_log_name: str | None = None
-    theme: Theme
+    theme: Theme | None
+    multi_team: bool

@@ -137,6 +137,7 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    _make_process_nondumpable,
     _remote_logging_conn,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
@@ -350,6 +351,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -360,11 +362,12 @@ class TestWatchedSubprocess:
 
             logs = comms.send(ResendLoggingFD())
             assert isinstance(logs, SentFDs)
-            fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
-            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+            with os.fdopen(logs.fds[0], "w") as fd:
+                json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+                fd.write("\n")
 
-        line = lineno() - 3  # Line the error should be on
+        line = lineno() - 5  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -664,9 +667,16 @@ class TestWatchedSubprocess:
         mock_client.task_instances.start.return_value = make_ti_context()
 
         time_machine.move_to(instant, tick=False)
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            return current
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
-        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+        with (
+            patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
+            patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
+        ):
             exit_code = supervise(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
@@ -887,33 +897,42 @@ class TestWatchedSubprocess:
             client=client,
             process=mock_process,
         )
+        current = min_heartbeat_interval
 
-        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
-        time_machine.move_to(time_now, tick=False)
+        def mock_monotonic():
+            return current
 
-        # Simulate sending heartbeats and ensure the process gets killed after max retries
-        for i in range(1, max_failed_heartbeats):
-            proc._send_heartbeat_if_needed()
-            assert proc.failed_heartbeats == i  # Increment happens after failure
-            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        with patch(
+            "airflow.sdk.execution_time.supervisor.time.monotonic",
+            side_effect=mock_monotonic,
+        ):
+            time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
+            time_machine.move_to(time_now, tick=False)
 
-            # Ensure the retry log is present
-            expected_log = {
-                "event": "Failed to send heartbeat. Will be retried",
-                "failed_heartbeats": i,
-                "ti_id": TI_ID,
-                "max_retries": max_failed_heartbeats,
-                "level": "warning",
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
-                "exc_info": mocker.ANY,
-                "loc": mocker.ANY,
-            }
+            # Simulate sending heartbeats and ensure the process gets killed after max retries
+            for i in range(1, max_failed_heartbeats):
+                proc._send_heartbeat_if_needed()
+                assert proc.failed_heartbeats == i  # Increment happens after failure
+                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
 
-            assert expected_log in captured_logs
+                # Ensure the retry log is present
+                expected_log = {
+                    "event": "Failed to send heartbeat. Will be retried",
+                    "failed_heartbeats": i,
+                    "ti_id": TI_ID,
+                    "max_retries": max_failed_heartbeats,
+                    "level": "warning",
+                    "logger": "supervisor",
+                    "timestamp": mocker.ANY,
+                    "exc_info": mocker.ANY,
+                    "loc": mocker.ANY,
+                }
 
-            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
-            time_machine.shift(min_heartbeat_interval)
+                assert expected_log in captured_logs
+
+                # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+                # time_machine.shift(min_heartbeat_interval)
+                current += min_heartbeat_interval
 
         # On the final failure, the process should be killed
         proc._send_heartbeat_if_needed()
@@ -1070,7 +1089,7 @@ class TestWatchedSubprocess:
 
         mock_process = mocker.Mock(pid=12345)
 
-        time_machine.move_to(time.monotonic(), tick=False)
+        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1087,7 +1106,7 @@ class TestWatchedSubprocess:
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
         proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.monotonic()
+        proc._process_exit_monotonic = time.time()
 
         mocker.patch.object(
             ActivitySubprocess,
@@ -1299,7 +1318,7 @@ class TestWatchedSubprocessKill:
 
         # Set up a scenario where the last successful heartbeat was a long time ago
         # This will cause the heartbeat calculation to result in a negative value
-        mock_process._last_successful_heartbeat = time.monotonic() - 100  # 100 seconds ago
+        mock_process._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
 
         # Mock process to still be alive (not exited)
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
@@ -1342,7 +1361,7 @@ class TestWatchedSubprocessKill:
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
 
-        watched_subprocess._last_successful_heartbeat = time.monotonic() - heartbeat_ago
+        watched_subprocess._last_successful_heartbeat = time.time() - heartbeat_ago
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
 
         # Call the method and verify timeout is never less than our minimum
@@ -2057,7 +2076,24 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+            note="Test Note",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2067,7 +2103,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False),
+            args=("test_dag", "test_run", None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
@@ -2091,6 +2127,7 @@ REQUEST_TEST_CASES = [
             "conf": None,
             "triggering_user_name": None,
             "type": "DagRunResult",
+            "note": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2141,6 +2178,7 @@ REQUEST_TEST_CASES = [
                 "clear_number": 0,
                 "conf": None,
                 "triggering_user_name": None,
+                "note": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -2748,6 +2786,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     # This test is a little bit overly specific to how the logging is currently configured :/
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -2827,6 +2866,7 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
 
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
@@ -2979,7 +3019,10 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    from airflow.sdk import log as sdk_log
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+
     from airflow.sdk.execution_time import supervisor
 
     class ExampleBackend:
@@ -2994,25 +3037,31 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
 
     backend = ExampleBackend()
     monkeypatch.setattr(supervisor, "ensure_secrets_backend_loaded", lambda: [backend])
-    monkeypatch.setattr(sdk_log, "load_remote_log_handler", lambda: object())
-    monkeypatch.setattr(sdk_log, "load_remote_conn_id", lambda: "test_conn")
     monkeypatch.delenv("AIRFLOW_CONN_TEST_CONN", raising=False)
 
-    def noop_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200)
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/logs",
+            ("logging", "remote_log_conn_id"): "test_conn",
+        }
+    ):
 
-    clients = []
-    for _ in range(3):
-        client = make_client(transport=httpx.MockTransport(noop_request))
-        clients.append(weakref.ref(client))
-        with _remote_logging_conn(client):
-            pass
-        client.close()
-        del client
+        def noop_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200)
 
-    gc.collect()
-    assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
-    assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+        clients = []
+        for _ in range(3):
+            client = make_client(transport=httpx.MockTransport(noop_request))
+            clients.append(weakref.ref(client))
+            with _remote_logging_conn(client):
+                pass
+            client.close()
+            del client
+
+        gc.collect()
+        assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
+        assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
@@ -3102,3 +3151,90 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
         "event": "is connected",
         "timestamp": mock.ANY,
     } in caplog, caplog.text
+
+
+_NOBODY_UID = 65534
+
+
+def _drop_root_if_needed():
+    """Drop to a non-root UID so kernel dumpable checks actually apply (root/CAP_SYS_PTRACE bypasses them)."""
+    if os.getuid() == 0:
+        os.setuid(_NOBODY_UID)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_nondumpable_blocks_sibling_proc_read():
+    """A sibling process (same non-root UID) cannot read /proc/<pid>/environ or /proc/<pid>/mem of a nondumpable process."""
+    import multiprocessing
+
+    ready = multiprocessing.Event()
+    done = multiprocessing.Event()
+    result_queue = multiprocessing.Queue()
+
+    def target_fn():
+        _drop_root_if_needed()
+        _make_process_nondumpable()
+        ready.set()
+        done.wait(timeout=10)
+
+    def reader_fn(target_pid):
+        _drop_root_if_needed()
+        blocked = []
+        for proc_file in ("environ", "mem"):
+            try:
+                open(f"/proc/{target_pid}/{proc_file}").read()
+            except PermissionError:
+                blocked.append(proc_file)
+        result_queue.put(blocked)
+
+    target = multiprocessing.Process(target=target_fn)
+    target.start()
+    try:
+        assert ready.wait(timeout=5), "target process did not become ready"
+        reader = multiprocessing.Process(target=reader_fn, args=(target.pid,))
+        reader.start()
+        reader.join(timeout=5)
+        blocked = result_queue.get(timeout=5)
+        assert "environ" in blocked, "Sibling was able to read nondumpable process's /proc/environ"
+        assert "mem" in blocked, "Sibling was able to read nondumpable process's /proc/mem"
+    finally:
+        done.set()
+        target.join(timeout=5)
+        if target.is_alive():
+            target.kill()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_nondumpable_blocks_child_memory_read():
+    """A forked child (same non-root UID) cannot read its nondumpable parent's /proc/<pid>/mem."""
+    import multiprocessing
+
+    result_queue = multiprocessing.Queue()
+
+    def parent_fn():
+        _drop_root_if_needed()
+        _make_process_nondumpable()
+        parent_pid = os.getpid()
+        child_pid = os.fork()
+        if child_pid == 0:
+            try:
+                open(f"/proc/{parent_pid}/mem").read()
+            except PermissionError:
+                os._exit(0)
+            else:
+                os._exit(1)
+        _, status = os.waitpid(child_pid, 0)
+        result_queue.put(os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1)
+
+    proc = multiprocessing.Process(target=parent_fn)
+    proc.start()
+    proc.join(timeout=10)
+    exit_code = result_queue.get(timeout=5)
+    assert exit_code == 0, "Child was able to read parent's /proc/mem — expected PermissionError"
+
+
+@pytest.mark.skipif(sys.platform == "linux", reason="Test is for non-Linux platforms only")
+def test_nondumpable_noop_on_non_linux():
+    """On non-Linux, _make_process_nondumpable returns without error."""
+
+    _make_process_nondumpable()

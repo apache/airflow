@@ -17,16 +17,34 @@
  * under the License.
  */
 import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
 
-import type { ParamsSpec } from "src/queries/useDagParams";
+import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import ReactMarkdown from "../ReactMarkdown";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
+
+const computeSectionErrors = (
+  params: Record<string, ParamSpec>,
+  defaultSection: string,
+): Map<string, boolean> => {
+  const errors = new Map<string, boolean>();
+
+  Object.values(params).forEach((element) => {
+    if (
+      isRequired(element) &&
+      (element.value === null || element.value === undefined || element.value === "")
+    ) {
+      errors.set(element.schema.section ?? defaultSection, true);
+    }
+  });
+
+  return errors;
+};
 
 export type FlexibleFormProps = {
   readonly disabled?: boolean;
@@ -54,19 +72,6 @@ export const FlexibleForm = ({
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
-  const recheckSection = useCallback(() => {
-    sectionError.clear();
-    Object.entries(params).forEach(([, element]) => {
-      if (
-        isRequired(element) &&
-        (element.value === null || element.value === undefined || element.value === "")
-      ) {
-        sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
-        setSectionError(sectionError);
-      }
-    });
-  }, [flexibleFormDefaultSection, params, sectionError]);
-
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
     if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
@@ -87,25 +92,21 @@ export const FlexibleForm = ({
   );
 
   useEffect(() => {
-    recheckSection();
-    if (sectionError.size === 0) {
-      setError(false);
-    } else {
-      setError(true);
-    }
-  }, [params, setError, recheckSection, sectionError]);
+    const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
+
+    setSectionError(newSectionError);
+    setError(newSectionError.size > 0);
+  }, [params, flexibleFormDefaultSection, setError]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);
   }, [disabled, setDisabled]);
 
   const onUpdate = (_value?: string, error?: unknown) => {
-    recheckSection();
-    if (!Boolean(error) && sectionError.size === 0) {
-      setError(false);
-    } else {
-      setError(true);
-    }
+    const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
+
+    setSectionError(newSectionError);
+    setError(Boolean(error) || newSectionError.size > 0);
   };
 
   return Object.keys(params).length > 0 ? (

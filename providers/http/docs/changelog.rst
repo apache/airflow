@@ -27,6 +27,51 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The HTTP provider now uses JSON-based serialization for HTTP responses in deferred tasks
+  instead of pickle. Deferred HTTP tasks from previous provider versions will fail with a
+  ``TypeError`` after upgrade.
+
+  Before upgrading, ensure all HTTP tasks with ``deferrable=True`` that are currently in
+  ``deferred`` state have completed or been cleared.
+
+* ``Replace pickle with json serialization for http triggers (#61662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
+5.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.3
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Update conf imports for http provider (#60090)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.6.2
 .....
 

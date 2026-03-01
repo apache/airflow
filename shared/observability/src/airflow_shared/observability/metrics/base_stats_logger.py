@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .protocols import Timer
@@ -29,6 +30,14 @@ class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
     instance: StatsLogger | NoStatsLogger | None = None
+
+    @classmethod
+    def initialize(
+        cls,
+        *,
+        factory: Callable,
+    ) -> None:
+        """Initialize the StatsLogger instance."""
 
     @classmethod
     def incr(
@@ -82,6 +91,14 @@ class StatsLogger(Protocol):
 
 class NoStatsLogger:
     """If no StatsLogger is configured, NoStatsLogger is used as a fallback."""
+
+    @classmethod
+    def initialize(
+        cls,
+        *,
+        factory: Callable,
+    ) -> None:
+        """Initialize the NoStatsLogger instance."""
 
     @classmethod
     def incr(cls, stat: str, count: int = 1, rate: int = 1, *, tags: dict[str, str] | None = None) -> None:

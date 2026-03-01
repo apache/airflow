@@ -51,9 +51,8 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     get_container_status,
 )
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event import CoreV1Event
@@ -76,6 +75,10 @@ Sentinel for no xcom result.
 """
 
 
+class XComRetrievalError(AirflowException):
+    """When not possible to get xcom."""
+
+
 class PodPhase:
     """
     Possible pod phases.
@@ -87,6 +90,7 @@ class PodPhase:
     RUNNING = "Running"
     FAILED = "Failed"
     SUCCEEDED = "Succeeded"
+    UNKNOWN = "Unknown"
 
     terminal_states = {FAILED, SUCCEEDED}
 
@@ -184,20 +188,49 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     """
     Identify issues that justify terminating the pod early.
 
+    This method distinguishes between permanent failures (e.g., invalid image names)
+    and transient errors (e.g., rate limits) that should be retried by Kubernetes.
+
     :param pod: The pod object to check.
     :return: An error message if an issue is detected; otherwise, None.
     """
+    # Indicators in error messages that suggest transient issues
+    TRANSIENT_ERROR_PATTERNS = [
+        "pull qps exceeded",
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "temporarily unavailable",
+        "timeout",
+        "account limit",
+    ]
+
+    FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
+    TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
+    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
+
     pod_status = pod.status
-    if pod_status.container_statuses:
-        for container_status in pod_status.container_statuses:
-            container_state: V1ContainerState = container_status.state
-            container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-            if container_waiting:
-                if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"]:
-                    return (
-                        f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                        f"\n{container_waiting.message}"
-                    )
+    if not pod_status.container_statuses:
+        return None
+
+    for container_status in pod_status.container_statuses:
+        container_state: V1ContainerState = container_status.state
+        container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+        if not container_waiting:
+            continue
+
+        if container_waiting.reason in FATAL_STATES:
+            return ERROR_MESSAGE.format(
+                reason=container_waiting.reason, message=container_waiting.message or ""
+            )
+
+        if container_waiting.reason in TRANSIENT_STATES:
+            message_lower = (container_waiting.message or "").lower()
+            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
+            if not is_transient:
+                return ERROR_MESSAGE.format(
+                    reason=container_waiting.reason, message=container_waiting.message or ""
+                )
     return None
 
 
@@ -281,11 +314,11 @@ class PodLogsConsumer:
         if terminated:
             termination_time = terminated.finished_at
             if termination_time:
-                return termination_time + timedelta(seconds=self.post_termination_timeout) > utcnow()
+                return termination_time + timedelta(seconds=self.post_termination_timeout) > timezone.utcnow()
         return False
 
     def read_pod(self):
-        _now = utcnow()
+        _now = timezone.utcnow()
         if (
             self.read_pod_cache is None
             or self.last_read_pod_at + timedelta(seconds=self.read_pod_cache_timeout) < _now
@@ -322,6 +355,7 @@ class PodManager(LoggingMixin):
         self._watch = watch.Watch()
         self._callbacks = callbacks or []
         self.stop_watching_events = False
+        self.container_log_times: dict[tuple[str, str, str], DateTime] = {}
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -476,7 +510,6 @@ class PodManager(LoggingMixin):
                 )
                 message_to_log = None
                 message_timestamp = None
-                progress_callback_lines = []
                 try:
                     for raw_line in logs:
                         line = raw_line.decode("utf-8", errors="backslashreplace")
@@ -485,39 +518,51 @@ class PodManager(LoggingMixin):
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
                                 message_timestamp = line_timestamp
-                                progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                for line in progress_callback_lines:
-                                    for callback in self._callbacks:
-                                        callback.progress_callback(
-                                            line=line, client=self._client, mode=ExecutionMode.SYNC
-                                        )
-                                if message_to_log is not None:
-                                    self._log_message(
-                                        message_to_log,
-                                        container_name,
-                                        container_name_log_prefix_enabled,
-                                        log_formatter,
+                                for callback in self._callbacks:
+                                    callback.progress_callback(
+                                        line=message_to_log,
+                                        client=self._client,
+                                        mode=ExecutionMode.SYNC,
+                                        container_name=container_name,
+                                        timestamp=message_timestamp,
+                                        pod=pod,
                                     )
+                                self._log_message(
+                                    message_to_log,
+                                    container_name,
+                                    container_name_log_prefix_enabled,
+                                    log_formatter,
+                                )
                                 last_captured_timestamp = message_timestamp
+                                if last_captured_timestamp is not None:
+                                    self.container_log_times[
+                                        (pod.metadata.namespace, pod.metadata.name, container_name)
+                                    ] = last_captured_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
-                                progress_callback_lines = [line]
                         else:  # continuation of the previous log line
                             message_to_log = f"{message_to_log}\n{message}"
-                            progress_callback_lines.append(line)
                 finally:
                     # log the last line and update the last_captured_timestamp
-                    for line in progress_callback_lines:
+                    if message_to_log is not None:
                         for callback in self._callbacks:
                             callback.progress_callback(
-                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                                line=message_to_log,
+                                client=self._client,
+                                mode=ExecutionMode.SYNC,
+                                container_name=container_name,
+                                timestamp=message_timestamp,
+                                pod=pod,
                             )
-                    if message_to_log is not None:
                         self._log_message(
                             message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
                         )
                     last_captured_timestamp = message_timestamp
+                    if last_captured_timestamp:
+                        self.container_log_times[
+                            (pod.metadata.namespace, pod.metadata.name, container_name)
+                        ] = last_captured_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
                 # duplicate log entries
@@ -527,9 +572,9 @@ class PodManager(LoggingMixin):
                 exception = e
                 self._http_error_timestamps = getattr(self, "_http_error_timestamps", [])
                 self._http_error_timestamps = [
-                    t for t in self._http_error_timestamps if t > utcnow() - timedelta(seconds=60)
+                    t for t in self._http_error_timestamps if t > timezone.utcnow() - timedelta(seconds=60)
                 ]
-                self._http_error_timestamps.append(utcnow())
+                self._http_error_timestamps.append(timezone.utcnow())
                 # Log only if more than 2 errors occurred in the last 60 seconds
                 if len(self._http_error_timestamps) > 2:
                     self.log.exception(
@@ -627,10 +672,12 @@ class PodManager(LoggingMixin):
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for c in containers_to_log:
             self._await_init_container_start(pod=pod, container_name=c)
+            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
+                since_time=since_time,
                 container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
@@ -660,10 +707,12 @@ class PodManager(LoggingMixin):
             pod_name=pod.metadata.name,
         )
         for c in containers_to_log:
+            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
+                since_time=since_time,
                 container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
@@ -801,6 +850,12 @@ class PodManager(LoggingMixin):
                 resource_version=resource_version,
                 resource_version_match="NotOlderThan" if resource_version else None,
             )
+        except TypeError:
+            return self._client.list_namespaced_event(
+                namespace=pod.metadata.namespace,
+                field_selector=f"involvedObject.name={pod.metadata.name}",
+                resource_version=resource_version,
+            )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
@@ -843,6 +898,12 @@ class PodManager(LoggingMixin):
 
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieve XCom value and kill xcom sidecar container."""
+        # make sure that xcom sidecar container is still running
+        if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+            raise XComRetrievalError(
+                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! Not possible to read xcom from pod: {pod.metadata.name}"
+            )
+
         try:
             result = self.extract_xcom_json(pod)
             return result
@@ -857,6 +918,7 @@ class PodManager(LoggingMixin):
             f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
             f"else echo {EMPTY_XCOM_RESULT}; fi"
         )
+        result = None
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
@@ -887,7 +949,7 @@ class PodManager(LoggingMixin):
                 json.loads(result)
 
         if result is None:
-            raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
+            raise XComRetrievalError(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     @generic_api_retry

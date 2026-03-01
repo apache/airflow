@@ -20,13 +20,13 @@ import asyncio
 import contextlib
 import json
 import tempfile
+from collections.abc import AsyncGenerator
 from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol
 
 import aiofiles
 import requests
-from asgiref.sync import sync_to_async
 from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
@@ -36,11 +36,16 @@ from urllib3.exceptions import HTTPError
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
+    generic_api_retry,
+)
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
 
@@ -66,6 +71,31 @@ def _load_body_to_dict(body: str) -> dict:
     except yaml.YAMLError as e:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
+
+
+def _get_request_timeout(timeout_seconds: int | None) -> float:
+    """Get the client-side request timeout."""
+    if timeout_seconds is not None and timeout_seconds > API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE:
+        return timeout_seconds + API_TIMEOUT_OFFSET_SERVER_SIDE
+    return API_TIMEOUT
+
+
+class _TimeoutK8sApiClient(client.ApiClient):
+    """Wrapper around kubernetes sync ApiClient to set default timeout."""
+
+    def call_api(self, *args, **kwargs):
+        timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
+        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
+        return super().call_api(*args, **kwargs)
+
+
+class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
+    """Wrapper around kubernetes async ApiClient to set default timeout."""
+
+    async def call_api(self, *args, **kwargs):
+        timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
+        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
+        return await super().call_api(*args, **kwargs)
 
 
 class PodOperatorHookProtocol(Protocol):
@@ -272,7 +302,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.log.debug("loading kube_config from: in_cluster configuration")
             self._is_in_cluster = True
             config.load_incluster_config()
-            return client.ApiClient()
+            return _TimeoutK8sApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -282,7 +312,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return client.ApiClient()
+            return _TimeoutK8sApiClient()
 
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
@@ -297,7 +327,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-            return client.ApiClient()
+            return _TimeoutK8sApiClient()
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
@@ -307,7 +337,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return client.ApiClient()
+            return _TimeoutK8sApiClient()
 
         return self._get_default_client(cluster_context=cluster_context)
 
@@ -326,7 +356,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-        return client.ApiClient()
+        return _TimeoutK8sApiClient()
 
     @property
     def is_in_cluster(self) -> bool:
@@ -786,48 +816,54 @@ class AsyncKubernetesHook(KubernetesHook):
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
+        self._config_loaded = False
 
     async def _load_config(self):
-        """Return Kubernetes API session for use with requests."""
+        """Load Kubernetes configuration once per hook instance."""
+        if self._config_loaded:
+            return
+
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = await self._get_field("kube_config_path")
         kubeconfig = await self._get_field("kube_config")
+
         num_selected_configuration = sum(
             1 for o in [in_cluster, kubeconfig, kubeconfig_path, self.config_dict] if o
         )
 
-        async def api_client_from_kubeconfig_file(_kubeconfig_path: str | None):
-            await async_config.load_kube_config(
-                config_file=_kubeconfig_path,
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
-            return async_client.ApiClient()
-
         if num_selected_configuration > 1:
             raise AirflowException(
                 "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster are mutually exclusive. "
+                "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
         if in_cluster:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
-            self._is_in_cluster = True
             async_config.load_incluster_config()
-            return async_client.ApiClient()
+            self._is_in_cluster = True
+            self._config_loaded = True
+            return
+
+        # If above block does not return, we are not in a cluster.
+        self._is_in_cluster = False
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            self._is_in_cluster = False
             await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
-            return async_client.ApiClient()
+            self._config_loaded = True
+            return
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
-            self._is_in_cluster = False
-            return await api_client_from_kubeconfig_file(kubeconfig_path)
+            await async_config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+            self._config_loaded = True
+            return
 
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
@@ -844,18 +880,32 @@ class AsyncKubernetesHook(KubernetesHook):
                     kubeconfig = json.dumps(kubeconfig)
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
-                self._is_in_cluster = False
-                return await api_client_from_kubeconfig_file(temp_config.name)
+
+                await async_config.load_kube_config(
+                    config_file=temp_config.name,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
+                )
+                self._config_loaded = True
+                return
+
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
+        self._config_loaded = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
             if self.conn_id:
-                connection = await sync_to_async(self.get_connection)(self.conn_id)
+                try:
+                    connection = await get_async_connection(self.conn_id)
+                except AirflowNotFoundException:
+                    if self.conn_id == self.default_conn_name:
+                        connection = Connection(conn_id=self.default_conn_name)
+                    else:
+                        raise
                 self._extras = connection.extra_dejson
             else:
                 self._extras = {}
@@ -874,10 +924,11 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> async_client.ApiClient:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
         kube_client = None
         try:
-            kube_client = await self._load_config() or async_client.ApiClient()
+            await self._load_config()
+            kube_client = _TimeoutAsyncK8sApiClient()
             yield kube_client
         finally:
             if kube_client is not None:
@@ -951,8 +1002,8 @@ class AsyncKubernetesHook(KubernetesHook):
                     timestamps=True,
                     since_seconds=since_seconds,
                 )
-                logs = logs.splitlines()
-                return logs
+                logs_list: list[str] = logs.splitlines()
+                return logs_list
             except HTTPError as e:
                 raise KubernetesApiError from e
 
@@ -991,48 +1042,101 @@ class AsyncKubernetesHook(KubernetesHook):
         timeout_seconds: int = 30,
     ) -> AsyncGenerator[CoreV1Event]:
         """
-        Watch pod events using Kubernetes Watch API.
+        Watch Kubernetes events for a pod.
+
+        Reconnects on watch termination and resumes from the last observed
+        resourceVersion. The watch stops when the pod is terminal or deleted,
+        and falls back to polling if watch access is denied.
 
         :param name: Pod name to watch events for
         :param namespace: Kubernetes namespace
         :param resource_version: Only return events not older than this resource version
-        :param timeout_seconds: Timeout in seconds for the watch stream
+        :param timeout_seconds: Timeout in seconds for the watch stream. A small additional buffer may be applied internally.
+                                This does not limit the total duration of event streaming.
         """
-        if self._event_polling_fallback:
-            async for event_polled in self.watch_pod_events_polling_fallback(
-                name, namespace, resource_version, timeout_seconds
-            ):
-                yield event_polled
+        last_rv = resource_version
 
-        try:
-            w = async_watch.Watch()
-            async with self.get_conn() as connection:
-                v1_api = async_client.CoreV1Api(connection)
-
-                async for event_watched in w.stream(
-                    v1_api.list_namespaced_event,
-                    namespace=namespace,
-                    field_selector=f"involvedObject.name={name}",
-                    resource_version=resource_version,
-                    timeout_seconds=timeout_seconds,
-                ):
-                    event: CoreV1Event = event_watched.get("object")
-                    yield event
-
-        except async_client.exceptions.ApiException as e:
-            if hasattr(e, "status") and e.status == 403:
-                self.log.warning(
-                    "Triggerer does not have Kubernetes API permission to 'watch' events: %s Falling back to polling.",
-                    str(e),
-                )
-                self._event_polling_fallback = True
+        while True:
+            # If watch is known to be unavailable, use polling fallback
+            if self._event_polling_fallback:
                 async for event_polled in self.watch_pod_events_polling_fallback(
-                    name, namespace, resource_version, timeout_seconds
+                    name, namespace, last_rv, timeout_seconds
                 ):
                     yield event_polled
+                return
 
-        finally:
-            w.stop()
+            # Watch may not be created if pod inspection triggers early return.
+            w = None
+
+            try:
+                # Pod lifecycle is authoritative; events alone are not.
+                pod = await self.get_pod(name=name, namespace=namespace)
+                if pod.status and pod.status.phase in ("Succeeded", "Failed"):
+                    self.log.info(
+                        "Pod '%s' reached terminal phase '%s'; stopping event watch",
+                        name,
+                        pod.status.phase,
+                    )
+                    return
+
+                w = async_watch.Watch()
+                async with self.get_conn() as connection:
+                    v1_api = async_client.CoreV1Api(connection)
+
+                    async for event_watched in w.stream(
+                        v1_api.list_namespaced_event,
+                        namespace=namespace,
+                        field_selector=f"involvedObject.name={name}",
+                        resource_version=last_rv,
+                        timeout_seconds=timeout_seconds,
+                    ):
+                        event = event_watched.get("object")
+                        if not event or not event.metadata:
+                            continue
+
+                        if event.metadata.resource_version:
+                            last_rv = event.metadata.resource_version
+
+                        yield event
+
+            # Never swallow cancellation.
+            except asyncio.CancelledError:
+                raise
+
+            except async_client.exceptions.ApiException as e:
+                status = getattr(e, "status", None)
+
+                if status == 403:
+                    # Permanently fall back to polling when watch is not permitted.
+                    self.log.warning(
+                        "Kubernetes API does not permit watching events; falling back to polling: %s",
+                        str(e),
+                    )
+                    self._event_polling_fallback = True
+                    continue
+
+                if status == 404:
+                    # Terminate the watch if pod no longer exists.
+                    self.log.info("Pod '%s' no longer exists; stopping event watch", name)
+                    return
+
+                if status == 410:
+                    # Restart watch from current state if resourceVersion is too old.
+                    self.log.info(
+                        "resourceVersion too old while watching pod '%s'; restarting watch",
+                        name,
+                    )
+                    last_rv = None
+                    continue
+
+                # Other API errors are either transient or configuration/programming errors.
+                # Re-raise so generic_api_retry can apply centralized retry/backoff for
+                # transient failures, and fail fast for non-retryable ones.
+                raise
+
+            finally:
+                if w is not None:
+                    w.stop()
 
     async def watch_pod_events_polling_fallback(
         self,

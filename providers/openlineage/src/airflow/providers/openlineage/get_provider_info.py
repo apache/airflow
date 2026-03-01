@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-openlineage",
         "name": "OpenLineage Airflow",
-        "description": "`OpenLineage <https://openlineage.io/>`__\n",
+        "description": "`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.\nAt its core it is an extensible specification that systems can use to interoperate with lineage metadata.\n",
         "integrations": [
             {
                 "integration-name": "OpenLineage",
@@ -48,8 +48,43 @@ def get_provider_info():
         ],
         "config": {
             "openlineage": {
-                "description": "This section applies settings for OpenLineage integration.\nMore about configuration and its precedence can be found in the `user's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup>`_.\n",
+                "description": "This section applies settings for OpenLineage integration.\n",
                 "options": {
+                    "config_path": {
+                        "description": "Specify the path to the YAML configuration file.\nThis ensures backwards compatibility with passing config through the `openlineage.yml` file.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "full/path/to/openlineage.yml",
+                        "default": "",
+                    },
+                    "custom_run_facets": {
+                        "description": "Register custom run facet functions by passing a string of semicolon separated full import paths.\n",
+                        "type": "string",
+                        "example": "full.path.to.custom_facet_function;full.path.to.another_custom_facet_function",
+                        "default": "",
+                        "version_added": "1.10.0",
+                    },
+                    "dag_state_change_process_pool_size": {
+                        "description": "Number of processes to utilize for processing DAG state changes\nin an asynchronous manner within the scheduler process.\n",
+                        "default": "1",
+                        "example": None,
+                        "type": "integer",
+                        "version_added": "1.8.0",
+                    },
+                    "debug_mode": {
+                        "description": "If true, OpenLineage events will include information useful for debugging - potentially\ncontaining large fields e.g. all installed packages and their versions.\n",
+                        "default": "False",
+                        "example": None,
+                        "type": "boolean",
+                        "version_added": "1.11.0",
+                    },
+                    "disable_source_code": {
+                        "description": "Disable the inclusion of source code in OpenLineage events by setting this to `true`.\nBy default, several Operators (e.g. Python, Bash) will include their source code in the events\nunless disabled.\n",
+                        "default": "False",
+                        "example": None,
+                        "type": "boolean",
+                        "version_added": None,
+                    },
                     "disabled": {
                         "description": "Disable sending events without uninstalling the OpenLineage Provider by setting this to true.\n",
                         "type": "boolean",
@@ -64,19 +99,12 @@ def get_provider_info():
                         "default": "",
                         "version_added": "1.1.0",
                     },
-                    "selective_enable": {
-                        "description": "If this setting is enabled, OpenLineage integration won't collect and emit metadata,\nunless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.\n",
-                        "type": "boolean",
-                        "default": "False",
+                    "execution_timeout": {
+                        "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction for\ntask (on worker). Note that other configurations, sometimes with higher priority, such as\n`[core] task_success_overtime\n<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime>`_,\nmay also affect how much time OpenLineage has for execution.\n",
+                        "default": "10",
                         "example": None,
-                        "version_added": "1.7.0",
-                    },
-                    "namespace": {
-                        "description": "Set namespace that the lineage data belongs to, so that if you use multiple OpenLineage producers,\nevents coming from them will be logically separated.\n",
-                        "version_added": None,
-                        "type": "string",
-                        "example": "my_airflow_instance_1",
-                        "default": None,
+                        "type": "integer",
+                        "version_added": "1.9.0",
                     },
                     "extractors": {
                         "description": "Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.\n",
@@ -85,61 +113,26 @@ def get_provider_info():
                         "default": None,
                         "version_added": None,
                     },
-                    "custom_run_facets": {
-                        "description": "Register custom run facet functions by passing a string of semicolon separated full import paths.\n",
-                        "type": "string",
-                        "example": "full.path.to.custom_facet_function;full.path.to.another_custom_facet_function",
-                        "default": "",
-                        "version_added": "1.10.0",
-                    },
-                    "config_path": {
-                        "description": "Specify the path to the YAML configuration file.\nThis ensures backwards compatibility with passing config through the `openlineage.yml` file.\n",
-                        "version_added": None,
-                        "type": "string",
-                        "example": "full/path/to/openlineage.yml",
-                        "default": "",
-                    },
-                    "transport": {
-                        "description": "Pass OpenLineage Client transport configuration as a JSON string, including the transport type\nand any additional options specific to that type, as described in `OpenLineage docs\n<https://openlineage.io/docs/client/python/#built-in-transport-types>`_.\n\nCurrently supported types are:\n\n  * HTTP\n  * Kafka\n  * Console\n  * File\n  * Composite\n  * Custom\n",
-                        "type": "string",
-                        "example": '{"type": "http", "url": "http://localhost:5000", "endpoint": "api/v1/lineage"}',
-                        "default": "",
-                        "version_added": None,
-                    },
-                    "disable_source_code": {
-                        "description": "Disable the inclusion of source code in OpenLineage events by setting this to `true`.\nBy default, several Operators (e.g. Python, Bash) will include their source code in the events\nunless disabled.\n",
-                        "default": "False",
-                        "example": None,
-                        "type": "boolean",
-                        "version_added": None,
-                    },
-                    "dag_state_change_process_pool_size": {
-                        "description": "Number of processes to utilize for processing DAG state changes\nin an asynchronous manner within the scheduler process.\n",
-                        "default": "1",
-                        "example": None,
-                        "type": "integer",
-                        "version_added": "1.8.0",
-                    },
-                    "execution_timeout": {
-                        "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.\nNote that other configurations, sometimes with higher priority, such as\n`[core] task_success_overtime\n<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime>`_,\nmay also affect how much time OpenLineage has for execution.\n",
-                        "default": "10",
-                        "example": None,
-                        "type": "integer",
-                        "version_added": "1.9.0",
-                    },
                     "include_full_task_info": {
-                        "description": "If true, OpenLineage event will include full task info - potentially containing large fields.\n",
+                        "description": "If true, OpenLineage task events include full serialized task (operator) information.\nBy default, the AirflowRunFacet attached to task events contains only a selected subset\nof task parameters. With this flag on, all serializable task parameters are sent\n(excluding known non-serializable elements), which may significantly increase event size.\n\nWarning: By setting this variable to true, OpenLineage event can potentially include elements that\nare megabytes in size or larger, depending on the size of data you pass to the task.\n",
                         "default": "False",
                         "example": None,
                         "type": "boolean",
                         "version_added": "1.10.0",
                     },
-                    "debug_mode": {
-                        "description": "If true, OpenLineage events will include information useful for debugging - potentially\ncontaining large fields e.g. all installed packages and their versions.\n",
+                    "namespace": {
+                        "description": "Set namespace that the lineage data belongs to, so that if you use multiple OpenLineage producers,\nevents coming from them will be logically separated.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "my_airflow_instance_1",
+                        "default": None,
+                    },
+                    "selective_enable": {
+                        "description": "If this setting is enabled, OpenLineage integration won't collect and emit metadata,\nunless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.\n",
+                        "type": "boolean",
                         "default": "False",
                         "example": None,
-                        "type": "boolean",
-                        "version_added": "1.11.0",
+                        "version_added": "1.7.0",
                     },
                     "spark_inject_parent_job_info": {
                         "description": "Automatically inject OpenLineage's parent job (namespace, job name, run id) information into Spark\napplication properties for supported Operators.\n",
@@ -154,6 +147,13 @@ def get_provider_info():
                         "default": "False",
                         "example": None,
                         "version_added": "2.1.0",
+                    },
+                    "transport": {
+                        "description": "Pass OpenLineage Client transport configuration as a JSON string, including the transport type\nand any additional options specific to that type, as described in `OpenLineage docs\n<https://openlineage.io/docs/client/python/configuration#transports>`_.\n",
+                        "type": "string",
+                        "example": '{"type": "http", "url": "http://localhost:5000", "endpoint": "api/v1/lineage"}',
+                        "default": "",
+                        "version_added": None,
                     },
                 },
             }

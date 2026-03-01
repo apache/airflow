@@ -90,6 +90,10 @@ core:
 
         List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+
+        You can also associate users to teams by appending the list of teams (separated by "|") as third item
+        in the user-role definition. Example: ``bob:admin:marketing|hr``.
+        This can only be used if ``[core] multi_team`` is set to True.
       version_added: 3.0.0
       type: string
       example: "bob:admin,peter:viewer"
@@ -158,23 +162,18 @@ core:
       type: integer
       example: ~
       default: "0"
-    mp_start_method:
-      description: |
-        The name of the method used in order to start Python processes via the multiprocessing module.
-        This corresponds directly with the options available in the Python docs:
-        `multiprocessing.set_start_method
-        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method>`__
-        must be one of the values returned by `multiprocessing.get_all_start_methods()
-        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__.
-      version_added: "2.0.0"
-      type: string
-      default: ~
-      example: "fork"
     load_examples:
       description: |
-        Whether to load the DAG examples that ship with Airflow. It's good to
+        Whether to load the Dag examples that ship with Airflow. It's good to
         get started, but you probably want to set this to ``False`` in a production
         environment
+
+        .. note::
+
+            If you are using the Official Airflow Docker Image, this value is set to ``False`` by default
+            via the environment variable ``AIRFLOW__CORE__LOAD_EXAMPLES``. To enable example Dags when
+            using the official image, you must explicitly set ``AIRFLOW__CORE__LOAD_EXAMPLES=True`` in your
+            environment.
       version_added: ~
       type: string
       example: ~
@@ -367,14 +366,13 @@ core:
       type: boolean
       example: ~
       default: "False"
-    max_num_rendered_ti_fields_per_task:
+    num_dag_runs_to_retain_rendered_fields:
       description: |
-        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
-        in the Database.
-        All the template_fields for each of Task Instance are stored in the Database.
+        Number of recent dag runs for which Rendered Task Instance Fields are retained.
+        Records from older runs are deleted during task execution.
         Keeping this number small may cause an error when you try to view ``Rendered`` tab in
         TaskInstance view for older tasks.
-      version_added: 1.10.10
+      version_added: 3.2.0
       type: integer
       example: ~
       default: "30"
@@ -689,9 +687,9 @@ database:
       default: "True"
     external_db_managers:
       description: |
-        List of DB managers to use to migrate external tables in airflow database. The managers must inherit
-        from BaseDBManager. If ``FabAuthManager`` is configured in the environment,
-        ``airflow.providers.fab.auth_manager.models.db.FABDBManager`` is automatically added.
+        Additional DB managers to include when migrating external tables in the Airflow
+        database, beyond those automatically discovered from installed providers.
+        The managers must inherit from BaseDBManager.
       version_added: 3.0.0
       type: string
       example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
@@ -1085,6 +1083,15 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    legacy_names_on:
+      description: |
+        If true, it exports both new and legacy metric names.
+        Legacy names contain variables such as dag_id and task_id,
+        while the new names set these variables inside tags.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1194,6 +1201,16 @@ metrics:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         metrics and traces.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1201,6 +1218,16 @@ metrics:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1216,6 +1243,16 @@ metrics:
         Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
         to the configured OpenTelemetry Collector.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "60000"
@@ -1223,6 +1260,16 @@ metrics:
       description: |
         If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1230,6 +1277,16 @@ metrics:
       description: |
         The default service name of traces.
       version_added: 2.10.3
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1240,6 +1297,16 @@ metrics:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1259,6 +1326,16 @@ traces:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1266,6 +1343,16 @@ traces:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1273,6 +1360,16 @@ traces:
       description: |
         The default service name of traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1280,6 +1377,16 @@ traces:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1290,6 +1397,16 @@ traces:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1363,9 +1480,10 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization.
+        Currently only supports ``brand`` color customization and ``globalCss``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+
         For usage see :ref:`customizing-ui-theme`
 
         .. important::
@@ -1400,26 +1518,7 @@ api:
                 }
               }
             }
-      default: >
-        {{
-              "tokens": {{
-                "colors": {{
-                  "brand": {{
-                    "50": {{ "value": "oklch(0.98 0.006 248.717)" }},
-                    "100": {{ "value": "oklch(0.962 0.012 249.460)" }},
-                    "200": {{ "value": "oklch(0.923 0.023 255.082)" }},
-                    "300": {{ "value": "oklch(0.865 0.039 252.420)" }},
-                    "400": {{ "value": "oklch(0.705 0.066 256.378)" }},
-                    "500": {{ "value": "oklch(0.575 0.08 257.759)" }},
-                    "600": {{ "value": "oklch(0.469 0.084 257.657)" }},
-                    "700": {{ "value": "oklch(0.399 0.084 257.850)" }},
-                    "800": {{ "value": "oklch(0.324 0.072 260.329)" }},
-                    "900": {{ "value": "oklch(0.259 0.062 265.566)" }},
-                    "950": {{ "value": "oklch(0.179 0.05 265.487)" }}
-                  }}
-                }}
-              }}
-            }}
+      default: ~
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
@@ -1495,6 +1594,53 @@ api:
       type: integer
       example: ~
       default: "120"
+    server_type:
+      description: |
+        The server type to use for the API server. Options are:
+
+        - ``uvicorn``: Default. Uses uvicorn directly. Simple setup, but does not
+          support rolling worker restarts with ``worker_refresh_interval`` because
+          uvicorn's multiprocess mode has no master process when workers=1 and
+          SIGTTOU kills the newest worker (LIFO), not oldest.
+
+        - ``gunicorn``: Uses gunicorn with uvicorn workers. Supports rolling worker
+          restarts via ``worker_refresh_interval``. Requires ``apache-airflow-core[gunicorn]``
+          extra. Gunicorn always has master/worker architecture and SIGTTOU kills
+          the oldest worker (FIFO) which is correct for rolling restarts.
+
+        Note: When using gunicorn, workers share memory via copy-on-write after fork,
+        reducing overall memory usage. With uvicorn multiprocess mode, each worker
+        loads everything independently with no memory sharing.
+      version_added: 3.2.0
+      type: string
+      example: gunicorn
+      default: "uvicorn"
+    worker_refresh_interval:
+      description: |
+        Number of seconds between rolling worker refreshes for the API server.
+        When enabled, workers are periodically restarted using a rolling restart
+        pattern (new workers spawn before old ones are killed) to prevent memory
+        accumulation while maintaining zero downtime.
+
+        Set to 0 to disable worker refresh (default).
+
+        This option only works when ``server_type = gunicorn``. With uvicorn,
+        this setting is ignored because uvicorn's SIGTTOU kills the newest worker
+        (LIFO order) rather than oldest, which defeats rolling restart purposes.
+      version_added: 3.2.0
+      type: integer
+      example: "43200"
+      default: "0"
+    worker_refresh_batch_size:
+      description: |
+        Number of workers to refresh at a time during rolling restarts.
+        Higher values refresh faster but temporarily use more resources.
+
+        Only used when ``worker_refresh_interval > 0`` and ``server_type = gunicorn``.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "1"
     log_config:
       description: |
         Path to the logging configuration file for the uvicorn server.
@@ -1587,13 +1733,6 @@ api:
       type: boolean
       example: ~
       default: "False"
-    page_size:
-      description: |
-        Consistent page size across all listing views in the UI
-      version_added: ~
-      type: integer
-      example: ~
-      default: "50"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
@@ -1619,6 +1758,23 @@ api:
       type: boolean
       example: ~
       default: "False"
+    client_ssl_cert:
+      description: |
+        Path to a PEM-encoded client SSL certificate to use
+        when the Task SDK connects to the Airflow Execution API.
+        Must be set together with ``client_ssl_key``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.crt"
+      default: ~
+    client_ssl_key:
+      description: |
+        Path to the PEM-encoded private key corresponding to ``client_ssl_cert``.
+        Must be set together with ``client_ssl_cert``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.key"
+      default: ~
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1696,6 +1852,33 @@ workers:
       type: float
       example: ~
       default: "60.0"
+    missing_dag_retries:
+      description: |
+        Maximum number of times a task will be rescheduled if the worker fails to
+        load the Dag or task definition during startup.
+
+        This situation can occur due to transient infrastructure issues such as
+        missing Dag files, temporary filesystem or network problems, or bundle
+        synchronization delays. Rescheduling in this case does not count as a
+        task retry.
+
+        Set this value to 0 to disable rescheduling and fail the task immediately
+        on startup failures.
+      version_added: 3.1.7
+      type: integer
+      example: ~
+      default: "3"
+    missing_dag_retry_delay:
+      description: |
+        Delay in seconds before a task is rescheduled after a worker startup
+        failure caused by an inability to load the Dag or task definition.
+
+        This delay is applied when the task runner requests the scheduler to
+        reschedule the task instance in UP_FOR_RESCHEDULE state.
+      version_added: 3.1.7
+      type: integer
+      example: ~
+      default: "60"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -1858,13 +2041,23 @@ execution_api:
 lineage:
   description: ~
   options:
-    backend:
+    max_assets_per_collector:
       description: |
-        what lineage backend to use
-      version_added: ~
-      type: string
+        Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
+        instance. Input assets and output assets are counted separately. Once the maximum is reached, any
+        additional assets will be dropped.
+      version_added: 3.2.0
+      type: integer
       example: ~
-      default: ""
+      default: "100"
+    max_extras_per_collector:
+      description: |
+        Maximum number of extra metadata entries that can be collected by a single hook lineage collector
+        instance. Once the maximum is reached, any additional extra metadata will be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "200"
 operators:
   description: ~
   options:
@@ -2664,6 +2857,22 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+    dag_version_inflation_check_level:
+      description: |
+        Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
+        The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
+        that could cause Dag version inflation.
+
+        * ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.
+        * ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.
+        * ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.
+
+        Default is "warning" to alert users of potential issues without blocking Dag execution.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "warning"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.

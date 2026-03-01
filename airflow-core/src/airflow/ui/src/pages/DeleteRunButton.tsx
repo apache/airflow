@@ -16,23 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
-  readonly variant?: string;
-  readonly withText?: boolean;
-} & Omit<ButtonProps, "colorPalette" | "onClick" | "variant">;
+};
 
-const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,23 +44,24 @@ const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRu
     onSuccessConfirm: () => {
       onClose();
       if (isOnRunDetailPage) {
-        navigate(`/dags/${dagRun.dag_id}/runs`);
+        void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs`));
       }
     },
   });
 
   return (
     <>
-      <ActionButton
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        colorPalette="danger"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        variant={variant}
-        withText={withText}
-        {...rest}
-      />
+      <Tooltip content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}>
+        <IconButton
+          aria-label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}

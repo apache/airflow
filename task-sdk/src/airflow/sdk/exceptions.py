@@ -47,6 +47,10 @@ class AirflowException(Exception):
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
+class AirflowOptionalProviderFeatureException(AirflowException):
+    """Raise by providers when imports are missing for optional provider features."""
+
+
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
@@ -244,6 +248,7 @@ class DagRunTriggerException(AirflowException):
         failed_states: list[str],
         poke_interval: int,
         deferrable: bool,
+        note: str | None = None,
     ):
         super().__init__()
         self.trigger_dag_id = trigger_dag_id
@@ -257,6 +262,7 @@ class DagRunTriggerException(AirflowException):
         self.failed_states = failed_states
         self.poke_interval = poke_interval
         self.deferrable = deferrable
+        self.note = note
 
 
 class DownstreamTasksSkipped(AirflowException):

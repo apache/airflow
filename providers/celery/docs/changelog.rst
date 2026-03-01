@@ -27,6 +27,72 @@
 Changelog
 ---------
 
+3.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``docs(celery): fix wrong link in cli (#62460)``
+
+Misc
+~~~~
+
+* ``Insert a team_name similar to team conf for 2.X compat (#61923)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+3.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-67 - Multi Team: Update Celery Executor to support multi team (#60675)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use TaskFormatter for Celery log formatting instead of default Formatter (#61701)``
+* ``Fix Redis import race condition in Celery executor (#61362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Construct task instances with 'ExecuteTask.make' for celery executor integration tests (#61311)``
+   * ``Update delay-time in celery flaky-test  (#61325)``
+
+3.15.2
+......
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.15.1
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply PriorityWeightStrategy SDK work (#60112)``
+
 3.15.0
 ......
 

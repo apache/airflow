@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import uuid6
@@ -95,7 +95,7 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     def side_effect(cred, validators):
         if not validators:
             return claims
-        if validators["sub"]["value"] != ti.id:
+        if str(validators["sub"]["value"]) != str(ti.id):
             raise RuntimeError("Fake auth denied")
         return claims
 
@@ -200,9 +200,9 @@ class TestTIRunState:
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
                 "partition_key": None,
+                "note": None,
             },
             "task_reschedule_count": 0,
-            "upstream_map_indexes": {},
             "max_tries": max_tries,
             "should_retry": should_retry,
             "variables": [],
@@ -249,10 +249,7 @@ class TestTIRunState:
         assert response.status_code == 409
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
-        """
-        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances
-        """
-
+        """Test that dynamic task mapping works correctly with parse-time values."""
         with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):
 
             @task_group
@@ -278,23 +275,6 @@ class TestTIRunState:
             ti.set_state(State.QUEUED)
         dag_maker.session.flush()
 
-        # key: (task_id, map_index)
-        # value: result upstream_map_indexes ({task_id: map_indexes})
-        expected_upstream_map_indexes = {
-            # no upstream task for task_group_1.group_task_1
-            ("task_group_1.group1_task_1", 0): {},
-            ("task_group_1.group1_task_1", 1): {},
-            # the upstream task for task_group_1.group_task_2 is task_group_1.group_task_2
-            # since they are in the same task group, the upstream map index should be the same as the task
-            ("task_group_1.group1_task_2", 0): {"task_group_1.group1_task_1": 0},
-            ("task_group_1.group1_task_2", 1): {"task_group_1.group1_task_1": 1},
-            # the upstream task for task2 is the last tasks of task_group_1, which is
-            # task_group_1.group_task_2
-            # since they are not in the same task group, the upstream map index should include all the
-            # expanded tasks
-            ("task2", -1): {"task_group_1.group1_task_2": [0, 1]},
-        }
-
         for ti in dr.get_task_instances():
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
@@ -308,13 +288,9 @@ class TestTIRunState:
             )
 
             assert response.status_code == 200
-            upstream_map_indexes = response.json()["upstream_map_indexes"]
-            assert upstream_map_indexes == expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
 
-    def test_nested_mapped_task_group_upstream_indexes(self, client, dag_maker):
-        """
-        Test that upstream_map_indexes are correctly computed for tasks in nested mapped task groups.
-        """
+    def test_nested_mapped_task_group(self, client, dag_maker):
+        """Test that nested mapped task groups work correctly."""
         with dag_maker("test_nested_mapped_tg", serialized=True):
 
             @task
@@ -346,25 +322,11 @@ class TestTIRunState:
                 ti.set_state(State.QUEUED)
         dag_maker.session.flush()
 
-        # Expected upstream_map_indexes for each print_task instance
-        expected_upstream_map_indexes = {
-            ("expandable_task_group.inner_task_group.print_task", 0): {
-                "expandable_task_group.inner_task_group.alter_input": 0
-            },
-            ("expandable_task_group.inner_task_group.print_task", 1): {
-                "expandable_task_group.inner_task_group.alter_input": 1
-            },
-            ("expandable_task_group.inner_task_group.print_task", 2): {
-                "expandable_task_group.inner_task_group.alter_input": 2
-            },
-        }
-
         # Get only the expanded print_task instances (not the template)
         print_task_tis = [
             ti for ti in dr.get_task_instances() if "print_task" in ti.task_id and ti.map_index >= 0
         ]
 
-        # Test each print_task instance
         for ti in print_task_tis:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
@@ -378,18 +340,9 @@ class TestTIRunState:
             )
 
             assert response.status_code == 200
-            upstream_map_indexes = response.json()["upstream_map_indexes"]
-            expected = expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
-
-            assert upstream_map_indexes == expected, (
-                f"Task {ti.task_id}[{ti.map_index}] should have upstream_map_indexes {expected}, "
-                f"but got {upstream_map_indexes}"
-            )
 
     def test_dynamic_task_mapping_with_xcom(self, client: Client, dag_maker: DagMaker, session: Session):
-        """
-        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom
-        """
+        """Test that dynamic task mapping works correctly with XCom values."""
         from airflow.models.taskmap import TaskMap
 
         with dag_maker(session=session, serialized=True):
@@ -442,13 +395,10 @@ class TestTIRunState:
                 "start_date": "2024-09-30T12:00:00Z",
             },
         )
-        assert response.json()["upstream_map_indexes"] == {"tg.task_2": [0, 1, 2, 3, 4, 5]}
+        assert response.status_code == 200
 
     def test_dynamic_task_mapping_with_all_success_trigger_rule(self, dag_maker: DagMaker, session: Session):
-        """
-        Test that the Task Instance upstream_map_indexes is not populuated but
-        the downstream task should not be run.
-        """
+        """Test that with ALL_SUCCESS trigger rule and skipped upstream, downstream should not run."""
 
         with dag_maker(session=session, serialized=True):
 
@@ -504,10 +454,7 @@ class TestTIRunState:
     def test_dynamic_task_mapping_with_non_all_success_trigger_rule(
         self, client: Client, dag_maker: DagMaker, session: Session, trigger_rule: TriggerRule
     ):
-        """
-        Test that the Task Instance upstream_map_indexes is not populuated but
-        the downstream task should still be run due to trigger rule.
-        """
+        """Test that with non-ALL_SUCCESS trigger rule, downstream task should still run."""
 
         with dag_maker(session=session, serialized=True):
 
@@ -564,7 +511,7 @@ class TestTIRunState:
                 "start_date": "2024-09-30T12:00:00Z",
             },
         )
-        assert response.json()["upstream_map_indexes"] == {"tg.task_2": None}
+        assert response.status_code == 200
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
@@ -615,7 +562,6 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
-            "upstream_map_indexes": {},
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -687,7 +633,6 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
-            "upstream_map_indexes": {},
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -1067,7 +1012,7 @@ class TestTIUpdateState:
         """
         Test that a 404 error is returned when the Task Instance does not exist.
         """
-        task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        task_instance_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         # Pre-condition: the Task Instance does not exist
         assert session.get(TaskInstance, task_instance_id) is None
@@ -1631,7 +1576,7 @@ class TestTIHealthEndpoint:
 
     def test_ti_heartbeat_non_existent_task(self, client, session, create_task_instance):
         """Test that a 404 error is returned when the Task Instance does not exist."""
-        task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        task_instance_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         # Pre-condition: the Task Instance does not exist
         assert session.get(TaskInstance, task_instance_id) is None
@@ -1827,7 +1772,7 @@ class TestPreviousDagRun:
         }
 
     def test_ti_previous_dag_run_not_found(self, client, session):
-        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        ti_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         assert session.get(TaskInstance, ti_id) is None
 

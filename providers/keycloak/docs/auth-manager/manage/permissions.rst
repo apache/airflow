@@ -44,6 +44,7 @@ CLI commands take the following parameters:
 They also take the following optional parameters:
 
 * ``--dry-run``: If set, the command will check the connection to Keycloak and print the actions that would be performed, without actually executing them.
+* ``--teams``: Comma-separated list of team names to create team-scoped resources and permissions.
 
 Please check the `Keycloak auth manager CLI </cli-ref.html>`_ documentation for more information about accepted parameters.
 
@@ -57,6 +58,12 @@ This command will create scopes, resources and permissions in one-go.
 .. code-block:: bash
 
   airflow keycloak-auth-manager create-all
+
+To create team-scoped resources and permissions (so Keycloak can enforce per-team access) pass ``--teams``:
+
+.. code-block:: bash
+
+  airflow keycloak-auth-manager create-all --teams team-a,team-b
 
 Step-by-step creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -73,20 +80,45 @@ This command will create resources for certain types of permissions.
 
 .. code-block:: bash
 
-  airflow keycloak-auth-manager create-resources
+  airflow keycloak-auth-manager create-resources --teams team-a,team-b
 
 Finally, with the command below, we create the permissions using the previously created scopes and resources.
 
 .. code-block:: bash
 
-  airflow keycloak-auth-manager create-permissions
+  airflow keycloak-auth-manager create-permissions --teams team-a,team-b
 
 This will create
 
-* read-only permissions
-* admin permissions
-* user permissions
-* operations permissions
+* read-only permissions (per-team when ``--teams`` is provided)
+* admin permissions (global)
+* user permissions (per-team when ``--teams`` is provided)
+* operations permissions (per-team when ``--teams`` is provided)
+
+Managing teams with Keycloak
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When using team-scoped resources, create Keycloak groups that represent teams and attach them to the
+team-specific permissions. The CLI provides helpers for this flow:
+
+.. code-block:: bash
+
+  airflow keycloak-auth-manager create-team team-a
+  airflow keycloak-auth-manager add-user-to-team user-a team-a
+
+These commands create a Keycloak group named ``team-a``, set up team-scoped resources and permissions,
+and attach team-specific policies to the permissions for that team.
+When using team-scoped permissions, the model is:
+
+* Keycloak group represents the team (``<name>``)
+* Keycloak roles (Admin/Op/User/Viewer) represent the role within that team
+* Team policies require both group membership and role membership
+* A separate ``SuperAdmin`` role can be used for global admin access across all teams
+
+Note: the CLI creates groups, resources, permissions, and policies, but **does not assign roles to users**.
+You must assign the appropriate Keycloak roles (Admin/Op/User/Viewer or SuperAdmin) to each user separately.
+In multi-team mode, the ``Admin`` role is **team-scoped** (group + role). Only ``SuperAdmin`` grants global
+admin access across all teams.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 

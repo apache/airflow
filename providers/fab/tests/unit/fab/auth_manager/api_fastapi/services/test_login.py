@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from starlette.exceptions import HTTPException
+from fastapi import HTTPException
 
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 

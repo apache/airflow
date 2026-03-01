@@ -35,6 +35,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
 import { Menu } from "src/components/ui";
+import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
 
@@ -42,8 +43,6 @@ import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
-import { TimezoneMenuItem } from "./TimezoneMenuItem";
-import TimezoneModal from "./TimezoneModal";
 
 const COLOR_MODES = {
   DARK: "dark",
@@ -76,11 +75,10 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
     },
   ];
 
-  const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
 
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
 
   const theme = selectedTheme ?? COLOR_MODES.SYSTEM;
 
@@ -100,7 +98,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
                   {translate("signedInAs")}
                 </Box>
                 <Box fontSize="md" fontWeight="semibold">
-                  {currentUser.username}
+                  {`${currentUser.username} (id: ${currentUser.id})`}
                 </Box>
               </Box>
               <Menu.Separator />
@@ -140,7 +138,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
             </Box>
           </Menu.Item>
-          <TimezoneMenuItem onOpen={onOpenTimezone} />
           {externalViews.map((view) => (
             <PluginMenuItem {...view} key={view.name} />
           ))}
@@ -152,7 +149,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
         </Menu.Content>
       </Menu.Root>
       <LanguageModal isOpen={isOpenLanguage} onClose={onCloseLanguage} />
-      <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
       <LogoutModal isOpen={isOpenLogout} onClose={onCloseLogout} />
     </>
   );

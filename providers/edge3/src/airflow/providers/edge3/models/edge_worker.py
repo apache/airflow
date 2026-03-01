@@ -26,8 +26,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
+from airflow.providers.edge3.models.edge_base import Base
+
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -173,27 +178,70 @@ def set_metrics(
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
 
-    Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+    if DualStatsManager is not None:
+        DualStatsManager.gauge(
+            "edge_worker.connected",
+            int(connected),
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
 
-    Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+        DualStatsManager.gauge(
+            "edge_worker.maintenance",
+            int(maintenance),
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
 
-    Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+        DualStatsManager.gauge(
+            "edge_worker.jobs_active",
+            jobs_active,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
 
-    Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+        DualStatsManager.gauge(
+            "edge_worker.concurrency",
+            concurrency,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
 
-    Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+        DualStatsManager.gauge(
+            "edge_worker.free_concurrency",
+            free_concurrency,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
 
-    Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
-    Stats.gauge(
-        "edge_worker.num_queues",
-        len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
-    )
+        DualStatsManager.gauge(
+            "edge_worker.num_queues",
+            len(queues),
+            tags={},
+            extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        )
+    else:
+        Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
+        Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
+        Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
+        Stats.gauge(
+            "edge_worker.num_queues",
+            len(queues),
+            tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        )
 
 
 def reset_metrics(worker_name: str) -> None:

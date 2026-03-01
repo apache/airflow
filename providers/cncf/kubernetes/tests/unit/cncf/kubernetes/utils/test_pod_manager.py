@@ -35,11 +35,11 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLogsConsumer,
     PodManager,
     PodPhase,
+    XComRetrievalError,
     log_pod_event,
     parse_log_line,
 )
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.timezone import utc
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
 
@@ -551,16 +551,38 @@ class TestPodManager:
     ):
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
-        message = "2020-10-08T14:16:17.793417674Z message"
+        ts = "2020-10-08T14:16:17.793417674Z"
+        message = "message"
         no_ts_message = "notimestamp"
-        mock_read_pod_logs.return_value = [bytes(message, "utf-8"), bytes(no_ts_message, "utf-8")]
+        second_ts = "2020-10-08T15:16:18.793417674Z"
+        second_message = "second message"
+        mock_read_pod_logs.return_value = [
+            bytes(f"{ts} {message}", "utf-8"),
+            bytes(no_ts_message, "utf-8"),
+            bytes(f"{second_ts} {second_message}", "utf-8"),
+        ]
         mock_container_is_running.return_value = False
+        mock_pod = mock.MagicMock()
 
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        self.pod_manager.fetch_container_logs(mock_pod, "base", follow=True)
         mock_callbacks.progress_callback.assert_has_calls(
             [
-                mock.call(line=message, client=self.pod_manager._client, mode="sync"),
-                mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
+                mock.call(
+                    line=f"{message}\n{no_ts_message}",
+                    client=self.pod_manager._client,
+                    mode="sync",
+                    container_name="base",
+                    timestamp=pendulum.parse(ts),
+                    pod=mock_pod,
+                ),
+                mock.call(
+                    line=f"{second_message}",
+                    client=self.pod_manager._client,
+                    mode="sync",
+                    container_name="base",
+                    timestamp=pendulum.parse(second_ts),
+                    pod=mock_pod,
+                ),
             ]
         )
 
@@ -615,6 +637,70 @@ class TestPodManager:
         assert "message2 line2" in caplog.text
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_container_log_times_tracks_last_timestamp(self, mock_read_pod_logs, mock_container_is_running):
+        """Test that container_log_times dictionary tracks the last log timestamp for each container."""
+        timestamp_string = "2020-10-08T14:16:17.793417674Z"
+        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8")]
+        mock_container_is_running.return_value = False
+
+        # Create a mock pod with namespace and name
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        container_name = "test-container"
+
+        # Ensure container_log_times is empty initially
+        assert not self.pod_manager.container_log_times
+
+        # Fetch logs which should populate container_log_times
+        self.pod_manager.fetch_container_logs(mock_pod, container_name, follow=True)
+
+        # Verify the timestamp was stored in container_log_times
+        key = ("test-namespace", "test-pod", "test-container")
+        assert key in self.pod_manager.container_log_times
+        assert self.pod_manager.container_log_times[key] == cast("DateTime", pendulum.parse(timestamp_string))
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_requested_container_logs_uses_since_time(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        """Test that fetch_requested_container_logs passes since_time from container_log_times."""
+        timestamp_string = "2020-10-08T14:16:17.793417674Z"
+        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8")]
+        mock_container_is_running.return_value = False
+
+        # Create a mock pod
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_container = mock.MagicMock()
+        mock_container.name = "test-container"
+        mock_pod.spec.containers = [mock_container]
+        container_name = "test-container"
+
+        # Pre-populate container_log_times with an earlier timestamp
+        earlier_timestamp = pendulum.parse("2020-10-08T14:15:00.000000000Z")
+        self.pod_manager.container_log_times[("test-namespace", "test-pod", "test-container")] = (
+            earlier_timestamp
+        )
+
+        # Mock read_pod to return the mock_pod
+        self.pod_manager.read_pod = mock.Mock(return_value=mock_pod)
+
+        # Fetch logs - this should pass the earlier timestamp as since_time
+        with mock.patch.object(
+            self.pod_manager, "fetch_container_logs", wraps=self.pod_manager.fetch_container_logs
+        ) as mock_fetch:
+            self.pod_manager.fetch_requested_container_logs(mock_pod, containers=container_name)
+
+            # Verify fetch_container_logs was called with since_time set to the earlier timestamp
+            mock_fetch.assert_called_once()
+            call_kwargs = mock_fetch.call_args[1]
+            assert call_kwargs["since_time"] == earlier_timestamp
 
     @pytest.mark.parametrize("status", [409, 429])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
@@ -693,7 +779,9 @@ class TestPodManager:
         pod_response.status.container_statuses = [container_statuse]
 
         self.mock_kube_client.read_namespaced_pod.return_value = pod_response
-        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        expected_msg = (
+            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        )
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
             await self.pod_manager.await_pod_start(
@@ -842,7 +930,13 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_success(self, mock_exec_xcom_kill, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_success(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
         """test when valid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "true"}"""
         mock_pod = MagicMock()
@@ -856,7 +950,13 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_failure(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
         """test when invalid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "tru"""  # codespell:ignore tru
         mock_pod = MagicMock()
@@ -870,7 +970,11 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_empty(self, mock_exec_xcom_kill, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_empty(self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when __airflow_xcom_result_empty__ is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         xcom_result = "__airflow_xcom_result_empty__"
@@ -884,16 +988,33 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_none(self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when None is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
         mock_client.read_all.return_value = None
         mock_kubernetes_stream.return_value = mock_client
-        with pytest.raises(AirflowException):
+        with pytest.raises(XComRetrievalError, match=r"Failed to extract xcom from pod:"):
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=False,
+    )
+    def test_extract_xcom_sidecar_terminated(self, mock_container_is_running):
+        """test when None is retrieved from xcom sidecar container."""
+        mock_pod = MagicMock()
+        with pytest.raises(
+            XComRetrievalError,
+            match=r"container is not running! Not possible to read xcom from pod:",
+        ):
+            self.pod_manager.extract_xcom(pod=mock_pod)
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
@@ -1207,7 +1328,9 @@ class TestAsyncPodManager:
         container_status.state.waiting = waiting_state
         pod_response.status.container_statuses = [container_status]
         self.mock_async_hook.get_pod.return_value = pod_response
-        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        expected_msg = (
+            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        )
         mock_pod = mock.MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
             await self.async_pod_manager.await_pod_start(
@@ -1422,43 +1545,43 @@ class TestPodLogsConsumer:
         [
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 120,
                 False,
             ),
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=timezone.utc),
                 120,
                 False,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
@@ -1501,43 +1624,43 @@ class TestPodLogsConsumer:
         [
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 3, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 3, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #1"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 1, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 1, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 2, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 2, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 3, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 3, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #1"],
             ),

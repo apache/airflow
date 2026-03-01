@@ -18,7 +18,14 @@ export const useUiServiceWorker = <TData = Common.UiServiceWorkerDefaultResponse
   state?: EdgeWorkerState[];
   workerNamePattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, state, workerNamePattern }, queryKey), queryFn: () => UiService.worker({ queueNamePattern, state, workerNamePattern }) as TData, ...options });
-export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn(queryKey), queryFn: () => UiService.jobs() as TData, ...options });
+export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }: {
+  dagIdPattern?: string;
+  runIdPattern?: string;
+  taskIdPattern?: string;
+  state?: TaskInstanceState[];
+  queuePattern?: string;
+  workerNamePattern?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }, queryKey), queryFn: () => UiService.jobs({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }) as TData, ...options });
 export const useJobsServiceFetch = <TData = Common.JobsServiceFetchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   authorization: string;
   requestBody: WorkerQueuesBody;

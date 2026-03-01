@@ -1518,6 +1518,7 @@ def ui_e2e_tests(
         env_vars = {
             "AIRFLOW_UID": str(os.getuid()),
             "AIRFLOW__CORE__LOAD_EXAMPLES": "true",
+            "AIRFLOW__API__EXPOSE_CONFIG": "true",
             "AIRFLOW_IMAGE_NAME": image_name,
         }
 
@@ -1560,6 +1561,9 @@ def ui_e2e_tests(
 
         playwright_cmd = ["pnpm", "exec", "playwright", "test"]
 
+        # Test pattern must come before --project flag
+        if test_pattern:
+            playwright_cmd.append(test_pattern)
         if browser != "all":
             playwright_cmd.extend(["--project", browser])
         if headed:
@@ -1574,8 +1578,6 @@ def ui_e2e_tests(
             playwright_cmd.extend(["--timeout", str(timeout)])
         if reporter != "html":
             playwright_cmd.extend(["--reporter", reporter])
-        if test_pattern:
-            playwright_cmd.append(test_pattern)
         if extra_playwright_args:
             playwright_cmd.extend(extra_playwright_args)
 

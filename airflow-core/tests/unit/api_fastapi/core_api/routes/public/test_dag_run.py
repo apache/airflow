@@ -27,7 +27,6 @@ from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1285,12 +1284,6 @@ class TestPatchDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
     @pytest.mark.parametrize(
         ("state", "listener_state"),
         [
@@ -1300,11 +1293,11 @@ class TestPatchDagRun:
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state):
+    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
         from unit.listeners.class_listener import ClassBasedListener
 
         listener = ClassBasedListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
@@ -1350,12 +1343,17 @@ class TestDeleteDagRun:
 
 class TestGetDagRunAssetTriggerEvents:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_respond_200(self, test_client, dag_maker, session):
+    @pytest.mark.parametrize(
+        "partition_key",
+        ["test_partition_key", None],
+        ids=["partitioned", "non-partitioned"],
+    )
+    def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
         with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
-        dr = dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(partition_key=partition_key)
         ti = dr.task_instances[0]
 
         asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
@@ -1365,12 +1363,17 @@ class TestGetDagRunAssetTriggerEvents:
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
             source_map_index=ti.map_index,
+            partition_key=partition_key,
         )
         session.add(event)
 
         with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
             pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dr = dag_maker.create_dagrun(
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            partition_key=partition_key,
+        )
         dr.consumed_asset_events.append(event)
 
         session.commit()
@@ -1405,9 +1408,10 @@ class TestGetDagRunAssetTriggerEvents:
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
                             "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
                             "state": "running",
+                            "partition_key": partition_key,
                         }
                     ],
-                    "partition_key": None,
+                    "partition_key": partition_key,
                 }
             ],
             "total_entries": 1,
@@ -1537,8 +1541,20 @@ class TestTriggerDagRun:
         )
         import_errors_dag.has_import_errors = True
 
+        allowed_scheduled_dag = DagModel(
+            dag_id="allowed_scheduled",
+            bundle_name="testing",
+            fileloc="/tmp/dag_del_3.py",
+            timetable_summary="2 2 * * *",
+            is_stale=False,
+            owners="test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_run_types=["scheduled"],
+        )
+
         session.add(inactive_dag)
         session.add(import_errors_dag)
+        session.add(allowed_scheduled_dag)
         session.commit()
 
     @time_machine.travel(timezone.utcnow(), tick=False)
@@ -1717,11 +1733,25 @@ class TestTriggerDagRun:
                     ]
                 },
             ),
+            (
+                [],
+                {
+                    "detail": [
+                        {
+                            "type": "model_attributes_type",
+                            "loc": ["body"],
+                            "msg": "Input should be a valid dictionary or object to extract fields from",
+                            "input": [],
+                        }
+                    ]
+                },
+            ),
         ],
     )
     def test_invalid_data(self, test_client, post_body, expected_detail):
-        now = timezone.utcnow().isoformat()
-        post_body["logical_date"] = now
+        if isinstance(post_body, dict):
+            now = timezone.utcnow().isoformat()
+            post_body["logical_date"] = now
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
@@ -1768,6 +1798,13 @@ class TestTriggerDagRun:
             response.json()["detail"]
             == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
+
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+        now = timezone.utcnow().isoformat()
+        self._dags_for_trigger_tests(session)
+        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1898,6 +1935,41 @@ class TestTriggerDagRun:
             "note": None,
             "partition_key": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_generate_unique_run_id_for_scheduled_dag(self, dag_maker, test_client, session):
+        "Ensure manual triggers on scheduled DAGs don't conflict on run_id"
+        scheduled_dag_id = "test_scheduled_dag"
+        with dag_maker(
+            dag_id=scheduled_dag_id,
+            schedule="@daily",
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response_1 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:00:00+00:00",
+                "run_after": "2025-12-11T16:00:00+00:00",
+            },
+        )
+        assert response_1.status_code == 200
+
+        response_2 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:01:00+00:00",
+                "run_after": "2025-12-11T16:01:00+00:00",
+            },
+        )
+        assert response_2.status_code == 200
+
+        assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")

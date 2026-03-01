@@ -108,9 +108,7 @@ class TestCloudRemoteLogIO:
 
             # Set up the right chain of processors so the event looks like we want for our full test
             if AIRFLOW_V_3_2_PLUS:
-                monkeypatch.setattr(
-                    airflow.logging_config._ActiveLoggingConfig, "remote_task_log", self.subject
-                )
+                airflow.sdk.log._ActiveLoggingConfig.set(self.subject, None)
             else:
                 monkeypatch.setattr(airflow.logging_config, "REMOTE_TASK_LOG", self.subject)
             try:
@@ -260,6 +258,8 @@ class TestCloudwatchTaskHandler:
                 handler.handle(message)
             mock_emit.assert_has_calls([call(message) for message in messages])
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_read(self, monkeypatch):
         # Confirmed via AWS Support call:

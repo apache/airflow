@@ -27,8 +27,11 @@ from io import StringIO
 from typing import Any
 
 from airflow.sdk import yaml
-from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk._shared.configuration.parser import (
+    AirflowConfigParser as _SharedAirflowConfigParser,
+    configure_parser_from_configuration_description,
+)
+from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
 
@@ -77,25 +80,29 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     """
     Create default config parser based on configuration description.
 
-    This is a simplified version that doesn't expand variables (SDK doesn't need
-    Core-specific expansion variables like SECRET_KEY, FERNET_KEY, etc.).
+    This version expands {AIRFLOW_HOME} in default values but not other
+    Core-specific expansion variables (SECRET_KEY, FERNET_KEY, etc.).
 
     :param configuration_description: configuration description from config.yml
     :return: Default Config Parser with default values
     """
     parser = ConfigParser()
-    for section, section_desc in configuration_description.items():
-        parser.add_section(section)
-        options = section_desc["options"]
-        for key in options:
-            default_value = options[key]["default"]
-            is_template = options[key].get("is_template", False)
-            if default_value is not None:
-                if is_template or not isinstance(default_value, str):
-                    parser.set(section, key, str(default_value))
-                else:
-                    parser.set(section, key, default_value)
+    all_vars = get_sdk_expansion_variables()
+    configure_parser_from_configuration_description(parser, configuration_description, all_vars)
     return parser
+
+
+def get_sdk_expansion_variables() -> dict[str, Any]:
+    """
+    Get variables available for config value expansion in SDK.
+
+    SDK only needs AIRFLOW_HOME for expansion. Core specific variables
+    (FERNET_KEY, JWT_SECRET_KEY, etc.) are not needed in the SDK.
+    """
+    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+    return {
+        "AIRFLOW_HOME": airflow_home,
+    }
 
 
 def get_airflow_config() -> str:
@@ -138,6 +145,23 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
+    def expand_all_configuration_values(self):
+        """Expand all configuration values using SDK-specific expansion variables."""
+        all_vars = get_sdk_expansion_variables()
+        for section in self.sections():
+            for key, value in self.items(section):
+                if value is not None:
+                    if self.has_option(section, key):
+                        self.remove_option(section, key)
+                    if self.is_template(section, key) or not isinstance(value, str):
+                        self.set(section, key, value)
+                    else:
+                        try:
+                            self.set(section, key, value.format(**all_vars))
+                        except (KeyError, ValueError, IndexError):
+                            # Leave unexpanded if variable not available
+                            self.set(section, key, value)
+
     def load_test_config(self):
         """
         Use the test configuration instead of Airflow defaults.
@@ -149,18 +173,14 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         The SDK does not expand template variables (FERNET_KEY, JWT_SECRET_KEY, etc.) because it does not use
         the config fields that require expansion.
         """
-        unit_test_config_file = (
-            pathlib.Path(__file__).parent.parent.parent.parent.parent
-            / "airflow-core"
-            / "src"
-            / "airflow"
-            / "config_templates"
-            / "unit_tests.cfg"
-        )
+        unit_test_config_file = pathlib.Path(_default_config_file_path("unit_tests.cfg"))
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
         with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
+
+        self.expand_all_configuration_values()
+
         log.info("Unit test configuration loaded from 'unit_tests.cfg'")
 
     def remove_all_read_configurations(self):
@@ -185,7 +205,7 @@ def get_custom_secret_backend(worker_mode: bool = False):
 
 
 def initialize_secrets_backends(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
 ):
     """
     Initialize secrets backend.
@@ -201,10 +221,7 @@ def initialize_secrets_backends(
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode
     # This is a simplified check; in practice, worker mode is determined by the caller
-    if default_backends != [
-        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-        "airflow.secrets.metastore.MetastoreBackend",
-    ]:
+    if default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
         worker_mode = True
 
     custom_secret_backend = get_custom_secret_backend(worker_mode)
@@ -220,7 +237,7 @@ def initialize_secrets_backends(
 
 
 def ensure_secrets_loaded(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list:
     """
     Ensure that all secrets backends are loaded.
@@ -230,9 +247,9 @@ def ensure_secrets_loaded(
     # Check if the secrets_backend_list contains only 2 default backends.
 
     # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to DEFAULT_SECRETS_SEARCH_PATH.
+    # to _SERVER_DEFAULT_SECRETS_SEARCH_PATH.
     secrets_backend_list = initialize_secrets_backends()
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+    if len(secrets_backend_list) == 2 or default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 

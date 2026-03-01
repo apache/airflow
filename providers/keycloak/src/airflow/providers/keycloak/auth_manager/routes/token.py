@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from starlette import status
+from fastapi import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -37,7 +37,7 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
 @token_router.post(
     "/token",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN]),
 )
 def create_token(body: TokenBody) -> TokenResponse:
     token = body.root.create_token(
@@ -49,7 +49,7 @@ def create_token(body: TokenBody) -> TokenResponse:
 @token_router.post(
     "/token/cli",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN]),
 )
 def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
     token = body.create_token(

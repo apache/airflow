@@ -113,11 +113,46 @@ Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 {{- end }}
 {{- end }}
 
+{{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
 
-{{- if .Values.createUserJob.enabled}}
+{{- if .Values.ingress.apiServer.host }}
+
+DEPRECATION WARNING:
+   `ingress.apiServer.host` has been renamed to `ingress.apiServer.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.apiServer.tls.enabled }}
+
+DEPRECATION WARNING:
+   `ingress.apiServer.tls` has been renamed to `ingress.apiServer.hosts[*].tls` and can be set per host.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- end }}
+
+{{- if and .Values.ingress.statsd.enabled .Values.ingress.statsd.host }}
+
+DEPRECATION WARNING:
+   `ingress.statsd.host` has been renamed to `ingress.statsd.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if and .Values.ingress.pgbouncer.enabled .Values.ingress.pgbouncer.host }}
+
+DEPRECATION WARNING:
+   `ingress.pgbouncer.host` has been renamed to `ingress.pgbouncer.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if eq (include "createUserJob.isEnabled" .) "true" }}
 Default user (Airflow UI) Login credentials:
-    username: {{ .Values.createUserJob.defaultUser.username }}
-    password: {{ .Values.createUserJob.defaultUser.password }}
+    username: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}
+    password: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
@@ -204,7 +239,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}" | toJson) }}
+{{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}" | toJson) }}
 
  DEPRECATION WARNING:
     `workers.args` has been renamed to `workers.celery.args`.
@@ -256,6 +291,118 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.livenessProbe.command` has been renamed to `workers.celery.livenessProbe.command`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.persistence.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.enabled` has been renamed to `workers.celery.persistence.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.persistentVolumeClaimRetentionPolicy` has been renamed to `workers.celery.persistence.persistentVolumeClaimRetentionPolicy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne .Values.workers.persistence.size "100Gi" }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.size` has been renamed to `workers.celery.persistence.size`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.storageClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.storageClassName` has been renamed to `workers.celery.persistence.storageClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.persistence.fixPermissions }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.fixPermissions` has been renamed to `workers.celery.persistence.fixPermissions`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.annotations) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.annotations` has been renamed to `workers.celery.persistence.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.persistence.securityContexts.container }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.updateStrategy) }}
+
+ DEPRECATION WARNING:
+    `workers.updateStrategy` has been renamed to `workers.celery.updateStrategy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (toJson .Values.workers.strategy | quote) (toJson "{\"rollingUpdate\":{\"maxSurge\":\"100%\",\"maxUnavailable\":\"50%\"}}") }}
+
+ DEPRECATION WARNING:
+    `workers.strategy` has been renamed to `workers.celery.strategy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.podManagementPolicy) }}
+
+ DEPRECATION WARNING:
+    `workers.podManagementPolicy` has been renamed to `workers.celery.podManagementPolicy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.podDisruptionBudget.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.enabled` has been renamed to `workers.celery.podDisruptionBudget.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.podDisruptionBudget.config.maxUnavailable) 1 }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.config.maxUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.maxUnavailable`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if hasKey .Values.workers.podDisruptionBudget.config "minUnavailable" }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.config.minUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.minUnavailable`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.webserver.defaultUser) }}
+
+ DEPRECATION WARNING:
+    `webserver.defaultUser` has been renamed to `createUserJob.defaultUser`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

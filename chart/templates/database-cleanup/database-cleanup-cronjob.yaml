@@ -25,8 +25,8 @@
 {{- $affinity := or .Values.databaseCleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.databaseCleanup.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.databaseCleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.databaseCleanup) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.databaseCleanup) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.databaseCleanup .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.databaseCleanup .Values) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:

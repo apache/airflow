@@ -33,8 +33,7 @@ from typing import (
 from databricks import sql
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout

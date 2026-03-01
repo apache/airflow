@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -39,6 +39,39 @@ if TYPE_CHECKING:
     Operator: TypeAlias = BaseOperator | MappedOperator
 
 
+class TaskInstanceKey(NamedTuple):
+    """Key used to identify task instance."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    try_number: int = 1
+    map_index: int = -1
+
+    @property
+    def primary(self) -> tuple[str, str, str, int]:
+        """Return task instance primary key part of the key."""
+        return self.dag_id, self.task_id, self.run_id, self.map_index
+
+    def with_try_number(self, try_number: int) -> TaskInstanceKey:
+        """Return TaskInstanceKey with provided ``try_number``."""
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """
+        For API-compatibility with TaskInstance.
+
+        Returns self
+        """
+        return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)
+
+
 class DagRunProtocol(Protocol):
     """Minimal interface for a Dag run available during the execution."""
 
@@ -47,7 +80,7 @@ class DagRunProtocol(Protocol):
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None
     data_interval_end: AwareDatetime | None
-    start_date: AwareDatetime
+    start_date: AwareDatetime | None
     end_date: AwareDatetime | None
     run_type: Any
     run_after: AwareDatetime

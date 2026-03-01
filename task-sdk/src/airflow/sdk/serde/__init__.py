@@ -30,8 +30,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
+from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk.configuration import conf
-from airflow.sdk.observability.stats import Stats
+from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde.typing import is_pydantic_model
 
 if TYPE_CHECKING:
@@ -370,6 +371,9 @@ def _register():
     _deserializers.clear()
     _stringifiers.clear()
 
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
+
     with Stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")
         for _, module_name, _ in iter_namespace(serializers_module):
@@ -400,7 +404,7 @@ def _register():
                 log.debug("registering %s for stringifying", c_qualname)
                 _stringifiers[c_qualname] = module
 
-    log.debug("loading serializers took %.3f seconds", timer.duration)
+    log.debug("loading serializers took %.3f ms", timer.duration)
 
 
 @functools.cache

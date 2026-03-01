@@ -459,8 +459,10 @@ ARG_REPLACE_MICRO = Arg(
 ARG_DB_TABLES = Arg(
     ("-t", "--tables"),
     help=lazy_object_proxy.Proxy(
-        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
-        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        lambda: (
+            f"Table names to perform maintenance on (use comma-separated list).\n"
+            f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        )
     ),
     type=string_list_type,
 )
@@ -1442,6 +1444,9 @@ TEAMS_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a team",
+        description=(
+            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
     ),

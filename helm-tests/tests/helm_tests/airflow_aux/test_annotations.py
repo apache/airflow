@@ -120,90 +120,6 @@ class TestServiceAccountAnnotations:
             ),
             (
                 {
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "celery": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-celery-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "missing",
-                            },
-                        },
-                        "celery": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-celery-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "kubernetes": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "missing",
-                            },
-                        },
-                        "kubernetes": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
                     "flower": {
                         "enabled": True,
                         "serviceAccount": {
@@ -345,10 +261,10 @@ class TestServiceAccountAnnotations:
             assert v == obj["metadata"]["annotations"][k]
 
     def test_annotations_on_webserver(self):
-        """Test annotations are added on webserver for Airflow 1 & 2"""
+        """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.10.0",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "serviceAccount": {
                         "annotations": {

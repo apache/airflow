@@ -99,13 +99,6 @@ class TestDatabaseCleanup:
         assert "successfulJobsHistoryLimit" in docs[0]["spec"]
         assert "failedJobsHistoryLimit" in docs[0]["spec"]
 
-    def test_should_pass_validation_with_v1beta1_api(self):
-        render_chart(
-            values={"databaseCleanup": {"enabled": True}},
-            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
-
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
             values={

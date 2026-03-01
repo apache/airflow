@@ -21,6 +21,8 @@ import json
 import os
 import subprocess
 
+from sqlalchemy import select
+
 from airflow import settings
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -97,7 +99,7 @@ class GcpAuthenticator(CommandExecutor):
         :return: None
         """
         with settings.Session() as session:
-            conn = session.query(Connection).filter(Connection.conn_id == "google_cloud_default")[0]
+            conn = session.scalar(select(Connection).where(Connection.conn_id == "google_cloud_default"))
             extras = conn.extra_dejson
             extras[KEYPATH_EXTRA] = self.full_key_path
             if extras.get(KEYFILE_DICT_EXTRA):
@@ -113,7 +115,7 @@ class GcpAuthenticator(CommandExecutor):
         :return: None
         """
         with settings.Session() as session:
-            conn = session.query(Connection).filter(Connection.conn_id == "google_cloud_default")[0]
+            conn = session.scalar(select(Connection).where(Connection.conn_id == "google_cloud_default"))
             extras = conn.extra_dejson
             with open(self.full_key_path) as path_file:
                 content = json.load(path_file)

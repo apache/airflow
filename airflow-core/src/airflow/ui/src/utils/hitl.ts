@@ -18,7 +18,7 @@
  */
 import type { TFunction } from "i18next";
 
-import type { HITLDetail } from "openapi/requests/types.gen";
+import type { HITLDetail, HITLDetailHistory } from "openapi/requests/types.gen";
 import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
@@ -26,14 +26,14 @@ export type HITLResponseParams = {
   params_input?: Record<string, unknown>;
 };
 
-const getChosenOptionsValue = (hitlDetail: HITLDetail) => {
+const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
   const sourceValues = hitlDetail.response_received ? hitlDetail.chosen_options : hitlDetail.defaults;
 
   return hitlDetail.multiple ? sourceValues : sourceValues?.[0];
 };
 
-export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail: HITLDetail) => {
+export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail: HITLDetailHistory) => {
   const preloadedHITLParams: Record<string, number | string> = Object.fromEntries(
     [...searchParams.entries()]
       .filter(([key]) => key !== "_options")
@@ -65,7 +65,7 @@ export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail
 };
 
 export const getHITLParamsDict = (
-  hitlDetail: HITLDetail,
+  hitlDetail: HITLDetailHistory,
   translate: TFunction,
   searchParams: URLSearchParams,
 ): ParamsSpec => {
