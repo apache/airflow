@@ -1856,7 +1856,14 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         assert type(result["tuple"][0]) is datetime
         assert result["string"] == "test_value"
 
-    @pytest.mark.parametrize("serializer", ["pickle", "cloudpickle", "dill"])
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+        ],
+    )
     @mock.patch(
         "airflow.providers.standard.operators.python.PythonVirtualenvOperator._is_pendulum_version_mismatch"
     )
