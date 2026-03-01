@@ -39,7 +39,7 @@ from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.state import TaskInstanceState
 
@@ -52,13 +52,11 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from sqlalchemy.orm import Session
-
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
+    from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
 
 # PEP562
@@ -91,16 +89,17 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_callbacks: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
 
     # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
     supports_multi_team: bool = True
 
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+    if TYPE_CHECKING:
+        if AIRFLOW_V_3_0_PLUS:
+            # TODO: TaskSDK: move this type change into BaseExecutor
+            queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -160,18 +159,25 @@ class CeleryExecutor(BaseExecutor):
         # Airflow V3 version -- have to delay imports until we know we are on v3
         from airflow.executors.workloads import ExecuteTask
 
-        tasks = [
-            (workload.ti.key, workload, workload.ti.queue, self.team_name)
-            for workload in workloads
-            if isinstance(workload, ExecuteTask)
-        ]
-        if len(tasks) != len(workloads):
-            invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
-            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.executors.workloads import ExecuteCallback
+
+        tasks: list[WorkloadInCelery] = []
+        for workload in workloads:
+            if isinstance(workload, ExecuteTask):
+                tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
+            elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
+                # Use default queue for callbacks, or extract from callback data if available
+                queue = "default"
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
+                tasks.append((workload.callback.key, workload, queue, self.team_name))
+            else:
+                raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
 
         self._send_tasks(tasks)
 
-    def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+    def _send_tasks(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
         cached_celery_backend = self.celery_app.backend
@@ -195,7 +201,10 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.task_publish_retries[key] = retries + 1
                     continue
-            self.queued_tasks.pop(key)
+            if key in self.queued_tasks:
+                self.queued_tasks.pop(key)
+            else:
+                self.queued_callbacks.pop(key, None)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
@@ -210,7 +219,7 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
-    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -375,11 +384,3 @@ class CeleryExecutor(BaseExecutor):
         from airflow.providers.celery.cli.definition import get_celery_cli_commands
 
         return get_celery_cli_commands()
-
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload

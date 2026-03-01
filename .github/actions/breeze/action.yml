@@ -38,7 +38,7 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: "Install uv"
       shell: bash
-      run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      run: pip install "uv==${UV_VERSION}"
       env:
         UV_VERSION: ${{ inputs.uv-version }}
     # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
