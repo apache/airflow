@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -24,6 +25,7 @@ from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import (
     BulkActionResponse,
     BulkResponse,
+    ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
 )
@@ -125,3 +127,52 @@ class TestCliConnectionCommands:
                 self.parser.parse_args(["connections", "import", expected_json_path.as_posix()]),
                 api_client=api_client,
             )
+
+    def test_import_without_extra_field(self, api_client_maker, tmp_path, monkeypatch):
+        """Import succeeds when JSON omits the ``extra`` field (#62653).
+
+        Before the fix, ``v.get("extra", {})`` returned ``{}`` (a dict) when
+        the key was absent, but ``ConnectionBody.extra`` expects ``str | None``,
+        causing a Pydantic ``ValidationError``.
+        """
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        # Intentionally omit "extra" (and several other optional keys) to
+        # mirror a minimal real-world connection JSON export.
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+            }
+        }
+
+        json_path.write_text(json.dumps(connection_file))
+
+        with patch(
+            "airflowctl.ctl.commands.connection_command.ConnectionBody",
+            wraps=ConnectionBody,
+        ) as mock_body:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+        # Verify that ``extra`` was passed as None (not {} which would fail
+        # Pydantic validation) and all other absent keys default correctly.
+        mock_body.assert_called_once_with(
+            connection_id=self.connection_id,
+            conn_type="test_type",
+            host="test_host",
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+            description="",
+        )
