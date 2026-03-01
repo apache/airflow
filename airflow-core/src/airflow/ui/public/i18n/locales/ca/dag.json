@@ -73,6 +73,12 @@
     "navigation": "Navegació: Shift+{{arrow}}",
     "toggleGroup": "Alternar grup: Espai"
   },
+  "notFound": {
+    "back": "Enrere",
+    "backToDags": "Tornar als Dags",
+    "message": "El Dag \"{{dagId}}\" no existeix.",
+    "title": "Dag no trobat"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Execució fallida",
