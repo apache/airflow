@@ -258,6 +258,8 @@ class TestCloudwatchTaskHandler:
                 handler.handle(message)
             mock_emit.assert_has_calls([call(message) for message in messages])
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_read(self, monkeypatch):
         # Confirmed via AWS Support call:
