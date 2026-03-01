@@ -317,7 +317,17 @@ def structlog_processors(
                 "event": msg.pop("event"),
                 **msg,
             }
-            return msgspec.json.encode(msg, enc_hook=default)
+
+            def safe_default(obj):
+                """Fall back to str() if the default enc_hook fails or is None."""
+                if default is not None:
+                    try:
+                        return default(obj)
+                    except TypeError:
+                        pass
+                return str(obj)
+
+            return msgspec.json.encode(msg, enc_hook=safe_default)
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
