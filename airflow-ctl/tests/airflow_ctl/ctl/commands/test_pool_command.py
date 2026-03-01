@@ -172,8 +172,8 @@ class TestPoolExportCommand:
         with mock.patch("airflowctl.ctl.commands.pool_command.AirflowConsole") as mock_console_cls:
             pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output=output_format))
             mock_console_cls.return_value.print_as.assert_called_once_with(
-                [pool_attrs],
-                output_format,
+                data=[pool_attrs],
+                output=output_format,
             )
 
     def test_export_failure(self, mock_client, tmp_path):
