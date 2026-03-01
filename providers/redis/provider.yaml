@@ -120,7 +120,7 @@ connection-types:
           default: false
       ssl_cert_reqs:
         label: SSL verify mode
-        description: Must be one of: required, optional, none.
+        description: "Must be one of: required, optional, none."
         schema:
           type:
             - string
