@@ -83,10 +83,7 @@ class ConnectionTest(Base):
         self.state = ConnectionTestState.PENDING
 
     def __repr__(self) -> str:
-        return (
-            f"<ConnectionTest id={self.id!r} token={self.token!r}"
-            f" connection_id={self.connection_id!r} state={self.state}>"
-        )
+        return f"<ConnectionTest id={self.id!r} connection_id={self.connection_id!r} state={self.state}>"
 
 
 def run_connection_test(*, connection_id: str) -> tuple[bool, str]:

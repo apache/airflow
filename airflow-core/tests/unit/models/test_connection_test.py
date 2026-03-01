@@ -68,7 +68,7 @@ class TestRunConnectionTest:
     def test_successful_connection_test(self):
         """Pure function returns (True, message) on successful test."""
         with mock.patch.object(
-            Connection, "get_connection_from_secrets", return_value=mock.MagicMock()
+            Connection, "get_connection_from_secrets", return_value=mock.MagicMock(spec=Connection)
         ) as mock_get_conn:
             mock_get_conn.return_value.test_connection.return_value = (True, "Connection OK")
             success, message = run_connection_test(connection_id="test_conn")
@@ -79,7 +79,7 @@ class TestRunConnectionTest:
     def test_failed_connection_test(self):
         """Pure function returns (False, message) when test_connection returns False."""
         with mock.patch.object(
-            Connection, "get_connection_from_secrets", return_value=mock.MagicMock()
+            Connection, "get_connection_from_secrets", return_value=mock.MagicMock(spec=Connection)
         ) as mock_get_conn:
             mock_get_conn.return_value.test_connection.return_value = (False, "Connection failed")
             success, message = run_connection_test(connection_id="test_conn")

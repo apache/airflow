@@ -27,6 +27,7 @@ import pendulum
 import pytest
 import structlog
 import time_machine
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -421,7 +422,7 @@ def test_queue_connection_test_workload_rejected_by_default():
         connection_id="test_conn",
     )
     with pytest.raises(ValueError, match="does not support connection testing"):
-        executor.queue_workload(wl, session=mock.MagicMock())
+        executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
 
 
 def test_queue_connection_test_workload_accepted_when_supported():
@@ -434,7 +435,7 @@ def test_queue_connection_test_workload_accepted_when_supported():
         connection_test_id=uuid.uuid4(),
         connection_id="test_conn",
     )
-    executor.queue_workload(wl, session=mock.MagicMock())
+    executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1
     assert executor.queued_connection_tests[0] is wl
 
