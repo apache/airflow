@@ -1280,12 +1280,15 @@ class DagRun(Base, LoggingMixin):
             if dag.has_on_failure_callback:
                 unfinished_non_schedulable = (ti for ti in unfinished.tis if ti not in set(schedulable_tis))
                 finished_task_ids = {ti.task_id for ti in finished_tis}
-                blocking_ti = next(iter(
-                    ti for ti in unfinished_non_schedulable
-                    if ti.task and not (
-                        ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids)
-                    )
-                ), None)
+                blocking_ti = next(
+                    iter(
+                        ti
+                        for ti in unfinished_non_schedulable
+                        if ti.task
+                        and not (ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids))
+                    ),
+                    None,
+                )
                 callback = self.produce_dag_callback(
                     dag=dag,
                     success=False,

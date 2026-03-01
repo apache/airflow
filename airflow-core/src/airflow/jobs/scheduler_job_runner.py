@@ -2386,9 +2386,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(TI.state.in_(State.unfinished) | (TI.state.is_(None)))
             ).all()
             last_unfinished_ti = max(
-                    unfinished_task_instances,
-                    key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
-                    default=None,
+                unfinished_task_instances,
+                key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
+                default=None,
             )
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
@@ -2417,12 +2417,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return None
             dag_run = dag_run_reloaded
             callback_to_execute = dag_run.produce_dag_callback(
-                    dag=dag,
-                    success=False,
-                    relevant_ti=last_unfinished_ti,
-                    reason="timed_out",
-                    execute=False,
-                )
+                dag=dag,
+                success=False,
+                relevant_ti=last_unfinished_ti,
+                reason="timed_out",
+                execute=False,
+            )
 
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:

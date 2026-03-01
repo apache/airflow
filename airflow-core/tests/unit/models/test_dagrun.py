@@ -490,7 +490,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
-        ) as dag:
+        ):
             up = EmptyOperator(task_id="upstream")
             middle = EmptyOperator(task_id="wrong")
             down = EmptyOperator(task_id="downstream")
