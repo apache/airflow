@@ -31,7 +31,6 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     PoolBody,
 )
-from airflowctl.ctl.console_formatting import AirflowConsole
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -79,7 +78,7 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
             rich.print(f"Exported {pools_response.total_entries} pool(s) to {args.file}")
         else:
             # For non-json formats, print the pools directly to console
-            AirflowConsole().print_as(data=pools_list, output=args.output)
+            rich.print(pools_list)
     except Exception as e:
         raise SystemExit(f"Failed to export pools: {e}")
 
