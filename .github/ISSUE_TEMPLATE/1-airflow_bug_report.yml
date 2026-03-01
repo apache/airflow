@@ -88,8 +88,6 @@ body:
       label: Operating System
       description: What Operating System are you using?
       placeholder: "You can get it via `cat /etc/os-release` for example"
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Versions of Apache Airflow Providers
@@ -113,8 +111,6 @@ body:
         - "Amazon (AWS) MWAA"
         - "Microsoft ADF Managed Airflow"
         - "Other"
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Deployment details
