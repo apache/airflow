@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
@@ -76,10 +78,18 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
-            kwargs["poke_interval"] = 5
-
+            # TODO: Remove once deprecated
+            if "polling_interval" in kwargs:
+                kwargs["poke_interval"] = kwargs["polling_interval"]
+                warnings.warn(
+                    "Argument `poll_interval` is deprecated and will be removed "
+                    "in a future release.  Please use `poke_interval` instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                kwargs["poke_interval"] = 5
         super().__init__(**kwargs)
-
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id

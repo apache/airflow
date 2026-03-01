@@ -24,11 +24,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-try:
-    from airflow.sdk import DAG
-except ImportError:
-    from airflow.models.dag import DAG  # type: ignore[no-redef,attr-defined]
-
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateTableOperator,
@@ -118,6 +114,7 @@ with DAG(
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
+        deferrable=True,
     )
     # [END howto_sensor_async_bigquery_table]
 
@@ -159,6 +156,7 @@ with DAG(
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
+        deferrable=True,
     )
     # [END howto_sensor_bigquery_table_partition_async]
 
@@ -217,17 +215,6 @@ with DAG(
     )
     # [END howto_sensor_bigquery_streaming_buffer_empty_defered]
 
-    # [START howto_sensor_bigquery_streaming_buffer_empty_async]
-    check_streaming_buffer_empty_async = BigQueryStreamingBufferEmptySensor(
-        task_id="check_streaming_buffer_empty_async",
-        project_id=PROJECT_ID,
-        dataset_id=DATASET_NAME,
-        table_id=TABLE_NAME,
-        poke_interval=30,
-        timeout=5400,  # 90 minutes - Google Cloud flushes streaming buffer within 90 minutes
-    )
-    # [END howto_sensor_bigquery_streaming_buffer_empty_async]
-
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -235,31 +222,19 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    # Task dependencies
-    create_dataset >> create_table
-    create_table >> [check_table_exists, check_table_exists_async, check_table_exists_def]
-    [check_table_exists, check_table_exists_async, check_table_exists_def] >> execute_insert_query
-    execute_insert_query >> [
-        check_table_partition_exists,
-        check_table_partition_exists_async,
-        check_table_partition_exists_def,
-    ]
-    for partition_task in [
-        check_table_partition_exists,
-        check_table_partition_exists_async,
-        check_table_partition_exists_def,
-    ]:
-        partition_task >> [stream_insert, stream_update, stream_delete]
-    for stream_task in [stream_insert, stream_update, stream_delete]:
-        stream_task >> [
-            check_streaming_buffer_empty,
-            check_streaming_buffer_empty_async,
-            check_streaming_buffer_empty_def,
-        ]
     (
-        [
+        create_dataset
+        >> create_table
+        >> [check_table_exists, check_table_exists_async, check_table_exists_def]
+        >> execute_insert_query
+        >> [
+            check_table_partition_exists,
+            check_table_partition_exists_async,
+            check_table_partition_exists_def,
+        ]
+        >> [stream_insert, stream_update, stream_delete]
+        >> [
             check_streaming_buffer_empty,
-            check_streaming_buffer_empty_async,
             check_streaming_buffer_empty_def,
         ]
         >> delete_dataset
