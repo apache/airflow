@@ -632,7 +632,10 @@ def test_stale_bundle_cleanup(mock_process):
     calls = mock_process.call_args_list
     assert len(calls) == 1
     actual = [x.kwargs["target"] for x in calls]
+
+    # Must be a picklable function to be a Process target
     assert actual[0].__name__ == "_bundle_cleanup_main"
+    assert actual[0].__name__ == actual[0].__qualname__
 
 
 class TestLoggerSetupHandler:
