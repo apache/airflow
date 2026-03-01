@@ -122,7 +122,7 @@
       "label": "Richtung des Graph"
     },
     "showVersionIndicator": {
-      "label": "Versionskenner anzeigen",
+      "label": "Versionsindikator anzeigen",
       "options": {
         "hideAll": "Alle ausblenden",
         "showAll": "Alle anzeigen",
