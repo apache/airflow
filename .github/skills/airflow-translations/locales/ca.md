@@ -25,3 +25,10 @@ The goal is to maintain clarity, consistency, and alignment with existing Airflo
 
 If there is ambiguity in translation, check existing locale files for reference  
 or align with the terminology used in official Airflow documentation.
+
+## Airflow-Specific Notes
+
+- Keep terminology consistent with existing Airflow documentation.
+- Do not translate DAG-related identifiers such as `dag_id`, `task_id`, or parameter names.
+- When referring to Airflow components (Scheduler, Webserver, Executor), ensure naming matches official documentation.
+- UI labels should remain concise and consistent with other locale files.
