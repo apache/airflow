@@ -104,9 +104,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.2``.
 
-==========================================  ==========================================
+==========================================  =========================================
 PIP package                                 Version required
-==========================================  ==========================================
+==========================================  =========================================
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2; python_version < "3.13"``
@@ -117,13 +117,12 @@ PIP package                                 Version required
 ``msgpack``                                 ``>=1.0.0; python_version < "3.13"``
 ``flask-sqlalchemy``                        ``>=3.0.5; python_version < "3.13"``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
-``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
 ``jmespath``                                ``>=0.7.0; python_version < "3.13"``
 ``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
 ``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``
 ``cachetools``                              ``>=6.0; python_version < "3.13"``
 ``flask_limiter``                           ``>3,!=3.13,<4``
-==========================================  ==========================================
+==========================================  =========================================
 
 Cross provider package dependencies
 -----------------------------------
