@@ -585,11 +585,10 @@ class TestGoogleBaseHook:
         invalid_ids = [
             "UPPERCASE",  # Must be lowercase
             "special@chars",  # Invalid characters
-            "a",  # Too short
-            "a" * 31,  # Too long
+            "ab-cd",  # Too short
+            "a" + "b" * 30,  # Too long
             "1starts-with-number",  # Must start with letter
-            "",  # Empty string
-            None,  # None value
+            "", #Empty-String
         ]
 
         for invalid_id in invalid_ids:

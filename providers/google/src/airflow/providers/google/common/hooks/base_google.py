@@ -262,6 +262,9 @@ class GoogleBaseHook(BaseHook):
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
+            "quota_project_id": StringField(
+                lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -291,7 +294,7 @@ class GoogleBaseHook(BaseHook):
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials.
         :param quota_project_id: Optional Project ID to use for quota/billing purposes.
-            If None, the Project ID from the GCP connection is used.
+            If None, no separate quota project is configured and the default behavior of the credentials is used.
         :param kwargs: Additional arguments to pass to parent constructor.
         """
         super().__init__(**kwargs)
@@ -356,7 +359,7 @@ class GoogleBaseHook(BaseHook):
 
         # Apply quota project before caching credentials
         quota_project = self.quota_project_id or self._get_field("quota_project_id")
-        if quota_project:
+        if quota_project and not is_anonymous:
             self._validate_quota_project(quota_project)
             if not hasattr(credentials, "with_quota_project"):
                 raise ValueError(
@@ -391,8 +394,7 @@ class GoogleBaseHook(BaseHook):
         if not is_valid_gcp_project_id(quota_project):
             raise ValueError(
                 f"Invalid quota_project_id '{quota_project}'. "
-                "Project IDs must start with a lowercase letter and can contain "
-                "only lowercase letters and digits."
+                "Project IDs must be 6-30 characters long, start with a lowercase letter, and can contain only lowercase letters, digits, and hyphens."
             )
 
     def get_credentials(self) -> Credentials:

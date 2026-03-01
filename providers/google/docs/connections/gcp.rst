@@ -127,7 +127,7 @@ Quota Project ID (optional)
 
 The Google Cloud project ID to use for API quota and billing purposes. This is useful
 when using a shared service account but want to attribute quota/billing to a different
-project. If not specified, the default project from the connection is used. Must be a
+project. If not specified, no separate quota project is configured on the credentials and Google Cloud's default behavior applies. Must be a
 valid GCP project ID (lowercase letters, digits, hyphens, 6–30 characters, starting
 with a letter).
 
@@ -418,5 +418,5 @@ Examples
 
 **Examples**
 
-See the example DAG: ``airflow/providers/google/cloud/example_dags/example_quota_project.py``
+See the example DAG: ``tests/system/providers/google/common/example_quota_project_system.py``
 
