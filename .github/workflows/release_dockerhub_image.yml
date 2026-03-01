@@ -49,7 +49,7 @@ jobs:
       pythonVersions: ${{ steps.determine-python-versions.outputs.python-versions }}
       platformMatrix: ${{ steps.determine-matrix.outputs.platformMatrix }}
       airflowVersion: ${{ steps.check-airflow-version.outputs.airflowVersion }}
-      skipLatest: ${{ steps.check-airflow-version.outputs.skip-latest }}
+      skipLatest: ${{ steps.check-airflow-version.outputs.skipLatest }}
       amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
     env:
@@ -58,7 +58,7 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
-      UV_VERSION: "0.10.6"  # Keep this comment to allow automatic replacement of uv version
+      UV_VERSION: "0.10.7"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
