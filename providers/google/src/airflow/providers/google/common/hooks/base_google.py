@@ -261,6 +261,9 @@ class GoogleBaseHook(BaseHook):
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
+            "quota_project_id": StringField(
+                lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -277,6 +280,15 @@ class GoogleBaseHook(BaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        """Initialize the Google Cloud Base Hook.
+        
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials.
+        :param quota_project_id: Optional Project ID to use for quota/billing purposes.
+            If None, no separate quota project is configured and the default behavior of the credentials is used.
+        :param kwargs: Additional arguments to pass to parent constructor.
+        """
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -342,6 +354,19 @@ class GoogleBaseHook(BaseHook):
             idp_extra_params_dict=idp_extra_params_dict,
         )
 
+        # Apply quota project before caching credentials
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project and not is_anonymous:
+            self._validate_quota_project(quota_project)
+            if not hasattr(credentials, "with_quota_project"):
+                raise ValueError(
+                    f"Credentials of type {type(credentials).__name__} do not support "
+                    "quota project configuration. Please use a different authentication method "
+                    "or remove the quota_project_id setting."
+                )
+            credentials = credentials.with_quota_project(quota_project)
+        
+        # Override project_id if set in extras
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
@@ -350,6 +375,24 @@ class GoogleBaseHook(BaseHook):
         self._cached_project_id = project_id
 
         return credentials, project_id
+
+    def _validate_quota_project(self, quota_project: str) -> None:
+        """Validate the quota Project ID format.
+
+        :param quota_project: The quota Project ID to validate
+        :raises TypeError: If the quota Project ID is not a string
+        :raises ValueError: If the quota Project ID is empty or does not match the expected format
+        """
+        if not isinstance(quota_project, str):
+            raise TypeError(f"quota_project_id must be a string, got {type(quota_project)}")
+        if not quota_project.strip():
+            raise ValueError("quota_project_id cannot be empty")
+        # Check for valid GCP Project ID format
+        if not is_valid_gcp_project_id(quota_project):
+            raise ValueError(
+                f"Invalid quota_project_id '{quota_project}'. "
+                "Project IDs must be 6-30 characters long, start with a lowercase letter, and can contain only lowercase letters, digits, and hyphens."
+            )
 
     def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API."""
