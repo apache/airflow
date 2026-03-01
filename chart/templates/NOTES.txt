@@ -375,6 +375,30 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.workers.podDisruptionBudget.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.enabled` has been renamed to `workers.celery.podDisruptionBudget.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.podDisruptionBudget.config.maxUnavailable) 1 }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.config.maxUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.maxUnavailable`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if hasKey .Values.workers.podDisruptionBudget.config "minUnavailable" }}
+
+ DEPRECATION WARNING:
+    `workers.podDisruptionBudget.config.minUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.minUnavailable`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:

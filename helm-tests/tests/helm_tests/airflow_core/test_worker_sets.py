@@ -1038,8 +1038,7 @@ class TestWorkerSets:
         docs = render_chart(
             values={
                 "workers": {
-                    "celery": {"enableDefault": enable_default},
-                    "podDisruptionBudget": {"enabled": True},
+                    "celery": {"enableDefault": enable_default, "podDisruptionBudget": {"enabled": True}},
                 }
             },
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
@@ -1059,9 +1058,9 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "podDisruptionBudget": {"enabled": True},
                     "celery": {
                         "enableDefault": enable_default,
+                        "podDisruptionBudget": {"enabled": True},
                         "sets": [
                             {"name": "set1"},
                             {"name": "set2"},
@@ -1089,38 +1088,82 @@ class TestWorkerSets:
 
         assert docs[0] is not None
 
-    def test_overwrite_pod_disruption_budget_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "podDisruptionBudget": {"enabled": True},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
             },
+            {
+                "podDisruptionBudget": {"enabled": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "podDisruptionBudget": {"enabled": True},
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_pod_disruption_budget_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_pod_disruption_budget_config(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
-                            }
-                        ],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
             },
+            {
+                "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_pod_disruption_budget_config(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
         )
 
