@@ -52,9 +52,7 @@ def get_provider_info():
                         "host": "GitHub Enterprise URL (Optional)",
                         "password": "GitHub Access Token",
                     },
-                    "placeholders": {
-                        "host": "https://{hostname}/api/v3 (for GitHub Enterprise)",
-                    },
+                    "placeholders": {"host": "https://{hostname}/api/v3 (for GitHub Enterprise)"},
                 },
             }
         ],
