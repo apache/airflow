@@ -212,8 +212,12 @@ def _get_ti(
                         f"map_index {map_index} is out of range. "
                         f"Task '{task.task_id}' has {total} mapped instance(s) [0..{total - 1}]."
                     )
-            except (NotFullyPopulated, NotMapped):
-                pass  # Dynamic mapping — skip validation
+            except NotFullyPopulated:
+                pass  # Dynamic mapping — cannot validate at parse time
+            except NotMapped:
+                raise ValueError(
+                    f"Task '{task.task_id}' is not mapped; map_index must be -1."
+                )
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise

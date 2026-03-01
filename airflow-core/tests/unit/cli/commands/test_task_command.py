@@ -354,9 +354,9 @@ class TestCliTasks:
         """Dynamic (XCom-based) mapping should skip map_index validation."""
         # consumer depends on XCom from make_arg_lists, so parse-time count
         # is not available. Validation should be skipped (NotFullyPopulated).
-        # The render may fail later for other reasons, but not with our
+        # The render may fail for other reasons, but not with our
         # "out of range" ValueError.
-        try:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -370,11 +370,7 @@ class TestCliTasks:
                     ]
                 )
             )
-        except ValueError as e:
-            if "out of range" in str(e):
-                pytest.fail(f"Should not raise 'out of range' for dynamic mapping, but got: {e}")
-        except Exception:
-            pass  # Other errors are expected (e.g., missing XCom data)
+        assert "out of range" not in str(exc_info.value)
 
     def test_mapped_task_render_with_template(self, dag_maker):
         """
