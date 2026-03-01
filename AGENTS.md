@@ -19,8 +19,8 @@
 - **Type-check:** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --ref-from <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --ref-from <target_branch>`
-- **Run regular(fast) static checks:** `prek run --ref-from <target_branch> --hook-stage pre-commit`
-- **Run manual(slower) checks:** `prek run --ref-from <target_branch> --hook-stage manual`
+- **Run regular (fast) static checks:** `prek run --ref-from <target_branch> --hook-stage pre-commit`
+- **Run manual (slower) checks:** `prek run --ref-from <target_branch> --hook-stage manual`
 
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be
 `v3-1-test` when creating a PR for the 3.1 branch.
