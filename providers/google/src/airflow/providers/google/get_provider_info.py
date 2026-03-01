@@ -720,6 +720,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
             {
+                "integration-name": "Google Cloud SQL",
+                "python-modules": ["airflow.providers.google.cloud.sensors.cloud_sql"],
+            },
+            {
                 "integration-name": "Google Cloud Storage Transfer Service",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_storage_transfer_service"],
             },

@@ -22,10 +22,17 @@ from unittest import mock as async_mock
 
 import pytest
 
-from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
+from airflow.providers.google.cloud.triggers.cloud_sql import (
+    CloudSQLExportTrigger,
+    CloudSQLInstanceOperationsTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 CLASSPATH = "airflow.providers.google.cloud.triggers.cloud_sql.CloudSQLExportTrigger"
+INSTANCE_OPERATIONS_CLASSPATH = (
+    "airflow.providers.google.cloud.triggers.cloud_sql.CloudSQLInstanceOperationsTrigger"
+)
+INSTANCE_NAME = "test_instance"
 TASK_ID = "test_task"
 TEST_POLL_INTERVAL = 10
 TEST_GCP_CONN_ID = "test-project"
@@ -148,3 +155,65 @@ class TestCloudSQLExportTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert TriggerEvent({"status": "failed", "message": "Test exception"}) == actual
+
+
+@pytest.fixture
+def instance_operations_trigger():
+    return CloudSQLInstanceOperationsTrigger(
+        instance=INSTANCE_NAME,
+        project_id=PROJECT_ID,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        poke_interval=TEST_POLL_INTERVAL,
+    )
+
+
+class TestCloudSQLInstanceOperationsTrigger:
+    def test_serialization(self, instance_operations_trigger):
+        classpath, kwargs = instance_operations_trigger.serialize()
+        assert classpath == INSTANCE_OPERATIONS_CLASSPATH
+        assert kwargs == {
+            "instance": INSTANCE_NAME,
+            "project_id": PROJECT_ID,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "impersonation_chain": None,
+            "poke_interval": TEST_POLL_INTERVAL,
+        }
+
+    @pytest.mark.asyncio
+    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.list_instance_operations"))
+    async def test_success_when_no_operations(self, mock_list_ops, instance_operations_trigger):
+        mock_list_ops.return_value = []
+        generator = instance_operations_trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "success"}) == actual
+
+    @pytest.mark.asyncio
+    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.list_instance_operations"))
+    async def test_success_when_all_done(self, mock_list_ops, instance_operations_trigger):
+        mock_list_ops.return_value = [{"name": "op1", "status": "DONE"}]
+        generator = instance_operations_trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "success"}) == actual
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_sql.asyncio.sleep")
+    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.list_instance_operations"))
+    async def test_waits_when_operation_running(
+        self, mock_list_ops, mock_sleep, instance_operations_trigger
+    ):
+        mock_list_ops.side_effect = [
+            [{"name": "op1", "status": "RUNNING"}],
+            [],
+        ]
+        generator = instance_operations_trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "success"}) == actual
+        assert mock_list_ops.call_count == 2
+
+    @pytest.mark.asyncio
+    @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.list_instance_operations"))
+    async def test_failed_on_exception(self, mock_list_ops, instance_operations_trigger):
+        mock_list_ops.side_effect = Exception("API error")
+        generator = instance_operations_trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "failed", "message": "API error"}) == actual

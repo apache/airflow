@@ -318,6 +318,7 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: dict, project_id: str):
         """
         Export data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
@@ -340,6 +341,7 @@ class CloudSQLHook(GoogleBaseHook):
         return operation_name
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
         Import data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
@@ -365,6 +367,7 @@ class CloudSQLHook(GoogleBaseHook):
             raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def clone_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
         Clones an instance to a target instance.
@@ -413,6 +416,29 @@ class CloudSQLHook(GoogleBaseHook):
         operation_name = response.get("operation", {}).get("name", {})
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_instance_operations(
+        self, instance: str, project_id: str, max_results: int = 100
+    ) -> list[dict[str, Any]]:
+        """
+        List operations for a Cloud SQL instance.
+
+        Used to detect if any administrative operation (import, export, clone, patch, etc.)
+        is currently running. Cloud SQL allows only one such operation at a time per instance.
+
+        :param instance: Database instance ID. This does not include the project ID.
+        :param project_id: Project ID of the project that contains the instance.
+        :param max_results: Maximum number of operations to return. Default 100.
+        :return: List of operation dicts with at least 'name' and 'status' keys.
+        """
+        response = (
+            self.get_conn()
+            .operations()
+            .list(project=project_id, instance=instance, maxResults=max_results)
+            .execute(num_retries=self.num_retries)
+        )
+        return response.get("items", [])
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
@@ -481,6 +507,26 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
             )
             operation = await operation.json(content_type=None)
             return operation
+
+    async def list_instance_operations(
+        self, project_id: str, instance: str, max_results: int = 100
+    ) -> list[dict[str, Any]]:
+        """
+        List operations for a Cloud SQL instance (async).
+
+        :param project_id: Project ID of the project that contains the instance.
+        :param instance: Database instance ID. This does not include the project ID.
+        :param max_results: Maximum number of operations to return. Default 100.
+        :return: List of operation dicts with at least 'name' and 'status' keys.
+        """
+        url = (
+            f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{quote_plus(project_id)}/"
+            f"operations?instance={quote_plus(instance)}&maxResults={max_results}"
+        )
+        async with ClientSession() as session:
+            response = await self._get_conn(session=session, url=url)
+            data = await response.json(content_type=None)
+            return data.get("items", [])
 
 
 class CloudSqlProxyRunner(LoggingMixin):
