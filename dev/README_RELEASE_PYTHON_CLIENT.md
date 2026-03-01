@@ -451,10 +451,7 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files python-client --version ${VERSION_RC}
 ```
 
-You can also follow the docker check that installs the distribution in a docker container and verifies
-that the package can be installed and imported correctly and print it's version. The command above prints
-instructions on how to do that.
-
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 

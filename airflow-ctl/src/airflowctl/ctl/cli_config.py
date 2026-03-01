@@ -408,6 +408,12 @@ class CommandFactory:
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
 
+        def _union_members(node: ast.expr) -> list[str]:
+            """Get individual type names from a union type annotation."""
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+                return _union_members(node.left) + _union_members(node.right)
+            return [ast.unparse(node)]
+
         def get_function_details(node: ast.FunctionDef, parent_node: ast.ClassDef) -> dict:
             """Extract function name, arguments, and return annotation."""
             func_name = node.name
@@ -422,10 +428,7 @@ class CommandFactory:
 
             if node.returns:
                 return_annotation = [
-                    t.strip()
-                    # TODO change this while removing Python 3.9 support
-                    for t in ast.unparse(node.returns).split("|")
-                    if t.strip() != ServerResponseError.__name__
+                    t for t in _union_members(node.returns) if t != ServerResponseError.__name__
                 ].pop()
 
             return {

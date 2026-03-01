@@ -1038,8 +1038,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 
