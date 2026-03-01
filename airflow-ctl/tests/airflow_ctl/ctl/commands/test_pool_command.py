@@ -149,35 +149,32 @@ class TestPoolExportCommand:
         expected_output = f"Exported {len(exported_data)} pool(s) to {export_file}"
         assert expected_output in captured.out.replace("\n", "")
 
-    def test_export_non_json_output(self, mock_client, tmp_path, capsys):
-        """Test pool export with non-json output format."""
-        # Create a proper dictionary structure
-        mock_pool = {
-            "name": "test_pool",
-            "slots": 1,
-            "description": "Test pool",
-            "include_deferred": True,
-            "occupied_slots": 0,
-            "running_slots": 0,
-            "queued_slots": 0,
-            "scheduled_slots": 0,
-            "open_slots": 1,
-            "deferred_slots": 0,
-        }
-        # Create a mock response with a proper pools attribute
+    def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path):
+        """Test that non-JSON export delegates to AirflowConsole.print_as()."""
+        pool = type(
+            "Pool",
+            (),
+            {
+                "name": "test_pool",
+                "slots": 5,
+                "description": "Test pool",
+                "include_deferred": True,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "scheduled_slots": 0,
+                "open_slots": 5,
+                "deferred_slots": 0,
+            },
+        )()
         mock_pools = mock.MagicMock()
-        mock_pools.pools = [mock.MagicMock(**mock_pool)]
+        mock_pools.pools = [pool]
         mock_pools.total_entries = 1
         mock_client.pools.list.return_value = mock_pools
 
-        pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output="table"))
-
-        # Verify console output contains the raw dict
-        captured = capsys.readouterr()
-        assert "test_pool" in captured.out
-        assert "slots" in captured.out
-        assert "description" in captured.out
-        assert "include_deferred" in captured.out
+        with mock.patch("airflowctl.ctl.commands.pool_command.AirflowConsole") as mock_console_cls:
+            pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output="table"))
+            mock_console_cls.return_value.print_as.assert_called_once()
 
     def test_export_failure(self, mock_client, tmp_path):
         """Test pool export with API failure."""
