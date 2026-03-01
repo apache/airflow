@@ -133,6 +133,13 @@ def _process_batch(
     show_default=True,
     help="Number of flagged issues to accumulate before prompting.",
 )
+@click.option(
+    "--max-num",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum number of issues to flag for unassignment. 0 means no limit.",
+)
 @option_dry_run
 @option_verbose
 @option_answer
@@ -140,6 +147,7 @@ def unassign(
     github_token: str | None,
     github_repository: str,
     batch_size: int,
+    max_num: int,
 ):
     from github import Github
 
@@ -174,6 +182,9 @@ def unassign(
 
         batch.append((issue, non_collab))
         total_flagged += 1
+
+        if max_num and total_flagged >= max_num:
+            break
 
         if len(batch) >= batch_size:
             total_unassigned += _process_batch(batch, dry_run)
