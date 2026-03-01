@@ -149,32 +149,32 @@ class TestPoolExportCommand:
         expected_output = f"Exported {len(exported_data)} pool(s) to {export_file}"
         assert expected_output in captured.out.replace("\n", "")
 
-    def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path):
-        """Test that non-JSON export delegates to AirflowConsole.print_as()."""
-        pool = type(
-            "Pool",
-            (),
-            {
-                "name": "test_pool",
-                "slots": 5,
-                "description": "Test pool",
-                "include_deferred": True,
-                "occupied_slots": 0,
-                "running_slots": 0,
-                "queued_slots": 0,
-                "scheduled_slots": 0,
-                "open_slots": 5,
-                "deferred_slots": 0,
-            },
-        )()
+    @pytest.mark.parametrize("output_format", ["table", "yaml", "plain"])
+    def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path, output_format):
+        """Test that non-JSON export delegates to AirflowConsole.print_as() with correct data and format."""
+        pool_attrs = {
+            "name": "test_pool",
+            "slots": 5,
+            "description": "Test pool",
+            "include_deferred": True,
+            "occupied_slots": 0,
+            "running_slots": 0,
+            "queued_slots": 0,
+            "scheduled_slots": 0,
+            "open_slots": 5,
+            "deferred_slots": 0,
+        }
         mock_pools = mock.MagicMock()
-        mock_pools.pools = [pool]
+        mock_pools.pools = [type("Pool", (), pool_attrs)()]
         mock_pools.total_entries = 1
         mock_client.pools.list.return_value = mock_pools
 
         with mock.patch("airflowctl.ctl.commands.pool_command.AirflowConsole") as mock_console_cls:
-            pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output="table"))
-            mock_console_cls.return_value.print_as.assert_called_once()
+            pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output=output_format))
+            mock_console_cls.return_value.print_as.assert_called_once_with(
+                [pool_attrs],
+                output_format,
+            )
 
     def test_export_failure(self, mock_client, tmp_path):
         """Test pool export with API failure."""
