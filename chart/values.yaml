@@ -699,16 +699,23 @@ workers:
 
   # Container level Lifecycle Hooks definition for
   # Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.containerLifecycleHooks and/or workers.kubernetes.containerLifecycleHooks
+  # to separate value between Celery workers and pod-template-file.
   containerLifecycleHooks: {}
 
-  # Worker pod disruption budget
+  # Airflow Celery workers pod disruption budget
+  # (deprecated, use `workers.celery.podDisruptionBudget` instead)
   podDisruptionBudget:
+    # (deprecated, use `workers.celery.podDisruptionBudget.enabled` instead)
     enabled: false
 
     # PDB configuration
+    # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
     config:
       # minAvailable and maxUnavailable are mutually exclusive
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
       maxUnavailable: 1
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
       # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
@@ -1105,6 +1112,19 @@ workers:
       pod: {}
       container: {}
 
+    # Container level Lifecycle Hooks definition for Airflow Celery workers
+    containerLifecycleHooks: {}
+
+    # Airflow Celery workers pod disruption budget
+    podDisruptionBudget:
+      enabled: ~
+
+      # PDB configuration
+      config:
+        # minAvailable and maxUnavailable are mutually exclusive
+        maxUnavailable: ~
+        # minAvailable: ~
+
     # Persistence volume configuration for Airflow Celery workers
     persistence:
       # Enable persistent volumes
@@ -1165,6 +1185,9 @@ workers:
     securityContexts:
       pod: {}
       container: {}
+
+    # Container level Lifecycle Hooks definition for pods created with pod-template-file
+    containerLifecycleHooks: {}
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
