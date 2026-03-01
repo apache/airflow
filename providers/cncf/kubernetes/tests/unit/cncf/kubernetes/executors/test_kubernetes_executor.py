@@ -1966,30 +1966,23 @@ class TestKubernetesExecutorMultiTeam:
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
     def test_multiple_team_executors_isolation(self, monkeypatch):
         """Test that multiple team executors can coexist with isolated resources."""
-        # Set team-specific parallelism via env vars so KubeConfig picks them up
-        # parallelism is read from the 'core' section
-        monkeypatch.setenv("AIRFLOW__TEAM_A___CORE__PARALLELISM", "2")
-        monkeypatch.setenv("AIRFLOW__TEAM_B___CORE__PARALLELISM", "3")
+        monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "4")
+        monkeypatch.setenv("AIRFLOW__TEAM_B___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "8")
 
         team_a_executor = KubernetesExecutor(team_name="team_a")
         team_b_executor = KubernetesExecutor(team_name="team_b")
 
         try:
-            # Verify each executor has its own queues
             assert team_a_executor.task_queue is not team_b_executor.task_queue
             assert team_a_executor.result_queue is not team_b_executor.result_queue
-
-            # Verify each executor has its own running set and queued_tasks dict
             assert team_a_executor.running is not team_b_executor.running
             assert team_a_executor.queued_tasks is not team_b_executor.queued_tasks
 
-            # Verify each has correct team config
             assert team_a_executor.conf.team_name == "team_a"
             assert team_b_executor.conf.team_name == "team_b"
 
-            # Verify parallelism is set correctly per team from config
-            assert team_a_executor.parallelism == 2
-            assert team_b_executor.parallelism == 3
+            assert team_a_executor.kube_config.worker_pods_creation_batch_size == 4
+            assert team_b_executor.kube_config.worker_pods_creation_batch_size == 8
 
         finally:
             team_a_executor.end()

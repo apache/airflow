@@ -72,7 +72,12 @@ def generate_pod_yaml(args):
         dr = DagRun(dag.dag_id, execution_date=logical_date)
         dr.run_id = DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=logical_date)
 
-    kube_config = KubeConfig()
+    executor_conf = None
+    if hasattr(args, "team") and args.team:
+        from airflow.executors.base_executor import ExecutorConf
+
+        executor_conf = ExecutorConf(team_name=args.team)
+    kube_config = KubeConfig(executor_conf=executor_conf)
 
     for task in dag.tasks:
         if AIRFLOW_V_3_0_PLUS:
