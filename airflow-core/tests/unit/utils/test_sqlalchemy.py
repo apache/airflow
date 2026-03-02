@@ -154,7 +154,7 @@ class TestSqlAlchemyUtils:
         [
             ("postgresql", True, True, True),
             ("postgresql", True, False, False),
-            ("mysql", False, True, False),
+            ("mysql", False, True, True),
             ("mysql", False, False, False),
             ("mysql", True, True, True),
             ("mysql", True, False, False),
