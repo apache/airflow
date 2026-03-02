@@ -25,8 +25,8 @@ The minimum memory required we recommend airflowctl to run with is 200MB, but th
 wildly on the deployment options you have.
 The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
 
-Keyring Backend
-'''''''''''''''
+Keyring Backend \[Recommended\]
+'''''''''''''''''''''''''''''''
 airflowctl uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
 
 Recommended keyring backends are:
@@ -35,6 +35,8 @@ Recommended keyring backends are:
 * `Freedesktop Secret Service <http://standards.freedesktop.org/secret-service/>`_ supports many DE including GNOME (requires `secretstorage <https://pypi.python.org/pypi/secretstorage>`_)
 * `KDE4 & KDE5 KWallet <https://en.wikipedia.org/wiki/KWallet>`_ (requires `dbus <https://pypi.python.org/pypi/dbus-python>`_)
 * `Windows Credential Locker <https://docs.microsoft.com/en-us/windows/uwp/security/credential-locker>`_
+
+In case there's no keyring available (common in headless environments) you can provide the token to each command. See :doc:`/security` for more information.
 
 Third-Party Backends
 ====================

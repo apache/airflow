@@ -138,9 +138,13 @@ def upgrade() -> None:
         sa.UniqueConstraint("group_id", "role_id", name=op.f("ab_group_role_group_id_role_id_uq")),
         if_not_exists=True,
     )
-    with op.batch_alter_table("ab_group_role", schema=None) as batch_op:
-        batch_op.create_index("idx_group_id", ["group_id"], unique=False, if_not_exists=True)
-        batch_op.create_index("idx_group_role_id", ["role_id"], unique=False, if_not_exists=True)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing = {idx["name"] for idx in inspector.get_indexes("ab_group_role")}
+    if "idx_group_id" not in existing:
+        op.create_index("idx_group_id", "ab_group_role", ["group_id"], unique=False)
+    if "idx_group_role_id" not in existing:
+        op.create_index("idx_group_role_id", "ab_group_role", ["role_id"], unique=False)
 
     op.create_table(
         "ab_permission_view",
@@ -174,9 +178,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("user_id", "group_id", name=op.f("ab_user_group_user_id_group_id_uq")),
         if_not_exists=True,
     )
-    with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
-        batch_op.create_index("idx_user_group_id", ["group_id"], unique=False, if_not_exists=True)
-        batch_op.create_index("idx_user_id", ["user_id"], unique=False, if_not_exists=True)
+    existing = {idx["name"] for idx in inspector.get_indexes("ab_user_group")}
+    if "idx_user_group_id" not in existing:
+        op.create_index("idx_user_group_id", "ab_user_group", ["group_id"], unique=False)
+    if "idx_user_id" not in existing:
+        op.create_index("idx_user_id", "ab_user_group", ["user_id"], unique=False)
 
     op.create_table(
         "ab_user_role",

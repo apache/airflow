@@ -886,6 +886,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from command execution."""
+        if kwargs.get("team_name", None):
+            # Commands based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -909,6 +912,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from secrets backend."""
+        if kwargs.get("team_name", None):
+            # Secrets based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_secret_option(section, key)
         if option:
             return option

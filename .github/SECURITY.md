@@ -4,15 +4,18 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [What should be and should NOT be reported ?](#what-should-be-and-should-not-be-reported-)
-- [How to report the issue ?](#how-to-report-the-issue-)
-- [Is this really a security vulnerability ?](#is-this-really-a-security-vulnerability-)
-- [How do we assess severity of the issue ?](#how-do-we-assess-severity-of-the-issue-)
-- [What happens after you report the issue ?](#what-happens-after-you-report-the-issue-)
-- [Does CVE in Airflow Providers impact Airflow core package ?](#does-cve-in-airflow-providers-impact-airflow-core-package-)
-- [Where do I find more information about Airflow Security ?](#where-do-i-find-more-information-about-airflow-security-)
+- [Apache Airflow Security](#apache-airflow-security)
+  - [What should be and should NOT be reported ?](#what-should-be-and-should-not-be-reported-)
+  - [How to report the issue ?](#how-to-report-the-issue-)
+  - [Is this really a security vulnerability ?](#is-this-really-a-security-vulnerability-)
+  - [How do we assess severity of the issue ?](#how-do-we-assess-severity-of-the-issue-)
+  - [What happens after you report the issue ?](#what-happens-after-you-report-the-issue-)
+  - [Does CVE in Airflow Providers impact Airflow core package ?](#does-cve-in-airflow-providers-impact-airflow-core-package-)
+  - [Where do I find more information about Airflow Security ?](#where-do-i-find-more-information-about-airflow-security-)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+# Apache Airflow Security
 
 This document contains information on how to report security vulnerabilities in Apache Airflow and
 how security issues reported to the Apache Airflow security team are handled. If you would like
@@ -30,7 +33,7 @@ e-mail address [security@airflow.apache.org](mailto:security@airflow.apache.org)
 Before sending the report, however, please read the following guidelines first. The guidelines should
 answer the most common questions you might have about reporting vulnerabilities.
 
-### What should be and should NOT be reported ?
+## What should be and should NOT be reported ?
 
 **Only** use the security e-mail address to report undisclosed security vulnerabilities in Apache
 Airflow and to manage the process of fixing such vulnerabilities. We do not accept regular
@@ -45,13 +48,13 @@ with dependencies in Airflow Docker reference image - there is a page that descr
 [Airflow reference Image is fixed at release time](https://airflow.apache.org/docs/docker-stack/index.html#fixing-images-at-release-time) and providing helpful instructions explaining
 how you can build your own image and manage dependencies of Airflow in your own image.
 
-### How to report the issue ?
+## How to report the issue ?
 
 Please send one plain-text email for each vulnerability you are reporting including an explanation
 of how it affects Airflow security. We may ask that you resubmit your report if you send it as an image,
 movie, HTML, or PDF attachment when you could as easily describe it with plain text.
 
-### Is this really a security vulnerability ?
+## Is this really a security vulnerability ?
 
 Before reporting vulnerabilities, please make sure to read and understand the [security model](https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html)
 of Airflow, because some of the potential security vulnerabilities that are valid for projects that are
@@ -69,7 +72,7 @@ a lot of time on preparing the issue report to follow the guidelines above and w
 save time for yourself and for the Airflow Security team by reading and understanding the security model
 before reporting the issue.
 
-### How do we assess severity of the issue ?
+## How do we assess severity of the issue ?
 
 Severity of the issue is determined based on the criteria described in
 the [Severity Rating blog post](https://security.apache.org/blog/severityrating/) by the Apache Software Foundation Security team.
@@ -79,7 +82,7 @@ do not apply to Airflow, or have a different severity than some generic scoring 
 (for example `CVSS`) calculation suggests. So we are not using any generic scoring system.
 
 
-### What happens after you report the issue ?
+## What happens after you report the issue ?
 
 The Airflow Security Team will get back to you after assessing the report. You will usually get
 confirmation that the issue is being worked (or that we quickly assessed it as invalid) within several
@@ -100,7 +103,7 @@ Security issues in Airflow are handled by the Airflow Security Team. Details abo
 Team and how members of it are chosen can be found in the
 [Contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/01_roles_in_airflow_project.rst#security-team).
 
-### Does CVE in Airflow Providers impact Airflow core package ?
+## Does CVE in Airflow Providers impact Airflow core package ?
 
 Airflow core package is released separately from provider distributions. While Airflow comes with ``constraints``
 which describe which version of providers have been tested when the version of Airflow was released, the
@@ -110,7 +113,7 @@ not apply to the Airflow core package. There are also Airflow providers released
 Airflow community is not responsible for releasing and announcing security vulnerabilities in them, this
 is handled entirely by the 3rd-parties that release their own providers.
 
-### Where do I find more information about Airflow Security ?
+## Where do I find more information about Airflow Security ?
 
 If you wish to know more about the ASF security process,
 the [ASF Security team's page](https://www.apache.org/security/) describes

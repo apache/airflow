@@ -375,7 +375,9 @@ def create_asset_event(
 
 @assets_router.post(
     "/assets/{asset_id}/materialize",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
@@ -403,14 +405,21 @@ def materialize_asset(
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+    if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
+        )
+
     return dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.ASSET_MATERIALIZATION,
             run_after=(run_after := timezone.coerce_datetime(timezone.utcnow())),
             data_interval=None,
         ),
         run_after=run_after,
-        run_type=DagRunType.MANUAL,
+        run_type=DagRunType.ASSET_MATERIALIZATION,
         triggered_by=DagRunTriggeredByType.REST_API,
         triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
