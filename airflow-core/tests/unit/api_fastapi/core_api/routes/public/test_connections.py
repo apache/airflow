@@ -1317,6 +1317,25 @@ class TestSaveAndTest(TestConnectionEndpoint):
         assert snapshot["pre"]["host"] == TEST_CONN_HOST
         assert snapshot["post"]["host"] == "new-host.example.com"
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_save_and_test_passes_queue_parameter(self, test_client, session):
+        """PATCH save-and-test passes the queue parameter to the ConnectionTest."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/save-and-test?queue=team_a",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "queued-host.example.com",
+            },
+        )
+        assert response.status_code == 200
+        token = response.json()["test_token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        assert ct is not None
+        assert ct.queue == "team_a"
+
     def test_save_and_test_403_when_disabled(self, test_client):
         """PATCH save-and-test returns 403 when test_connection is disabled."""
         self.create_connection()

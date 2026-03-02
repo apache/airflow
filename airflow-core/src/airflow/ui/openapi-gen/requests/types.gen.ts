@@ -2516,6 +2516,10 @@ export type BulkConnectionsResponse = BulkResponse;
 
 export type PatchConnectionAndTestData = {
     connectionId: string;
+    /**
+     * Executor queue to route the connection test to
+     */
+    queue?: string | null;
     requestBody: ConnectionBody;
     updateMask?: Array<(string)> | null;
 };
