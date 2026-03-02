@@ -75,6 +75,7 @@ export const DagsFilters = () => {
   // Sync tag selections between URL and localStorage on mount.
   // If the URL has no tags, restore from localStorage.
   // If the URL has tags (e.g. navigated via a tag link), save them to localStorage.
+  // The restoredRef guard ensures this logic runs only once.
   useEffect(() => {
     if (!restoredRef.current) {
       restoredRef.current = true;
@@ -95,9 +96,15 @@ export const DagsFilters = () => {
         }
       }
     }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    savedTags,
+    savedTagMatchMode,
+    searchParams,
+    selectedTags,
+    setSearchParams,
+    setSavedTags,
+    setSavedTagMatchMode,
+  ]);
 
   const [pattern, setPattern] = useState("");
 
