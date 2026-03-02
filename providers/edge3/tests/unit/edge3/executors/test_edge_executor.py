@@ -25,7 +25,7 @@ from sqlalchemy import delete, select
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
@@ -33,6 +33,34 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+
+try:
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+
+    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
+    expected_incr_kwargs = {
+        "tags": {},
+        "legacy_name_tags": {
+            "dag_id": "test_dag",
+            "queue": "default",
+            "state": "failed",
+            "task_id": "started_running_orphaned",
+        },
+    }
+    expected_call_count = 1
+except ImportError:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
+    expected_incr_kwargs = {
+        "tags": {
+            "dag_id": "test_dag",
+            "queue": "default",
+            "state": "failed",
+            "task_id": "started_running_orphaned",
+        },
+    }
+    expected_call_count = 2
 
 pytestmark = pytest.mark.db_test
 
@@ -57,7 +85,7 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
-    @patch(f"{Stats.__module__}.Stats.incr")
+    @patch(f"{stats_reference}.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 
@@ -93,16 +121,8 @@ class TestEdgeExecutor:
 
         executor.sync()
 
-        mock_stats_incr.assert_called_with(
-            "edge_worker.ti.finish",
-            tags={
-                "dag_id": "test_dag",
-                "queue": "default",
-                "state": "failed",
-                "task_id": "started_running_orphaned",
-            },
-        )
-        mock_stats_incr.call_count == 2
+        mock_stats_incr.assert_called_with("edge_worker.ti.finish", **expected_incr_kwargs)
+        assert mock_stats_incr.call_count == expected_call_count
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()
