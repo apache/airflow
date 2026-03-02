@@ -277,7 +277,10 @@ class DeadlineReference:
             deadline_reference_type = cls.TYPES.DAGRUN_CREATED
 
         # Validate the reference class inherits from BaseDeadlineReference
-        if not issubclass(reference_class, BaseDeadlineReference):
+        # Accept both sdk and core base classes for backward compatibility for now
+        from airflow.models.deadline import ReferenceModels
+
+        if not issubclass(reference_class, (BaseDeadlineReference, ReferenceModels.BaseDeadlineReference)):
             raise ValueError(f"{reference_class.__name__} must inherit from BaseDeadlineReference")
 
         # Register the new reference with DeadlineReference for discoverability
