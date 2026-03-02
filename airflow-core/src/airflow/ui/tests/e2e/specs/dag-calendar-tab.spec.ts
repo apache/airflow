@@ -54,6 +54,12 @@ test.describe("DAG Calendar Tab", () => {
         },
       });
 
+      // 409 = a run at this logical_date already exists (parallel worker race);
+      // another worker's beforeAll already created the test data, so skip.
+      if (response.status() === 409) {
+        return;
+      }
+
       if (!response.ok()) {
         const body = await response.text();
 
