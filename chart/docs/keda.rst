@@ -41,7 +41,7 @@ To install KEDA in your Kubernetes cluster, run the following commands:
      --namespace keda \
      --version "v2.0.0"
 
-To enable KEDA for the Airflow instance, it has to be enabled by setting ``workers.keda.celery.enabled=true``
+To enable KEDA for the Airflow instance, it has to be enabled by setting ``workers.celery.keda.enabled=true``
 in your Helm command or in the ``values.yaml`` like:
 
 .. code-block:: bash
@@ -51,7 +51,7 @@ in your Helm command or in the ``values.yaml`` like:
    helm install airflow apache-airflow/airflow \
      --namespace airflow \
      --set executor=CeleryExecutor \
-     --set workers.keda.celery.enabled=true
+     --set workers.celery.keda.enabled=true
 
 .. note::
 
