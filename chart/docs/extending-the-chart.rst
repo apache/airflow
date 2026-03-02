@@ -37,7 +37,7 @@ First, you will need to create you own chart directory. You can do it by running
 
 This command will create a directory called ``my-custom-chart`` with the following structure:
 
-.. code-block::
+.. code-block:: none
 
    my-custom-chart/
    ├── .helmignore
@@ -55,7 +55,7 @@ This will give you the ability to add your custom templates without the need to 
 In order to add the Airflow chart as a dependency (often called ``subcharts``) to your chart,
 add the following lines to your ``Chart.yaml`` file:
 
-.. code-block::
+.. code-block:: yaml
 
    dependencies:
      - name: airflow
@@ -75,7 +75,7 @@ Adding the Airflow chart as a dependency means that it will be deployed together
 You can disable the installation of Airflow by adding the ``condition`` field to the ``dependencies`` section
 like in the example below:
 
-.. code-block::
+.. code-block:: yaml
 
    dependencies:
      - name: airflow
@@ -93,7 +93,7 @@ Download the Airflow Helm Chart
 Third, after you have specified the Airflow chart inside the ``dependencies`` section in ``Chart.yaml`` file,
 you can download it by running the following command:
 
-.. code-block::
+.. code-block:: bash
 
    helm dependency build
 
@@ -112,7 +112,7 @@ This is useful when your chart needs a specific configuration for your custom ch
 E.g. if you want that the Airflow chart be installed with the ``KubernetesExecutor``,
 you can do it by adding the following section to your ``values.yaml``:
 
-.. code-block::
+.. code-block:: yaml
 
    airflow:
      executor: KubernetesExecutor
