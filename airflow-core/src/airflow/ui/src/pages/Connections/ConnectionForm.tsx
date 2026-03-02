@@ -234,10 +234,11 @@ const ConnectionForm = ({
                   render={({ field }) => (
                     <Field.Root invalid={Boolean(errors.conf)}>
                       <JsonEditor
-                        {...field}
                         onBlur={() => {
                           field.onChange(validateAndPrettifyJson(field.value));
                         }}
+                        onChange={field.onChange}
+                        value={field.value}
                       />
                       {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                       {isEditMode ? (
