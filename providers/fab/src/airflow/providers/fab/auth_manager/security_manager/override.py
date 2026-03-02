@@ -64,7 +64,7 @@ from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
 from sqlalchemy import delete, func, inspect, or_, select
-from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -77,6 +77,7 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_permission_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -1739,9 +1740,28 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.merge(role)
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
+            except IntegrityError:
+                self.session.rollback()
+                if self._is_permission_assigned_to_role(role_id=role.id, permission_id=permission.id):
+                    log.debug("Permission '%s' already assigned to role '%s'", permission, role.name)
+                else:
+                    log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, "Failed to assign permission after rollback")
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
                 self.session.rollback()
+
+    def _is_permission_assigned_to_role(self, role_id: int | None, permission_id: int | None) -> bool:
+        """Check if the permission is already assigned to the role."""
+        if role_id is None or permission_id is None:
+            return False
+        return bool(
+            self.session.scalar(
+                select(assoc_permission_role.c.id).where(
+                    assoc_permission_role.c.role_id == role_id,
+                    assoc_permission_role.c.permission_view_id == permission_id,
+                )
+            )
+        )
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """

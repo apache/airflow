@@ -20,6 +20,8 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from flask_appbuilder import const
+from sqlalchemy.exc import IntegrityError
 
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
@@ -32,6 +34,45 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(id=1, name="test_admin", permissions=[])
+        permission = Mock(id=2)
+
+        mock_session = Mock()
+        mock_session.merge.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm._is_permission_assigned_to_role = Mock(return_value=True)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        mock_session.rollback.assert_called_once_with()
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_id=2)
+        mock_log.error.assert_not_called()
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(id=1, name="Admin", permissions=[])
+        permission = Mock(id=2)
+
+        mock_session = Mock()
+        mock_session.merge.side_effect = IntegrityError("stmt", {}, Exception("duplicate key"))
+
+        sm._is_permission_assigned_to_role = Mock(return_value=False)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        mock_session.rollback.assert_called_once_with()
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_id=2)
+        mock_log.error.assert_called_once_with(
+            const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+            "Failed to assign permission after rollback",
+        )
+
     def test_load_user(self):
         sm = EmptySecurityManager()
         sm.get_user_by_id = Mock()
