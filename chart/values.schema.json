@@ -2229,22 +2229,22 @@
                     }
                 },
                 "podDisruptionBudget": {
-                    "description": "Worker pod disruption budget.",
+                    "description": "Worker pod disruption budget (deprecated, use `workers.celery.podDisruptionBudget` instead).",
                     "type": "object",
                     "additionalProperties": true,
                     "properties": {
                         "enabled": {
-                            "description": "Enable pod disruption budget.",
+                            "description": "Enable pod disruption budget (deprecated, use `workers.celery.podDisruptionBudget.enabled` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "config": {
-                            "description": "Disruption budget configuration.",
+                            "description": "Disruption budget configuration (deprecated, use `workers.celery.podDisruptionBudget.config` instead).",
                             "type": "object",
                             "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
-                                    "description": "Max unavailable pods for worker.",
+                                    "description": "Max unavailable pods for worker (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead).",
                                     "type": [
                                         "integer",
                                         "string"
@@ -2252,7 +2252,7 @@
                                     "default": 1
                                 },
                                 "minAvailable": {
-                                    "description": "Min available pods for worker.",
+                                    "description": "Min available pods for worker (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead).",
                                     "type": [
                                         "integer",
                                         "string"
@@ -2878,6 +2878,46 @@
                                     }
                                 }
                             ]
+                        },
+                        "podDisruptionBudget": {
+                            "description": "Airflow Celery worker pod disruption budget.",
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable pod disruption budget.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "config": {
+                                    "description": "Disruption budget configuration.",
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "properties": {
+                                        "maxUnavailable": {
+                                            "description": "Max unavailable pods for worker.",
+                                            "type": [
+                                                "integer",
+                                                "string",
+                                                "null"
+                                            ],
+                                            "default": null
+                                        },
+                                        "minAvailable": {
+                                            "description": "Min available pods for worker.",
+                                            "type": [
+                                                "integer",
+                                                "string",
+                                                "null"
+                                            ],
+                                            "default": null
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "persistence": {
                             "description": "Persistence configuration for Airflow Celery workers.",
