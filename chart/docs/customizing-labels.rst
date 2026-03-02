@@ -27,8 +27,8 @@ Global labels can be set using the ``labels`` parameter in your values file. The
 
 .. code-block:: yaml
 
-    labels:
-      environment: production
+   labels:
+     environment: production
 
 Component-Specific Labels
 -------------------------
@@ -39,21 +39,21 @@ For example, to add specific labels to different components:
 
 .. code-block:: yaml
 
-    # Global labels applied to all pods
-    labels:
-      environment: production
+   # Global labels applied to all pods
+   labels:
+     environment: production
 
-    # Scheduler specific labels
-    scheduler:
-      labels:
-        role: scheduler
+   # Scheduler specific labels
+   scheduler:
+     labels:
+       role: scheduler
 
-    # Worker specific labels
-    workers:
-      labels:
-        role: worker
+   # Worker specific labels
+   workers:
+     labels:
+       role: worker
 
-    # API Server specific labels
-    apiServer:
-      labels:
-        role: ui
+   # API Server specific labels
+   apiServer:
+     labels:
+       role: ui

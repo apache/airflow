@@ -22,8 +22,9 @@ It is possible to set `resources <https://kubernetes.io/docs/concepts/configurat
 You can define different resources for various Airflow containers. By default the resources are not set.
 
 .. note::
-    The Kubernetes scheduler can use resources to decide which node to place the pod on. Since a pod resource request/limit is the sum of
-    the resource requests/limits for each container in the pod, it is advised to specify resources for each container in the pod.
+
+   The Kubernetes scheduler can use resources to decide which node to place the pod on. Since a pod resource request/limit is the sum of
+   the resource requests/limits for each container in the pod, it is advised to specify resources for each container in the pod.
 
 Possible containers where resources can be configured include:
 
@@ -58,17 +59,16 @@ Possible containers where resources can be configured include:
    * ``pgbouncer.metricsExporterSidecar.resources``
    * ``redis.resources``
 
-
 For example, specifying resources for worker Kerberos sidecar:
 
 .. code-block:: yaml
 
-  workers:
-    kerberosSidecar:
-      resources:
-        limits:
-          cpu: 200m
-          memory: 256Mi
-        requests:
-          cpu: 100m
-          memory: 128Mi
+   workers:
+     kerberosSidecar:
+       resources:
+         limits:
+           cpu: 200m
+           memory: 256Mi
+         requests:
+           cpu: 100m
+           memory: 128Mi

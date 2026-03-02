@@ -32,20 +32,20 @@ First, you will need to create you own chart directory. You can do it by running
 
 .. code-block:: bash
 
-    helm create my-custom-chart
+   helm create my-custom-chart
 
 
 This command will create a directory called ``my-custom-chart`` with the following structure:
 
 .. code-block::
 
-    my-custom-chart/
-    ├── .helmignore
-    ├── Chart.yaml
-    ├── values.yaml
-    ├── charts/
-    └── templates/
-        └── tests/
+   my-custom-chart/
+   ├── .helmignore
+   ├── Chart.yaml
+   ├── values.yaml
+   ├── charts/
+   └── templates/
+       └── tests/
 
 Add Airflow Helm Chart as dependency
 ------------------------------------
@@ -57,19 +57,19 @@ add the following lines to your ``Chart.yaml`` file:
 
 .. code-block::
 
-    dependencies:
-      - name: airflow
-        version: 1.11.0
-        repository: https://airflow.apache.org
+   dependencies:
+     - name: airflow
+       version: 1.11.0
+       repository: https://airflow.apache.org
 
 .. note::
 
-    Make sure you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
+   Make sure you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
 
 .. tip::
 
-    You can also use the name of the repo instead of the URL by replacing
-    ``https://airflow.apache.org`` with ``"@apache-airflow"``.
+   You can also use the name of the repo instead of the URL by replacing
+   ``https://airflow.apache.org`` with ``"@apache-airflow"``.
 
 Adding the Airflow chart as a dependency means that it will be deployed together with your custom chart.
 You can disable the installation of Airflow by adding the ``condition`` field to the ``dependencies`` section
@@ -77,11 +77,11 @@ like in the example below:
 
 .. code-block::
 
-    dependencies:
-      - name: airflow
-        version: 1.11.0
-        repository: https://airflow.apache.org
-        condition: airflow.enabled
+   dependencies:
+     - name: airflow
+       version: 1.11.0
+       repository: https://airflow.apache.org
+       condition: airflow.enabled
 
 This will check if the value of ``airflow.enabled`` inside your ``values.yaml`` is ``true``.
 If it is, the Airflow chart will be deployed together with your custom chart.
@@ -95,11 +95,11 @@ you can download it by running the following command:
 
 .. code-block::
 
-    helm dependency build
+   helm dependency build
 
 .. note::
 
-    Make sure you are inside the directory which contains the ``Chart.yaml`` file.
+   Make sure you are inside the directory which contains the ``Chart.yaml`` file.
 
 The chart will be downloaded and saved inside the ``charts/`` directory.
 
@@ -114,5 +114,5 @@ you can do it by adding the following section to your ``values.yaml``:
 
 .. code-block::
 
-    airflow:
-      executor: KubernetesExecutor
+   airflow:
+     executor: KubernetesExecutor

@@ -23,12 +23,12 @@ For example, to set resources on workers:
 
 .. code-block:: yaml
 
-  workers:
-    resources:
-      requests:
-        cpu: 1
-      limits:
-        cpu: 1
+   workers:
+     resources:
+       requests:
+         cpu: 1
+       limits:
+         cpu: 1
 
 One notable exception for ``KubernetesExecutor`` is that the default anti-affinity applied to ``CeleryExecutor`` workers to spread them across nodes
 is not applied to ``KubernetesExecutor`` workers, as there is no reason to spread out per-task workers.
@@ -42,30 +42,30 @@ worker types for ``CeleryKubernetesExecutor`` or if you need to customize someth
 
 .. note::
 
-  Some configuration options between Celery and Kubernetes workers can be overwritten by new ``workers.celery`` and ``workers.kubernetes`` sections.
-  Implementation of ``workers.celery`` and ``workers.kubernetes`` is not yet fully completed.
+   Some configuration options between Celery and Kubernetes workers can be overwritten by new ``workers.celery`` and ``workers.kubernetes`` sections.
+   Implementation of ``workers.celery`` and ``workers.kubernetes`` is not yet fully completed.
 
 As an example, let's say you want to set ``priorityClassName`` on your workers:
 
 .. note::
 
-  The following example is NOT functional, but meant to be illustrative of how you can provide a custom ``pod_template_file``.
-  You're better off starting with the default `pod_template_file`_ instead.
+   The following example is NOT functional, but meant to be illustrative of how you can provide a custom ``pod_template_file``.
+   You're better off starting with the default `pod_template_file`_ instead.
 
 .. _pod_template_file: https://github.com/apache/airflow/blob/main/chart/files/pod-template-file.kubernetes-helm-yaml
 
 .. code-block:: yaml
 
-  podTemplate: |
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: placeholder-name
-      labels:
-        tier: airflow
-        component: worker
-        release: {{ .Release.Name }}
-    spec:
-      priorityClassName: high-priority
-      containers:
-        - name: base
+   podTemplate: |
+     apiVersion: v1
+     kind: Pod
+     metadata:
+       name: placeholder-name
+       labels:
+         tier: airflow
+         component: worker
+         release: {{ .Release.Name }}
+     spec:
+       priorityClassName: high-priority
+       containers:
+         - name: base

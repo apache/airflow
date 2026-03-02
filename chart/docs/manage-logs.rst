@@ -27,12 +27,12 @@ With this option, Airflow will log locally to each pod. As such, the logs will o
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set logs.persistence.enabled=false
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set logs.persistence.enabled=false
 
 .. note::
 
-  Setting the ``workers.celery.persistence.enabled=false`` is required when ``CeleryExecutor`` is used.
+   Setting the ``workers.celery.persistence.enabled=false`` is required when ``CeleryExecutor`` is used.
 
 Celery worker log persistence
 -----------------------------
@@ -43,12 +43,13 @@ You can modify the template:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set executor=CeleryExecutor \
-      --set workers.celery.persistence.size=10Gi
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set executor=CeleryExecutor \
+     --set workers.celery.persistence.size=10Gi
 
 .. note::
-  With this option only task logs are persisted, unlike when log persistence is enabled which will also persist scheduler logs.
+
+   With this option only task logs are persisted, unlike when log persistence is enabled which will also persist scheduler logs.
 
 Log persistence enabled
 -----------------------
@@ -62,11 +63,11 @@ for details.
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set logs.persistence.enabled=true
-      # You can also override the other persistence
-      # by setting the logs.persistence.* values
-      # Please refer to values.yaml for details
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set logs.persistence.enabled=true
+     # You can also override the other persistence
+     # by setting the logs.persistence.* values
+     # Please refer to values.yaml for details
 
 Externally provisioned PVC
 --------------------------
@@ -76,14 +77,14 @@ by using the ``logs.persistence.existingClaim`` parameter:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set logs.persistence.enabled=true \
-      --set logs.persistence.existingClaim=my-volume-claim
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set logs.persistence.enabled=true \
+     --set logs.persistence.existingClaim=my-volume-claim
 
 .. note::
 
-  The volume have to be writable by the Airflow user. The easiest way is to ensure GID ``0`` has a write permission.
-  More information can be found in the :ref:`Docker image entrypoint documentation <docker-stack:arbitrary-docker-user>`.
+   The volume have to be writable by the Airflow user. The easiest way is to ensure GID ``0`` has a write permission.
+   More information can be found in the :ref:`Docker image entrypoint documentation <docker-stack:arbitrary-docker-user>`.
 
 Elasticsearch
 -------------
@@ -93,7 +94,7 @@ See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsea
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set elasticsearch.enabled=true \
-      --set elasticsearch.secretName=my-es-secret
-      # Other choices exist. Please refer to values.yaml for details.
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set elasticsearch.enabled=true \
+     --set elasticsearch.secretName=my-es-secret
+     # Other choices exist. Please refer to values.yaml for details.

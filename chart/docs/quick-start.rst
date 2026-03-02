@@ -51,31 +51,33 @@ Create namespace
 
 .. code-block:: bash
 
-  export NAMESPACE=example-namespace
-  kubectl create namespace $NAMESPACE
+   export NAMESPACE=example-namespace
+   kubectl create namespace $NAMESPACE
 
 .. note::
-    Same exported ``NAMESPACE`` variable will be used in the next instructions.
+
+   Same exported ``NAMESPACE`` variable will be used in the next instructions.
 
 Install the chart
 ^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-  export RELEASE_NAME=example-release
-  helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
+   export RELEASE_NAME=example-release
+   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
 
 .. note::
-    Same exported ``RELEASE_NAME`` variable will be used in the next instructions.
+
+   Same exported ``RELEASE_NAME`` variable will be used in the next instructions.
 
 Use the following code to install the chart with example Dags:
 
 .. code-block:: bash
 
-  helm install $RELEASE_NAME apache-airflow/airflow \
-    --namespace $NAMESPACE \
-    --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
-    --set-string "env[0].value=True"
+   helm install $RELEASE_NAME apache-airflow/airflow \
+     --namespace $NAMESPACE \
+     --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
+     --set-string "env[0].value=True"
 
 It may take a few minutes. Confirm the pods are up:
 
@@ -100,6 +102,7 @@ The Apache Airflow community, releases Docker Images which are ``reference image
 However, when you try it out you want to add your own Dags, custom dependencies, packages, or even custom providers.
 
 .. note::
+
    Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
    when either the packages you want to install or Airflow is upgraded. Do not forget about keeping these scripts.
    Also keep in mind, that in cases when you run pure Python tasks, you can use the
@@ -113,36 +116,34 @@ Adding Dags to your image
 
 1. Create a project:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        mkdir my-airflow-project && cd my-airflow-project
-        mkdir dags  # put dags here
-        cat <<EOM > Dockerfile
-        FROM apache/airflow
-        COPY . .
-        EOM
-
+      mkdir my-airflow-project && cd my-airflow-project
+      mkdir dags  # put dags here
+      cat <<EOM > Dockerfile
+      FROM apache/airflow
+      COPY . .
+      EOM
 
 2. Then build the image:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        docker build --pull --tag my-dags:0.0.1 .
-
+      docker build --pull --tag my-dags:0.0.1 .
 
 3. Load the image into kind:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       kind load docker-image my-dags:0.0.1
 
 4. Upgrade Helm deployment:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
-          --set images.airflow.repository=my-dags \
-          --set images.airflow.tag=0.0.1
+        --set images.airflow.repository=my-dags \
+        --set images.airflow.tag=0.0.1
 
 Adding ``apt`` packages to your image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -151,42 +152,39 @@ Example below adds ``vim`` apt package.
 
 1. Create a project:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        mkdir my-airflow-project && cd my-airflow-project
-        cat <<EOM > Dockerfile
-        FROM apache/airflow
-        USER root
-        RUN apt-get update \
-          && apt-get install -y --no-install-recommends \
-                 vim \
-          && apt-get autoremove -yqq --purge \
-          && apt-get clean \
-          && rm -rf /var/lib/apt/lists/*
-        USER airflow
-        EOM
-
+      mkdir my-airflow-project && cd my-airflow-project
+      cat <<EOM > Dockerfile
+      FROM apache/airflow
+      USER root
+      RUN apt-get update \
+        && apt-get install -y --no-install-recommends vim \
+        && apt-get autoremove -yqq --purge \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*
+      USER airflow
+      EOM
 
 2. Then build the image:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        docker build --pull --tag my-image:0.0.1 .
-
+      docker build --pull --tag my-image:0.0.1 .
 
 3. Load the image into kind:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       kind load docker-image my-image:0.0.1
 
 4. Upgrade Helm deployment:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
-          --set images.airflow.repository=my-image \
-          --set images.airflow.tag=0.0.1
+        --set images.airflow.repository=my-image \
+        --set images.airflow.tag=0.0.1
 
 Adding ``PyPI`` packages to your image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -195,35 +193,33 @@ Example below adds ``lxml`` PyPI package.
 
 1. Create a project:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        mkdir my-airflow-project && cd my-airflow-project
-        cat <<EOM > Dockerfile
-        FROM apache/airflow
-        RUN pip install --no-cache-dir lxml
-        EOM
-
+      mkdir my-airflow-project && cd my-airflow-project
+      cat <<EOM > Dockerfile
+      FROM apache/airflow
+      RUN pip install --no-cache-dir lxml
+      EOM
 
 2. Then build the image:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        docker build --pull --tag my-image:0.0.1 .
-
+      docker build --pull --tag my-image:0.0.1 .
 
 3. Load the image into kind:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       kind load docker-image my-image:0.0.1
 
 4. Upgrade Helm deployment:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
       helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
-          --set images.airflow.repository=my-image \
-          --set images.airflow.tag=0.0.1
+        --set images.airflow.repository=my-image \
+        --set images.airflow.tag=0.0.1
 
 Further extending and customizing the image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

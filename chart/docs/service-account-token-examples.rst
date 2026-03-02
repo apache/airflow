@@ -240,8 +240,9 @@ Strict production configuration with enhanced security:
        runAsNonRoot: true
 
 .. note::
-  Remember that it is a good practice to have the production configuration on the test environment to ensure
-  reliable testing before moving changes to production.
+
+   Remember that it is a good practice to have the production configuration on the test environment to ensure
+   reliable testing before moving changes to production.
 
 Migration Examples
 ------------------
@@ -251,38 +252,38 @@ Gradual Migration from Automatic to Manual
 
 1. Test manual configuration alongside automatic (for validation):
 
-  .. code-block:: yaml
+   .. code-block:: yaml
 
-    # values-test.yaml
-    scheduler:
-      serviceAccount:
-        automountServiceAccountToken: true   # Keep automatic for now
-        serviceAccountTokenVolume:
-          enabled: false                     # Disable manual for testing
+      # values-test.yaml
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: true   # Keep automatic for now
+          serviceAccountTokenVolume:
+            enabled: false                     # Disable manual for testing
 
 2. Enable manual configuration while keeping automatic (transition phase):
 
-  .. code-block:: yaml
+   .. code-block:: yaml
 
-    # values-transition.yaml
-    scheduler:
-      serviceAccount:
-        automountServiceAccountToken: true   # Still automatic
-        serviceAccountTokenVolume:
-          enabled: true                      # Test manual mounting
-          expirationSeconds: 3600
+      # values-transition.yaml
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: true   # Still automatic
+          serviceAccountTokenVolume:
+            enabled: true                      # Test manual mounting
+            expirationSeconds: 3600
 
 3. Complete migration to manual-only:
 
-  .. code-block:: yaml
+   .. code-block:: yaml
 
-    # values-final.yaml
-    scheduler:
-      serviceAccount:
-        automountServiceAccountToken: false  # Disable automatic
-        serviceAccountTokenVolume:
-          enabled: true                      # Use manual only
-          expirationSeconds: 3600
+      # values-final.yaml
+      scheduler:
+        serviceAccount:
+          automountServiceAccountToken: false  # Disable automatic
+          serviceAccountTokenVolume:
+            enabled: true                      # Use manual only
+            expirationSeconds: 3600
 
 Troubleshooting Examples
 ------------------------

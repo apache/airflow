@@ -30,52 +30,52 @@ This method requires redeploying the services in the helm chart with the new doc
 
 .. code-block:: bash
 
-    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
-    FROM apache/airflow
+   docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
+   FROM apache/airflow
 
-    COPY ./dags/ \${AIRFLOW_HOME}/dags/
+   COPY ./dags/ \${AIRFLOW_HOME}/dags/
 
-    EOF
+   EOF
 
 Then publish it in the accessible registry:
 
 .. code-block:: bash
 
-    docker push my-company/airflow:8a0da78
+   docker push my-company/airflow:8a0da78
 
 Finally, update the Airflow pods with that image:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set images.airflow.repository=my-company/airflow \
-      --set images.airflow.tag=8a0da78
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set images.airflow.repository=my-company/airflow \
+     --set images.airflow.tag=8a0da78
 
 If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time as e.g. presented in the code below:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set images.airflow.repository=my-company/airflow \
-      --set images.airflow.tag=8a0da78 \
-      --set images.airflow.pullPolicy=Always \
-      --set airflowPodAnnotations.random=r$(uuidgen)
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set images.airflow.repository=my-company/airflow \
+     --set images.airflow.tag=8a0da78 \
+     --set images.airflow.pullPolicy=Always \
+     --set airflowPodAnnotations.random=r$(uuidgen)
 
 The randomly generated pod annotation will ensure that pods are refreshed on helm upgrade.
 
 .. warning::
 
-    Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
+   Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
 
 If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName`` like:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set images.airflow.repository=my-company/airflow \
-      --set images.airflow.tag=8a0da78 \
-      --set images.airflow.pullPolicy=Always \
-      --set registry.secretName=gitlab-registry-credentials
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set images.airflow.repository=my-company/airflow \
+     --set images.airflow.tag=8a0da78 \
+     --set images.airflow.pullPolicy=Always \
+     --set registry.secretName=gitlab-registry-credentials
 
 Using Git-Sync
 --------------
@@ -92,12 +92,12 @@ for details.
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set dags.persistence.enabled=true \
-      --set dags.gitSync.enabled=true
-      # You can also overwrite the other persistence or gitSync values
-      # by setting the  dags.persistence.* and dags.gitSync.* values
-      # Please refer to values.yaml for details
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set dags.persistence.enabled=true \
+     --set dags.gitSync.enabled=true
+     # You can also overwrite the other persistence or gitSync values
+     # by setting the  dags.persistence.* and dags.gitSync.* values
+     # Please refer to values.yaml for details
 
 Mounting Dags using Git-Sync sidecar without persistence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -110,13 +110,12 @@ seconds. If you are using the ``KubernetesExecutor``, Git-Sync will run as an in
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set dags.persistence.enabled=false \
-      --set dags.gitSync.enabled=true
-      # You can also override the other gitSync values
-      # by setting the dags.gitSync.* values
-      # Refer values.yaml for details
-
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set dags.persistence.enabled=false \
+     --set dags.gitSync.enabled=true
+     # You can also override the other gitSync values
+     # by setting the dags.gitSync.* values
+     # Refer values.yaml for details
 
 Notes for combining Git-Sync and persistence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -189,7 +188,6 @@ An example of such complex approach can found in this
 `Manage Dags at scale <https://s.apache.org/airflow-manage-dags-at-scale>`_ presentation from the Airflow
 Summit.
 
-
 Mounting Dags from an externally populated PVC
 ----------------------------------------------
 
@@ -199,10 +197,10 @@ You can pass the name of the volume claim to the chart by using ``dags.persisten
 
 .. code-block:: bash
 
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set dags.persistence.enabled=true \
-      --set dags.persistence.existingClaim=my-volume-claim \
-      --set dags.gitSync.enabled=false
+   helm upgrade --install airflow apache-airflow/airflow \
+     --set dags.persistence.enabled=true \
+     --set dags.persistence.existingClaim=my-volume-claim \
+     --set dags.gitSync.enabled=false
 
 Mounting Dags from a private GitHub repo using Git-Sync sidecar
 ---------------------------------------------------------------
@@ -210,31 +208,30 @@ Mounting Dags from a private GitHub repo using Git-Sync sidecar
 To configure mounting Dags from private GitHub repository, follow below steps:
 
 1. Create a private repo on GitHub if you have not created one already.
-
 2. Then create your ssh keys:
 
-  .. code-block:: bash
+   .. code-block:: bash
 
       ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 3. Add the public key to your private repo under ``Settings > Deploy keys``.
-
 4. Convert the private ssh key to a base64 string and save it's value.
 
-  .. note::
-    You can convert the private ssh key file like so:
+   .. note::
 
-    .. code-block:: bash
+      You can convert the private ssh key file like so:
 
-        base64 <my-private-ssh-key> -w 0 > temp.txt
+      .. code-block:: bash
 
-    Then copy the string from the ``temp.txt`` file.
+         base64 <my-private-ssh-key> -w 0 > temp.txt
 
-  The converted to base64 string will be used in the ``overwrite-values.yaml`` file.
+      Then copy the string from the ``temp.txt`` file.
+
+   The converted to base64 string will be used in the ``overwrite-values.yaml`` file.
 
 5. Create a yaml file called ``overwrite-values.yaml`` to overwrite default values, instead of using ``--set``:
 
-  .. code-block:: yaml
+   .. code-block:: yaml
 
       dags:
         gitSync:
@@ -252,7 +249,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
 
 6. Finally, from the context of your Airflow Helm chart directory, install Airflow:
 
-  .. code-block:: bash
+   .. code-block:: bash
 
       helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
 

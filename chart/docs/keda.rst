@@ -38,8 +38,8 @@ To install KEDA in your Kubernetes cluster, run the following commands:
    helm repo update
    kubectl create namespace keda
    helm install keda kedacore/keda \
-       --namespace keda \
-       --version "v2.0.0"
+     --namespace keda \
+     --version "v2.0.0"
 
 To enable KEDA for the Airflow instance, it has to be enabled by setting ``workers.keda.celery.enabled=true``
 in your Helm command or in the ``values.yaml`` like:
@@ -49,11 +49,12 @@ in your Helm command or in the ``values.yaml`` like:
    kubectl create namespace airflow
    helm repo add apache-airflow https://airflow.apache.org
    helm install airflow apache-airflow/airflow \
-       --namespace airflow \
-       --set executor=CeleryExecutor \
-       --set workers.celery.keda.enabled=true
+     --namespace airflow \
+     --set executor=CeleryExecutor \
+     --set workers.keda.celery.enabled=true
 
 .. note::
+
    Make sure ``values.yaml`` shows that either KEDA or HPA is enabled, but not both. It is recommended not
    to use both KEDA and HPA to scale the same workload. They will compete with each other resulting in odd scaling behavior.
 
@@ -64,12 +65,12 @@ In the default configuration, KEDA will derive the desired number of Celery work
 .. code-block:: none
 
    SELECT
-      ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+     ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
    FROM
-      task_instance
+     task_instance
    WHERE
-      state='running' OR state='queued'
-      AND queue IN ('default')
+     state='running' OR state='queued'
+     AND queue IN ('default')
 
 .. note::
 
@@ -97,6 +98,7 @@ To configure KEDA's triggers and scaling behaviors, you need to create a ScaledO
 Triggerers value ``targetQueryValue`` is used as ``TargetValue`` of workers, which must be between ScaledObject ``minReplicaCount`` and ``maxReplicaCount`` values.
 
 .. note::
+
    To avoid strange behavior, best practice is to set ``cooldownPeriod`` to an integer slightly larger than ``terminationGracePeriodSeconds`` so that your cluster does not downscale to 0 workers before cleanup is finished.
 
 Metrics
@@ -107,6 +109,7 @@ KEDA Metrics Server directly. To reduce the load on the KEDA Scaler, you can set
 from cache first. Cache is updated periodically every ``pollingInterval``.
 
 .. note::
+
    When number of workers = 0, KEDA will still poll for metrics using ``pollingInterval``.
    When number of workers >= 1, both KEDA and the HPA will poll your defined triggers.
 

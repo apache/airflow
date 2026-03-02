@@ -16,42 +16,42 @@
     under the License.
 
 .. image:: /img/helm-logo.svg
-    :width: 100
-    :class: no-scaled-link
+   :width: 100
+   :class: no-scaled-link
 
 Helm Chart for Apache Airflow
 =============================
 
 .. toctree::
-    :hidden:
+   :hidden:
 
-    Home <self>
-    quick-start
-    airflow-configuration
-    adding-connections-and-variables
-    manage-dag-files
-    manage-logs
-    setting-resources-for-containers
-    keda
-    using-additional-containers
-    customizing-workers
-    customizing-labels
-    Installing from sources<installing-helm-chart-from-sources>
-    Extending the Chart<extending-the-chart>
-
-.. toctree::
-    :hidden:
-    :caption: Guides
-
-    production-guide
-    service-account-token-examples
+   Home <self>
+   quick-start
+   airflow-configuration
+   adding-connections-and-variables
+   manage-dag-files
+   manage-logs
+   setting-resources-for-containers
+   keda
+   using-additional-containers
+   customizing-workers
+   customizing-labels
+   Installing from sources<installing-helm-chart-from-sources>
+   Extending the Chart<extending-the-chart>
 
 .. toctree::
-    :hidden:
-    :caption: References
+   :hidden:
+   :caption: Guides
 
-    Parameters <parameters-ref>
-    release_notes
+   production-guide
+   service-account-token-examples
+
+.. toctree::
+   :hidden:
+   :caption: References
+
+   Parameters <parameters-ref>
+   release_notes
 
 
 This chart bootstraps an `Airflow <https://airflow.apache.org>`__
@@ -75,12 +75,15 @@ Features
 
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
+
 * Supported AWS executors with AWS provider version ``9.9.0+``:
 
    * ``airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor``
+
 * Supported Edge executor with edge3 provider version ``1.0.0+``:
 
    * ``airflow.providers.edge3.executors.EdgeExecutor``
+
 * Supported Airflow version: ``2.11+``, ``3.0+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
@@ -90,6 +93,7 @@ Features
    * StatsD/Prometheus metrics for Airflow
    * Prometheus metrics for PgBouncer
    * Flower
+
 * Automatic database migration after a new deployment
 * Administrator account creation during deployment
 * Kerberos secure configuration
@@ -104,14 +108,16 @@ To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 
-    helm repo add apache-airflow https://airflow.apache.org
-    helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
+   helm repo add apache-airflow https://airflow.apache.org
+   helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
 The command deploys Airflow on the Kubernetes cluster with the default configuration in the airflow namespace.
 The :doc:`parameters-ref` section lists the parameters that can be configured during installation.
 
 
-.. tip:: List all releases using ``helm list``.
+.. tip::
+
+   List all releases using ``helm list``.
 
 Upgrading the deployed Helm Chart
 ---------------------------------
@@ -120,13 +126,15 @@ To upgrade the chart with the release name ``airflow``:
 
 .. code-block:: bash
 
-    helm upgrade airflow apache-airflow/airflow --namespace airflow
+   helm upgrade airflow apache-airflow/airflow --namespace airflow
 
 .. note::
-  To upgrade to a new version of the chart, run ``helm repo update`` first.
+
+   To upgrade to a new version of the chart, run ``helm repo update`` first.
 
 .. tip::
-  By setting ``--install`` flag on the ``helm upgrade`` command, Helm Chart will be installed if it wasn't deployed before.
+
+   By setting ``--install`` flag on the ``helm upgrade`` command, Helm Chart will be installed if it wasn't deployed before.
 
 Uninstalling the deployed Helm Chart
 ------------------------------------
@@ -135,12 +143,13 @@ To uninstall/delete the ``airflow`` deployment:
 
 .. code-block:: bash
 
-    helm delete airflow --namespace airflow
+   helm delete airflow --namespace airflow
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
 .. note::
-  Some Kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``.
+
+   Some Kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``.
 
 Installing the Helm Chart with Argo CD, Flux, Rancher or Terraform
 ------------------------------------------------------------------
@@ -150,51 +159,54 @@ will not start as the migrations will not be run:
 
 .. code-block:: yaml
 
-    createUserJob:
-      useHelmHooks: false
-      applyCustomEnv: false
-    migrateDatabaseJob:
-      useHelmHooks: false
-      applyCustomEnv: false
+   createUserJob:
+     useHelmHooks: false
+     applyCustomEnv: false
+   migrateDatabaseJob:
+     useHelmHooks: false
+     applyCustomEnv: false
 
 This is so these CI/CD services can perform updates without issues and preserve the immutability of Kubernetes Job manifests.
 
 .. note::
-    This applies to the chart installation with usage of ``--wait`` flag in ``helm install`` or ``helm upgrade`` command.
+
+   This applies to the chart installation with usage of ``--wait`` flag in ``helm install`` or ``helm upgrade`` command.
 
 .. note::
-    While deploying this Helm Chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
+
+   While deploying this Helm Chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
 
 To run database migrations with Argo CD automatically, you will need to add:
 
 .. code-block:: yaml
 
-    migrateDatabaseJob:
-        jobAnnotations:
-            "argocd.argoproj.io/hook": Sync
+   migrateDatabaseJob:
+     jobAnnotations:
+       "argocd.argoproj.io/hook": Sync
 
 This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
 
 If you use the ``CeleryExecutor`` or ``CeleryKubernetesExecutor`` with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
 
 .. note::
-    By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
+
+   By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
 
 To avoid potential problems, it is recommended to disable these hooks by setting ``useHelmHooks=false`` as shown in the following examples:
 
 .. code-block:: yaml
 
-    extraSecrets:
-      '{{ .Release.Name }}-example':
-        useHelmHooks: false
-        data: |
-          AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
+   extraSecrets:
+     '{{ .Release.Name }}-example':
+       useHelmHooks: false
+       data: |
+         AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 
-    extraConfigMaps:
-      '{{ .Release.Name }}-example':
-        useHelmHooks: false
-        data: |
-          AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
+   extraConfigMaps:
+     '{{ .Release.Name }}-example':
+       useHelmHooks: false
+       data: |
+         AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 
 Naming Conventions
 ------------------
@@ -204,7 +216,7 @@ It is not enabled by default as this may cause unexpected behaviours on existing
 
 .. code-block:: yaml
 
-    useStandardNaming: true
+   useStandardNaming: true
 
 For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
 
@@ -215,10 +227,10 @@ with fresh logs/redis volumes, you can delete the old persistent volume claims, 
 
 .. code-block:: bash
 
-    kubectl delete pvc -n airflow logs-gta-triggerer-0
-    kubectl delete pvc -n airflow logs-gta-worker-0
-    kubectl delete pvc -n airflow redis-db-gta-redis-0
+   kubectl delete pvc -n airflow logs-gta-triggerer-0
+   kubectl delete pvc -n airflow logs-gta-worker-0
+   kubectl delete pvc -n airflow redis-db-gta-redis-0
 
 .. note::
 
-    If you do not change ``useStandardNaming`` or ``fullnameOverride`` after upgrade, you can proceed as usual and no unexpected behaviours will be presented.
+   If you do not change ``useStandardNaming`` or ``fullnameOverride`` after upgrade, you can proceed as usual and no unexpected behaviours will be presented.

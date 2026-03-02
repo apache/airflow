@@ -28,16 +28,16 @@ For example, sidecars that sync Dags from object storage:
 
 .. code-block:: yaml
 
-  scheduler:
-    extraContainers:
-      - name: s3-sync
-        image: my-company/s3-sync:latest
-        imagePullPolicy: Always
-  workers:
-    extraContainers:
-      - name: s3-sync
-        image: my-company/s3-sync:latest
-        imagePullPolicy: Always
+   scheduler:
+     extraContainers:
+       - name: s3-sync
+         image: my-company/s3-sync:latest
+         imagePullPolicy: Always
+   workers:
+     extraContainers:
+       - name: s3-sync
+         image: my-company/s3-sync:latest
+         imagePullPolicy: Always
 
 .. note::
 
@@ -55,10 +55,10 @@ For example, an init container that just says hello:
 
 .. code-block:: yaml
 
-  scheduler:
-    extraInitContainers:
-      - name: hello
-        image: debian
-        args:
-          - echo
-          - hello
+   scheduler:
+     extraInitContainers:
+       - name: hello
+         image: debian
+         args:
+           - echo
+           - hello

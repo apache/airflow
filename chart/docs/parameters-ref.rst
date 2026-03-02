@@ -22,45 +22,45 @@ The following tables lists the configurable parameters of the Airflow chart and 
 
 .. jinja:: params_ctx
 
-    {% for section in sections %}
+   {% for section in sections %}
 
-    .. _parameters:{{ section["name"] }}:
+   .. _parameters:{{ section["name"] }}:
 
-    {{ section["name"] }}
-    {{ "=" * (section["name"]|length + 2) }}
+   {{ section["name"] }}
+   {{ "=" * (section["name"]|length + 2) }}
 
-    .. list-table::
-       :widths: 15 10 30
-       :header-rows: 1
+   .. list-table::
+      :widths: 15 10 30
+      :header-rows: 1
 
-       * - Parameter
-         - Description
-         - Default
+      * - Parameter
+        - Description
+        - Default
 
       {% for param in section["params"] %}
-       * - ``{{ param["name"] }}``
-         - {{ param["description"] }}
-         - ``{{ param["default"] }}``
+      * - ``{{ param["name"] }}``
+        - {{ param["description"] }}
+        - ``{{ param["default"] }}``
          {% if param["examples"] %}
-           Examples:
+          Examples:
 
-           .. code-block:: yaml
+          .. code-block:: yaml
 
-              {{ param["examples"] | indent(width=10) }}
+             {{ param["examples"] | indent(width=10) }}
 
          {% endif %}
       {% endfor %}
 
-    {% endfor %}
+   {% endfor %}
 
 
 Specify each parameter using the ``--set key=value[,key=value]`` argument to ``helm install``:
 
 .. code-block:: bash
 
-  helm install my-release apache-airflow/airflow \
-    --set executor=CeleryExecutor \
-    --set enablePodLaunching=false
+   helm install my-release apache-airflow/airflow \
+     --set executor=CeleryExecutor \
+     --set enablePodLaunching=false
 
 or overwrite values by using the ``overwrite-values.yaml`` file:
 
@@ -74,4 +74,4 @@ and install the chart:
 
 .. code-block:: bash
 
-  helm install my-release apache-airflow/airflow --values overwrite-values.yaml
+   helm install my-release apache-airflow/airflow --values overwrite-values.yaml
