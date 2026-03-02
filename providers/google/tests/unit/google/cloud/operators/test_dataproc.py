@@ -134,6 +134,7 @@ CONFIG = {
     "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
     "cluster_tier": "CLUSTER_TIER_STANDARD",
+    "cluster_type": "STANDARD",
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
@@ -601,6 +602,7 @@ class TestsClusterGenerator:
             driver_pool_id="cluster_driver_pool",
             driver_pool_size=2,
             cluster_tier="CLUSTER_TIER_STANDARD",
+            cluster_type="STANDARD",
         )
         cluster = generator.make()
         assert cluster == CONFIG
@@ -756,6 +758,11 @@ class TestsClusterGenerator:
         generator = ClusterGenerator(project_id="project_id", cluster_tier="CLUSTER_TIER_STANDARD")
         cluster = generator.make()
         assert cluster["cluster_tier"] == "CLUSTER_TIER_STANDARD"
+
+    def test_build_with_cluster_type(self):
+        generator = ClusterGenerator(project_id="project_id", cluster_type="STANDARD")
+        cluster = generator.make()
+        assert cluster["cluster_type"] == "STANDARD"
 
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
