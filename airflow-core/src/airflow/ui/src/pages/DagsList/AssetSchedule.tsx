@@ -28,6 +28,7 @@ import { AssetExpression, type ExpressionType } from "src/components/AssetExpres
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { TruncatedText } from "src/components/TruncatedText";
 import { Popover } from "src/components/ui";
+import { isPartitionedDag } from "src/utils/dagUtils";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
 
@@ -62,7 +63,7 @@ const PartitionSchedule = ({ dagId, isLoading, pendingCount }: PartitionSchedule
 export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetableSummary }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
 
-  const isPartitioned = timetableSummary === "Partitioned Asset";
+  const isPartitioned = isPartitionedDag(timetableSummary);
   const { data: nextRun, isLoading: isNextRunLoading } = useAssetServiceNextRunAssets({ dagId });
   const {
     data: queuedEventsData,

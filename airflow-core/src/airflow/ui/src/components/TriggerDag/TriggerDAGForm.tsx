@@ -42,6 +42,7 @@ type TriggerDAGFormProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly hasSchedule: boolean;
+  readonly isPartitioned: boolean;
   readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
@@ -58,6 +59,7 @@ const TriggerDAGForm = ({
   dagDisplayName,
   dagId,
   hasSchedule,
+  isPartitioned,
   isPaused,
   onClose,
   open,
@@ -80,8 +82,9 @@ const TriggerDAGForm = ({
       dataIntervalEnd: "",
       dataIntervalMode: "auto",
       dataIntervalStart: "",
-      // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
+      // Default logical date to now, show it in the selected timezone.
+      // For partitioned DAGs, logical date is not applicable.
+      logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
       partitionKey: undefined,
     },
@@ -99,7 +102,7 @@ const TriggerDAGForm = ({
         dataIntervalEnd: "",
         dataIntervalMode: "auto",
         dataIntervalStart: "",
-        logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
+        logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
         partitionKey: undefined,
       });
@@ -121,6 +124,7 @@ const TriggerDAGForm = ({
     initialParamsDict.paramsDict,
     initialParamDict,
     setInitialParamDict,
+    isPartitioned,
   ]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
@@ -160,75 +164,79 @@ const TriggerDAGForm = ({
     <>
       <ErrorAlert error={errors.date ?? errorTrigger} />
       <VStack alignItems="stretch" gap={2} pt={4}>
-        <Controller
-          control={control}
-          name="logicalDate"
-          render={({ field }) => (
-            <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
-              <Stack>
-                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  {translate("logicalDate")}
-                </Field.Label>
-              </Stack>
-              <Stack css={{ flexBasis: "70%" }}>
-                <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
-              </Stack>
-            </Field.Root>
-          )}
-        />
-        <Spacer />
-        {hasSchedule ? (
-          <Box>
-            <Text fontSize="md" fontWeight="semibold" mb={3}>
-              {translate("components:triggerDag.dataInterval")}
-            </Text>
+        {isPartitioned ? undefined : (
+          <>
             <Controller
               control={control}
-              name="dataIntervalMode"
+              name="logicalDate"
               render={({ field }) => (
-                <RadioCardRoot defaultValue={String(field.value)} onChange={field.onChange}>
-                  <HStack align="stretch">
-                    {dataIntervalModeOptions.map((mode) => (
-                      <RadioCardItem
-                        colorPalette="brand"
-                        indicatorPlacement="start"
-                        key={mode.value}
-                        label={translate(mode.label)}
-                        value={mode.value}
-                      />
-                    ))}
-                  </HStack>
-                </RadioCardRoot>
+                <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
+                  <Stack>
+                    <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                      {translate("logicalDate")}
+                    </Field.Label>
+                  </Stack>
+                  <Stack css={{ flexBasis: "70%" }}>
+                    <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+                  </Stack>
+                </Field.Root>
               )}
             />
             <Spacer />
-            {dataIntervalMode === "manual" ? (
-              <HStack alignItems="flex-start" mt={3} w="full">
+            {hasSchedule ? (
+              <Box>
+                <Text fontSize="md" fontWeight="semibold" mb={3}>
+                  {translate("components:triggerDag.dataInterval")}
+                </Text>
                 <Controller
                   control={control}
-                  name="dataIntervalStart"
+                  name="dataIntervalMode"
                   render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("components:triggerDag.intervalStart")}</Field.Label>
-                      <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
-                    </Field.Root>
+                    <RadioCardRoot defaultValue={String(field.value)} onChange={field.onChange}>
+                      <HStack align="stretch">
+                        {dataIntervalModeOptions.map((mode) => (
+                          <RadioCardItem
+                            colorPalette="brand"
+                            indicatorPlacement="start"
+                            key={mode.value}
+                            label={translate(mode.label)}
+                            value={mode.value}
+                          />
+                        ))}
+                      </HStack>
+                    </RadioCardRoot>
                   )}
                 />
-                <Controller
-                  control={control}
-                  name="dataIntervalEnd"
-                  render={({ field }) => (
-                    <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                      <Field.Label>{translate("components:triggerDag.intervalEnd")}</Field.Label>
-                      <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
-                    </Field.Root>
-                  )}
-                />
-              </HStack>
+                <Spacer />
+                {dataIntervalMode === "manual" ? (
+                  <HStack alignItems="flex-start" mt={3} w="full">
+                    <Controller
+                      control={control}
+                      name="dataIntervalStart"
+                      render={({ field }) => (
+                        <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
+                          <Field.Label>{translate("components:triggerDag.intervalStart")}</Field.Label>
+                          <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+                        </Field.Root>
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="dataIntervalEnd"
+                      render={({ field }) => (
+                        <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
+                          <Field.Label>{translate("components:triggerDag.intervalEnd")}</Field.Label>
+                          <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+                        </Field.Root>
+                      )}
+                    />
+                  </HStack>
+                ) : undefined}
+              </Box>
             ) : undefined}
-          </Box>
-        ) : undefined}
-        <Spacer />
+            <Spacer />
+          </>
+        )}
         {isPaused ? (
           <>
             <Checkbox

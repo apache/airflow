@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { isPartitionedDag } from "src/utils/dagUtils";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -72,6 +73,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   );
 
   const hasSchedule = dag?.timetable_summary !== null;
+  const isPartitioned = isPartitionedDag(dag?.timetable_summary);
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -134,6 +136,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   dagDisplayName={dagDisplayName}
                   dagId={dagId}
                   hasSchedule={hasSchedule}
+                  isPartitioned={isPartitioned}
                   isPaused={isPaused}
                   onClose={onClose}
                   open={open}
