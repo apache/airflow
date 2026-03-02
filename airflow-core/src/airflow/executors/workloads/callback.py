@@ -28,7 +28,6 @@ import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
-from airflow.utils.helpers import filter_kwargs
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -126,6 +125,8 @@ def execute_callback_workload(
     :param log: Logger instance for recording execution
     :return: Tuple of (success: bool, error_message: str | None)
     """
+    from airflow.models.callback import filter_kwargs  # circular import
+
     callback_path = callback.data.get("path")
     callback_kwargs = callback.data.get("kwargs", {})
 

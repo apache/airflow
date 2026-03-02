@@ -26,6 +26,7 @@ from airflow.models.callback import (
     CallbackState,
     ExecutorCallback,
     TriggererCallback,
+    filter_kwargs,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
@@ -208,3 +209,40 @@ class TestExecutorCallback:
 
 
 # Note: class DagProcessorCallback is tested in airflow-core/tests/unit/dag_processing/test_manager.py
+
+
+class TestFilterKwargs:
+    def test_passes_all_when_var_keyword_present(self):
+        def func_with_var_keyword(**kwargs):
+            pass
+
+        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
+        assert filter_kwargs(func_with_var_keyword, kwargs) == kwargs
+
+    def test_filters_to_named_params_only(self):
+        def func_with_named_params(a, b):
+            pass
+
+        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
+        assert filter_kwargs(func_with_named_params, kwargs) == {"a": 1, "b": 2}
+
+    def test_no_params_returns_empty(self):
+        def func_no_params():
+            pass
+
+        kwargs = {"context": {"dag_run": {}}, "extra": "value"}
+        assert filter_kwargs(func_no_params, kwargs) == {}
+
+    def test_uninspectable_callable_passes_all(self):
+        # built-in len() cannot be inspected with inspect.signature in some Python versions
+        kwargs = {"a": 1}
+        result = filter_kwargs(len, kwargs)
+
+        assert isinstance(result, dict)
+
+    def test_mixed_named_and_extra_kwargs(self):
+        def func(context, alert_type):
+            pass
+
+        kwargs = {"context": {"dag_run": {}}, "alert_type": "deadline", "extra": "dropped"}
+        assert filter_kwargs(func, kwargs) == {"context": {"dag_run": {}}, "alert_type": "deadline"}

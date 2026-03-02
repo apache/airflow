@@ -25,7 +25,6 @@ from typing import Any
 from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.helpers import filter_kwargs
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +49,8 @@ class CallbackTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        from airflow.models.callback import filter_kwargs  # circular import
+
         try:
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)

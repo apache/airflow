@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -48,6 +50,29 @@ log = structlog.get_logger(__name__)
 
 ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
+
+
+def filter_kwargs(callable_obj: Callable[..., Any], kwargs: dict) -> dict:
+    """
+    Filter kwargs to only include parameters the callable accepts.
+
+    If the callable accepts **kwargs (VAR_KEYWORD), all kwargs are passed through.
+    Otherwise, only kwargs matching named parameters are passed.  This is useful
+    when calling user-provided callables that may not accept all of the kwargs that
+    Airflow injects (e.g. context).
+
+    :param callable_obj: The callable to inspect
+    :param kwargs: The full set of kwargs to filter
+    """
+    try:
+        signature = inspect.signature(callable_obj)
+    except (ValueError, TypeError):
+        return kwargs
+
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+        return kwargs
+
+    return {k: v for k, v in kwargs.items() if k in set(signature.parameters.keys())}
 
 
 class CallbackType(str, Enum):

@@ -31,7 +31,6 @@ from airflow.utils.helpers import (
     at_most_one,
     build_airflow_dagrun_url,
     exactly_one,
-    filter_kwargs,
     merge_dicts,
     prune_dict,
     validate_key,
@@ -232,43 +231,6 @@ class TestHelpers:
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
         d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
         assert prune_dict(d2, mode=mode) == expected
-
-
-class TestFilterKwargs:
-    def test_passes_all_when_var_keyword_present(self):
-        def func_with_var_keyword(**kwargs):
-            pass
-
-        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
-        assert filter_kwargs(func_with_var_keyword, kwargs) == kwargs
-
-    def test_filters_to_named_params_only(self):
-        def func_with_named_params(a, b):
-            pass
-
-        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
-        assert filter_kwargs(func_with_named_params, kwargs) == {"a": 1, "b": 2}
-
-    def test_no_params_returns_empty(self):
-        def func_no_params():
-            pass
-
-        kwargs = {"context": {"dag_run": {}}, "extra": "value"}
-        assert filter_kwargs(func_no_params, kwargs) == {}
-
-    def test_uninspectable_callable_passes_all(self):
-        # built-in len() cannot be inspected with inspect.signature in some Python versions
-        kwargs = {"a": 1}
-        result = filter_kwargs(len, kwargs)
-
-        assert isinstance(result, dict)
-
-    def test_mixed_named_and_extra_kwargs(self):
-        def func(context, alert_type):
-            pass
-
-        kwargs = {"context": {"dag_run": {}}, "alert_type": "deadline", "extra": "dropped"}
-        assert filter_kwargs(func, kwargs) == {"context": {"dag_run": {}}, "alert_type": "deadline"}
 
 
 class MockJobRunner(BaseJobRunner):
