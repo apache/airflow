@@ -187,7 +187,7 @@ class BaseExecutor(LoggingMixin):
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
-        self.queued_connection_tests: deque[workloads.TestConnection] = deque()
+        self.queued_connection_tests: dict[str, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -236,7 +236,7 @@ class BaseExecutor(LoggingMixin):
         elif isinstance(workload, workloads.TestConnection):
             if not self.supports_connection_test:
                 raise ValueError(f"Executor {type(self).__name__} does not support connection testing")
-            self.queued_connection_tests.append(workload)
+            self.queued_connection_tests[str(workload.connection_test_id)] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
@@ -318,22 +318,12 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
-    def trigger_connection_tests(self, max_tests: int | None = None) -> None:
-        """
-        Process queued connection tests.
-
-        :param max_tests: Maximum number of tests to trigger. Defaults to all queued.
-        """
+    def trigger_connection_tests(self) -> None:
+        """Process queued connection tests."""
         if not self.queued_connection_tests:
             return
 
-        count = max_tests if max_tests is not None else len(self.queued_connection_tests)
-        test_workloads: list[workloads.TestConnection] = []
-        for _ in range(min(count, len(self.queued_connection_tests))):
-            test_workloads.append(self.queued_connection_tests.popleft())
-
-        if test_workloads:
-            self._process_workloads(test_workloads)
+        self._process_workloads(list(self.queued_connection_tests.values()))
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (
