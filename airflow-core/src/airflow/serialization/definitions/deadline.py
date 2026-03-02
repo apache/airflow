@@ -264,9 +264,12 @@ class SerializedReferenceModels:
         def reference_name(self) -> str:
             return self.inner_ref.reference_name
 
-        @property
-        def required_kwargs(self) -> set[str]:
-            return getattr(self.inner_ref, "required_kwargs", set())
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
+            """Pass through all kwargs to inner reference without filtering."""
+            deadline = self.inner_ref._evaluate_with(session=session, **kwargs)
+            if deadline is None:
+                return None
+            return deadline + interval
 
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             return self.inner_ref._evaluate_with(session=session, **kwargs)
