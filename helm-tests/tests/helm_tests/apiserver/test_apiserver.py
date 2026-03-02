@@ -28,7 +28,7 @@ class TestAPIServerDeployment:
         API Server only supports Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert len(docs) == 0
@@ -38,7 +38,7 @@ class TestAPIServerDeployment:
         API Server configmap is only created for Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/configmaps/api-server-configmap.yaml"],
         )
         assert len(docs) == 0

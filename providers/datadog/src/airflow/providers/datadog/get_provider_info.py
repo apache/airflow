@@ -44,6 +44,17 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.datadog.hooks.datadog.DatadogHook",
                 "connection-type": "datadog",
+                "conn-fields": {
+                    "api_host": {"label": "API endpoint", "schema": {"type": ["string", "null"]}},
+                    "api_key": {"label": "API key", "schema": {"type": ["string", "null"]}},
+                    "app_key": {"label": "Application key", "schema": {"type": ["string", "null"]}},
+                    "source_type_name": {"label": "Source type name", "schema": {"type": ["string", "null"]}},
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "password", "port", "extra"],
+                    "relabeling": {"host": "Events host name"},
+                    "placeholders": {},
+                },
             }
         ],
     }

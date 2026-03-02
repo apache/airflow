@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.41.0``
 ``botocore``                                ``>=1.41.0``
@@ -129,7 +129,7 @@ Extra                 Dependencies
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``sqlalchemy``        ``sqlalchemy>=1.4.49``
+``sqlalchemy``        ``sqlalchemy>=1.4.54``
 ====================  ========================================================================================================================================
 
 The changelog for the provider package can be found in the

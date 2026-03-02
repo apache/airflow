@@ -67,6 +67,7 @@ class TestBaseSecretsBackend:
     def test_connection_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
         env_secrets_backend = EnvironmentVariablesBackend()
+        env_secrets_backend._set_connection_class(Connection)
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
         conn = env_secrets_backend.get_connection(sample_conn_1.conn_id)
 
@@ -79,6 +80,7 @@ class TestBaseSecretsBackend:
             session.add(sample_conn_2.conn)
             session.commit()
         metastore_backend = MetastoreBackend()
+        metastore_backend._set_connection_class(Connection)
         conn = metastore_backend.get_connection("sample_2")
         assert sample_conn_2.host.lower() == conn.host
 

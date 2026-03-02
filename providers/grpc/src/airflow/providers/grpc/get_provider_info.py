@@ -34,6 +34,22 @@ def get_provider_info():
         ],
         "hooks": [{"integration-name": "gRPC", "python-modules": ["airflow.providers.grpc.hooks.grpc"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.grpc.hooks.grpc.GrpcHook", "connection-type": "grpc"}
+            {
+                "hook-class-name": "airflow.providers.grpc.hooks.grpc.GrpcHook",
+                "connection-type": "grpc",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "schema", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "auth_type": {"label": "Grpc Auth Type", "schema": {"type": ["string", "null"]}},
+                    "credential_pem_file": {
+                        "label": "Credential Keyfile Path",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "scopes": {"label": "Scopes (comma separated)", "schema": {"type": ["string", "null"]}},
+                },
+            }
         ],
     }

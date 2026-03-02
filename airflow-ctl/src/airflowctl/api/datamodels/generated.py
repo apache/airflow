@@ -339,7 +339,7 @@ class DagProcessorInfoResponse(BaseModel):
 
 class DagRunAssetReference(BaseModel):
     """
-    DAGRun serializer for asset responses.
+    DagRun serializer for asset responses.
     """
 
     model_config = ConfigDict(
@@ -353,6 +353,7 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DagRunState(str, Enum):
@@ -394,6 +395,7 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+    ASSET_MATERIALIZATION = "asset_materialization"
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -461,7 +463,9 @@ class DryRunBackfillResponse(BaseModel):
     Backfill serializer for responses in dry-run mode.
     """
 
-    logical_date: Annotated[datetime, Field(title="Logical Date")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[datetime | None, Field(title="Partition Date")] = None
 
 
 class EventLogResponse(BaseModel):
@@ -498,6 +502,7 @@ class Destination(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
 
 
 class ExternalViewResponse(BaseModel):
@@ -704,6 +709,7 @@ class Destination1(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
     DASHBOARD = "dashboard"
 
 
@@ -1365,6 +1371,7 @@ class DAGDetailsResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     catchup: Annotated[bool, Field(title="Catchup")]
     dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
@@ -1428,6 +1435,7 @@ class DAGResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 

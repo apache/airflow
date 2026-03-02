@@ -210,20 +210,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^docs",
             r"^devel-common/src/docs",
             r"^\.github/SECURITY\.md",
-            r"^airflow-core/src/.*\.py$",
-            r"^airflow-core/docs/",
-            r"^providers/.*/src/",
-            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
+            r"^providers/.*/src/.*\.py$",
+            r"^providers/.*/tests/system/.*\.py$",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
             r"^chart",
             r"^task-sdk/docs/",
-            r"^task-sdk/src/",
-            r"^airflow-ctl/src/",
-            r"^airflow-core/tests/system",
-            r"^airflow-ctl/src",
+            r"^task-sdk/src/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^airflow-core/docs/",
+            r"^airflow-core/src/.*\.py$",
+            r"^airflow-core/tests/system/.*\.py$",
             r"^airflow-ctl/docs",
+            r"^airflow-ctl/src/.*\.py$",
+            r"^airflow-ctl/tests/.*\.py$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -264,14 +265,20 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
-            r"^airflow-core/.*",
-            r"^airflow-ctl/.*",
-            r"^chart/.*",
-            r"^providers/.*",
-            r"^task-sdk/.*",
-            r"^devel-common/.*",
-            r"^kubernetes-tests/.*",
-            r"^docker-tests/.*",
+            r"^airflow-core/src/.*",
+            r"^airflow-core/tests/.*",
+            r"^airflow-ctl/src/.*",
+            r"^airflow-ctl/tests/.*",
+            r"^chart/templates/.*",
+            r"^providers/.*/src/.*",
+            r"^providers/.*/tests/.*",
+            r"^task-sdk/src/.*",
+            r"^task-sdk/tests/.*",
+            r"^devel-common/src/.*",
+            r"^devel-common/tests/.*",
+            r"^helm-tests/tests/.*",
+            r"^kubernetes-tests/tests/.*",
+            r"^docker-tests/tests/.*",
             r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -1858,7 +1865,7 @@ class SelectiveChecks:
         # Check if dependency line contains both the package and the comment
         for line in result.stdout.splitlines():
             if "apache-airflow-providers-common-compat" in line.lower():
-                return "# use next version" in line.lower()
+                return bool(re.search(r"#\s*use next version", line, re.IGNORECASE))
         return True  # If dependency not found, don't flag as violation
 
     def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:
