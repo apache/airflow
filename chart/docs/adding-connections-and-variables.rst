@@ -50,7 +50,7 @@ to overwrite values under these sections of the ``values.yaml`` file.
 
 .. warning::
 
-  Due to security concerns, it is not advised to define sensitive secrets values within ``values.yaml`` file in production environment.
+   Due to security concerns, it is not advised to define sensitive secrets values within ``values.yaml`` file.
 
 Variables
 ---------

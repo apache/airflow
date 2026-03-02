@@ -219,7 +219,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
 
    .. note::
 
-      You can convert the private ssh key file like so:
+      You can convert the private ssh key file like:
 
       .. code-block:: bash
 

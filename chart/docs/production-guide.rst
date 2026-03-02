@@ -153,7 +153,7 @@ Furthermore, two additional Kubernetes Secret are required for PgBouncer to be a
         pgbouncer.ini: dmFsdWUtMg0KDQo=
         users.txt: dmFsdWUtMg0KDQo=
 
-   where
+   where:
 
    1. ``pgbouncer.ini`` value is equal to the base64 encoded version of below text:
 
