@@ -95,7 +95,7 @@ for details.
    helm upgrade --install airflow apache-airflow/airflow \
      --set dags.persistence.enabled=true \
      --set dags.gitSync.enabled=true
-     # You can also overwrite the other persistence or gitSync values
+     # You can also override the other persistence or gitSync values
      # by setting the  dags.persistence.* and dags.gitSync.* values
      # Please refer to values.yaml for details
 
@@ -227,12 +227,12 @@ To configure mounting Dags from private GitHub repository, follow below steps:
 
       Then copy the string from the ``temp.txt`` file.
 
-   The converted to base64 string will be used in the ``overwrite-values.yaml`` file.
+   The converted to base64 string will be used in the ``override-values.yaml`` file.
 
-5. Create a yaml file called ``overwrite-values.yaml`` to overwrite default values, instead of using ``--set``:
+5. Create a yaml file called ``override-values.yaml`` to override default values, instead of using ``--set``:
 
    .. code-block:: yaml
-      :caption: overwrite-values.yaml
+      :caption: override-values.yaml
 
       dags:
         gitSync:

@@ -83,7 +83,7 @@ by using the ``logs.persistence.existingClaim`` parameter:
 
 .. note::
 
-   The volume have to be writable by the Airflow user. The easiest way is to ensure GID ``0`` has a write permission.
+   The volume has to be writable by the Airflow user. The easiest way to do this is to ensure GID ``0`` has a write permission.
    More information can be found in the :ref:`Docker image entrypoint documentation <docker-stack:arbitrary-docker-user>`.
 
 Elasticsearch

@@ -62,10 +62,10 @@ Specify each parameter using the ``--set key=value[,key=value]`` argument to ``h
      --set executor=CeleryExecutor \
      --set enablePodLaunching=false
 
-or overwrite values by using the ``overwrite-values.yaml`` file:
+or override values by using the ``override-values.yaml`` file:
 
 .. code-block:: yaml
-   :caption: overwrite-values.yaml
+   :caption: override-values.yaml
 
    executor: CeleryExecutor
    enablePodLaunching: false
@@ -74,4 +74,4 @@ and install the chart:
 
 .. code-block:: bash
 
-   helm install my-release apache-airflow/airflow --values overwrite-values.yaml
+   helm install my-release apache-airflow/airflow --values override-values.yaml

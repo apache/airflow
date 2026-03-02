@@ -216,11 +216,11 @@ API Secret Key
 --------------
 
 You should set a static API secret key when deploying with Airflow chart as it will help ensure
-your Airflow components only restarts when necessary.
+your Airflow components only restart when necessary.
 
 .. note::
 
-   This section also applies to the webserver for Airflow (simply replace ``api`` with ``webserver``).
+   This section also applies to the webserver for Airflow 2 (simply replace ``api`` with ``webserver``).
 
 .. warning::
 

@@ -69,8 +69,12 @@ In the default configuration, KEDA will derive the desired number of Celery work
    FROM
      task_instance
    WHERE
-     state='running' OR state='queued'
-     AND queue IN ('default')
+     (state='running' OR state='queued')
+     AND queue IN <queue names>
+
+where ``<queue names>`` is a list of queue names used by
+`Celery worker queues <https://airflow.apache.org/docs/apache-airflow-providers-celery/stable/celery_executor.html#queues>`_
+mechanism (with default configuration it has one element ``default``).
 
 .. note::
 
