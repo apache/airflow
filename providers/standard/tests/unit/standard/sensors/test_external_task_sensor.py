@@ -1050,8 +1050,8 @@ exit 0
         assert exc.value.trigger.execution_dates == [DEFAULT_DATE]
 
     @pytest.mark.execution_timeout(10)
-    def test_external_task_sensor_deferrable_uses_timeout(self, dag_maker):
-        """Test that deferrable mode uses timeout parameter instead of execution_timeout."""
+    def test_external_task_sensor_deferrable_timeout_only(self, dag_maker):
+        """Test that deferrable mode uses timeout parameter when only timeout is set."""
         context = {"execution_date": DEFAULT_DATE}
         with dag_maker() as dag:
             op = ExternalTaskSensor(
@@ -1060,7 +1060,6 @@ exit 0
                 external_task_id="test_task",
                 deferrable=True,
                 timeout=60,
-                execution_timeout=timedelta(seconds=120),
             )
             dr = dag.create_dagrun(
                 run_id="test_run",
@@ -1074,8 +1073,32 @@ exit 0
         assert exc.value.timeout == timedelta(seconds=60)
 
     @pytest.mark.execution_timeout(10)
-    def test_external_task_sensor_deferrable_with_execution_timeout(self, dag_maker):
-        """Test that deferrable mode uses timeout parameter even when execution_timeout is also set."""
+    def test_external_task_sensor_deferrable_execution_timeout_only(self, dag_maker):
+        """Test that deferrable mode falls back to execution_timeout when timeout is not set."""
+        context = {"execution_date": DEFAULT_DATE}
+        with dag_maker() as dag:
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                timeout=0,  # Explicitly set to 0 to indicate not using timeout
+                execution_timeout=timedelta(seconds=120),
+            )
+            dr = dag.create_dagrun(
+                run_id="test_run",
+                run_type=DagRunType.MANUAL,
+                state=None,
+            )
+            context.update(dag_run=dr, logical_date=DEFAULT_DATE)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=context)
+        assert exc.value.timeout == timedelta(seconds=120)
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_timeout_priority(self, dag_maker):
+        """Test that deferrable mode prioritizes timeout over execution_timeout when both are set."""
         context = {"execution_date": DEFAULT_DATE}
         with dag_maker() as dag:
             op = ExternalTaskSensor(
