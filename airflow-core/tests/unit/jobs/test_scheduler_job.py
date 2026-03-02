@@ -2836,7 +2836,6 @@ class TestSchedulerJob:
         assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
         mock_executor.send_callback.assert_called_once()
 
-
     @staticmethod
     def mock_failure_callback(context):
         pass
@@ -9053,7 +9052,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
     # ── With dag_version present ──────────────────────────────────────────
 
     @pytest.mark.parametrize(
-        "dv_bundle_name, dv_bundle_version",
+        ("dv_bundle_name", "dv_bundle_version"),
         [
             pytest.param("my-bundle", "v2.0", id="normal"),
             pytest.param("dags-folder", None, id="version_none"),
@@ -9071,7 +9070,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
     # ── With dag_version None (legacy Airflow 2 task) ─────────────────────
 
     @pytest.mark.parametrize(
-        "model_bundle_name, run_bundle_version",
+        ("model_bundle_name", "run_bundle_version"),
         [
             pytest.param("fallback-bundle", "v1.0-fallback", id="normal_fallback"),
             pytest.param("dags-folder", None, id="version_none_fallback"),
@@ -9103,9 +9102,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         The old code crashed with AttributeError when ti.dag_version was None.
         The new fallback must never raise regardless of dag_version state.
         """
-        ti = _make_ti_with_dag_version(
-            dag_version=_make_dag_version() if dag_version_present else None
-        )
+        ti = _make_ti_with_dag_version(dag_version=_make_dag_version() if dag_version_present else None)
 
         name = _extract_bundle_name(ti)
         version = _extract_bundle_version(ti)

@@ -1239,9 +1239,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Safely extract bundle info: prefer dag_version when available,
                     # fall back to dag_model/dag_run for legacy tasks migrated from
                     # Airflow 2 where dag_version may be None (AIP-66).
-                    _bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-                    )
+                    _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     _bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
@@ -2983,9 +2981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             # Safely extract bundle info with fallback for legacy tasks
             # (dag_version may be None after Airflow 2 → 3 migration).
-            _hb_bundle_name = (
-                ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-            )
+            _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
             _hb_bundle_version = (
                 ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
             )
