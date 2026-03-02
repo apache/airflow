@@ -28,6 +28,7 @@ import warnings
 from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
+from functools import cached_property
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
@@ -208,7 +209,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         super().__init__(configuration_description, _default_values, *args, **kwargs)
         self.configuration_description = configuration_description
         self._default_values = _default_values
-        self._provider_config_fallback_default_values = create_provider_config_fallback_defaults()
+        self._provider_cfg_config_fallback_default_values = create_provider_cfg_config_fallback_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
@@ -229,17 +230,21 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     @property
     def _lookup_sequence(self) -> list[Callable]:
         """Overring _lookup_sequence from shared base class to add provider fallbacks."""
-        return super()._lookup_sequence + [self._get_option_from_provider_fallbacks]
+        return super()._lookup_sequence + [
+            self._get_option_from_provider_cfg_config_fallbacks,
+            self._get_option_from_provider_metadata_config_fallbacks,
+        ]
 
     def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
         """Override the base method to add provider fallbacks."""
         return [
-            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
+            ("provider-cfg-fallback-defaults", self._provider_cfg_config_fallback_default_values),
+            ("provider-metadata-fallback-defaults", self._provider_metadata_config_fallback_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
 
-    def _get_option_from_provider_fallbacks(
+    def _get_option_from_provider_cfg_config_fallbacks(
         self,
         deprecated_key: str | None,
         deprecated_section: str | None,
@@ -250,9 +255,25 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from provider fallback defaults."""
-        if self.get_provider_config_fallback_defaults(section, key) is not None:
+        if self.get_from_provider_cfg_config_fallback_defaults(section, key) is not None:
             # no expansion needed
-            return self.get_provider_config_fallback_defaults(section, key, **kwargs)
+            return self.get_from_provider_cfg_config_fallback_defaults(section, key, **kwargs)
+        return VALUE_NOT_FOUND_SENTINEL
+
+    def _get_option_from_provider_metadata_config_fallbacks(
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
+        extra_stacklevel: int = 0,
+        **kwargs,
+    ) -> str | ValueNotFound:
+        """Get config option from provider metadata fallback defaults."""
+        if self.get_from_provider_metadata_config_fallback_defaults(section, key) is not None:
+            # no expansion needed
+            return self.get_from_provider_metadata_config_fallback_defaults(section, key, **kwargs)
         return VALUE_NOT_FOUND_SENTINEL
 
     def _update_logging_deprecated_template_to_one_from_defaults(self):
@@ -265,12 +286,23 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 default,
             )
 
-    def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
+    def get_from_provider_cfg_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
-        # Remove team_name from kwargs as the fallback defaults ConfigParser
-        # does not support team-aware lookups (it's a standard ConfigParser).
-        kwargs.pop("team_name", None)
-        return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
+        return self._provider_cfg_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
+
+    @cached_property
+    def _provider_metadata_config_fallback_default_values(self) -> ConfigParser:
+        """Provider metadata config fallback default values."""
+        configuration_description = retrieve_configuration_description(
+            include_airflow=False, include_providers=True
+        )
+        return create_default_config_parser(configuration_description)
+
+    def get_from_provider_metadata_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
+        """Get provider metadata config fallback default values."""
+        return self._provider_metadata_config_fallback_default_values.get(
+            section, key, fallback=None, **kwargs
+        )
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace }
@@ -669,7 +701,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
-def create_provider_config_fallback_defaults() -> ConfigParser:
+def create_provider_cfg_config_fallback_defaults() -> ConfigParser:
     """
     Create fallback defaults.
 
