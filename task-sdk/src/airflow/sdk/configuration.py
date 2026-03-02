@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +130,15 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         configuration_description = retrieve_configuration_description()
         # Create default values parser
         _default_values = create_default_config_parser(configuration_description)
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        super().__init__(
+            configuration_description,
+            _default_values,
+            ProvidersManagerTaskRuntime,
+            create_default_config_parser,
+            _default_config_file_path("provider_config_fallback_defaults.cfg"),
+            *args,
+            **kwargs,
+        )
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
@@ -144,21 +153,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
         if default_config is not None:
             self._update_defaults_from_string(default_config)
-
-    def load_providers_configuration(self):
-        """
-        Load configuration for providers.
-
-        This should be done after initial configuration have been performed. Initializing and discovering
-        providers is an expensive operation and cannot be performed when we load configuration for the first
-        time when airflow starts, because we initialize configuration very early, during importing of the
-        `airflow` package and the module is not yet ready to be used when it happens and until configuration
-        and settings are loaded. Therefore, in order to reload provider configuration we need to additionally
-        load provider - specific configuration.
-        """
-        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
-
-        self._load_providers_configuration(ProvidersManagerTaskRuntime, create_default_config_parser)
 
     def expand_all_configuration_values(self):
         """Expand all configuration values using SDK-specific expansion variables."""
