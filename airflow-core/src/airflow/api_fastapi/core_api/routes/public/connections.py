@@ -370,6 +370,7 @@ def test_connection_async(
 @connections_router.get(
     "/test-async/{connection_test_token}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connection_test_status(
     connection_test_token: str,

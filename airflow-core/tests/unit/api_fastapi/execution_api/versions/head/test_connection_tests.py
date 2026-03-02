@@ -28,6 +28,12 @@ pytestmark = pytest.mark.db_test
 
 
 class TestPatchConnectionTest:
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        clear_db_connection_tests()
+        yield
+        clear_db_connection_tests()
+
     def test_patch_updates_result(self, client, session):
         """PATCH sets the state and result fields."""
         ct = ConnectionTest(connection_id="test_conn")

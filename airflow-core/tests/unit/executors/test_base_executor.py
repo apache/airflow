@@ -21,7 +21,7 @@ import logging
 import textwrap
 from datetime import timedelta
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
@@ -414,11 +414,9 @@ def test_supports_connection_test_default_value():
 
 def test_queue_connection_test_workload_rejected_by_default():
     """BaseExecutor (supports_connection_test=False) rejects TestConnection workloads."""
-    import uuid
-
     executor = BaseExecutor()
     wl = workloads.TestConnection.make(
-        connection_test_id=uuid.uuid4(),
+        connection_test_id=uuid4(),
         connection_id="test_conn",
     )
     with pytest.raises(ValueError, match="does not support connection testing"):
@@ -427,12 +425,10 @@ def test_queue_connection_test_workload_rejected_by_default():
 
 def test_queue_connection_test_workload_accepted_when_supported():
     """An executor with supports_connection_test=True accepts TestConnection workloads."""
-    import uuid
-
     executor = LocalExecutor()
     executor.queued_connection_tests.clear()
     wl = workloads.TestConnection.make(
-        connection_test_id=uuid.uuid4(),
+        connection_test_id=uuid4(),
         connection_id="test_conn",
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))

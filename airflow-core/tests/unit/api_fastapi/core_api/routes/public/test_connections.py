@@ -29,13 +29,18 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, B
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
-from airflow.models.connection_test import ConnectionTest, ConnectionTestState
+from airflow.models.connection_test import ConnectionTest, ConnectionTestState, attempt_revert
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
+from tests_common.test_utils.db import (
+    clear_db_connection_tests,
+    clear_db_connections,
+    clear_db_logs,
+    clear_test_connections,
+)
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
@@ -95,10 +100,12 @@ class TestConnectionEndpoint:
     def setup(self) -> None:
         clear_test_connections(False)
         clear_db_connections(False)
+        clear_db_connection_tests()
         clear_db_logs()
 
     def teardown_method(self) -> None:
         clear_db_connections()
+        clear_db_connection_tests()
 
     def create_connection(self, team_name: str | None = None):
         _create_connection(team_name=team_name)
@@ -1351,8 +1358,6 @@ class TestSaveAndTest(TestConnectionEndpoint):
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         ct.state = ConnectionTestState.FAILED
         ct.result_message = "Connection refused"
-
-        from airflow.models.connection_test import attempt_revert
 
         attempt_revert(ct, session=session)
         session.commit()

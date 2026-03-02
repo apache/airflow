@@ -3170,15 +3170,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _reap_stale_connection_tests(self, session: Session = NEW_SESSION) -> None:
         """Mark connection tests that have exceeded their timeout as FAILED."""
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
-        grace_period = 30
+        grace_period = max(30, timeout // 2)
         cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
 
-        stale_tests = session.scalars(
-            select(ConnectionTest).where(
-                ConnectionTest.state.in_([ConnectionTestState.QUEUED, ConnectionTestState.RUNNING]),
-                ConnectionTest.updated_at < cutoff,
-            )
-        ).all()
+        stale_stmt = select(ConnectionTest).where(
+            ConnectionTest.state.in_([ConnectionTestState.QUEUED, ConnectionTestState.RUNNING]),
+            ConnectionTest.updated_at < cutoff,
+        )
+        stale_tests = session.scalars(stale_stmt).all()
 
         for ct in stale_tests:
             ct.state = ConnectionTestState.FAILED
@@ -3195,8 +3194,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for executor in self.executors:
                 if executor.supports_connection_test and executor.team_name == queue:
                     return executor
+            return None
         for executor in self.executors:
-            if executor.supports_connection_test and (queue is None or executor.team_name is None):
+            if executor.supports_connection_test:
                 return executor
         return None
 

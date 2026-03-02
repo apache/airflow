@@ -1819,6 +1819,9 @@ paths:
         \ of the token serves as authorization \u2014 only the client\nthat initiated\
         \ the test knows the crypto-random token."
       operationId: get_connection_test_status
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_test_token
         in: path

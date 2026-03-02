@@ -20,6 +20,8 @@ import pytest
 
 from airflow.models.connection_test import ConnectionTest, ConnectionTestState
 
+from tests_common.test_utils.db import clear_db_connection_tests
+
 pytestmark = pytest.mark.db_test
 
 
@@ -32,6 +34,12 @@ def old_ver_client(client):
 
 class TestConnectionTestEndpointVersioning:
     """Test that the connection-tests endpoint didn't exist in older API versions."""
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        clear_db_connection_tests()
+        yield
+        clear_db_connection_tests()
 
     def test_old_version_returns_404(self, old_ver_client, session):
         """PATCH /connection-tests/{id} should not exist in older API versions."""
