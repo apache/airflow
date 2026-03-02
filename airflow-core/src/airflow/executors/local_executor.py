@@ -180,8 +180,6 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     """
     Execute a connection test workload.
 
-    Results are reported back via the Execution API.
-
     :param log: Logger instance
     :param workload: The TestConnection workload to execute
     :param team_conf: Team-specific executor configuration
@@ -404,7 +402,7 @@ class LocalExecutor(BaseExecutor):
             elif isinstance(workload, workloads.ExecuteCallback):
                 del self.queued_callbacks[workload.callback.id]
             elif isinstance(workload, workloads.TestConnection):
-                pass  # Already removed from queued_connection_tests by base class
+                del self.queued_connection_tests[str(workload.connection_test_id)]
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

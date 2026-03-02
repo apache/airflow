@@ -433,7 +433,7 @@ def test_queue_connection_test_workload_accepted_when_supported():
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1
-    assert executor.queued_connection_tests[0] is wl
+    assert executor.queued_connection_tests[str(wl.connection_test_id)] is wl
 
 
 @mock.patch.dict("os.environ", {}, clear=True)
