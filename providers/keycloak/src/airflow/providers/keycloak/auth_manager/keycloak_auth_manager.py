@@ -481,7 +481,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_url = f"{server_url.rstrip('/')}/realms/{realm}/authz/protection/resource_set"
         resources_resp = self.http_session.get(
             resource_url,
-            params={"name": prefix, "matchingUri": "false", "max": -1, "deep": "true"},
+            params={"name": prefix, "matchingUri": "false", "max": "-1", "deep": "true"},
             headers={"Authorization": f"Bearer {pat}"},
             timeout=5,
         )

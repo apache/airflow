@@ -956,7 +956,7 @@ class TestKeycloakAuthManager:
         assert result == {"team-a", "team-b"}
         auth_manager_multi_team.http_session.get.assert_called_once_with(
             "server_url/realms/realm/authz/protection/resource_set",
-            params={"name": "Team:", "matchingUri": "false", "max": -1, "deep": "true"},
+            params={"name": "Team:", "matchingUri": "false", "max": "-1", "deep": "true"},
             headers={"Authorization": "Bearer pat-token"},
             timeout=5,
         )
