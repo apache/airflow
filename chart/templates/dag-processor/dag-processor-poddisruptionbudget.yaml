@@ -23,6 +23,7 @@ Expects context with:
   - .Values.dagProcessor: dag processor configuration (may be merged with bundle overrides)
   - .bundleName: bundle name (empty string if not per-bundle mode)
   - .deployPerBundle: boolean indicating if per-bundle mode is enabled
+  - .bundleOverrides: raw bundle deploymentOverride dict (for PDB config resolution)
 */}}
 {{- define "dag-processor.poddisruptionbudget" }}
 {{- $bundleName := .bundleName | default "" }}
@@ -82,7 +83,7 @@ spec:
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- end }}
-{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle.enabled | default false }}
+{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle | default false }}
 {{- if and $enabled .Values.dagProcessor.podDisruptionBudget.enabled }}
   {{- if not $deployPerBundle }}
     {{- /* Single PDB mode: use base dagProcessor config */}}
@@ -93,7 +94,7 @@ spec:
     {{- $firstPDB := true }}
     {{- range $bundle := .Values.dagProcessor.dagBundleConfigList }}
       {{- $bundleName := $bundle.name }}
-      {{- $bundleOverrides := index $.Values.dagProcessor.deployPerBundle.bundleOverrides $bundleName | default dict | deepCopy }}
+      {{- $bundleOverrides := $bundle.deploymentOverride | default dict | deepCopy }}
       {{- $baseConfig := $.Values.dagProcessor | deepCopy }}
       {{- $mergedConfig := mergeOverwrite $baseConfig $bundleOverrides }}
       {{- $_ := set $mergedConfig "dagBundleConfigList" $.Values.dagProcessor.dagBundleConfigList }}

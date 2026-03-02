@@ -24,12 +24,12 @@ class TestDagProcessorPerBundle:
     """Tests DAG processor per-bundle deployment feature."""
 
     def test_deploy_per_bundle_disabled_creates_single_deployment(self):
-        """Test that when deployPerBundle.enabled is false, single deployment is created."""
+        """Test that when deployPerBundle is false, single deployment is created."""
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {"enabled": False},
+                    "deployPerBundle": False,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -52,12 +52,12 @@ class TestDagProcessorPerBundle:
         assert "bundle" not in jmespath.search("metadata.labels", docs[0])
 
     def test_deploy_per_bundle_enabled_creates_multiple_deployments(self):
-        """Test that when deployPerBundle.enabled is true, one deployment per bundle is created."""
+        """Test that when deployPerBundle is true, one deployment per bundle is created."""
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {"enabled": True},
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -91,7 +91,7 @@ class TestDagProcessorPerBundle:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {"enabled": True},
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -110,15 +110,12 @@ class TestDagProcessorPerBundle:
         assert jmespath.search("spec.template.metadata.labels.bundle", docs[0]) == "bundle1"
 
     def test_per_bundle_args_contains_bundle_name(self):
-        """Test that per-bundle args contain the bundle name."""
+        """Test that per-bundle args append --bundle-name to the base args."""
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {
-                        "enabled": True,
-                        "args": ["bash", "-c", "exec airflow dag-processor --bundle-name {{ bundleName }}"],
-                    },
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "test-bundle",
@@ -135,30 +132,49 @@ class TestDagProcessorPerBundle:
         args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
         assert args is not None
         assert any("--bundle-name test-bundle" in arg for arg in args)
+        assert any("exec airflow dag-processor" in arg for arg in args)
 
-    def test_bundle_overrides_apply_to_deployment(self):
-        """Test that bundleOverrides are correctly applied to per-bundle deployments."""
+    def test_per_bundle_args_respects_custom_base_args(self):
+        """Test that custom dagProcessor.args are respected and --bundle-name is appended."""
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "deployPerBundle": True,
+                    "args": ["bash", "-c", "exec airflow dag-processor --some-flag"],
+                    "dagBundleConfigList": [
+                        {
+                            "name": "my-bundle",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {},
+                        },
+                    ],
+                }
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert args is not None
+        last_arg = args[-1]
+        assert "--some-flag" in last_arg
+        assert "--bundle-name my-bundle" in last_arg
+
+    def test_deployment_override_apply_to_deployment(self):
+        """Test that deploymentOverride in bundle definition is applied to per-bundle deployments."""
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enabled": True,
                     "replicas": 1,
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
                             "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                             "kwargs": {},
-                        },
-                        {
-                            "name": "bundle2",
-                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                            "kwargs": {},
-                        },
-                    ],
-                    "deployPerBundle": {
-                        "enabled": True,
-                        "bundleOverrides": {
-                            "bundle1": {
+                            "deploymentOverride": {
                                 "replicas": 3,
                                 "resources": {
                                     "requests": {"memory": "2Gi", "cpu": "1000m"},
@@ -166,18 +182,21 @@ class TestDagProcessorPerBundle:
                                 },
                             },
                         },
-                    },
+                        {
+                            "name": "bundle2",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {},
+                        },
+                    ],
                 }
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
         assert len(docs) == 2
-        # Find bundle1 deployment
         bundle1_doc = next(doc for doc in docs if "bundle1" in jmespath.search("metadata.name", doc))
         bundle2_doc = next(doc for doc in docs if "bundle2" in jmespath.search("metadata.name", doc))
 
-        # bundle1 should have overridden replicas
         assert jmespath.search("spec.replicas", bundle1_doc) == 3
         assert (
             jmespath.search("spec.template.spec.containers[0].resources.requests.memory", bundle1_doc)
@@ -187,30 +206,25 @@ class TestDagProcessorPerBundle:
             jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", bundle1_doc) == "1000m"
         )
 
-        # bundle2 should have default replicas
         assert jmespath.search("spec.replicas", bundle2_doc) == 1
 
-    def test_bundle_overrides_env_variables(self):
-        """Test that bundleOverrides can override environment variables."""
+    def test_deployment_override_env_variables(self):
+        """Test that deploymentOverride can override environment variables."""
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {
-                        "enabled": True,
-                        "bundleOverrides": {
-                            "bundle1": {
-                                "env": [
-                                    {"name": "CUSTOM_VAR", "value": "custom_value"},
-                                ],
-                            },
-                        },
-                    },
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
                             "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                             "kwargs": {},
+                            "deploymentOverride": {
+                                "env": [
+                                    {"name": "CUSTOM_VAR", "value": "custom_value"},
+                                ],
+                            },
                         },
                     ],
                 }
@@ -230,7 +244,7 @@ class TestDagProcessorPerBundle:
                 "dagProcessor": {
                     "enabled": True,
                     "podDisruptionBudget": {"enabled": True},
-                    "deployPerBundle": {"enabled": True},
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -260,7 +274,7 @@ class TestDagProcessorPerBundle:
                 "dagProcessor": {
                     "enabled": True,
                     "podDisruptionBudget": {"enabled": True},
-                    "deployPerBundle": {"enabled": True},
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -277,8 +291,8 @@ class TestDagProcessorPerBundle:
         assert jmespath.search("metadata.labels.bundle", docs[0]) == "bundle1"
         assert jmespath.search("spec.selector.matchLabels.bundle", docs[0]) == "bundle1"
 
-    def test_per_bundle_pdb_bundle_overrides(self):
-        """Test that bundleOverrides can override PodDisruptionBudget settings."""
+    def test_per_bundle_pdb_deployment_override(self):
+        """Test that deploymentOverride can override PodDisruptionBudget settings per bundle."""
         docs = render_chart(
             values={
                 "dagProcessor": {
@@ -287,22 +301,18 @@ class TestDagProcessorPerBundle:
                         "enabled": True,
                         "config": {"maxUnavailable": 1},
                     },
-                    "deployPerBundle": {
-                        "enabled": True,
-                        "bundleOverrides": {
-                            "bundle1": {
-                                "podDisruptionBudget": {
-                                    "enabled": True,
-                                    "config": {"minAvailable": 1},
-                                },
-                            },
-                        },
-                    },
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
                             "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                             "kwargs": {},
+                            "deploymentOverride": {
+                                "podDisruptionBudget": {
+                                    "enabled": True,
+                                    "config": {"minAvailable": 1},
+                                },
+                            },
                         },
                         {
                             "name": "bundle2",
@@ -319,11 +329,9 @@ class TestDagProcessorPerBundle:
         bundle1_pdb = next(doc for doc in docs if "bundle1" in jmespath.search("metadata.name", doc))
         bundle2_pdb = next(doc for doc in docs if "bundle2" in jmespath.search("metadata.name", doc))
 
-        # bundle1 should have overridden config
         assert "minAvailable" in jmespath.search("spec", bundle1_pdb)
         assert jmespath.search("spec.minAvailable", bundle1_pdb) == 1
 
-        # bundle2 should have default config
         assert "maxUnavailable" in jmespath.search("spec", bundle2_pdb)
         assert jmespath.search("spec.maxUnavailable", bundle2_pdb) == 1
 
@@ -333,7 +341,7 @@ class TestDagProcessorPerBundle:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {"enabled": True},
+                    "deployPerBundle": True,
                     "dagBundleConfigList": [
                         {
                             "name": "bundle1",
@@ -360,7 +368,7 @@ class TestDagProcessorPerBundle:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "deployPerBundle": {"enabled": False},
+                    "deployPerBundle": False,
                 }
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
@@ -373,3 +381,30 @@ class TestDagProcessorPerBundle:
         )
         assert "bundle" not in affinity
         assert affinity.get("component") == "dag-processor"
+
+    def test_deployment_override_not_included_in_bundle_config_json(self):
+        """Test that deploymentOverride is stripped from the dag_bundle_config_list JSON."""
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "deployPerBundle": True,
+                    "dagBundleConfigList": [
+                        {
+                            "name": "bundle1",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {},
+                            "deploymentOverride": {
+                                "replicas": 3,
+                            },
+                        },
+                    ],
+                }
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert len(docs) == 1
+        config_data = jmespath.search('data."airflow.cfg"', docs[0])
+        assert "deploymentOverride" not in config_data
+        assert "bundle1" in config_data

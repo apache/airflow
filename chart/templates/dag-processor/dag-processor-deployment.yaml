@@ -38,14 +38,13 @@ Expects context with:
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list $mergedConfig.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list $mergedConfig.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or $mergedConfig.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- /* Prepare args: use per-bundle args if enabled, otherwise use default args */}}
+{{- /* Prepare args: append --bundle-name to the base args for per-bundle deployments */}}
 {{- $args := $mergedConfig.args }}
-{{- if and $deployPerBundle .Values.dagProcessor.deployPerBundle.args }}
-  {{- $args = list }}
-  {{- range .Values.dagProcessor.deployPerBundle.args }}
-    {{- $arg := . | toString | replace "{{ bundleName }}" $bundleName }}
-    {{- $args = append $args $arg }}
-  {{- end }}
+{{- if $deployPerBundle }}
+  {{- $lastIdx := sub (len $args) 1 }}
+  {{- $lastArg := printf "%s --bundle-name %s" (index $args (int $lastIdx)) $bundleName }}
+  {{- $initArgs := mustInitial $args }}
+  {{- $args = append $initArgs $lastArg }}
 {{- end }}
 {{- /* Determine deployment name suffix */}}
 {{- $nameSuffix := "" }}
@@ -323,7 +322,7 @@ spec:
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- end }}
-{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle.enabled | default false }}
+{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle | default false }}
 {{- if $enabled }}
   {{- if not $deployPerBundle }}
     {{- /* Single deployment mode: use base dagProcessor config */}}
@@ -334,7 +333,7 @@ spec:
     {{- $firstBundle := true }}
     {{- range $bundle := .Values.dagProcessor.dagBundleConfigList }}
       {{- $bundleName := $bundle.name }}
-      {{- $bundleOverrides := index $.Values.dagProcessor.deployPerBundle.bundleOverrides $bundleName | default dict | deepCopy }}
+      {{- $bundleOverrides := $bundle.deploymentOverride | default dict | deepCopy }}
       {{- $baseConfig := $.Values.dagProcessor | deepCopy }}
       {{- $mergedConfig := mergeOverwrite $baseConfig $bundleOverrides }}
       {{- $_ := set $mergedConfig "dagBundleConfigList" $.Values.dagProcessor.dagBundleConfigList }}
