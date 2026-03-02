@@ -1295,8 +1295,8 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "keda": {"enabled": True},
                     "celery": {
+                        "keda": {"enabled": True},
                         "enableDefault": enable_default,
                         "sets": [
                             {"name": "set1"},
@@ -1322,77 +1322,133 @@ class TestWorkerSets:
 
         assert len(docs) == 1
 
-    def test_overwrite_keda_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"enabled": True},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "keda": {"enabled": False}}]},
+            },
+            {
+                "celery": {
                     "keda": {"enabled": True},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": False}}],
-                    },
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": False}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_keda_pooling_interval(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"pollingInterval": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"pollingInterval": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_pooling_interval(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.pollingInterval", docs[0]) == 10
 
-    def test_overwrite_keda_cooldown_period(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"cooldownPeriod": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"cooldownPeriod": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_cooldown_period(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.cooldownPeriod", docs[0]) == 10
 
-    def test_overwrite_keda_min_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"minReplicaCount": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"minReplicaCount": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_min_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.minReplicaCount", docs[0]) == 10
 
-    def test_overwrite_keda_max_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"maxReplicaCount": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"maxReplicaCount": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_max_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
@@ -1448,6 +1504,35 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "keda": {
+                        "advanced": {
+                            "horizontalPodAutoscalerConfig": {
+                                "behavior": {
+                                    "scaleDown": {
+                                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "keda": {
+                                "enabled": True,
+                                "advanced": {
+                                    "horizontalPodAutoscalerConfig": {
+                                        "behavior": {"scaleDown": {"stabilizationWindowSeconds": 300}}
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_keda_advanced(self, workers_values):
@@ -1460,32 +1545,57 @@ class TestWorkerSets:
             "horizontalPodAutoscalerConfig": {"behavior": {"scaleDown": {"stabilizationWindowSeconds": 300}}}
         }
 
-    def test_overwrite_keda_query(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"query": "not"},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"query": "not"},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_query(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == "test"
 
-    def test_overwrite_keda_use_pgbouncer_enable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"usePgbouncer": False},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"usePgbouncer": False},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_keda_use_pgbouncer_enable(self, workers_values):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
-                "workers": {
-                    "keda": {"usePgbouncer": False},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
@@ -1495,16 +1605,30 @@ class TestWorkerSets:
             == "AIRFLOW_CONN_AIRFLOW_DB"
         )
 
-    def test_overwrite_keda_use_pgbouncer_disable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"usePgbouncer": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"usePgbouncer": True},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_keda_use_pgbouncer_disable(self, workers_values):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
