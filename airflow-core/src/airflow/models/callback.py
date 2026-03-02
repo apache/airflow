@@ -52,20 +52,20 @@ ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, Callback
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
 
 
-def filter_kwargs(callable_obj: Callable[..., Any], kwargs: dict) -> dict:
+def filter_kwargs(callback_obj: Callable[..., Any], kwargs: dict) -> dict:
     """
-    Filter kwargs to only include parameters the callable accepts.
+    Filter kwargs to only include parameters the callback accepts.
 
     If the callable accepts **kwargs (VAR_KEYWORD), all kwargs are passed through.
     Otherwise, only kwargs matching named parameters are passed.  This is useful
-    when calling user-provided callables that may not accept all of the kwargs that
-    Airflow injects (e.g. context).
+    when calling user-provided callbacks that may not accept all kwargs that
+    Airflow provides (e.g. context).
 
-    :param callable_obj: The callable to inspect
+    :param callback_obj: The callback to inspect
     :param kwargs: The full set of kwargs to filter
     """
     try:
-        signature = inspect.signature(callable_obj)
+        signature = inspect.signature(callback_obj)
     except (ValueError, TypeError):
         return kwargs
 

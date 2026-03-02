@@ -238,7 +238,7 @@ Triggerer's system path.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
 .. note::
-    **Airflow context injection:** When a deadline is missed, Airflow automatically injects a ``context``
+    **Airflow ``context``:** When a deadline is missed, Airflow automatically provides a ``context``
     kwarg into the callback containing information about the Dag run and the deadline. To receive it,
     accept ``**kwargs`` in your callback and access ``kwargs["context"]``, or add a named ``context``
     parameter. Callbacks that don't need the context can omit it — Airflow will only pass kwargs that
