@@ -612,8 +612,12 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
-    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_provider_configs()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
 
     def _cleanup(self):
