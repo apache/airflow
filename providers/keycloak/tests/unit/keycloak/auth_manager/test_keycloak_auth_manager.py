@@ -933,3 +933,30 @@ class TestKeycloakAuthManager:
         """Test that _get_token_url normalizes server_url by stripping trailing slashes."""
         token_url = auth_manager._get_token_url(server_url, "myrealm")
         assert token_url == expected_url
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager.get_keycloak_client"
+    )
+    def test_get_teams(self, mock_get_keycloak_client, auth_manager_multi_team):
+        """_get_teams fetches Team: resources from Keycloak and returns team names."""
+        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "pat-token"}
+
+        mock_response = Mock()
+        mock_response.json.return_value = [
+            {"name": "Team:team-a", "type": "urn:airflow:resource"},
+            {"name": "Team:team-b", "type": "urn:airflow:resource"},
+            {"name": "Connection", "type": "urn:airflow:resource"},  # should be ignored
+        ]
+        mock_response.raise_for_status = Mock()
+        auth_manager_multi_team.http_session.get = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team._get_teams()
+
+        assert result == {"team-a", "team-b"}
+        auth_manager_multi_team.http_session.get.assert_called_once_with(
+            "server_url/realms/realm/authz/protection/resource_set",
+            params={"name": "Team:", "matchingUri": "false", "max": "-1", "deep": "true"},
+            headers={"Authorization": "Bearer pat-token"},
+            timeout=5,
+        )
