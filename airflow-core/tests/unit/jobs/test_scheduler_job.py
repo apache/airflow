@@ -7464,6 +7464,46 @@ class TestSchedulerJob:
         job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun" in caplog.text
 
+    def test_create_dag_runs_recovers_after_db_error(self, dag_maker, session, caplog):
+        """
+        Test that a DB error creating one DagRun does not poison the session for subsequent DagRuns.
+        """
+        with dag_maker("testdag_db_error_1", serialized=True):
+            EmptyOperator(task_id="task_1")
+        dm1 = dag_maker.dag_model
+
+        with dag_maker("testdag_db_error_2", serialized=True):
+            EmptyOperator(task_id="task_2")
+        dm2 = dag_maker.dag_model
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        original_create_dagrun = SerializedDAG.create_dagrun
+        failed_dag_id = dm1.dag_id
+        injected_error = False
+
+        def create_dagrun_with_single_db_error(serdag, *args, **kwargs):
+            nonlocal injected_error
+            if serdag.dag_id == failed_dag_id and not injected_error:
+                injected_error = True
+                kwargs["session"].add(DagModel())  # Missing non-null dag_id triggers DB error on flush.
+                kwargs["session"].flush()
+            return original_create_dagrun(serdag, *args, **kwargs)
+
+        with patch.object(
+            SerializedDAG,
+            "create_dagrun",
+            autospec=True,
+            side_effect=create_dagrun_with_single_db_error,
+        ):
+            self.job_runner._create_dag_runs([dm1, dm2], session)
+
+        dag_run_dag_ids = set(session.scalars(select(DagRun.dag_id)).all())
+        assert dm1.dag_id not in dag_run_dag_ids
+        assert dm2.dag_id in dag_run_dag_ids
+        assert "Failed creating DagRun" in caplog.text
+
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.scalars(select(DagWarning)).all()
         assert dag_warnings == []
