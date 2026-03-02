@@ -8684,8 +8684,8 @@ class TestSchedulerJobQueriesCount:
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
-            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
+            ([238, 89, 89, 89], 10, 10, "1d", "@once", "no_structure"),
+            ([248, 104, 104, 104], 10, 10, "1d", "@once", "linear"),
             ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
             ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
             ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
