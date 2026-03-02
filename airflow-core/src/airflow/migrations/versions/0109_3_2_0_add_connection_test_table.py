@@ -53,7 +53,7 @@ def upgrade():
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("queue", sa.String(256), nullable=True),
         sa.Column("connection_snapshot", sa.JSON(), nullable=True),
-        sa.Column("reverted", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("reverted", sa.Boolean(), nullable=False, server_default="0"),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_pkey")),
         sa.UniqueConstraint("token", name=op.f("connection_test_token_uq")),
     )
