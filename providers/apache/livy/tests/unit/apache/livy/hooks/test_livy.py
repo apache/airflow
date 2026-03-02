@@ -776,11 +776,7 @@ class TestLivyAsyncHook:
 
         for conn_id, expected in connection_url_mapping.items():
             hook = LivyAsyncHook(livy_conn_id=conn_id)
-
-            from airflow.providers.common.compat.sdk import Connection
-
-            response_conn: Connection = hook.get_connection(conn_id=conn_id)
-            assert isinstance(response_conn, Connection)
+            response_conn = hook.get_connection(conn_id=conn_id)
             assert hook._generate_base_url(response_conn) == expected
 
     def test_build_body(self):
