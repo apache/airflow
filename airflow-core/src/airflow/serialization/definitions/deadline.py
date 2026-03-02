@@ -251,7 +251,11 @@ class SerializedReferenceModels:
             return cls(max_runs=reference_data["max_runs"], min_runs=reference_data.get("min_runs"))
 
     class SerializedCustomReference(SerializedBaseDeadlineReference):
-        """Wrapper for custom deadline references."""
+        """
+        Wrapper for custom deadline references.
+
+        This class dynamically delegates to the wrapped reference for required_kwargs and evaluation logic.
+        """
 
         def __init__(self, inner_ref):
             self.inner_ref = inner_ref
@@ -260,19 +264,9 @@ class SerializedReferenceModels:
         def reference_name(self) -> str:
             return self.inner_ref.reference_name
 
-        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
-
-            if missing_kwargs := self.required_kwargs - filtered_kwargs.keys():
-                raise ValueError(
-                    f"{self.inner_ref.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
-                )
-
-            if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
-                logger.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
-
-            base_time = self.inner_ref._evaluate_with(session=session, **filtered_kwargs)
-            return base_time + interval if base_time is not None else None
+        @property
+        def required_kwargs(self) -> set[str]:
+            return getattr(self.inner_ref, "required_kwargs", set())
 
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             return self.inner_ref._evaluate_with(session=session, **kwargs)
