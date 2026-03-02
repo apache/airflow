@@ -43,13 +43,13 @@ class TestInformaticaProviderPlugin:
             # 1: not disabled by default
             ([], 1),
             # 0: conf disabled = true
-            ([conf_vars({("informatica", "disabled"): "True"})], 0),
+            ([conf_vars({("informatica", "listener_disabled"): "True"})], 0),
             # 0: conf disabled = 1
-            ([conf_vars({("informatica", "disabled"): "1"})], 0),
+            ([conf_vars({("informatica", "listener_disabled"): "1"})], 0),
             # 1: conf disabled = false
-            ([conf_vars({("informatica", "disabled"): "False"})], 1),
+            ([conf_vars({("informatica", "listener_disabled"): "False"})], 1),
             # 1: conf disabled = 0
-            ([conf_vars({("informatica", "disabled"): "0"})], 1),
+            ([conf_vars({("informatica", "listener_disabled"): "0"})], 1),
         ],
     )
     def test_plugin_disablements(self, mocks, expected):

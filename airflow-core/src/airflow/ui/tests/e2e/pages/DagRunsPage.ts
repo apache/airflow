@@ -83,49 +83,6 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Verify pagination controls and navigation
-   */
-  public async verifyPagination(limit: number): Promise<void> {
-    await this.navigateTo(`${DagRunsPage.dagRunsUrl}?offset=0&limit=${limit}`);
-    await this.page.waitForURL(/.*limit=/, { timeout: 10_000 });
-    await this.page.waitForLoadState("networkidle");
-    await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
-
-    const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
-
-    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
-
-    const rows = this.dagRunsTable.locator("tbody tr");
-
-    expect(await rows.count()).toBeGreaterThan(0);
-
-    const paginationNav = this.page.locator('nav[aria-label="pagination"], [role="navigation"]');
-
-    await expect(paginationNav.first()).toBeVisible({ timeout: 10_000 });
-
-    const page1Button = this.page.getByRole("button", { name: /page 1|^1$/ });
-
-    await expect(page1Button.first()).toBeVisible({ timeout: 5000 });
-
-    const page2Button = this.page.getByRole("button", { name: /page 2|^2$/ });
-    const hasPage2 = await page2Button
-      .first()
-      .isVisible()
-      .catch(() => false);
-
-    if (hasPage2) {
-      await page2Button.first().click();
-      await this.page.waitForLoadState("networkidle");
-      await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
-
-      const dataLinksPage2 = this.dagRunsTable.locator("a[href*='/dags/']");
-      const noDataMessage = this.page.locator("text=/no.*data|no.*runs|no.*results/i");
-
-      await expect(dataLinksPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
-    }
-  }
-
-  /**
    * Verify that run details are displayed in the table row
    */
   public async verifyRunDetailsDisplay(): Promise<void> {

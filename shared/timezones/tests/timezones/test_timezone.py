@@ -82,6 +82,12 @@ class TestTimezone:
         assert timezone.td_format(td) == "53M:20s"
         td = 3200
         assert timezone.td_format(td) == "53M:20s"
+        td = datetime.timedelta(0)
+        assert timezone.td_format(td) == "<1s"
+        td = 0.0
+        assert timezone.td_format(td) == "<1s"
+        td = 0
+        assert timezone.td_format(td) == "<1s"
         td = 0.123
         assert timezone.td_format(td) == "<1s"
         td = None

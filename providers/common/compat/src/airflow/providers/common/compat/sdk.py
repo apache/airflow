@@ -272,7 +272,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Observability
     # ============================================================================
-    "Stats": ("airflow.sdk._shared.observability.metrics.stats", "airflow.stats"),
+    "Stats": ("airflow.sdk.observability.stats", "airflow.observability.stats", "airflow.stats"),
     # ============================================================================
     # Secrets Masking
     # ============================================================================

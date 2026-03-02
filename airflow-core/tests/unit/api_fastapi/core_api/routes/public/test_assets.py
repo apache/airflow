@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
@@ -37,6 +37,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
@@ -1398,7 +1399,7 @@ class TestPostAssetMaterialize(TestAssets):
             "data_interval_start": None,
             "data_interval_end": None,
             "last_scheduling_decision": None,
-            "run_type": "manual",
+            "run_type": "asset_materialization",
             "state": "queued",
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
@@ -1423,6 +1424,25 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/3/materialize")
         assert response.status_code == 404
         assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
+
+    def test_should_respond_400_if_materialization_runs_denied(self, test_client, session):
+        sdm = session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id == self.DAG_ASSET1_ID)
+        )
+        data = sdm.data
+        data["dag"]["allowed_run_types"] = [DagRunType.SCHEDULED.value]
+        session.execute(
+            update(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == self.DAG_ASSET1_ID)
+            .values(_data=data)
+        )
+        session.commit()
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
+        )
 
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):

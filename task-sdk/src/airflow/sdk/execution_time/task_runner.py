@@ -120,6 +120,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
+from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -706,11 +707,11 @@ def _maybe_reschedule_startup_failure(
     This does not count as a retry. If the reschedule limit is exceeded, this function
     returns and the caller should fail the task.
     """
-    missing_dag_retires = conf.getint("workers", "missing_dag_retires", fallback=3)
+    missing_dag_retries = conf.getint("workers", "missing_dag_retries", fallback=3)
     missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
 
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
-    if missing_dag_retires > 0 and reschedule_count < missing_dag_retires:
+    if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
             reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
         )
@@ -718,7 +719,7 @@ def _maybe_reschedule_startup_failure(
     log.error(
         "Startup reschedule limit exceeded",
         reschedule_count=reschedule_count,
-        max_reschedules=missing_dag_retires,
+        max_reschedules=missing_dag_retries,
     )
 
 
@@ -1004,16 +1005,44 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     from airflow.sdk._shared.secrets_masker import redact
 
-    rendered_fields = {}
+    rendered_fields: dict[str, JsonValue] = {}
     for field in task.template_fields:
         value = getattr(task, field)
         serialized = _serialize_template_field(value, field)
         # Redact secrets in the task process itself before sending to API server
         # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
         # on the UI.
-        rendered_fields[field] = redact(serialized, field)
+        redacted = redact(serialized, field)
+        rendered_fields[field] = TypeAdapter(JsonValue).validate_python(redacted)
 
-    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." not in renderer_path:
+            continue
+
+        base_field, _, remainder = renderer_path.partition(".")
+        if base_field not in task.template_fields:
+            continue
+
+        base_value = getattr(task, base_field, None)
+        if base_value is None:
+            continue
+
+        current = base_value
+        for key in remainder.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                current = getattr(current, key, None)
+            if current is None:
+                break
+
+        if current is not None:
+            serialized = _serialize_template_field(current, renderer_path)
+            redacted = redact(serialized, renderer_path)
+            rendered_fields[renderer_path] = TypeAdapter(JsonValue).validate_python(redacted)
+
+    return rendered_fields
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -1173,6 +1202,11 @@ def run(
     state: TaskInstanceState
     error: BaseException | None = None
 
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("ti.start", tags=stats_tags)
+
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -1283,6 +1317,13 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
+        Stats.incr(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
+            tags=stats_tags,
+        )
+        # Same metric with tagging
+        Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+
         if msg:
             SUPERVISOR_COMMS.send(msg=msg)
 
@@ -1355,6 +1396,7 @@ def _handle_trigger_dag_run(
             logical_date=drte.logical_date,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
+            note=drte.note,
         ),
     )
 
@@ -1701,7 +1743,10 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            try:
+                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            except Exception:
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1753,11 +1798,8 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    Stats.initialize(
-        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-        is_otel_on=conf.getboolean("metrics", "otel_on"),
-    )
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
 
     try:
         try:
