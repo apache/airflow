@@ -313,9 +313,9 @@ SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
 )
 SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.DagRunQueuedAtDeadline,)
 SerializedReferenceModels.TYPES.DAGRUN = (
-    SerializedReferenceModels.TYPES.DAGRUN_CREATED
-    + SerializedReferenceModels.TYPES.DAGRUN_QUEUED
-    + (SerializedReferenceModels.SerializedCustomReference,)
+    *SerializedReferenceModels.TYPES.DAGRUN_CREATED,
+    *SerializedReferenceModels.TYPES.DAGRUN_QUEUED,
+    SerializedReferenceModels.SerializedCustomReference,
 )
 
 
