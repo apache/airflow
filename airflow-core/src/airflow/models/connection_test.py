@@ -179,7 +179,7 @@ def _can_safely_revert(conn: Connection, post_snapshot: dict) -> bool:
 def attempt_revert(ct: ConnectionTest, *, session: Session) -> None:
     """Revert a connection to its pre-edit values if no concurrent edit has occurred."""
     if not ct.connection_snapshot:
-        log.warning("attempt_revert called without snapshot for %s", ct.id)
+        log.warning("attempt_revert called without snapshot", connection_test_id=ct.id)
         return
 
     pre_snapshot = ct.connection_snapshot["pre"]
@@ -188,19 +188,16 @@ def attempt_revert(ct: ConnectionTest, *, session: Session) -> None:
     conn = session.scalar(select(Connection).filter_by(conn_id=ct.connection_id))
     if conn is None:
         ct.result_message = (ct.result_message or "") + " | Revert skipped: connection no longer exists."
-        log.warning("Revert skipped: connection %s no longer exists", ct.connection_id)
+        log.warning("Revert skipped: connection no longer exists", connection_id=ct.connection_id)
         return
 
     if not _can_safely_revert(conn, post_snapshot):
         ct.result_message = (
             ct.result_message or ""
         ) + " | Revert skipped: connection was modified by another user."
-        log.warning(
-            "Revert skipped: concurrent edit detected on connection %s",
-            ct.connection_id,
-        )
+        log.warning("Revert skipped: concurrent edit detected", connection_id=ct.connection_id)
         return
 
     _revert_connection(conn, pre_snapshot)
     ct.reverted = True
-    log.info("Reverted connection %s to pre-edit state", ct.connection_id)
+    log.info("Reverted connection to pre-edit state", connection_id=ct.connection_id)

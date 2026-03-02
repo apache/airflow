@@ -120,7 +120,10 @@ def _run_worker(
                 output.put((workload.callback.id, CallbackState.FAILED, e))
 
         elif isinstance(workload, workloads.TestConnection):
-            _execute_connection_test(log, workload, team_conf)
+            try:
+                _execute_connection_test(log, workload, team_conf)
+            except Exception:
+                log.exception("Connection test failed")
 
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
@@ -222,14 +225,11 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
         )
     except Exception:
         log.exception("Connection test failed unexpectedly", connection_id=workload.connection_id)
-        try:
-            client.connection_tests.update_state(
-                workload.connection_test_id,
-                ConnectionTestState.FAILED,
-                "Connection test failed unexpectedly",
-            )
-        except Exception:
-            log.exception("Failed to report connection test failure")
+        client.connection_tests.update_state(
+            workload.connection_test_id,
+            ConnectionTestState.FAILED,
+            "Connection test failed unexpectedly",
+        )
     finally:
         signal.alarm(0)
 
@@ -403,6 +403,8 @@ class LocalExecutor(BaseExecutor):
                 del self.queued_tasks[workload.ti.key]
             elif isinstance(workload, workloads.ExecuteCallback):
                 del self.queued_callbacks[workload.callback.id]
+            elif isinstance(workload, workloads.TestConnection):
+                pass  # Already removed from queued_connection_tests by base class
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()
