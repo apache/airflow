@@ -61,7 +61,26 @@ test.describe("DAG Calendar Tab", () => {
       const data = (await response.json()) as { dag_run_id: string };
       const dagRunId = data.dag_run_id;
 
-      await page.request.patch(`/api/v2/dags/${dagId}/dagRuns/${dagRunId}`, { data: { state } });
+      // Retry PATCH until the state is confirmed — the DagBag may not have the DAG loaded yet
+      const maxRetries = 5;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const patchResp = await page.request.patch(`/api/v2/dags/${dagId}/dagRuns/${dagRunId}`, {
+          data: { state },
+        });
+
+        if (patchResp.ok()) {
+          const patchData = (await patchResp.json()) as { state: string };
+
+          if (patchData.state === state) {
+            return;
+          }
+        }
+        // Wait before retrying
+        await page.waitForTimeout(1000);
+      }
+
+      throw new Error(`Failed to set run ${dagRunId} to state "${state}" after ${maxRetries} retries`);
     }
 
     await createRun(`cal_success_${Date.now()}`, successIso, "success");
