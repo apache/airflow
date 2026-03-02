@@ -146,7 +146,7 @@ def state(
                 "dag_id": job.dag_id,
                 "task_id": job.task_id,
                 "queue": job.queue,
-                "state": str(state),
+                "state": state,
             }
             if DualStatsManager is not None:
                 DualStatsManager.incr("edge_worker.ti.finish", tags={}, legacy_name_tags=tags)
