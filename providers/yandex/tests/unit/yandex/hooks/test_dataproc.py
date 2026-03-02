@@ -21,10 +21,13 @@ from unittest import mock
 
 import pytest
 
-yandexlcloud = pytest.importorskip("yandexcloud")
+pytest.importorskip("yandexcloud")
 
-from airflow.models import Connection  # noqa: E402
-from airflow.providers.yandex.hooks.dataproc import DataprocHook  # noqa: E402
+
+from airflow.models import Connection
+from airflow.providers.yandex.hooks.dataproc import DataprocHook
+
+BASEHOOK_PATCH_PATH = "airflow.providers.common.compat.sdk.BaseHook"
 
 # Airflow connection with type "yandexcloud" must be created
 CONNECTION_ID = "yandexcloud_default"
@@ -62,7 +65,7 @@ HAS_CREDENTIALS = OAUTH_TOKEN != "my_oauth_token"
 
 class TestYandexCloudDataprocHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = DataprocHook()
 

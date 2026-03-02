@@ -25,8 +25,8 @@
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.migrateDatabaseJob) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.migrateDatabaseJob) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.migrateDatabaseJob .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.migrateDatabaseJob .Values) }}
 {{- $containerLifecycleHooks := or .Values.migrateDatabaseJob.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: batch/v1
 kind: Job
@@ -74,7 +74,7 @@ spec:
       {{- end }}
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
-      restartPolicy: OnFailure
+      restartPolicy: {{ .Values.migrateDatabaseJob.restartPolicy }}
       {{- if .Values.migrateDatabaseJob.priorityClassName }}
       priorityClassName: {{ .Values.migrateDatabaseJob.priorityClassName }}
       {{- end }}
@@ -86,10 +86,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "migrateDatabaseJob.serviceAccountName" . }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.migrateDatabaseJob.extraInitContainers }}
       initContainers:
         {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}

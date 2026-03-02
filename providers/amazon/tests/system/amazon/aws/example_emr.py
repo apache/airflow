@@ -24,9 +24,6 @@ from typing import Any
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
     EmrCreateJobFlowOperator,
@@ -35,7 +32,13 @@ from airflow.providers.amazon.aws.operators.emr import (
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.common.compat.sdk import DAG, chain, task
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -129,7 +132,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
 

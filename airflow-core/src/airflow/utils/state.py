@@ -20,12 +20,14 @@ from __future__ import annotations
 from enum import Enum
 
 
-class JobState(str, Enum):
-    """All possible states that a Job can be in."""
+class CallbackState(str, Enum):
+    """All possible states of callbacks."""
 
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
-    RESTARTING = "restarting"
     FAILED = "failed"
 
     def __str__(self) -> str:
@@ -38,6 +40,7 @@ class TerminalTIState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
+    UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
     def __str__(self) -> str:
@@ -52,7 +55,6 @@ class IntermediateTIState(str, Enum):
     RESTARTING = "restarting"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
 
     def __str__(self) -> str:
@@ -82,7 +84,7 @@ class TaskInstanceState(str, Enum):
     FAILED = TerminalTIState.FAILED  # Task errored out
     UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
     UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
-    UPSTREAM_FAILED = IntermediateTIState.UPSTREAM_FAILED  # One or more upstream deps failed
+    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
 
@@ -226,3 +228,21 @@ class State:
     A list of states indicating that a task can be adopted or reset by a scheduler job
     if it was queued by another scheduler job that is not running anymore.
     """
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved classes."""
+    if name == "JobState":
+        import warnings
+
+        from airflow.jobs.job import JobState
+
+        warnings.warn(
+            "The `airflow.utils.state.JobState` attribute is deprecated and will be removed in a future version. "
+            "Please use `airflow.jobs.job.JobState` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return JobState
+
+    raise AttributeError(f"module 'airflow.utils.state' has no attribute '{name}'")

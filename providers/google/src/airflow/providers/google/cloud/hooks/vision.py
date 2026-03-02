@@ -19,10 +19,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.vision_v1 import (
@@ -36,7 +36,7 @@ from google.cloud.vision_v1 import (
 )
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 

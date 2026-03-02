@@ -24,8 +24,8 @@ import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 ADX_TEST_CONN_ID = "adx_test_connection_id"
@@ -39,7 +39,7 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
 
 class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
-        "mocked_connection, error_pattern",
+        ("mocked_connection", "error_pattern"),
         [
             (
                 Connection(

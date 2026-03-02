@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Heading, IconButton, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
+import { Dialog, Tooltip } from "src/components/ui";
 import { useEditPool } from "src/queries/useEditPool";
 
 import PoolForm, { type PoolBody } from "./PoolForm";
@@ -31,12 +31,14 @@ type Props = {
 };
 
 const EditPoolButton = ({ pool }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const initialPoolValue: PoolBody = {
     description: pool.description ?? "",
     include_deferred: pool.include_deferred,
     name: pool.name,
     slots: pool.slots,
+    team_name: pool.team_name ?? "",
   };
   const { editPool, error, isPending, setError } = useEditPool(initialPoolValue, {
     onSuccessConfirm: onClose,
@@ -49,20 +51,22 @@ const EditPoolButton = ({ pool }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName="Edit Pool"
-        icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
-        text="Edit Pool"
-        withText={false}
-      />
+      <Tooltip content={translate("pools.edit")}>
+        <IconButton
+          aria-label={translate("pools.edit")}
+          colorPalette="brand"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiEdit />
+        </IconButton>
+      </Tooltip>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Pool</Heading>
+            <Heading size="xl">{translate("pools.edit")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

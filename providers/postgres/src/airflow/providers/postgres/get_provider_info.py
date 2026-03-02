@@ -51,6 +51,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.postgres.hooks.postgres.PostgresHook",
                 "connection-type": "postgres",
+                "ui-field-behaviour": {"relabeling": {"schema": "Database"}},
             }
         ],
         "asset-uris": [
@@ -65,4 +66,18 @@ def get_provider_info():
                 "handler": "airflow.providers.postgres.assets.postgres.sanitize_uri",
             }
         ],
+        "config": {
+            "postgres": {
+                "description": "Configuration for Postgres hooks and operators.\n",
+                "options": {
+                    "azure_oauth_scope": {
+                        "description": "The scope to use while retrieving Oauth token for Postgres Flexible Server\nfrom Azure Entra authentication.\n",
+                        "version_added": "6.4.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "https://ossrdbms-aad.database.windows.net/.default",
+                    }
+                },
+            }
+        },
     }

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -28,20 +28,15 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
 else:
     from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
 
 if TYPE_CHECKING:
     from typing import Literal
 
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.bases.decorator import TaskDecorator
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.definitions.context import Context
-    else:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
 
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 

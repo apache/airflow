@@ -17,11 +17,18 @@
 from __future__ import annotations
 
 import json
+from uuid import UUID
 
 from airflow.models import DagRun, Log
 from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
-from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
+
+try:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+except ImportError:
+    from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
+
+sensitive_fields = DEFAULT_SENSITIVE_FIELDS
 
 
 def _masked_value_check(data, sensitive_fields):
@@ -43,8 +50,10 @@ def _masked_value_check(data, sensitive_fields):
 
 
 def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, check_masked=False):
-    logs = (
-        session.query(
+    from sqlalchemy import select
+
+    logs = session.execute(
+        select(
             Log.dag_id,
             Log.task_id,
             Log.event,
@@ -52,15 +61,14 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
             Log.owner,
             Log.extra,
         )
-        .filter(
+        .where(
             Log.dag_id == dag_id,
             Log.event == event,
             Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(1)
-        .all()
-    )
+    ).all()
     assert len(logs) == 1
     assert logs[0].extra
     if expected_extra:
@@ -71,11 +79,10 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
 
 
 def _check_dag_run_note(session, dr_id, note_data):
-    dr_note = (
-        session.query(DagRunNote)
-        .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
-        .filter(DagRun.run_id == dr_id)
-        .one_or_none()
+    from sqlalchemy import select
+
+    dr_note = session.scalar(
+        select(DagRunNote).join(DagRun, DagRunNote.dag_run_id == DagRun.id).where(DagRun.run_id == dr_id)
     )
     if note_data is None:
         assert dr_note is None
@@ -85,7 +92,11 @@ def _check_dag_run_note(session, dr_id, note_data):
 
 
 def _check_task_instance_note(session, ti_id, note_data):
-    ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti_id).one_or_none()
+    from sqlalchemy import select
+
+    if isinstance(ti_id, str):
+        ti_id = UUID(ti_id)
+    ti_note = session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti_id))
     if note_data is None:
         assert ti_note is None
     else:

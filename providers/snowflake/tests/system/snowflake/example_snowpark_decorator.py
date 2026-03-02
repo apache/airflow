@@ -28,7 +28,12 @@ if TYPE_CHECKING:
     from snowflake.snowpark import Session
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 DAG_ID = "example_snowpark_decorator"

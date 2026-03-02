@@ -76,7 +76,7 @@ Suppose we have the following fragment of the file with tests.
         dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
         with assert_queries_count(3):
-            DAG.bulk_write_to_db(dags)
+            SerializedDAG.bulk_write_to_db(dags)
 
 You can add a code snippet before the method definition, and then perform only one test and count the
 queries in it.
@@ -99,7 +99,7 @@ queries in it.
         dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
         with assert_queries_count(3):
-            DAG.bulk_write_to_db(dags)
+            SerializedDAG.bulk_write_to_db(dags)
 
 To run the test, execute the command
 

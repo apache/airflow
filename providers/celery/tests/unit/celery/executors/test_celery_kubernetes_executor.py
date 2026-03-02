@@ -32,6 +32,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 KUBERNETES_QUEUE = "kubernetes"
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 does not support this executor anymore")
 class TestCeleryKubernetesExecutor:
     def test_supports_pickling(self):
         assert CeleryKubernetesExecutor.supports_pickling
@@ -88,7 +89,6 @@ class TestCeleryKubernetesExecutor:
         celery_executor_mock.start.assert_called()
         k8s_executor_mock.start.assert_called()
 
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have queue_command anymore")
     @pytest.mark.parametrize("test_queue", ["any-other-queue", KUBERNETES_QUEUE])
     @mock.patch.object(CeleryExecutor, "queue_command")
     @mock.patch.object(KubernetesExecutor, "queue_command")
@@ -143,7 +143,7 @@ class TestCeleryKubernetesExecutor:
             k8s_executor_mock.queue_task_instance.assert_not_called()
 
     @pytest.mark.parametrize(
-        "celery_has, k8s_has, cke_has",
+        ("celery_has", "k8s_has", "cke_has"),
         [
             (True, True, True),
             (False, True, True),
@@ -164,7 +164,7 @@ class TestCeleryKubernetesExecutor:
         if not celery_has:
             k8s_executor_mock.has_task.assert_called_once_with(ti)
 
-    @pytest.mark.parametrize("num_k8s, num_celery", [(1, 0), (0, 1), (2, 1)])
+    @pytest.mark.parametrize(("num_k8s", "num_celery"), [(1, 0), (0, 1), (2, 1)])
     def test_adopt_tasks(self, num_k8s, num_celery):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

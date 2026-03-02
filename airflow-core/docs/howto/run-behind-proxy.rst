@@ -63,6 +63,53 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
   `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
   (Please note the ``--forwarded-allow-ips`` CLI option does not exist in Airflow.)
 
+- Please make sure your proxy does not enforce http-only status on the Set-Cookie headers.
+  Airflow frontend needs to access the cookies through javascript, and a http-only flag would disturb this functionality.
+
+Helm Chart Configuration
+------------------------
+
+When deploying Airflow using the Helm chart behind a reverse proxy (e.g., nginx ingress), you need to configure the API server to respect proxy headers.
+
+Configure the API server arguments to include the ``--proxy-headers`` flag::
+
+    apiServer:
+      args: ["bash", "-c", "exec airflow api-server --proxy-headers"]
+
+If your proxy server is not on the same host as Airflow, set the ``FORWARDED_ALLOW_IPS`` environment variable::
+
+    apiServer:
+      args: ["bash", "-c", "exec airflow api-server --proxy-headers"]
+      env:
+        - name: FORWARDED_ALLOW_IPS
+          value: "*"  # Use "*" for trusted environments, or specify proxy IP ranges for production
+
+Additionally, configure your ingress annotations to pass the necessary headers. For nginx ingress, add these annotations::
+
+    ingress:
+      apiServer:
+        enabled: true
+        annotations:
+          nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+          nginx.ingress.kubernetes.io/proxy-redirect-off: "true"
+          nginx.ingress.kubernetes.io/configuration-snippet: |
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+        hosts:
+          - name: airflow.example.com
+            tls:
+              enabled: true
+              secretName: airflow-tls
+
+Make sure to also set the ``base_url`` in your Airflow configuration::
+
+    config:
+      api:
+        base_url: https://airflow.example.com
+
 .. spelling::
 
   Uvicorn

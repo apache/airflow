@@ -52,7 +52,7 @@ class ContextStackMeta(type):
     _context: deque
 
     # TODO: Task-SDK:
-    # share_parent_context can go away once the DAG and TaskContext manager in airflow.models are removed and
+    # share_parent_context can go away once the Dag and TaskContext manager in airflow.models are removed and
     # everything uses sdk fully for definition/parsing
     def __new__(cls, name, bases, namespace, share_parent_context: bool = False, **kwargs: Any):
         if not share_parent_context:
@@ -89,9 +89,9 @@ class ContextStack(Generic[T], metaclass=ContextStackMeta):
 
 class DagContext(ContextStack[DAG]):
     """
-    DAG context is used to keep the current DAG when DAG is used as ContextManager.
+    Dag context is used to keep the current Dag when Dag is used as ContextManager.
 
-    You can use DAG as context:
+    You can use Dag as context:
 
     .. code-block:: python
 
@@ -103,8 +103,8 @@ class DagContext(ContextStack[DAG]):
         ) as dag:
             ...
 
-    If you do this the context stores the DAG and whenever new task is created, it will use
-    such stored DAG as the parent DAG.
+    If you do this the context stores the Dag and whenever new task is created, it will use
+    such stored Dag as the parent Dag.
 
     """
 

@@ -50,7 +50,7 @@ class TestAsanaHook:
         """
         with patch.object(AsanaHook, "get_connection", return_value=Connection(conn_type="asana")):
             hook = AsanaHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="password"):
             hook.get_conn()
 
     def test_merge_create_task_parameters_default_project(self):

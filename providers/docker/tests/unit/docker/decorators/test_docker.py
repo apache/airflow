@@ -16,28 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from importlib.util import find_spec
-from io import StringIO as StringBuffer
 
 import pytest
 
-from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import setup, task, teardown
-else:
-    from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import DAG, AirflowException, setup, task, teardown
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-
-pytestmark = pytest.mark.db_test
-
+from tests_common.test_utils.taskinstance import render_template_fields
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None
@@ -47,6 +35,7 @@ CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`clou
 
 
 class TestDockerDecorator:
+    @pytest.mark.db_test
     def test_basic_docker_operator(self, dag_maker, session):
         @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
@@ -55,14 +44,15 @@ class TestDockerDecorator:
             return [random.random() for _ in range(100)]
 
         with dag_maker(session=session):
-            ret = f()
+            f()
         session.commit()
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert len(ti.xcom_pull()) == 100
 
+    @pytest.mark.db_test
     def test_basic_docker_operator_with_param(self, dag_maker, session):
         @task.docker(image="python:3.9-slim", auto_remove="force")
         def f(num_results):
@@ -71,29 +61,38 @@ class TestDockerDecorator:
             return [random.random() for _ in range(num_results)]
 
         with dag_maker(session=session):
-            ret = f(50)
+            f(50)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         result = ti.xcom_pull(session=session)
         assert isinstance(result, list)
         assert len(result) == 50
 
+    @pytest.mark.db_test
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
-        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        from docker.types import Mount
+
+        @task.docker(
+            image="python:3.9-slim",
+            container_name="python_{{dag_run.dag_id}}",
+            auto_remove="force",
+            mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
+        )
         def f():
             raise RuntimeError("Should not executed")
 
         with dag_maker():
             ret = f()
 
-        dr = dag_maker.create_dagrun()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered = ti.render_templates()
-        assert rendered.container_name == f"python_{dr.dag_id}"
+        ti = dag_maker.create_ti("f")
+        rendered = render_template_fields(ti, ret.operator)
+        assert rendered.container_name == f"python_{ti.dag_id}"
+        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
 
+    @pytest.mark.db_test
     def test_basic_docker_operator_multiple_output(self, dag_maker, session):
         @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
@@ -101,30 +100,28 @@ class TestDockerDecorator:
 
         test_number = 10
         with dag_maker(session=session):
-            ret = return_dict(test_number)
+            return_dict(test_number)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
-
+        dag_maker.run_ti("return_dict", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.xcom_pull(key="number", session=session) == test_number + 1
         assert ti.xcom_pull(key="43", session=session) == 43
         assert ti.xcom_pull(session=session) == {"number": test_number + 1, "43": 43}
 
+    @pytest.mark.db_test
     def test_no_return(self, dag_maker, session):
         @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             pass
 
         with dag_maker(session=session):
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
-
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+        dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.xcom_pull(session=session) is None
 
@@ -143,8 +140,9 @@ class TestDockerDecorator:
         assert len(dag.task_ids) == 21
         assert dag.task_ids[-1] == "do_run__20"
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),
@@ -171,18 +169,20 @@ class TestDockerDecorator:
             raise SystemExit(exit_code)
 
         with dag_maker(session=session):
-            ret = f(actual_exit_code)
+            f(actual_exit_code)
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(AirflowException):
-                ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+                dag_maker.run_ti("f", dr)
+
         else:
-            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+            dag_maker.run_ti("f", dr)
             ti = dr.get_task_instances(session=session)[0]
             assert ti.state == expected_state
 
+    @pytest.mark.db_test
     def test_setup_decorator_with_decorated_docker_task(self, dag_maker):
         @setup
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -196,6 +196,7 @@ class TestDockerDecorator:
         setup_task = dag.task_group.children["f"]
         assert setup_task.is_setup
 
+    @pytest.mark.db_test
     def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
         @teardown
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -209,6 +210,7 @@ class TestDockerDecorator:
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
         self, dag_maker, on_failure_fail_dagrun
@@ -226,6 +228,7 @@ class TestDockerDecorator:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -277,6 +280,7 @@ class TestDockerDecorator:
         assert some_task.serializer == clone_of_docker_operator.serializer
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
 
+    @pytest.mark.db_test
     def test_respect_docker_host_env(self, monkeypatch, dag_maker):
         monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
 
@@ -289,6 +293,7 @@ class TestDockerDecorator:
 
         assert ret.operator.docker_url == "tcp://docker-host-from-env:2375"
 
+    @pytest.mark.db_test
     def test_docker_host_env_empty(self, monkeypatch, dag_maker):
         monkeypatch.setenv("DOCKER_HOST", "")
 
@@ -303,6 +308,7 @@ class TestDockerDecorator:
         # We want to ensure the same behavior.
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
 
+    @pytest.mark.db_test
     def test_docker_host_env_unset(self, monkeypatch, dag_maker):
         monkeypatch.delenv("DOCKER_HOST", raising=False)
 
@@ -315,7 +321,8 @@ class TestDockerDecorator:
 
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
 
-    def test_failing_task(self, dag_maker, session):
+    @pytest.mark.db_test
+    def test_failing_task(self, dag_maker, session, caplog):
         """Test regression #39319
 
         Check the log content of the DockerOperator when the task fails.
@@ -325,28 +332,21 @@ class TestDockerDecorator:
         def f():
             raise ValueError("This task is expected to fail")
 
-        docker_operator_logger_name = "airflow.task.operators"
-
-        docker_operator_logger = logging.getLogger(docker_operator_logger_name)
-        log_capture_string = StringBuffer()
-        ch = logging.StreamHandler(log_capture_string)
-        docker_operator_logger.addHandler(ch)
         with dag_maker(session=session):
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun(session=session)
         session.expunge_all()
 
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
+            dag_maker.run_ti("f", dr)
         ti = dr.get_task_instances(session=session)[0]
         assert ti.state == TaskInstanceState.FAILED
 
-        log_content = str(log_capture_string.getvalue())
-        assert 'with open(sys.argv[4], "w") as file:' not in log_content
-        last_line_of_docker_operator_log = log_content.splitlines()[-1]
-        assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+        assert 'with open(sys.argv[4], "w") as file:' not in caplog.text
+        assert "ValueError: This task is expected to fail" in caplog.messages
 
+    @pytest.mark.db_test
     def test_invalid_serializer(self, dag_maker):
         @task.docker(image="python:3.9-slim", auto_remove="force", serializer="airflow")
         def f():
@@ -388,6 +388,7 @@ class TestDockerDecorator:
                 f()
         assert f"Unable to import `{serializer}` module." in caplog.text
 
+    @pytest.mark.db_test
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self, dag_maker):
         @task.docker(image="python:3.9-slim", auto_remove="force", serializer="cloudpickle")
@@ -398,6 +399,7 @@ class TestDockerDecorator:
         with dag_maker():
             f()
 
+    @pytest.mark.db_test
     @DILL_MARKER
     def test_add_dill(self, dag_maker):
         @task.docker(image="python:3.9-slim", auto_remove="force", serializer="dill")

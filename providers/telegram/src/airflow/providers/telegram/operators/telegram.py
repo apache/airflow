@@ -22,16 +22,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class TelegramOperator(BaseOperator):

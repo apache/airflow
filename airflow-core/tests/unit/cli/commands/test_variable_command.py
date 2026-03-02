@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import json
 import os
-from contextlib import redirect_stdout
-from io import StringIO
 
 import pytest
+import yaml
 from sqlalchemy import select
 
 from airflow import models
@@ -34,6 +33,86 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
+
+
+# Test data fixtures
+@pytest.fixture
+def simple_variable_data():
+    """Simple variables without descriptions for testing"""
+    return {
+        "key1": "value1",
+        "key2": {"nested": "dict", "with": ["list", "values"]},
+        "key3": 123,
+        "key4": True,
+        "key5": None,
+    }
+
+
+@pytest.fixture
+def variable_data_with_descriptions():
+    """Variables with descriptions for testing"""
+    return {
+        "var1": {"value": "test_value", "description": "Test description for var1"},
+        "var2": {"value": {"complex": "object"}, "description": "Complex variable"},
+        "var3": "simple_value",  # No description
+    }
+
+
+@pytest.fixture
+def env_variable_data():
+    """ENV format test data"""
+    return """# Comment line
+KEY_A=value_a
+KEY_B=value with spaces
+KEY_C={"json": "value", "number": 42}
+
+# Another comment
+KEY_D=true
+KEY_E=123
+"""
+
+
+# Factory fixture for creating variable files
+@pytest.fixture
+def create_variable_file(tmp_path):
+    """Factory to create variable files in different formats"""
+
+    def _create(data, format="yaml", filename=None):
+        # Determine filename
+        if not filename:
+            ext = "yml" if format == "yml" else format
+            filename = f"variables.{ext}"
+
+        file_path = tmp_path / filename
+
+        if format in ["yaml", "yml"]:
+            with open(file_path, "w") as f:
+                yaml.dump(data, f)
+        elif format == "json":
+            with open(file_path, "w") as f:
+                json.dump(data, f)
+        elif format == "env":
+            # Handle string content directly for ENV format
+            if isinstance(data, str):
+                file_path.write_text(data)
+            else:
+                # Convert dict to env format
+                lines = []
+                for key, value in data.items():
+                    if isinstance(value, dict) and "value" in value:
+                        actual_value = value["value"]
+                    else:
+                        actual_value = value
+
+                    if isinstance(actual_value, dict):
+                        lines.append(f"{key}={json.dumps(actual_value)}")
+                    else:
+                        lines.append(f"{key}={actual_value}")
+                file_path.write_text("\n".join(lines))
+
+        return file_path
+
+    return _create
 
 
 class TestCliVariables:
@@ -71,15 +150,15 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
-    def test_variables_get(self):
+    def test_variables_get(self, stdout_capture):
         Variable.set("foo", {"foo": "bar"}, serialize_json=True)
 
-        with redirect_stdout(StringIO()) as stdout:
+        with stdout_capture as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
             assert stdout.getvalue() == '{\n  "foo": "bar"\n}\n'
 
-    def test_get_variable_default_value(self):
-        with redirect_stdout(StringIO()) as stdout:
+    def test_get_variable_default_value(self, stdout_capture):
+        with stdout_capture as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )
@@ -114,13 +193,13 @@ class TestCliVariables:
         variable_command.variables_export(
             self.parser.parse_args(["variables", "export", "variables_types.json"])
         )
-        variable_command.variables_import(
-            self.parser.parse_args(["variables", "import", "variables_types.json"])
-        )
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", "variables_types.json"]), session=session
+            )
 
         # Assert value
         assert Variable.get("dict", deserialize_json=True) == {"foo": "oops"}
-        assert Variable.get("list", deserialize_json=True) == ["oops"]
         assert Variable.get("str") == "hello string"  # cannot json.loads(str)
         assert Variable.get("int", deserialize_json=True) == 42
         assert Variable.get("float", deserialize_json=True) == 42.0
@@ -160,10 +239,30 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo")
 
-    def test_variables_import(self):
-        """Test variables_import command"""
-        with pytest.raises(SystemExit, match=r"Invalid variables file"):
-            variable_command.variables_import(self.parser.parse_args(["variables", "import", os.devnull]))
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            os.devnull,  # No extension (special file)
+            "variables.txt",  # Unsupported .txt extension
+            "variables",  # No extension
+            "variables.xml",  # Unsupported .xml extension
+        ],
+    )
+    def test_variables_import_unsupported_format(self, tmp_path, filename):
+        """Test variables_import command with unsupported file formats"""
+        # Use devnull directly or create a file with unsupported extension
+        if filename == os.devnull:
+            file_path = filename
+        else:
+            file_path = tmp_path / filename
+            file_path.write_text("some content")
+            file_path = os.fspath(file_path)
+
+        with pytest.raises(SystemExit, match=r"Unsupported file format"):
+            with create_session() as session:
+                variable_command.variables_import(
+                    self.parser.parse_args(["variables", "import", file_path]), session=session
+                )
 
     def test_variables_export(self):
         """Test variables_export command"""
@@ -171,8 +270,8 @@ class TestCliVariables:
 
     def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
-        path1 = tmp_path / "testfile1"
-        path2 = tmp_path / "testfile2"
+        path1 = tmp_path / "testfile1.json"
+        path2 = tmp_path / "testfile2.json"
 
         # First export
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}']))
@@ -182,7 +281,10 @@ class TestCliVariables:
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}']))
         variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
-        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(path1)]))
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(path1)]), session=session
+            )
 
         assert Variable.get("bar") == "original"
         assert Variable.get("foo") == '{\n  "foo": "bar"\n}'
@@ -193,7 +295,7 @@ class TestCliVariables:
         assert path1.read_text() == path2.read_text()
 
     def test_variables_import_and_export_with_description(self, tmp_path):
-        """Test variables_import with file-description parameted"""
+        """Test variables_import with file-description parameter"""
         variables_types_file = tmp_path / "variables_types.json"
         variable_command.variables_set(
             self.parser.parse_args(["variables", "set", "foo", "bar", "--description", "Foo var description"])
@@ -220,9 +322,11 @@ class TestCliVariables:
                 "foo2": "bar2",
             }
 
-        variable_command.variables_import(
-            self.parser.parse_args(["variables", "import", os.fspath(variables_types_file)])
-        )
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(variables_types_file)]),
+                session=session,
+            )
 
         assert Variable.get("foo") == "bar"
         assert Variable.get("foo1") == "bar1"
@@ -234,3 +338,207 @@ class TestCliVariables:
                 == "Foo var description"
             )
             assert session.scalar(select(Variable.description).where(Variable.key == "foo1")) == "12"
+
+    @pytest.mark.parametrize("format", ["json", "yaml", "yml"])
+    def test_variables_import_formats(self, create_variable_file, simple_variable_data, format):
+        """Test variables_import with different formats (JSON, YAML, YML)"""
+        file = create_variable_file(simple_variable_data, format=format)
+
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
+            )
+
+        assert Variable.get("key1") == "value1"
+        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
+        assert Variable.get("key3", deserialize_json=True) == 123
+        assert Variable.get("key4", deserialize_json=True) is True
+        assert Variable.get("key5", deserialize_json=True) is None
+
+    @pytest.mark.parametrize("format", ["json", "yaml"])
+    def test_variables_import_with_descriptions(
+        self, create_variable_file, variable_data_with_descriptions, format
+    ):
+        """Test variables_import with descriptions in different formats (JSON, YAML)"""
+        file = create_variable_file(variable_data_with_descriptions, format=format)
+
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
+            )
+
+        assert Variable.get("var1") == "test_value"
+        assert Variable.get("var2", deserialize_json=True) == {"complex": "object"}
+        assert Variable.get("var3") == "simple_value"
+
+        with create_session() as session:
+            assert (
+                session.scalar(select(Variable.description).where(Variable.key == "var1"))
+                == "Test description for var1"
+            )
+            assert (
+                session.scalar(select(Variable.description).where(Variable.key == "var2"))
+                == "Complex variable"
+            )
+            assert session.scalar(select(Variable.description).where(Variable.key == "var3")) is None
+
+    def test_variables_import_env(self, create_variable_file, env_variable_data):
+        """Test variables_import with ENV format"""
+        env_file = create_variable_file(env_variable_data, format="env")
+
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(env_file)]), session=session
+            )
+
+        assert Variable.get("KEY_A") == "value_a"
+        assert Variable.get("KEY_B") == "value with spaces"
+        assert Variable.get("KEY_C") == '{"json": "value", "number": 42}'
+        assert Variable.get("KEY_D") == "true"
+        assert Variable.get("KEY_E") == "123"
+
+    @pytest.mark.parametrize("format", ["json", "yaml", "yml"])
+    def test_variables_import_action_on_existing(self, create_variable_file, simple_variable_data, format):
+        """Test variables_import with action_on_existing_key parameter for different formats"""
+        file = create_variable_file(simple_variable_data, format=format)
+
+        # Set up one existing variable with different value
+        Variable.set("key1", "original_value")
+
+        # Test skip action - existing key1 should keep original value, others should be imported
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", os.fspath(file), "--action-on-existing-key", "skip"]
+                ),
+                session=session,
+            )
+        assert Variable.get("key1") == "original_value"  # Should NOT be overwritten
+        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
+        assert Variable.get("key3", deserialize_json=True) == 123
+
+        # Clean up non-existing keys for next test
+        for key in ["key2", "key3", "key4", "key5"]:
+            Variable.delete(key)
+
+        # Test overwrite action (default) - existing key1 should be overwritten
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", os.fspath(file), "--action-on-existing-key", "overwrite"]
+                ),
+                session=session,
+            )
+        assert Variable.get("key1") == "value1"  # Should be overwritten with new value
+        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
+
+        # Test fail action - should fail when key1 already exists
+        Variable.set("key1", "original_value")
+        with pytest.raises(SystemExit, match="already exists"):
+            with create_session() as session:
+                variable_command.variables_import(
+                    self.parser.parse_args(
+                        ["variables", "import", os.fspath(file), "--action-on-existing-key", "fail"]
+                    ),
+                    session=session,
+                )
+
+    def test_variables_import_env_action_on_existing(self, tmp_path):
+        """Test variables_import ENV with action_on_existing_key parameter"""
+        env_file = tmp_path / "variables_update.env"
+        env_content = """EXISTING_VAR=updated_value
+NEW_VAR=fresh_value"""
+        env_file.write_text(env_content)
+
+        # Set up existing variable
+        Variable.set("EXISTING_VAR", "initial_value")
+
+        # Test skip action
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "skip"]
+                ),
+                session=session,
+            )
+        assert Variable.get("EXISTING_VAR") == "initial_value"
+        assert Variable.get("NEW_VAR") == "fresh_value"
+
+        # Clean up for next test
+        Variable.delete("NEW_VAR")
+
+        # Test overwrite action
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "overwrite"]
+                ),
+                session=session,
+            )
+        assert Variable.get("EXISTING_VAR") == "updated_value"
+        assert Variable.get("NEW_VAR") == "fresh_value"
+
+    @pytest.mark.parametrize(
+        ("format", "invalid_content", "error_pattern"),
+        [
+            ("json", '{"invalid": "json", missing_quotes: true}', "Failed to load the secret file"),
+            ("yaml", "invalid:\n  - yaml\n  content: {missing", "Failed to load the secret file"),
+            ("yml", "invalid:\n  - yaml\n  content: {missing", "Failed to load the secret file"),
+            ("env", "INVALID_LINE_NO_EQUALS", "Invalid line format"),
+        ],
+    )
+    def test_variables_import_invalid_format(self, tmp_path, format, invalid_content, error_pattern):
+        """Test variables_import with invalid format files"""
+        invalid_file = tmp_path / f"invalid.{format}"
+        invalid_file.write_text(invalid_content)
+
+        with pytest.raises(SystemExit, match=error_pattern):
+            with create_session() as session:
+                variable_command.variables_import(
+                    self.parser.parse_args(["variables", "import", os.fspath(invalid_file)]),
+                    session=session,
+                )
+
+    def test_variables_import_cross_format_compatibility(self, create_variable_file, simple_variable_data):
+        """Test that the same variables can be imported from different formats consistently"""
+        # Create files in both formats using the same test data
+        json_file = create_variable_file(simple_variable_data, format="json")
+        yaml_file = create_variable_file(simple_variable_data, format="yaml")
+
+        # Test JSON import
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(json_file)]), session=session
+            )
+
+        json_results = {}
+        for key in simple_variable_data:
+            if key in ["key1"]:  # String values don't need JSON deserialization
+                json_results[key] = Variable.get(key)
+            else:
+                json_results[key] = Variable.get(key, deserialize_json=True)
+
+        # Clear variables
+        for key in simple_variable_data:
+            Variable.delete(key)
+
+        # Test YAML import
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(yaml_file)]), session=session
+            )
+
+        yaml_results = {}
+        for key in simple_variable_data:
+            if key in ["key1"]:  # String values don't need JSON deserialization
+                yaml_results[key] = Variable.get(key)
+            else:
+                yaml_results[key] = Variable.get(key, deserialize_json=True)
+
+        # Compare results - both formats should produce identical results
+        assert json_results == yaml_results
+        assert json_results["key1"] == "value1"
+        assert json_results["key2"] == {"nested": "dict", "with": ["list", "values"]}
+        assert json_results["key3"] == 123
+        assert json_results["key4"] is True
+        assert json_results["key5"] is None

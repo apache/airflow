@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstance }: Props) => {
+  const { t: translate } = useTranslation("components");
   const {
     dag_id: dagId,
     dag_run_id: dagRunId,
@@ -41,9 +43,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     task_id: taskId,
     try_number: finalTryNumber,
   } = taskInstance;
-
   const refetchInterval = useAutoRefresh({ dagId });
-
   const { data: tiHistory } = useTaskInstanceServiceGetMappedTaskInstanceTries(
     {
       dagId,
@@ -84,12 +84,11 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
 
   return (
     <VStack alignItems="flex-start" gap={1} mb={3}>
-      <Heading size="md">Task Tries</Heading>
+      <Heading size="md">{translate("taskTries")}</Heading>
       {showDropdown ? (
         <Select.Root
           collection={tryOptions}
           data-testid="select-task-try"
-          defaultValue={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
@@ -97,10 +96,11 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               );
             }
           }}
+          value={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           width="200px"
         >
           <Select.Trigger>
-            <Select.ValueText placeholder="Task Try">
+            <Select.ValueText placeholder={translate("taskTryPlaceholder")}>
               {(
                 items: Array<{
                   task_instance: TaskInstanceHistoryResponse;
@@ -127,7 +127,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
           {sortedTries.map((ti) => (
             <TaskInstanceTooltip key={ti.try_number} taskInstance={ti}>
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 data-testid={`log-attempt-select-button-${ti.try_number}`}
                 key={ti.try_number}
                 onClick={() => {

@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -23,21 +23,12 @@ Amazon SQS Queue Provider
 
 Implemented by :class:`~airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider`
 
-The Amazon SQS Queue Provider is a message queue provider that uses
+
+The Amazon SQS Queue Provider is a :class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider` that uses
 Amazon Simple Queue Service (SQS) as the underlying message queue system.
-It allows you to send and receive messages using SQS queues in your Airflow workflows.
-The provider supports both standard and FIFO queues, and it provides features
-such as message visibility timeout, message retention period, and dead-letter queues.
-
-The queue must be matching this regex:
-
-.. exampleinclude:: /../src/airflow/providers/amazon/aws/queues/sqs.py
-    :language: python
-    :dedent: 0
-    :start-after: [START queue_regexp]
-    :end-before: [END queue_regexp]
+It allows you to send and receive messages using SQS queues in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
 
-The queue parameter is passed directly to ``sqs_queue`` parameter of the underlying
-:class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger` class, and passes
-all the kwargs directly to the trigger constructor if added.
+.. include:: /../src/airflow/providers/amazon/aws/queues/sqs.py
+    :start-after: [START sqs_message_queue_provider_description]
+    :end-before: [END sqs_message_queue_provider_description]

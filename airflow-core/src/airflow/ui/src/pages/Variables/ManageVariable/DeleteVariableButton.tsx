@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
-import { FiTrash } from "react-icons/fi";
+import { Button, Code, Flex, Heading, IconButton, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
+import { Dialog, Tooltip } from "src/components/ui";
 import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
@@ -29,6 +29,7 @@ type Props = {
 };
 
 const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeleteVariable({
     onSuccessConfirm: onClose,
@@ -36,37 +37,43 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName="Delete Variable"
-        disabled={disabled}
-        icon={<FiTrash />}
-        onClick={() => {
-          onOpen();
-        }}
-        text="Delete Variable"
-        withText={false}
-      />
+      <Tooltip content={translate("variables.delete.title")}>
+        <IconButton
+          aria-label={translate("variables.delete.title")}
+          colorPalette="danger"
+          disabled={disabled}
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Variable</Heading>
+              <Heading size="xl">{translate("variables.delete.deleteVariable", { count: 1 })}</Heading>
             </VStack>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              You are about to delete variable with key <strong>{variableKey}</strong>.
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
+              {translate("variables.delete.firstConfirmMessage_one")}
               <br />
-              This action is permanent and cannot be undone.{" "}
-              <strong>Are you sure you want to proceed?</strong>
+              <Code mb={2} mt={2} p={4}>
+                {variableKey}
+              </Code>
+              <br />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({
@@ -74,7 +81,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">Yes, Delete</Text>
+                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

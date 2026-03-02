@@ -82,6 +82,7 @@ class PubSubHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         enable_message_ordering: bool = False,
+        enable_open_telemetry_tracing: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -90,6 +91,7 @@ class PubSubHook(GoogleBaseHook):
             **kwargs,
         )
         self.enable_message_ordering = enable_message_ordering
+        self.enable_open_telemetry_tracing = enable_open_telemetry_tracing
         self._client = None
 
     def get_conn(self) -> PublisherClient:
@@ -104,6 +106,7 @@ class PubSubHook(GoogleBaseHook):
                 client_info=CLIENT_INFO,
                 publisher_options=PublisherOptions(
                     enable_message_ordering=self.enable_message_ordering,
+                    enable_open_telemetry_tracing=self.enable_open_telemetry_tracing,
                 ),
             )
         return self._client

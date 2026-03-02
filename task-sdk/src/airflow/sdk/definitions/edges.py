@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
@@ -175,7 +175,7 @@ class EdgeModifier(DependencyMixin):
 
     def add_edge_info(self, dag: DAG, upstream_id: str, downstream_id: str):
         """
-        Add or update task info on the DAG for this specific pair of tasks.
+        Add or update task info on the Dag for this specific pair of tasks.
 
         Called either from our relationship trigger methods above, or directly
         by set_upstream/set_downstream in operators.
@@ -187,3 +187,9 @@ class EdgeModifier(DependencyMixin):
 def Label(label: str):
     """Create an EdgeModifier that sets a human-readable label on the edge."""
     return EdgeModifier(label=label)
+
+
+class EdgeInfoType(TypedDict):
+    """Extra metadata that the Dag can store about an edge, usually generated from an EdgeModifier."""
+
+    label: str | None

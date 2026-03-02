@@ -33,7 +33,10 @@ class TestS3KeyTrigger:
         and classpath.
         """
         trigger = S3KeyTrigger(
-            bucket_key="s3://test_bucket/file", bucket_name="test_bucket", wildcard_match=True
+            bucket_key="s3://test_bucket/file",
+            bucket_name="test_bucket",
+            wildcard_match=True,
+            metadata_keys=["Size", "LastModified"],
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeyTrigger"
@@ -49,6 +52,7 @@ class TestS3KeyTrigger:
             "verify": None,
             "region_name": None,
             "botocore_config": None,
+            "metadata_keys": ["Size", "LastModified"],
         }
 
     @pytest.mark.asyncio
@@ -58,11 +62,13 @@ class TestS3KeyTrigger:
         Test if the task is run is in triggerr successfully.
         """
         mock_client.return_value.return_value.check_key.return_value = True
-        trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
+        trigger = S3KeyTrigger(bucket_key="test_bucket/file", bucket_name="test_bucket")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert task.done() is True
+        result = await task
+        assert result == TriggerEvent({"status": "success"})
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
@@ -73,12 +79,103 @@ class TestS3KeyTrigger:
         Test if the task is run is in trigger successfully and set check_key to return false.
         """
         mock_check_key_async.return_value = False
-        trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
+        trigger = S3KeyTrigger(bucket_key="test_bucket/file", bucket_name="test_bucket")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    async def test_run_with_metadata(
+        self,
+        mock_get_async_conn,
+        mock_check_key_async,
+        mock_get_head_object_async,
+        mock_get_files_async,
+    ):
+        """Test if the task retrieves metadata correctly when should_check_fn is True."""
+        mock_check_key_async.return_value = True
+        mock_get_files_async.return_value = ["file1.txt", "file2.txt"]
+
+        async def fake_get_head_object_async(*args, **kwargs):
+            key = kwargs.get("key")
+            if key == "file1.txt":
+                return {"ContentLength": 1024, "LastModified": "2023-10-01T12:00:00Z"}
+            if key == "file2.txt":
+                return {"ContentLength": 2048, "LastModified": "2023-10-02T12:00:00Z"}
+
+        mock_get_head_object_async.side_effect = fake_get_head_object_async
+        mock_get_async_conn.return_value.__aenter__.return_value = async_mock.AsyncMock()
+        trigger = S3KeyTrigger(
+            bucket_key="test_bucket/file",
+            bucket_name="test_bucket",
+            should_check_fn=True,
+            metadata_keys=["Size", "LastModified"],
+            poke_interval=0.1,  # reduce waiting time
+        )
+        result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)
+        expected = TriggerEvent(
+            {
+                "status": "running",
+                "files": [
+                    {"Size": 1024, "LastModified": "2023-10-01T12:00:00Z", "Key": "file1.txt"},
+                    {"Size": 2048, "LastModified": "2023-10-02T12:00:00Z", "Key": "file2.txt"},
+                ],
+            }
+        )
+
+        assert result == expected
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    async def test_run_with_all_metadata(
+        self, mock_get_async_conn, mock_check_key_async, mock_get_head_object_async, mock_get_files_async
+    ):
+        """
+        Test if the task retrieves all metadata when metadata_keys contains '*'.
+        """
+        mock_check_key_async.return_value = True
+        mock_get_files_async.return_value = ["file1.txt"]
+
+        async def fake_get_head_object_async(*args, **kwargs):
+            return {
+                "ContentLength": 1024,
+                "LastModified": "2023-10-01T12:00:00Z",
+                "ETag": "abc123",
+            }
+
+        mock_get_head_object_async.side_effect = fake_get_head_object_async
+        mock_get_async_conn.return_value.__aenter__.return_value = async_mock.AsyncMock()
+        trigger = S3KeyTrigger(
+            bucket_key="test_bucket/file",
+            bucket_name="test_bucket",
+            should_check_fn=True,
+            metadata_keys=["*"],
+            poke_interval=0.1,
+        )
+        result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)
+        expected = TriggerEvent(
+            {
+                "status": "running",
+                "files": [
+                    {
+                        "ContentLength": 1024,
+                        "LastModified": "2023-10-01T12:00:00Z",
+                        "ETag": "abc123",
+                        "Key": "file1.txt",
+                    }
+                ],
+            }
+        )
+        assert result == expected
 
 
 class TestS3KeysUnchangedTrigger:
@@ -131,7 +228,7 @@ class TestS3KeysUnchangedTrigger:
         """
         Test if the S3KeysUnchangedTrigger raises Value error for negative inactivity_period.
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="inactivity_period must be non-negative"):
             S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test", inactivity_period=-100)
 
     @pytest.mark.asyncio
@@ -156,7 +253,6 @@ class TestS3KeysUnchangedTrigger:
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
-
         # TriggerEvent was not returned
         assert task.done() is False
         asyncio.get_event_loop().stop()

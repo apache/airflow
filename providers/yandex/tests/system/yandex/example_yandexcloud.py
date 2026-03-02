@@ -30,7 +30,12 @@ from google.protobuf.json_format import MessageToDict
 from yandexcloud.operations import OperationError
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.system_tests import get_test_env_id
@@ -134,7 +139,7 @@ def create_cluster(
     if operation_result.response is None:
         return None
 
-    return operation_result.response.id
+    return operation_result.response.id  # type: ignore[attr-defined]
 
 
 @task

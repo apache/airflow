@@ -53,7 +53,7 @@ The code snippets below are based on Airflow-2.0
 
 Dumping SQL statements into your operator isn't quite appealing and will create maintainability pains somewhere
 down to the road. To prevent this, Airflow offers an elegant solution. This is how it works: you simply create
-a directory inside the DAG folder called ``sql`` and then put all the SQL files containing your SQL queries inside it.
+a directory inside the Dag folder called ``sql`` and then put all the SQL files containing your SQL queries inside it.
 
 Your ``dags/sql/pet_schema.sql`` should like this:
 
@@ -68,7 +68,7 @@ Your ``dags/sql/pet_schema.sql`` should like this:
           OWNER VARCHAR NOT NULL);
 
 
-Now let's refactor ``create_pet_table`` in our DAG:
+Now let's refactor ``create_pet_table`` in our Dag:
 
 .. code-block:: python
 
@@ -187,10 +187,10 @@ sent to the server at connection start.
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_get_birth_date]
 
 
-The complete Postgres Operator DAG
+The complete Postgres Operator Dag
 ----------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../postgres/tests/system/postgres/example_postgres.py
     :language: python

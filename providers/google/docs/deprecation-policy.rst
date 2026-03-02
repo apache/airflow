@@ -30,7 +30,7 @@ Versioning of the package
 
 As mentioned in `Airflow's release process and version policy <https://airflow.apache.org/docs/apache-airflow/stable/release-process.html#airflow-s-release-process-and-version-policy>`__
 Google provider package (and others) should follow SemVer, meaning that any breaking changes should be released together with bumping major version of the package.
-The change is considered to be a breaking if a DAG that was working before stops to work after the change.
+The change is considered to be a breaking if a Dag that was working before stops to work after the change.
 
 Deprecation Procedure
 `````````````````````
@@ -55,4 +55,4 @@ The entire procedure of deprecating (either method, parameter or operator) consi
 
 Additional Considerations
 `````````````````````````
-  - By default all deprecations should allow a 6 months time period until they will be removed and not available. This period will give Airflow users enough time and flexibility to update their DAGs before actual removal happens. On a case by case basis this period can be adjusted given specific circumstances (e.g. in case deprecation is because of underlying API sunset which can happen earlier than in 6 months).
+  - By default all deprecations should allow a 6 months time period until they will be removed and not available. This period will give Airflow users enough time and flexibility to update their Dags before actual removal happens. On a case by case basis this period can be adjusted given specific circumstances (e.g. in case deprecation is because of underlying API sunset which can happen earlier than in 6 months).

@@ -21,20 +21,22 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import vertexai
+from google.cloud import aiplatform
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
+from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
-from vertexai.preview.generative_models import GenerativeModel as preview_generative_model
 from vertexai.preview.tuning import sft
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
-    from google.cloud.aiplatform_v1 import types as types_v1
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 
@@ -49,7 +51,7 @@ class GenerativeModelHook(GoogleBaseHook):
     def get_generative_model(
         self,
         pretrained_model: str,
-        system_instruction: str | None = None,
+        system_instruction: Any | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         tools: list | None = None,
@@ -81,13 +83,18 @@ class GenerativeModelHook(GoogleBaseHook):
     def get_cached_context_model(
         self,
         cached_content_name: str,
-    ) -> preview_generative_model:
+    ) -> Any:
         """Return a Generative Model with Cached Context."""
         cached_content = CachedContent(cached_content_name=cached_content_name)
 
-        cached_context_model = preview_generative_model.from_cached_content(cached_content)
+        cached_context_model = preview_generative_model.GenerativeModel.from_cached_content(cached_content)
         return cached_context_model
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.embed_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def text_embedding_model_get_embeddings(
         self,
@@ -112,16 +119,21 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.values
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def generative_model_generate_content(
         self,
         contents: list,
         location: str,
+        pretrained_model: str,
         tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         system_instruction: str | None = None,
-        pretrained_model: str = "gemini-pro",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
         """
@@ -135,7 +147,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         :param system_instruction: Optional. An instruction given to the model to guide its behavior.
-        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        :param pretrained_model: Required. Model,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
@@ -154,6 +166,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.text
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.supervised_fine_tuning_train",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def supervised_fine_tuning_train(
         self,
@@ -163,10 +180,10 @@ class GenerativeModelHook(GoogleBaseHook):
         tuned_model_display_name: str | None = None,
         validation_dataset: str | None = None,
         epochs: int | None = None,
-        adapter_size: int | None = None,
+        adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> types_v1.TuningJob:
+    ) -> Any:
         """
         Use the Supervised Fine Tuning API to create a tuning job.
 
@@ -207,12 +224,17 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return sft_tuning_job
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.count_tokens",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def count_tokens(
         self,
         contents: list,
         location: str,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types_v1beta1.CountTokensResponse:
         """
@@ -222,7 +244,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param contents: Required. The multi-part content of a message that a user or a program
             gives to the generative model, in order to elicit a specific response.
-        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        :param pretrained_model: Required. Model,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
@@ -294,13 +316,18 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return eval_result
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.create_cached_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_cached_content(
         self,
         model_name: str,
         location: str,
         ttl_hours: float = 1,
-        system_instruction: str | None = None,
-        contents: list | None = None,
+        system_instruction: Any | None = None,
+        contents: list[Any] | None = None,
         display_name: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
@@ -328,6 +355,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.name
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     def generate_from_cached_content(
         self,
         location: str,
@@ -348,6 +380,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         """
+        # During run of the system test it was found out that names from xcom, e.g. 3402922389 can be
+        # treated as int and throw an error TypeError: expected string or bytes-like object, got 'int'
+        cached_content_name = str(cached_content_name)
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         cached_context_model = self.get_cached_context_model(cached_content_name=cached_content_name)
@@ -359,3 +394,37 @@ class GenerativeModelHook(GoogleBaseHook):
         )
 
         return response.text
+
+
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook",
+    category=AirflowProviderDeprecationWarning,
+)
+class ExperimentRunHook(GoogleBaseHook):
+    """Use the Vertex AI SDK for Python to create and manage your experiment runs."""
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_experiment_run(
+        self,
+        experiment_run_name: str,
+        experiment_name: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        delete_backing_tensorboard_run: bool = False,
+    ) -> None:
+        """
+        Delete experiment run from the experiment.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param experiment_name: Required. The name of the evaluation experiment.
+        :param experiment_run_name: Required. The specific run name or ID for this experiment.
+        :param delete_backing_tensorboard_run: Whether to delete the backing Vertex AI TensorBoard run
+            that stores time series metrics for this run.
+        """
+        self.log.info("Next experiment run will be deleted: %s", experiment_run_name)
+        experiment_run = aiplatform.ExperimentRun(
+            run_name=experiment_run_name, experiment=experiment_name, project=project_id, location=location
+        )
+        experiment_run.delete(delete_backing_tensorboard_run=delete_backing_tensorboard_run)

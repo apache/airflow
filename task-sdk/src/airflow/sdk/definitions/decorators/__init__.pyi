@@ -20,9 +20,9 @@
 # documentation for more details.
 from __future__ import annotations
 
-from collections.abc import Collection, Container, Iterable, Mapping
+from collections.abc import Callable, Collection, Container, Iterable, Mapping
 from datetime import timedelta
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, Literal, TypeVar, overload
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
@@ -32,7 +32,6 @@ from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _
 from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import AnyConditionFunc
 from airflow.sdk.definitions.decorators.task_group import task_group
-from airflow.typing_compat import Literal
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -496,7 +495,7 @@ class TaskDecoratorCollection:
         """
         # [END decorator_signature]
     @overload
-    def kubernetes(
+    def kubernetes(  # type: ignore[misc]
         self,
         *,
         multiple_outputs: bool | None = None,
@@ -670,7 +669,7 @@ class TaskDecoratorCollection:
     @overload
     def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
-    def kubernetes_cmd(
+    def kubernetes_cmd(  # type: ignore[misc]
         self,
         *,
         args_only: bool = False,  # Added by _KubernetesCmdDecoratedOperator.

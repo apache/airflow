@@ -19,10 +19,11 @@ from __future__ import annotations
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models import Log
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -54,26 +55,26 @@ def add_log(execdate, session, dag_maker, timezone_override=None):
 
 
 @provide_session
-def test_timestamp_behaviour(dag_maker, session=None):
+def test_timestamp_behaviour(dag_maker, session):
     execdate = timezone.utcnow()
     with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
         old_log = add_log(execdate, session, dag_maker)
         session.expunge(old_log)
-        log_time = session.query(Log).one().dttm
+        log_time = session.scalars(select(Log)).one().dttm
         assert log_time == current_time
         assert log_time.tzinfo.name == "UTC"
 
 
 @provide_session
-def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
+def test_timestamp_behaviour_with_timezone(dag_maker, session):
     execdate = timezone.utcnow()
     with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
         old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone("Europe/Warsaw"))
         session.expunge(old_log)
         # No matter what timezone we set - we should always get back UTC
-        log_time = session.query(Log).one().dttm
+        log_time = session.scalars(select(Log)).one().dttm
         assert log_time == current_time
         assert old_log.dttm.tzinfo.name != "UTC"
         assert log_time.tzinfo.name == "UTC"

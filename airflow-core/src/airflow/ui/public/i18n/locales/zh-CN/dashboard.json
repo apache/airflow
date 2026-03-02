@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "第 {{ count }} 个收藏的 Dag",
+    "favoriteDags_other": "前 {{ count }} 个收藏的 Dag",
+    "noDagRuns": "此 Dag 尚未被触发过。",
+    "noFavoriteDags": "尚无收藏的 Dag。请点击 Dag 列表旁的星号图示，将 Dag 加入收藏。"
+  },
+  "group": "分组",
+  "health": {
+    "dagProcessor": "Dag 处理器",
+    "health": "健康状态",
+    "healthy": "健康",
+    "lastHeartbeat": "最后心跳",
+    "metaDatabase": "系统数据库",
+    "scheduler": "调度器",
+    "status": "状态",
+    "triggerer": "触发器",
+    "unhealthy": "健康状态异常"
+  },
+  "history": "历史记录",
+  "importErrors": {
+    "dagImportError_one": "Dag 导入错误",
+    "dagImportError_other": "Dag 导入错误",
+    "searchByFile": "依文件搜索",
+    "timestamp": "时间戳"
+  },
+  "managePools": "管理资源池",
+  "noAssetEvents": "未找到资源事件",
+  "poolSlots": "资源池配额",
+  "sortBy": {
+    "newestFirst": "由新到旧",
+    "oldestFirst": "由旧到新"
+  },
+  "source": "来源",
+  "stats": {
+    "activeDags": "已启用的 Dags",
+    "failedDags": "失败的 Dags",
+    "queuedDags": "排队的 Dags",
+    "requiredActions": "待操作的任务实例",
+    "runningDags": "执行中的 Dags",
+    "stats": "统计"
+  },
+  "uri": "Uri",
+  "welcome": "欢迎"
+}

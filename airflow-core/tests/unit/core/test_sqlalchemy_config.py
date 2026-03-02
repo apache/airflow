@@ -54,18 +54,20 @@ class TestSqlAlchemySettings:
         self, mock_create_engine, mock_sessionmaker, mock_scoped_session, mock_setup_event_handlers
     ):
         settings.configure_orm()
-        mock_create_engine.assert_called_once_with(
-            settings.SQL_ALCHEMY_CONN,
+        expected_kwargs = dict(
             connect_args={}
             if not settings.SQL_ALCHEMY_CONN.startswith("sqlite")
             else {"check_same_thread": False},
-            encoding="utf-8",
             max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=1800,
             pool_size=5,
             isolation_level="READ COMMITTED",
             future=True,
+        )
+        mock_create_engine.assert_called_once_with(
+            settings.SQL_ALCHEMY_CONN,
+            **expected_kwargs,
         )
 
     @patch("airflow.settings.setup_event_handlers")
@@ -88,13 +90,15 @@ class TestSqlAlchemySettings:
             engine_args = {"arg": 1}
             if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
-            mock_create_engine.assert_called_once_with(
-                settings.SQL_ALCHEMY_CONN,
+            expected_kwargs = dict(
                 connect_args=SQL_ALCHEMY_CONNECT_ARGS,
                 poolclass=NullPool,
-                encoding="utf-8",
                 future=True,
                 **engine_args,
+            )
+            mock_create_engine.assert_called_once_with(
+                settings.SQL_ALCHEMY_CONN,
+                **expected_kwargs,
             )
 
     @patch("airflow.settings.setup_event_handlers")

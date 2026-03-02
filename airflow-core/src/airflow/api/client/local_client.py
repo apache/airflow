@@ -36,11 +36,18 @@ class Client:
             self._session.auth = auth
 
     def trigger_dag(
-        self, dag_id, run_id=None, conf=None, logical_date=None, replace_microseconds=True
+        self,
+        dag_id,
+        run_id=None,
+        conf=None,
+        logical_date=None,
+        triggering_user_name=None,
+        replace_microseconds=True,
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=triggering_user_name,
             run_id=run_id,
             conf=conf,
             logical_date=logical_date,
@@ -59,6 +66,7 @@ class Client:
                 "run_type": dag_run.run_type,
                 "start_date": dag_run.start_date,
                 "state": dag_run.state,
+                "triggering_user_name": dag_run.triggering_user_name,
             }
         return dag_run
 

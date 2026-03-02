@@ -16,19 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
   include_deferred: boolean;
   name: string;
   slots: number;
+  team_name: string;
 };
 
 type PoolFormProps = {
@@ -40,6 +43,7 @@ type PoolFormProps = {
 };
 
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -49,6 +53,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     defaultValues: initialPool,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: PoolBody) => {
     manageMutate(data);
@@ -67,15 +72,15 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field, fieldState }) => (
           <Field.Root invalid={Boolean(fieldState.error)} required>
             <Field.Label fontSize="md">
-              Name <Field.RequiredIndicator />
+              {translate("columns.name")} <Field.RequiredIndicator />
             </Field.Label>
             <Input {...field} disabled={Boolean(initialPool.name)} required size="sm" />
             {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
           </Field.Root>
         )}
         rules={{
-          required: "Name is required",
-          validate: (_value) => _value.length <= 256 || "Name can contain a maximum of 256 characters",
+          required: translate("pools.form.nameRequired"),
+          validate: (_value) => _value.length <= 256 || translate("pools.form.rules.nameMaxLength"),
         }}
       />
 
@@ -84,8 +89,18 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="slots"
         render={({ field }) => (
           <Field.Root mt={4}>
-            <Field.Label fontSize="md">Slots</Field.Label>
-            <Input {...field} min={initialPool.slots} size="sm" type="number" />
+            <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
+            <Input
+              min={initialPool.slots}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+
+                field.onChange(isNaN(value) ? field.value : value);
+              }}
+              size="sm"
+              type="number"
+              value={field.value}
+            />
           </Field.Root>
         )}
       />
@@ -95,7 +110,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="description"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">Description</Field.Label>
+            <Field.Label fontSize="md">{translate("columns.description")}</Field.Label>
             <Textarea {...field} disabled={initialPool.name === "default_pool"} size="sm" />
           </Field.Root>
         )}
@@ -106,13 +121,15 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="include_deferred"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">Include Deferred</Field.Label>
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange} size="sm">
-              Check to include deferred tasks when calculating open pool slots
+            <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
+            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
+              {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 
@@ -120,16 +137,16 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              Reset
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={!isValid || isPending}
+            colorPalette="brand"
+            disabled={!isValid || isPending || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiSave /> Save
+            <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
       </Box>

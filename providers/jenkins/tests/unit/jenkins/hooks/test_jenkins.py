@@ -23,9 +23,19 @@ import pytest
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 class TestJenkinsHook:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_client_created_default_http(self, get_connection_mock):
         """tests `init` method to validate http client creation when all parameters are passed"""
         default_connection_id = "jenkins_default"
@@ -47,7 +57,7 @@ class TestJenkinsHook:
         assert hook.jenkins_server is not None
         assert hook.jenkins_server.server == complete_url
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_client_created_default_https(self, get_connection_mock):
         """tests `init` method to validate https client creation when all
         parameters are passed"""
@@ -71,12 +81,21 @@ class TestJenkinsHook:
         assert hook.jenkins_server.server == complete_url
 
     @pytest.mark.parametrize("param_building", [True, False])
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("jenkins.Jenkins.get_job_info")
     @mock.patch("jenkins.Jenkins.get_build_info")
     def test_get_build_building_state(
         self, mock_get_build_info, mock_get_job_info, get_connection_mock, param_building
     ):
+        get_connection_mock.return_value = mock.Mock(
+            connection_id="test_connection",
+            login="test",
+            password="test",
+            schema="",
+            extra_dejson={"use_https": False},
+            host="test.com",
+            port=8080,
+        )
         mock_get_build_info.return_value = {"building": param_building}
 
         hook = JenkinsHook("none_connection_id")

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from airflow.providers.google.cloud.links.cloud_functions import (
     CloudFunctionsDetailsLink,
@@ -40,7 +40,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _validate_available_memory_in_mb(value):
@@ -219,6 +219,13 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
             self.body["labels"] = {}
         self.body["labels"].update({"airflow-version": "v" + version.replace(".", "-").replace("+", "-")})
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "function_name": self.body["name"].split("/")[-1],
+        }
+
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -237,7 +244,6 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 location=self.location,
                 project_id=project_id,
                 function_name=self.body["name"].split("/")[-1],
@@ -394,7 +400,6 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudFunctionsListLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
                 )
             return hook.delete_function(self.name)
@@ -462,6 +467,13 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "function_name": self.function_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
@@ -476,16 +488,13 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         self.log.info("Function called successfully. Execution id %s", result.get("executionId"))
-        self.xcom_push(context=context, key="execution_id", value=result.get("executionId"))
+        context["ti"].xcom_push(key="execution_id", value=result.get("executionId"))
 
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
-                task_instance=self,
-                location=self.location,
                 project_id=project_id,
-                function_name=self.function_id,
             )
 
         return result

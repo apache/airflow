@@ -239,7 +239,7 @@ How to run AutoML Image Training Job
 Before start running this Job you must prepare and create ``Image`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
@@ -265,35 +265,21 @@ put dataset id to ``dataset_id`` parameter in operator.
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
 
+.. warning::
+    This operator is deprecated and will be removed after March 24, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
+
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
 
 Before start running this Job you must prepare and create ``Video`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
-
 Additionally, you can create new version of existing AutoML Video Training Job. In this case, the result will be new
 version of existing Model instead of new Model created in Model Registry. This can be done by specifying
 ``parent_model`` parameter when running  AutoML Video Training Job.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
-
 Also you can use vertex_ai AutoML model for video tracking.
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
 
 
 You can get a list of AutoML Training Jobs using
@@ -590,79 +576,140 @@ To get a pipeline job list you can use
 Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateEmbeddingsOperator`.
+
 To generate text embeddings you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
-    :end-before: [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_embeddings_task]
+    :end-before: [END how_to_cloud_gen_ai_generate_embeddings_task]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`.
 
 To generate content with a generative model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_generate_content_operator]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator`.
 
 To run a supervised fine tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model_tuning.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
-    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    :start-after: [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
+    :end-before: [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
 
+You can also use supervised fine tuning job for video tasks: training and tracking
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model_tuning.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
+    :end-before: [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICountTokensOperator`.
 
 To calculates the number of input tokens before sending a request to the Gemini API you can use:
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.
 The operator returns the total tokens in :ref:`XCom <concepts:xcom>` under ``total_tokens`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_count_tokens_operator]
-    :end-before: [END how_to_cloud_vertex_ai_count_tokens_operator]
+    :start-after: [START how_to_cloud_gen_ai_count_tokens_operator]
+    :end-before: [END how_to_cloud_gen_ai_count_tokens_operator]
 
 To evaluate a model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
 The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
     :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator`.
+
 To create cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`.
 The operator returns the cached content resource name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_cached_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_cached_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_create_cached_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_create_cached_content_operator]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`.
 
 To generate a response from cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`.
 The operator returns the cached content response in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_from_cached_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_generate_from_cached_content_operator]
 
 Interacting with Vertex AI Feature Store
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create feature online store you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.CreateFeatureOnlineStoreOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_feature_online_store_operator]
+
+To create feature store view you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.CreateFeatureViewOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_feature_view_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_feature_view_store_operator]
+
+To feature online store you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureOnlineStoreOperator`.
+The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_feature_online_store_operator]
 
 To get a feature view sync job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureViewSyncOperator`.
@@ -693,11 +740,42 @@ To check if Feature View Sync succeeded you can use
     :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
     :end-before: [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
 
+To check feature values data you can use the
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.FetchFeatureValuesOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_fetch_feature_values_operator]
+    :end-before: [END how_to_cloud_vertex_ai_fetch_feature_values_operator]
+
+To delete the feature view you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.DeleteFeatureViewOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_feature_view_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_feature_view_operator]
+
+To delete the feature online store you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.DeleteFeatureOnlineStoreOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_feature_online_store_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_feature_online_store_operator]
+
 Interacting with Ray on Vertex AI Cluster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To create a Ray cluster you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`.
+
+Please note that you need to specify python_version and ray_version in :class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`.
+Currently supported versions of ray package in ray cluster are: 2.9.3, 2.33, 2.42.
+For more information you can check: https://github.com/googleapis/python-aiplatform/blob/main/setup.py#L101
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
     :language: python
@@ -740,6 +818,78 @@ To update cluster you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_update_ray_cluster_operator]
     :end-before: [END how_to_cloud_vertex_ai_update_ray_cluster_operator]
+
+Interacting with experiment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.CreateExperimentOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_experiment_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_experiment_operator]
+
+To delete experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_experiment_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_experiment_operator]
+
+Interacting with experiment run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To create experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.CreateExperimentRunOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_experiment_run_operator]
+
+To get all experiment runs in experiment you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.ListExperimentRunsOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_experiment_run_operator]
+
+To update state of the experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.UpdateExperimentRunStatusOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_update_experiment_run_state_operator]
+    :end-before: [END how_to_cloud_vertex_ai_update_experiment_run_state_operator]
+
+To delete experiment run you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_experiment_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
+Use Private Service Connect interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can configure Private Service Connect interface connections for
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator` and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`
+operators in Vertex AI. For doing it you must first configure the PSC interface by following the provided
+`documentation <https://cloud.google.com/vertex-ai/docs/general/vpc-psc-i-setup>`__.
+Then, specify the PSC configuration in the ``psc_interface_config`` parameter.
+
 
 Reference
 ^^^^^^^^^

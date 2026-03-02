@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 type Props = {
@@ -47,8 +47,11 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              {translate("dags:runAndTaskActions.markAs.dialog.title", { state, type: "Run" })}: {dagRunId}{" "}
-              <StateBadge state={state} />
+              {translate("dags:runAndTaskActions.markAs.title", {
+                state,
+                type: translate("dagRun_one"),
+              })}
+              : {dagRunId} <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -59,7 +62,8 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
+              data-testid="mark-run-as-confirm"
               loading={isPending}
               onClick={() => {
                 mutate({
@@ -69,7 +73,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
                 });
               }}
             >
-              {translate("dags:runAndTaskActions.markAs.dialog.confirm")}
+              {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

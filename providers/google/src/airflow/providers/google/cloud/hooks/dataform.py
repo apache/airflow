@@ -31,7 +31,7 @@ from google.cloud.dataform_v1beta1.types import (
     WriteFileResponse,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:

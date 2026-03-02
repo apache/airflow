@@ -32,7 +32,10 @@ configuring an Airflow environment.
     Using the CLI <usage-cli>
     Using the REST API <../security/api>
     add-dag-tags
+    add-owner-links
     notifications
+    sla-to-deadlines
+    deadline-alerts
     set-config
     set-up-database
     operator/index
@@ -52,3 +55,6 @@ configuring an Airflow environment.
     email-config
     dynamic-dag-generation
     docker-compose/index
+    run-with-self-signed-certificate
+    performance
+    memory-profiling

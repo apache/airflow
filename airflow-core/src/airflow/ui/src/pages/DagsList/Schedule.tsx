@@ -20,25 +20,40 @@ import { Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { ExpressionType } from "src/components/AssetExpression";
 import { Tooltip } from "src/components/ui";
 
 import { AssetSchedule } from "./AssetSchedule";
 
 type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
+  readonly assetExpression: ExpressionType | null | undefined;
+  readonly dagId: string;
+  readonly latestRunAfter?: string;
+  readonly timetableDescription?: string | null;
+  readonly timetableSummary: string | null;
 };
 
-export const Schedule = ({ dag }: Props) => {
+export const Schedule = ({
+  assetExpression,
+  dagId,
+  latestRunAfter,
+  timetableDescription,
+  timetableSummary,
+}: Props) => {
   const { t: translate } = useTranslation("dags");
 
-  return Boolean(dag.timetable_summary) ? (
-    Boolean(dag.asset_expression) || dag.timetable_summary === translate("schedule.asset") ? (
-      <AssetSchedule dag={dag} />
+  return Boolean(timetableSummary) ? (
+    Boolean(assetExpression) || timetableSummary === translate("schedule.asset") ? (
+      <AssetSchedule
+        assetExpression={assetExpression}
+        dagId={dagId}
+        latestRunAfter={latestRunAfter}
+        timetableSummary={timetableSummary}
+      />
     ) : (
-      <Tooltip content={dag.timetable_description}>
+      <Tooltip content={timetableDescription}>
         <Text fontSize="sm">
-          <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
+          <FiCalendar style={{ display: "inline" }} /> {timetableSummary}
         </Text>
       </Tooltip>
     )

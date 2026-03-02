@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Button, Dialog, Toaster } from "src/components/ui";
+import { Dialog, Toaster } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const AddVariableButton = ({ disabled }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { addVariable, error, isPending, setError } = useAddVariable({
     onSuccessConfirm: onClose,
@@ -37,6 +39,7 @@ const AddVariableButton = ({ disabled }: Props) => {
   const initialVariableValue: VariableBody = {
     description: "",
     key: "",
+    team_name: "",
     value: "",
   };
 
@@ -48,14 +51,14 @@ const AddVariableButton = ({ disabled }: Props) => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
-        <FiPlusCircle /> Add Variable
+      <Button colorPalette="brand" disabled={disabled} onClick={onOpen}>
+        <FiPlusCircle /> {translate("variables.add")}
       </Button>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Add Variable</Heading>
+            <Heading size="xl">{translate("variables.add")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

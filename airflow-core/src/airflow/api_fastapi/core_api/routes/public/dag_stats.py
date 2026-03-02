@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, status
 
@@ -41,7 +41,11 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
+from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from sqlalchemy import Result
 
 dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 
@@ -71,18 +75,22 @@ def get_dag_stats(
         session=session,
         return_total_entries=False,
     )
-    query_result = session.execute(dagruns_select)
+    # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+    query_result: Result[Unpack[tuple[str, str, str, int]]] = session.execute(dagruns_select)  # type: ignore[type-arg]
 
     result_dag_ids = []
+    dag_display_names: dict[str, str] = {}
     dag_state_data = {}
-    for dag_id, state, count in query_result:
+    for dag_id, state, dag_display_name, count in query_result:
         dag_state_data[(dag_id, state)] = count
         if dag_id not in result_dag_ids:
+            dag_display_names[dag_id] = dag_display_name
             result_dag_ids.append(dag_id)
 
     dags = [
         DagStatsResponse(
             dag_id=dag_id,
+            dag_display_name=dag_display_names[dag_id],
             stats=[
                 DagStatsStateResponse(
                     state=state,

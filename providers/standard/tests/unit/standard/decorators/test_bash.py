@@ -25,23 +25,33 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
-from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.taskinstance import (
+    get_template_context,
+    render_template_fields,
+    run_task_instance,
+)
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.providers.standard.operators.bash import BashOperator
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
     from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 else:
     # bad hack but does the job
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
+        NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
+    )
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
@@ -68,20 +78,18 @@ class TestBashDecorator:
             run_id=f"bash_deco_test_{DEFAULT_DATE.date()}", session=session
         )
         ti = dag_run.get_task_instance(task.operator.task_id, session=session)
-        return_val = task.operator.execute(context={"ti": ti})
-
+        return_val = task.operator.execute(context={"ti": ti, "ds": DEFAULT_DATE.isoformat()[:10]})
         return ti, return_val
 
-    @staticmethod
-    def validate_bash_command_rtif(ti, expected_command):
+    def validate_bash_command_rtif(self, ti, expected_command):
         if AIRFLOW_V_3_0_PLUS:
-            assert ti.task.overwrite_rtif_after_execution
+            assert self.dag.get_task(ti.task_id).overwrite_rtif_after_execution
         else:
             assert RenderedTaskInstanceFields.get_templated_fields(ti)["bash_command"] == expected_command
 
     def test_bash_decorator_init(self):
         """Test the initialization of the @task.bash decorator."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash(): ...
@@ -101,7 +109,7 @@ class TestBashDecorator:
             assert bash_task.operator._init_bash_command_not_set is True
 
     @pytest.mark.parametrize(
-        argnames=["command", "expected_command", "expected_return_val"],
+        argnames=("command", "expected_command", "expected_return_val"),
         argvalues=[
             pytest.param("echo hello world", "echo hello world", "hello world", id="not_templated"),
             pytest.param(
@@ -111,7 +119,7 @@ class TestBashDecorator:
     )
     def test_bash_command(self, command, expected_command, expected_return_val):
         """Test the runtime bash_command is the function's return string, rendered if needed."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash():
@@ -129,7 +137,7 @@ class TestBashDecorator:
 
     def test_op_args_kwargs(self):
         """Test op_args and op_kwargs are passed to the bash_command."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash(id, other_id):
@@ -154,7 +162,7 @@ class TestBashDecorator:
         """
         excepted_command = command.format(foo="foo")
 
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash(foo):
@@ -172,7 +180,7 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, excepted_command)
 
     @pytest.mark.parametrize(
-        argnames=["append_env", "user_defined_env", "expected_airflow_home"],
+        argnames=("append_env", "user_defined_env", "expected_airflow_home"),
         argvalues=[
             pytest.param(False, {"var": "value"}, "", id="no_append_env"),
             pytest.param(True, {"var": "value"}, "path/to/airflow/home", id="append_env"),
@@ -180,7 +188,7 @@ class TestBashDecorator:
     )
     def test_env_variables(self, append_env, user_defined_env, expected_airflow_home, caplog):
         """Test env variables exist appropriately depending on if the existing env variables are allowed."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(env=user_defined_env, append_env=append_env)
             def bash():
@@ -200,7 +208,7 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, "echo var=$var; echo AIRFLOW_HOME=$AIRFLOW_HOME;")
 
     @pytest.mark.parametrize(
-        argnames=["exit_code", "expected"],
+        argnames=("exit_code", "expected"),
         argvalues=[
             pytest.param(99, pytest.raises(AirflowSkipException), id="skip"),
             pytest.param(1, pytest.raises(AirflowException), id="non-zero"),
@@ -209,7 +217,7 @@ class TestBashDecorator:
     )
     def test_exit_code_behavior(self, exit_code, expected):
         """Test @task.bash tasks behave appropriately relative the exit code from the bash_command."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash(code):
@@ -225,7 +233,7 @@ class TestBashDecorator:
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
     @pytest.mark.parametrize(
-        argnames=["skip_on_exit_code", "exit_code", "expected"],
+        argnames=("skip_on_exit_code", "exit_code", "expected"),
         argvalues=[
             pytest.param(None, 99, pytest.raises(AirflowSkipException), id="default_skip_exit_99"),
             pytest.param(None, 1, pytest.raises(AirflowException), id="default_skip_exit_1"),
@@ -253,7 +261,7 @@ class TestBashDecorator:
     )
     def test_skip_on_exit_code_behavior(self, skip_on_exit_code, exit_code, expected):
         """Ensure tasks behave appropriately relative to defined skip exit code from the bash_command."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(**skip_on_exit_code if skip_on_exit_code else {})
             def bash(code):
@@ -269,12 +277,12 @@ class TestBashDecorator:
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
     @pytest.mark.parametrize(
-        argnames=[
+        argnames=(
             "user_defined_env",
             "append_env",
             "expected_razz",
             "expected_airflow_home",
-        ],
+        ),
         argvalues=[
             pytest.param(
                 {"razz": "matazz"}, True, "matazz", "path/to/airflow/home", id="user_defined_env_and_append"
@@ -299,18 +307,17 @@ class TestBashDecorator:
         # setting chmod +x test_file.sh
         cmd_file.chmod(0o755)
 
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(env=user_defined_env, append_env=append_env)
             def bash(command_file_name):
                 return command_file_name
 
-            with mock.patch.dict("os.environ", {"AIRFLOW_HOME": "path/to/airflow/home"}):
-                bash_task = bash(f"{cmd_file} ")
+            bash_task = bash(f"{cmd_file} ")
+            assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
-
-                ti, return_val = self.execute_task(bash_task)
+        with mock.patch.dict("os.environ", {"AIRFLOW_HOME": "path/to/airflow/home"}):
+            ti, return_val = self.execute_task(bash_task)
 
         assert f"razz={expected_razz}" in caplog.text
         assert f"AIRFLOW_HOME={expected_airflow_home}" in caplog.text
@@ -322,7 +329,7 @@ class TestBashDecorator:
         cwd_path = tmp_path / "test_cwd"
         cwd_path.mkdir()
 
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(cwd=os.fspath(cwd_path))
             def bash():
@@ -342,7 +349,7 @@ class TestBashDecorator:
         """Verify task failure for non-existent, user-defined working directory."""
         cwd_path = tmp_path / "test_cwd"
 
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash(cwd=os.fspath(cwd_path))
             def bash():
@@ -355,15 +362,18 @@ class TestBashDecorator:
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {cwd_path}"):
-            ti.run()
-        assert ti.task.bash_command == "echo"
+            run_task_instance(ti, bash_task.operator)
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "echo"
 
     def test_cwd_is_file(self, tmp_path):
         """Verify task failure for user-defined working directory that is actually a file."""
         cwd_file = tmp_path / "testfile.var.env"
         cwd_file.touch()
 
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash(cwd=os.fspath(cwd_file))
             def bash():
@@ -376,12 +386,15 @@ class TestBashDecorator:
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
-            ti.run()
-        assert ti.task.bash_command == "echo"
+            run_task_instance(ti, bash_task.operator)
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "echo"
 
     def test_command_not_found(self):
         """Fail task if executed command is not found on path."""
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash
             def bash():
@@ -396,12 +409,15 @@ class TestBashDecorator:
         with pytest.raises(
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
-            ti.run()
-        assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
+            run_task_instance(ti, bash_task.operator)
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
     def test_multiple_outputs_true(self):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(multiple_outputs=True)
             def bash():
@@ -412,9 +428,9 @@ class TestBashDecorator:
             ):
                 bash_task = bash()
 
-                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
+            assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-                ti, _ = self.execute_task(bash_task)
+        ti, _ = self.execute_task(bash_task)
 
         assert bash_task.operator.multiple_outputs is False
         self.validate_bash_command_rtif(ti, "echo")
@@ -429,26 +445,24 @@ class TestBashDecorator:
         if multiple_outputs is not SET_DURING_EXECUTION:
             decorator_kwargs["multiple_outputs"] = multiple_outputs
 
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash(**decorator_kwargs)
             def bash():
                 return "echo"
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", category=UserWarning)
+            bash_task = bash()
+            assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-                bash_task = bash()
-
-                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
-
-                ti, _ = self.execute_task(bash_task)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=UserWarning)
+            ti, _ = self.execute_task(bash_task)
 
         assert bash_task.operator.multiple_outputs is False
         self.validate_bash_command_rtif(ti, "echo")
 
     @pytest.mark.parametrize(
-        argnames=["return_val", "expected"],
+        argnames=("return_val", "expected"),
         argvalues=[
             pytest.param(None, pytest.raises(TypeError), id="return_none_typeerror"),
             pytest.param(1, pytest.raises(TypeError), id="return_int_typeerror"),
@@ -464,7 +478,7 @@ class TestBashDecorator:
     )
     def test_callable_return_is_string(self, return_val, expected):
         """Ensure the returned value from the decorated callable is a non-empty string."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.bash
             def bash():
@@ -481,7 +495,7 @@ class TestBashDecorator:
 
     def test_rtif_updates_upon_failure(self):
         """Veriy RenderedTaskInstanceField data should contain the rendered command even if the task fails."""
-        with self.dag:
+        with self.dag_maker():
 
             @task.bash
             def bash():
@@ -494,8 +508,11 @@ class TestBashDecorator:
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException):
-            ti.run()
-        assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
+            run_task_instance(ti, bash_task.operator)
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
 
     @pytest.mark.db_test
     def test_templated_bash_script(self, dag_maker, tmp_path, session):
@@ -515,14 +532,10 @@ class TestBashDecorator:
             def test_templated_fields_task():
                 return bash_script
 
-            test_templated_fields_task()
+            task_arg = test_templated_fields_task()
 
         ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session=session)
-        ti.render_templates(context=context)
-
-        op: BashOperator = ti.task
+        context = get_template_context(ti, task_arg.operator, session=session)
+        op = render_template_fields(ti, task_arg.operator, context=context)
         result = op.execute(context=context)
         assert result == "test_templated_fields_task"

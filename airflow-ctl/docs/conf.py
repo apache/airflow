@@ -63,6 +63,9 @@ SYSTEM_TESTS_DIR: pathlib.Path | None
 
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
+# Disable color output for documentation generation
+os.environ["NO_COLOR"] = "1"
+
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
 # behavior of the utils.apply_default that was hiding function headers
@@ -149,7 +152,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow CTL Documentation"
+html_title = "airflowctl Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""
@@ -191,7 +194,7 @@ html_context = get_html_context(conf_py_path)
 # See: https://github.com/tardyp/sphinx-jinja
 airflowctl_version: Version = parse_version(
     re.search(  # type: ignore[union-attr,arg-type]
-        r"__version__ = \"([0-9.]*)(\.dev[0-9]*)?\"",
+        r"__version__ = \"([0-9.]*)(\.dev[0-9]*|b[0-9])?\"",
         (AIRFLOW_CTL_SRC_PATH / "airflowctl" / "__init__.py").read_text(),
     ).groups(0)[0]
 )
@@ -204,10 +207,16 @@ jinja_contexts = {
     "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
     "quick_start_ctx": {"doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"},
     "official_download_page": {
-        "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",
-        "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}",
-        "airflow_version": PACKAGE_VERSION,
+        "base_url": f"https://downloads.apache.org/airflow/airflow-ctl/{PACKAGE_VERSION}",
+        "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/airflow-ctl/{PACKAGE_VERSION}",
+        "airflowctl_version": PACKAGE_VERSION,
     },
+}
+
+# Use for generate rst_epilog and other post-generation substitutions
+global_substitutions = {
+    "version": PACKAGE_VERSION,
+    "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------

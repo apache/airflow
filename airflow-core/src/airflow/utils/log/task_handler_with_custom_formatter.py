@@ -22,7 +22,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.helpers import _render_template_to_string, parse_template_string
 
 if TYPE_CHECKING:
     from jinja2 import Template
@@ -62,6 +62,6 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
     def _render_prefix(self, ti: TaskInstance) -> str:
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
-            return render_template_to_string(self.prefix_jinja_template, jinja_context)
+            return _render_template_to_string(self.prefix_jinja_template, jinja_context)
         logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
         return ""

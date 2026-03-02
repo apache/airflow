@@ -21,7 +21,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+ray = pytest.importorskip("ray")
+
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.vertex_ai.feature_store import FeatureViewSyncSensor
 
 TASK_ID = "test-task"

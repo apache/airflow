@@ -23,13 +23,13 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -48,7 +48,7 @@ CREATE_TRANSFORM_PARAMS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": "3"},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": "3"},
 }
 CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "TransformJobName": "job_name",
@@ -58,7 +58,7 @@ CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 3},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": 3},
 }
 
 CREATE_MODEL_PARAMS: dict = {
@@ -98,9 +98,9 @@ class TestSageMakerTransformOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
-            if key3:
-                (key3,) = key3
+        for key1, key2, *key3_org in EXPECTED_INTEGER_FIELDS:
+            if key3_org:
+                (key3,) = key3_org
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
             else:
                 self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])

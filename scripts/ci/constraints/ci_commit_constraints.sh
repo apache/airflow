@@ -19,7 +19,7 @@ cd constraints || exit 1
 git config --local user.email "dev@airflow.apache.org"
 git config --local user.name "Automated GitHub Actions commit"
 git diff --color --exit-code --ignore-matching-lines="^#.*" || \
-git commit --all --message "Updating constraints. Github run id:${GITHUB_RUN_ID}
+git commit --all --message "Updating constraints. GitHub run id:${GITHUB_RUN_ID}
 
 This update in constraints is automatically committed by the CI 'constraints-push' step based on
 '${GITHUB_REF}' in the '${GITHUB_REPOSITORY}' repository with commit sha ${GITHUB_SHA}.

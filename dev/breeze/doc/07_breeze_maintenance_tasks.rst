@@ -29,7 +29,7 @@ Regenerating documentation SVG screenshots
 This documentation contains exported SVG screenshots with "help" of their commands and parameters. You can
 regenerate those images that need to be regenerated because their commands changed (usually after
 the breeze code has been changed) via ``regenerate-command-images`` command. Usually this is done
-automatically via pre-commit, but sometimes (for example when ``rich`` or ``rich-click`` library changes)
+automatically via ``prek``, but sometimes (for example when ``rich`` or ``rich-click`` library changes)
 you need to regenerate those images.
 
 You can add ``--force`` flag (or ``FORCE="true"`` environment variable to regenerate all images (not

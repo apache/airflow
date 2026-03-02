@@ -24,7 +24,7 @@ import pytest
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 PROJECT_ID = "test_project_id"
@@ -36,7 +36,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class BigtableWaitForTableReplicationTest:
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, table_id",
+        ("missing_attribute", "project_id", "instance_id", "table_id"),
         [
             ("instance_id", PROJECT_ID, "", TABLE_ID),
             ("table_id", PROJECT_ID, INSTANCE_ID, ""),

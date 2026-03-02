@@ -26,13 +26,13 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
 
 WILDCARD = "*"
 SftpFile = namedtuple("SftpFile", "sftp_file_path, blob_name")
@@ -98,6 +98,8 @@ class SFTPToWasbOperator(BaseOperator):
         self.create_container = create_container
 
     def dry_run(self) -> None:
+        if not AIRFLOW_V_3_0_PLUS:
+            raise NotImplementedError("Not implemented for Airflow 3.")
         super().dry_run()
         sftp_files: list[SftpFile] = self.get_sftp_files_map()
         for file in sftp_files:

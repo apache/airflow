@@ -19,6 +19,7 @@
 import { Button, Box, Kbd } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { MdSearch } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
@@ -27,6 +28,7 @@ import { getMetaKey } from "src/utils";
 import { SearchDags } from "./SearchDags";
 
 export const SearchDagsButton = () => {
+  const { t: translate } = useTranslation("dags");
   const [isOpen, setIsOpen] = useState(false);
   const metaKey = getMetaKey();
 
@@ -45,8 +47,18 @@ export const SearchDagsButton = () => {
 
   return (
     <Box>
-      <Button justifyContent="flex-start" onClick={() => setIsOpen(true)} variant="subtle" w={200}>
-        <MdSearch /> Search Dags <Kbd size="sm">{metaKey}+K</Kbd>
+      <Button
+        colorPalette="brand"
+        justifyContent="flex-start"
+        minWidth={200}
+        onClick={() => setIsOpen(true)}
+        variant="subtle"
+      >
+        <MdSearch /> {translate("search.dags")}{" "}
+        <Kbd size="sm">
+          {metaKey}
+          {translate("search.hotkey")}
+        </Kbd>
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">
         <Dialog.Content>

@@ -22,16 +22,27 @@ https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
-from airflow.decorators import task
-from airflow.models import Connection
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
-from airflow.utils import db
-from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, Connection, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models import Connection  # type: ignore[attr-defined,no-redef,assignment]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -102,22 +113,26 @@ def delete_dynamodb_table(table_name):
 # is hosted on EMR.  You must set the host name of the connection
 # to match your EMR cluster's hostname.
 @task
-def configure_hive_connection(connection_id, hostname):
-    db.merge_conn(
-        Connection(
-            conn_id=connection_id,
-            conn_type="hiveserver2",
-            host=hostname,
-            port=10000,
-        )
+def configure_hive_connection(connection_id: str, hostname: str):
+    """
+    Setup Hive connection using environment variables instead of database operations.
+    This approach is cleaner and compatible with Airflow 3.
+    """
+    c = Connection(
+        conn_id=connection_id,
+        conn_type="hiveserver2",
+        host=hostname,
+        port=10000,
     )
+
+    envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+    os.environ[envvar] = c.get_uri()
 
 
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

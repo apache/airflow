@@ -24,7 +24,7 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
@@ -85,7 +85,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=cast("str", tenant)
+                client_id=cast("str", conn.login),
+                client_secret=cast("str", conn.password),
+                tenant_id=cast("str", tenant),
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")

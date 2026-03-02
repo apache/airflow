@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
@@ -31,7 +28,22 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -46,7 +58,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

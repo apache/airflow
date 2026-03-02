@@ -19,13 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import (
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
         GetStatementResultResponseTypeDef,
     )
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
@@ -159,7 +158,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.statement_id: str = query_execution_output.statement_id
 
         if query_execution_output.session_id:
-            self.xcom_push(context, key="session_id", value=query_execution_output.session_id)
+            context["ti"].xcom_push(key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
             is_finished: bool = self.hook.check_query_is_finished(self.statement_id)

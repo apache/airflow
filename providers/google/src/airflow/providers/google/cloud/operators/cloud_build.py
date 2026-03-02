@@ -29,8 +29,7 @@ from urllib.parse import unquote, urlsplit
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildLink,
@@ -48,7 +47,7 @@ from airflow.utils.helpers import exactly_one
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 REGEX_REPO_PATH = re.compile(r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?")
@@ -108,6 +107,12 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.cancel_build(
@@ -119,14 +124,12 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
 
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -210,6 +213,12 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             if self.build_raw.endswith(".json"):
                 self.build = json.loads(file.read())
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -225,7 +234,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=self.id_)
+        context["task_instance"].xcom_push(key="id", value=self.id_)
         if not self.wait:
             return Build.to_dict(
                 hook.get_build(id_=self.id_, project_id=self.project_id, location=self.location)
@@ -251,9 +260,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudBuildLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
-                    region=self.location,
                     build_id=cloud_build_instance_result.id,
                 )
             return Build.to_dict(cloud_build_instance_result)
@@ -269,9 +276,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             if project_id:
                 CloudBuildLink.persist(
                     context=context,
-                    task_instance=self,
                     project_id=project_id,
-                    region=self.location,
                     build_id=event["id_"],
                 )
             return event["instance"]
@@ -336,6 +341,12 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.create_build_trigger(
@@ -346,21 +357,17 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 trigger_id=result.id,
             )
             CloudBuildTriggersListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
             )
         return BuildTrigger.to_dict(result)
 
@@ -419,6 +426,12 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_build_trigger(
@@ -433,9 +446,7 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudBuildTriggersListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
             )
 
 
@@ -493,6 +504,12 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build(
@@ -507,9 +524,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudBuildLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -569,6 +584,12 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build_trigger(
@@ -583,9 +604,7 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudBuildTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 trigger_id=result.id,
             )
         return BuildTrigger.to_dict(result)
@@ -649,6 +668,12 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_build_triggers(
@@ -664,9 +689,7 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudBuildTriggersListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
             )
         return [BuildTrigger.to_dict(result) for result in results]
 
@@ -729,6 +752,12 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_builds(
@@ -743,7 +772,8 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildListLink.persist(
-                context=context, task_instance=self, project_id=project_id, region=self.location
+                context=context,
+                project_id=project_id,
             )
         return [Build.to_dict(result) for result in results]
 
@@ -805,6 +835,12 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.retry_build(
@@ -817,14 +853,12 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
 
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -891,6 +925,12 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.run_build_trigger(
@@ -903,14 +943,12 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -974,6 +1012,12 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.update_build_trigger(
@@ -985,14 +1029,12 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             location=self.location,
         )
-        self.xcom_push(context, key="id", value=result.id)
+        context["task_instance"].xcom_push(key="id", value=result.id)
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildTriggerDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
-                region=self.location,
                 trigger_id=result.id,
             )
         return BuildTrigger.to_dict(result)

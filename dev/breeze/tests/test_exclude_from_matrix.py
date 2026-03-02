@@ -22,7 +22,7 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos, representa
 
 
 @pytest.mark.parametrize(
-    "list_1, list_2, expected_representative_list",
+    ("list_1", "list_2", "expected_representative_list"),
     [
         (["3.8", "3.9"], ["1", "2"], [("3.8", "1"), ("3.9", "2")]),
         (["3.8", "3.9"], ["1", "2", "3"], [("3.8", "1"), ("3.9", "2"), ("3.8", "3")]),

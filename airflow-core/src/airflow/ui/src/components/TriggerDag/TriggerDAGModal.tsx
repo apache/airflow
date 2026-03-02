@@ -18,6 +18,7 @@
  */
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
@@ -37,6 +38,13 @@ type TriggerDAGModalProps = {
   readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
+  readonly prefillConfig?:
+    | {
+        conf: Record<string, unknown> | undefined;
+        logicalDate: string | undefined;
+        runId: string;
+      }
+    | undefined;
 };
 
 const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
@@ -45,7 +53,9 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   isPaused,
   onClose,
   open,
+  prefillConfig,
 }) => {
+  const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {
     data: dag,
@@ -71,7 +81,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.Header paddingBottom={0}>
           <VStack align="start" gap={2} width="100%" wordBreak="break-all">
             <Heading size="xl">
-              {runMode === RunMode.SINGLE ? "Trigger DAG" : "Run Backfill"} -{" "}
+              {runMode === RunMode.SINGLE ? translate("triggerDag.title") : translate("backfill.title")} -{" "}
               {nameOverflowing ? <br /> : undefined} {dagDisplayName}
             </Heading>
           </VStack>
@@ -84,12 +94,12 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             <Center py={6}>
               <VStack>
                 <Spinner size="lg" />
-                <Text mt={2}>Loading DAG information...</Text>
+                <Text mt={2}>{translate("triggerDag.loading")}</Text>
               </VStack>
             </Center>
           ) : isError ? (
             <Center py={6}>
-              <Text color="red.500">Failed to load DAG information. Please try again.</Text>
+              <Text color="fg.error">{translate("triggerDag.loadingFailed")}</Text>
             </Center>
           ) : (
             <>
@@ -103,15 +113,15 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 >
                   <HStack align="stretch">
                     <RadioCardItem
-                      description="Trigger a single run of this DAG"
-                      label="Single Run"
+                      description={translate("triggerDag.selectDescription")}
+                      label={translate("triggerDag.selectLabel")}
                       value={RunMode.SINGLE}
                     />
-                    <Tooltip content="Backfill requires a schedule" disabled={hasSchedule}>
+                    <Tooltip content={translate("backfill.tooltip")} disabled={hasSchedule}>
                       <RadioCardItem
-                        description="Run this DAG for a range of dates"
+                        description={translate("backfill.selectDescription")}
                         disabled={!hasSchedule}
-                        label="Backfill"
+                        label={translate("backfill.selectLabel")}
                         value={RunMode.BACKFILL}
                       />
                     </Tooltip>
@@ -123,9 +133,11 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 <TriggerDAGForm
                   dagDisplayName={dagDisplayName}
                   dagId={dagId}
+                  hasSchedule={hasSchedule}
                   isPaused={isPaused}
                   onClose={onClose}
                   open={open}
+                  prefillConfig={prefillConfig}
                 />
               ) : (
                 hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />

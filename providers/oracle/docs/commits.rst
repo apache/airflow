@@ -26,7 +26,7 @@
 Package apache-airflow-providers-oracle
 ------------------------------------------------------
 
-`Oracle <https://www.oracle.com/en/database/>`__
+`Oracle <https://www.oracle.com/database/technologies/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``oracle``.

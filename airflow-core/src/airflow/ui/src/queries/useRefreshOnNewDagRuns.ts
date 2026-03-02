@@ -20,33 +20,42 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import {
-  useDagRunServiceGetDagRuns,
   useDagServiceGetDagDetailsKey,
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsUi,
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
+  UseGridServiceGetDagStructureKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
+  useDagServiceGetLatestRunInfo,
 } from "openapi/queries";
 
 import { useConfig } from "./useConfig";
 
 export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | undefined) => {
   const queryClient = useQueryClient();
-  const previousDagRunIdRef = useRef<string>();
+  const previousDagRunIdRef = useRef<string>("");
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
-  const { data } = useDagRunServiceGetDagRuns({ dagId, limit: 1, orderBy: "-run_after" }, undefined, {
+  const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
     enabled: Boolean(dagId) && !hasPendingRuns,
     refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
   });
 
   useEffect(() => {
-    const latestDagRun = data?.dag_runs[0];
+    const latestDagRunId = latestDagRun?.run_id;
 
-    const latestDagRunId = latestDagRun?.dag_run_id;
+    if (latestDagRunId !== undefined && previousDagRunIdRef.current === "") {
+      previousDagRunIdRef.current = latestDagRunId;
 
-    if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
+      return;
+    }
+
+    if (
+      latestDagRunId !== undefined &&
+      previousDagRunIdRef.current !== "" &&
+      previousDagRunIdRef.current !== latestDagRunId
+    ) {
       previousDagRunIdRef.current = latestDagRunId;
 
       const queryKeys = [
@@ -55,12 +64,13 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-        UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+        UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
+        UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       ];
 
       queryKeys.forEach((key) => {
         void queryClient.invalidateQueries({ queryKey: key });
       });
     }
-  }, [data, dagId, queryClient]);
+  }, [latestDagRun, dagId, queryClient]);
 };

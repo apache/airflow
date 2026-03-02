@@ -22,8 +22,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.version_compat import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from requests.auth import AuthBase
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HttpToGCSOperator(BaseOperator):
@@ -170,7 +170,8 @@ class HttpToGCSOperator(BaseOperator):
         """Create and return an GCSHook."""
         return GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
+        """Return List of destination URIs (gs://bucket_name/object_name) for uploaded file."""
         self.log.info("Calling HTTP method")
         response = self.http_hook.run(
             endpoint=self.endpoint, data=self.data, headers=self.headers, extra_options=self.extra_options
@@ -191,3 +192,5 @@ class HttpToGCSOperator(BaseOperator):
             cache_control=self.cache_control,
             user_project=self.user_project,
         )
+
+        return [f"gs://{self.bucket_name}/{self.object_name}"]

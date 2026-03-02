@@ -20,19 +20,21 @@ import contextlib
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowSkipException
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task
 else:
-    from airflow.decorators import task
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import DAG_ID, TestKubernetesDecoratorsBase
 
 XCOM_IMAGE = "XCOM_IMAGE"
 
 
 class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "args_only",
         [True, False],
@@ -40,7 +42,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     def test_basic_kubernetes(self, args_only: bool):
         """Test basic proper KubernetesPodOperator creation from @task.kubernetes_cmd decorator"""
         expected = ["echo", "Hello world!"]
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -77,8 +79,9 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == expected_args
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "func_return, exception",
+        ("func_return", "exception"),
         [
             pytest.param("string", TypeError, id="iterable_str"),
             pytest.param(True, TypeError, id="bool"),
@@ -99,7 +102,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         Test that @task.kubernetes_cmd raises an error if the python_callable returns
         an invalid value.
         """
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -117,9 +120,10 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         with context_manager:
             self.execute_task(k8s_task)
 
+    @pytest.mark.asyncio
     def test_kubernetes_cmd_with_input_output(self):
         """Verify @task.kubernetes_cmd will run XCom container if do_xcom_push is set."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -167,6 +171,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[1].image == XCOM_IMAGE
         assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "cmds",
         [None, ["ignored_cmd"], "ignored_cmd"],
@@ -195,7 +200,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             context_manager = contextlib.nullcontext()  # type: ignore
 
         expected = ["func", "return"]
-        with self.dag:
+        with self.dag_maker:
             # We need to suppress the warning about `cmds` and `arguments` being unused
             with context_manager:
 
@@ -229,8 +234,9 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == expected_args
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        argnames=["command", "op_arg", "expected_command"],
+        argnames=("command", "op_arg", "expected_command"),
         argvalues=[
             pytest.param(
                 ["echo", "hello"],
@@ -250,7 +256,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         expected_command: list[str],
     ):
         """Test that templating works in function return value"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -278,9 +284,10 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_basic_context_works(self):
         """Test that decorator works with context as kwargs unpcacked in function arguments"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -308,9 +315,10 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == ["echo", "hello", DAG_ID]
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_named_context_variables(self):
         """Test that decorator works with specific context variable as kwargs in function arguments"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -338,9 +346,10 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == ["echo", "hello", DAG_ID]
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_rendering_kubernetes_cmd_decorator_params(self):
         """Test that templating works in decorator parameters"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:{{ dag.dag_id }}",
@@ -370,7 +379,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     def test_airflow_skip(self):
         """Test that the operator is skipped if the task is skipped"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -388,3 +397,26 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             self.execute_task(hello_task)
         self.mock_hook.assert_not_called()
         self.mock_create_pod.assert_not_called()
+
+    def test_kubernetes_cmd_template_fields_include_taskflow_args(self):
+        """Test that kubernetes_cmd operator has op_args and op_kwargs in template_fields"""
+        with self.dag_maker:
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def hello(name: str) -> list[str]:
+                return ["echo", name]
+
+            hello_task = hello("world")
+
+        op = hello_task.operator
+
+        assert "op_args" in op.template_fields
+        assert "op_kwargs" in op.template_fields
+        assert "cmds" in op.template_fields
+        assert "arguments" in op.template_fields

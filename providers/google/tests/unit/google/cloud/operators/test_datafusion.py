@@ -21,8 +21,9 @@ from unittest import mock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, PipelineStates
+from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator,
     CloudDataFusionCreatePipelineOperator,
@@ -412,6 +413,65 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
         ):
             op.execute(context=mock.MagicMock())
 
+    @pytest.mark.parametrize(
+        ("pipeline_id", "runtime_args", "expected_run_id", "expected_runtime_args", "expected_output_suffix"),
+        [
+            ("abc123", {"arg1": "val1"}, "abc123", {"arg1": "val1"}, "abc123"),
+            (None, None, None, None, "unknown"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink.persist")
+    @mock.patch(HOOK_STR)
+    def test_openlineage_facets_with_mock(
+        self,
+        mock_hook,
+        mock_persist,
+        pipeline_id,
+        runtime_args,
+        expected_run_id,
+        expected_runtime_args,
+        expected_output_suffix,
+    ):
+        mock_persist.return_value = None
+
+        mock_instance = {"apiEndpoint": "https://mock-endpoint", "serviceEndpoint": "https://mock-service"}
+        mock_hook.return_value.get_instance.return_value = mock_instance
+        mock_hook.return_value.start_pipeline.return_value = pipeline_id
+
+        op = CloudDataFusionStartPipelineOperator(
+            task_id=TASK_ID,
+            pipeline_name=PIPELINE_NAME,
+            instance_name=INSTANCE_NAME,
+            namespace=NAMESPACE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            runtime_args=runtime_args,
+        )
+
+        result_pipeline_id = op.execute(context={})
+        results = op.get_openlineage_facets_on_complete(task_instance=None)
+
+        assert result_pipeline_id == pipeline_id
+        assert op.pipeline_id == pipeline_id
+
+        expected_input_name = f"{PROJECT_ID}:{LOCATION}:{INSTANCE_NAME}:{PIPELINE_NAME}"
+
+        assert results is not None
+        assert len(results.inputs) == 1
+        assert results.inputs[0].namespace == "datafusion"
+        assert results.inputs[0].name == expected_input_name
+
+        assert len(results.outputs) == 1
+        assert results.outputs[0].namespace == "datafusion"
+        assert results.outputs[0].name == f"{expected_input_name}:{expected_output_suffix}"
+
+        facet = results.run_facets["dataFusionRun"]
+        assert isinstance(facet, DataFusionRunFacet)
+        assert facet.runId == expected_run_id
+        assert facet.runtimeArgs == expected_runtime_args
+
+        assert results.job_facets == {}
+
 
 class TestCloudDataFusionStopPipelineOperator:
     @mock.patch(HOOK_STR)
@@ -434,7 +494,39 @@ class TestCloudDataFusionStopPipelineOperator:
         )
 
         mock_hook.return_value.stop_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            namespace=NAMESPACE,
+            pipeline_type=DataFusionPipelineType.BATCH,
+            run_id=None,
+        )
+
+    @mock.patch(HOOK_STR)
+    def test_execute_check_hook_call_should_execute_successfully_with_runId(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = {
+            "apiEndpoint": INSTANCE_URL,
+            "serviceEndpoint": INSTANCE_URL,
+        }
+        op = CloudDataFusionStopPipelineOperator(
+            task_id="test_tasks",
+            pipeline_name=PIPELINE_NAME,
+            instance_name=INSTANCE_NAME,
+            namespace=NAMESPACE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            run_id="sample-run-id",
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.return_value.get_instance.assert_called_once_with(
+            instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
+        )
+
+        mock_hook.return_value.stop_pipeline.assert_called_once_with(
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            pipeline_type=DataFusionPipelineType.BATCH,
+            namespace=NAMESPACE,
+            run_id="sample-run-id",
         )
 
 

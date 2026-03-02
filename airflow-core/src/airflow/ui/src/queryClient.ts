@@ -26,18 +26,29 @@ if (OpenAPI.BASE.endsWith("/")) {
   OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
 }
 
+const RETRY_COUNT = 3;
+
+const retryFunction = (failureCount: number, error: unknown) => {
+  const { status } = error as { status?: number };
+
+  // Do not retry for client errors (4xx). 429 should be eventually retried though.
+  if (status !== undefined && status >= 400 && status < 500 && status !== 429) {
+    return false;
+  }
+
+  return failureCount < RETRY_COUNT;
+};
+
 export const client = new QueryClient({
   defaultOptions: {
     mutations: {
-      retry: 1,
-      retryDelay: 500,
+      retry: retryFunction,
     },
     queries: {
       initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
       refetchOnMount: true, // Refetches stale queries, not "always"
       refetchOnWindowFocus: false,
-      retry: 1,
-      retryDelay: 500,
+      retry: retryFunction,
       staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },

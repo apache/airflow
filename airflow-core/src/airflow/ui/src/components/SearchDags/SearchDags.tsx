@@ -20,9 +20,10 @@ import { Field } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import debounce from "debounce-promise";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
@@ -36,6 +37,7 @@ export const SearchDags = ({
 }: {
   readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
+  const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
@@ -43,36 +45,35 @@ export const SearchDags = ({
   const onSelect = (selected: SingleValue<Option>) => {
     if (selected) {
       setIsOpen(false);
-      navigate(`/dags/${selected.value}`);
+      void Promise.resolve(navigate(`/dags/${selected.value}`));
     }
   };
 
-  const searchDag = (
-    inputValue: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
-    queryClient.fetchQuery({
-      queryFn: () =>
-        DagService.getDags({
+  const searchDagDebounced = useDebouncedCallback(
+    (inputValue: string, callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void) => {
+      void queryClient.fetchQuery({
+        queryFn: () =>
+          DagService.getDags({
+            dagDisplayNamePattern: inputValue,
+            limit: SEARCH_LIMIT,
+          }).then((data: DAGCollectionResponse) => {
+            const options = data.dags.map((dag: DAGResponse) => ({
+              label: dag.dag_display_name || dag.dag_id,
+              value: dag.dag_id,
+            }));
+
+            callback(options);
+
+            return options;
+          }),
+        queryKey: UseDagServiceGetDagsKeyFn({
           dagDisplayNamePattern: inputValue,
-          limit: SEARCH_LIMIT,
-        }).then((data: DAGCollectionResponse) => {
-          const options = data.dags.map((dag: DAGResponse) => ({
-            label: dag.dag_display_name || dag.dag_id,
-            value: dag.dag_id,
-          }));
-
-          callback(options);
-
-          return options;
         }),
-      queryKey: UseDagServiceGetDagsKeyFn({
-        dagDisplayNamePattern: inputValue,
-      }),
-      staleTime: 0,
-    });
-
-  const searchDagDebounced = debounce(searchDag, 300);
+        staleTime: 0,
+      });
+    },
+    300,
+  );
 
   return (
     <Field.Root>
@@ -84,7 +85,7 @@ export const SearchDags = ({
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}
-        placeholder="Search Dags"
+        placeholder={translate("search.dags")}
         // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />

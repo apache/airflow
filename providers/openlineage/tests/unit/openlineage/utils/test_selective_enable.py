@@ -19,13 +19,7 @@ from __future__ import annotations
 
 from pendulum import now
 
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import dag, task
-else:
-    from airflow.decorators import dag, task
-from airflow.models import DAG
+from airflow.providers.common.compat.sdk import DAG, dag, task
 from airflow.providers.openlineage.utils.selective_enable import (
     DISABLE_OL_PARAM,
     ENABLE_OL_PARAM,

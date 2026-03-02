@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from confluent_kafka import Consumer, KafkaError
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
-from airflow.utils.module_loading import import_string
+from airflow.providers.common.compat.module_loading import import_string
 
 
 class KafkaAuthenticationError(Exception):

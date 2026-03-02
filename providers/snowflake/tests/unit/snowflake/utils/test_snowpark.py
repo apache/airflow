@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import pytest
 
+pytest.importorskip("snowflake-snowpark-python")
+
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs
 
 
 @pytest.mark.parametrize(
-    "func,expected_injected",
+    ("func", "expected_injected"),
     [
         (lambda x: x, False),
         (lambda: 1, False),

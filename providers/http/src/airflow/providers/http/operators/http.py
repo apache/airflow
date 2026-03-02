@@ -17,30 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import pickle
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
+from aiohttp import BasicAuth
 from requests import Response
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
-from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase
 
     from airflow.providers.http.hooks.http import HttpHook
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class HttpOperator(BaseOperator):
@@ -57,7 +48,7 @@ class HttpOperator(BaseOperator):
     :param method: The HTTP method to use, default = "POST"
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
-    :param headers: The HTTP headers to be added to the GET request
+    :param headers: The HTTP headers to be added to the request
     :param pagination_function: A callable that generates the parameters used to call the API again,
         based on the previous response. Typically used when the API is paginated and returns for e.g a
         cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
@@ -122,7 +113,7 @@ class HttpOperator(BaseOperator):
         request_kwargs: dict[str, Any] | None = None,
         http_conn_id: str = "http_default",
         log_response: bool = False,
-        auth_type: type[AuthBase] | None = None,
+        auth_type: type[AuthBase] | type[BasicAuth] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
@@ -221,7 +212,7 @@ class HttpOperator(BaseOperator):
         self.defer(
             trigger=HttpTrigger(
                 http_conn_id=self.http_conn_id,
-                auth_type=self.auth_type,
+                auth_type=serialize_auth_type(self._resolve_auth_type()),
                 method=self.method,
                 endpoint=self.endpoint,
                 headers=self.headers,
@@ -230,6 +221,27 @@ class HttpOperator(BaseOperator):
             ),
             method_name="execute_complete",
         )
+
+    def _resolve_auth_type(self) -> type[AuthBase] | type[BasicAuth] | None:
+        """
+        Resolve the authentication type for the HTTP request.
+
+        If auth_type is not explicitly set, attempt to infer it from the connection configuration.
+        For connections with login/password, default to BasicAuth.
+
+        :return: The resolved authentication type class, or None if no auth is needed.
+        """
+        if self.auth_type is not None:
+            return self.auth_type
+
+        try:
+            conn = BaseHook.get_connection(self.http_conn_id)
+            if conn.login or conn.password:
+                return BasicAuth
+        except Exception as e:
+            self.log.warning("Failed to resolve auth type from connection: %s", e)
+
+        return None
 
     def process_response(self, context: Context, response: Response | list[Response]) -> Any:
         """Process the response."""
@@ -272,7 +284,7 @@ class HttpOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
-            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            response = HttpResponseSerializer.deserialize(event["response"])
 
             self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
             return self.process_response(context=context, response=response)
@@ -291,7 +303,7 @@ class HttpOperator(BaseOperator):
             self.defer(
                 trigger=HttpTrigger(
                     http_conn_id=self.http_conn_id,
-                    auth_type=self.auth_type,
+                    auth_type=serialize_auth_type(self._resolve_auth_type()),
                     method=self.method,
                     **self._merge_next_page_parameters(next_page_params),
                 ),

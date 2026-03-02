@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   useDagParsingServiceReparseDagFile,
@@ -25,16 +26,17 @@ import {
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-const onError = () => {
-  toaster.create({
-    description: "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
-    title: "Dag Failed to Reparse",
-    type: "error",
-  });
-};
-
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("dag");
+
+  const onError = () => {
+    toaster.create({
+      description: translate("parse.toaster.error.description"),
+      title: translate("parse.toaster.error.title"),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -46,8 +48,8 @@ export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
     });
 
     toaster.create({
-      description: "Dag should reparse soon.",
-      title: "Reparsing request submitted successfully",
+      description: translate("parse.toaster.success.description"),
+      title: translate("parse.toaster.success.title"),
       type: "success",
     });
   };

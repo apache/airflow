@@ -16,69 +16,198 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack } from "@chakra-ui/react";
+import { Box, Flex, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiDatabase, FiHome } from "react-icons/fi";
-import { NavLink } from "react-router-dom";
+import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
-import { useAuthLinksServiceGetAuthMenus, useVersionServiceGetVersion } from "openapi/queries";
+import {
+  useAuthLinksServiceGetAuthMenus,
+  useVersionServiceGetVersion,
+  usePluginServiceGetPlugins,
+} from "openapi/queries";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import { useTimezone } from "src/context/timezone";
+import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
+import type { NavItemResponse } from "src/utils/types";
 
+import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
+import TimezoneModal from "./TimezoneModal";
 import { UserSettingsButton } from "./UserSettingsButton";
+
+// Define existing button categories to filter out
+const existingCategories = ["user", "docs", "admin", "browse"];
+
+// Function to categorize navigation items in a single pass
+const categorizeNavItems = (
+  items: Array<NavItemResponse>,
+): {
+  adminItems: Array<NavItemResponse>;
+  browseItems: Array<NavItemResponse>;
+  docsItems: Array<NavItemResponse>;
+  topNavItems: Array<NavItemResponse>;
+  userItems: Array<NavItemResponse>;
+} => {
+  const adminItems: Array<NavItemResponse> = [];
+  const browseItems: Array<NavItemResponse> = [];
+  const docsItems: Array<NavItemResponse> = [];
+  const topNavItems: Array<NavItemResponse> = [];
+  const userItems: Array<NavItemResponse> = [];
+
+  items.forEach((item) => {
+    const category = item.category?.toLowerCase();
+
+    // Categorize items for specific buttons
+    if (category === "browse") {
+      browseItems.push(item);
+    } else if (category === "admin") {
+      adminItems.push(item);
+    } else if (category === "docs") {
+      docsItems.push(item);
+    } else if (category === "user") {
+      userItems.push(item);
+    }
+
+    // Add to top nav items if not in existing categories
+    if (category === undefined || !existingCategories.includes(category)) {
+      topNavItems.push(item);
+    }
+  });
+
+  return {
+    adminItems,
+    browseItems,
+    docsItems,
+    topNavItems,
+    userItems,
+  };
+};
 
 export const Nav = () => {
   const { data } = useVersionServiceGetVersion();
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+  const { data: pluginData } = usePluginServiceGetPlugins();
   const { t: translate } = useTranslation("common");
+  const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
+  const { selectedTimezone } = useTimezone();
+  const offset = getTimezoneOffsetString(selectedTimezone);
+  const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
+
+  // Get both external views and react apps with nav destination
+  const navItems: Array<NavItemResponse> =
+    pluginData?.plugins
+      .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
+      .filter((item) => item.destination === "nav") ?? [];
+
+  // Categorize all navigation items in a single pass
+  const { adminItems, browseItems, docsItems, topNavItems, userItems } = categorizeNavItems(navItems);
+
+  // Check for legacy views
+  const hasLegacyViews =
+    (
+      pluginData?.plugins
+        .flatMap((plugin) => plugin.appbuilder_views)
+        // Only include legacy views that have a visible link in the menu. No menu items views
+        // are accessible via direct URLs.
+        .filter((view) => typeof view.name === "string" && view.name.length > 0) ?? []
+    ).length >= 1;
+
+  // Add legacy views if they exist
+  const navItemsWithLegacy = hasLegacyViews
+    ? [
+        ...topNavItems,
+        {
+          destination: "nav",
+          href: "/pluginsv2",
+          name: translate("nav.legacyFabViews"),
+          url_route: "legacy-fab-views",
+        } as ExternalViewResponse,
+      ]
+    : topNavItems;
 
   return (
     <VStack
+      _ltr={{
+        left: 0,
+        right: "auto",
+      }}
+      _rtl={{
+        left: "auto",
+        right: 0,
+      }}
       alignItems="center"
-      bg="blue.muted"
+      bg="brand.muted"
+      data-testid="nav-sidebar"
       height="100%"
       justifyContent="space-between"
-      left={0}
       position="fixed"
-      py={3}
+      py={1}
       top={0}
-      width={20}
-      zIndex={2}
+      width={16}
+      zIndex="docked"
     >
-      <Flex alignItems="center" flexDir="column" width="100%">
-        <Box mb={3}>
-          <NavLink to="/">
-            <AirflowPin height="35px" width="35px" />
-          </NavLink>
+      <Flex alignItems="center" flexDir="column" gap={1} width="100%">
+        <Box alignItems="center" asChild boxSize={14} display="flex" justifyContent="center">
+          <Link title={translate("nav.home")} to="/">
+            <AirflowPin
+              _motionSafe={{
+                _hover: {
+                  transform: "rotate(360deg)",
+                  transition: "transform 0.8s ease-in-out",
+                },
+              }}
+              boxSize={8}
+            />
+          </Link>
         </Box>
-        <NavButton icon={<FiHome size="1.75rem" />} title={translate("nav.home")} to="/" />
+        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />
         <NavButton
+          data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
-          icon={<DagIcon height="1.75rem" width="1.75rem" />}
+          icon={DagIcon}
           title={translate("nav.dags")}
           to="dags"
         />
         <NavButton
+          data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
-          icon={<FiDatabase size="1.75rem" />}
+          icon={FiDatabase}
           title={translate("nav.assets")}
           to="assets"
         />
-        <BrowseButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
-        <AdminButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
+        <BrowseButton
+          authorizedMenuItems={authLinks?.authorized_menu_items ?? []}
+          externalViews={browseItems}
+        />
+        <AdminButton
+          authorizedMenuItems={authLinks?.authorized_menu_items ?? []}
+          externalViews={adminItems}
+        />
         <SecurityButton />
-        <PluginMenus />
+        <PluginMenus navItems={navItemsWithLegacy} />
       </Flex>
-      <Flex flexDir="column">
-        <DocsButton showAPI={authLinks?.authorized_menu_items.includes("Docs")} version={data?.version} />
-        <UserSettingsButton />
+      <Flex flexDir="column" gap={1}>
+        <DocsButton
+          externalViews={docsItems}
+          showAPI={authLinks?.authorized_menu_items.includes("Docs")}
+          version={data?.version}
+        />
+        <Tooltip content={tooltipLabel}>
+          <Box>
+            <NavButton icon={FiClock} onClick={onOpenTimezone} title={offset} />
+          </Box>
+        </Tooltip>
+        <UserSettingsButton externalViews={userItems} />
       </Flex>
+      <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
     </VStack>
   );
 };

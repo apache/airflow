@@ -27,8 +27,8 @@ from urllib.parse import urlsplit
 
 import attrs
 
-from airflow.configuration import conf
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -84,8 +84,19 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
     It extends airflow FileTaskHandler and uploads to and reads from HDFS.
     """
 
-    def __init__(self, base_log_folder: str, hdfs_log_folder: str, **kwargs):
-        super().__init__(base_log_folder)
+    def __init__(
+        self,
+        base_log_folder: str,
+        hdfs_log_folder: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+        **kwargs,
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: logging.FileHandler | None = None
         self.remote_base = urlsplit(hdfs_log_folder).path
         self.log_relative_path = ""
@@ -94,7 +105,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
 
         self.io = HdfsRemoteLogIO(
-            remote_base=hdfs_log_folder,
+            remote_base=self.remote_base,
             base_log_folder=base_log_folder,
             delete_local_copy=kwargs.get(
                 "delete_local_copy", conf.getboolean("logging", "delete_local_logs")

@@ -22,7 +22,7 @@ Introduction
 ------------
 Slack Incoming Webhook notifier (:class:`airflow.providers.slack.notifications.slack_webhook.SlackWebhookNotifier`)
 allows users to send messages to a slack channel through `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
-using the various ``on_*_callbacks`` at both the DAG level and Task level
+using the various ``on_*_callbacks`` at both the Dag level and Task level
 
 
 Example Code:

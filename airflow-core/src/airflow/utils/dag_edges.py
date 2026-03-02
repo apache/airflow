@@ -16,16 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+
+# Also support SDK types if possible.
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    TaskGroup = SerializedTaskGroup  # type: ignore[misc]
 
 if TYPE_CHECKING:
-    from airflow.sdk import DAG
-    from airflow.sdk.types import Operator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.serialization.definitions.node import DAGNode
 
 
-def dag_edges(dag: DAG):
+def dag_edges(dag: SerializedDAG):
     """
     Create the list of edges needed to construct the Graph view.
 
@@ -58,9 +65,10 @@ def dag_edges(dag: DAG):
 
     task_group_map = dag.task_group.get_task_group_dict()
 
-    def collect_edges(task_group):
+    def collect_edges(task_group: DAGNode) -> None:
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, AbstractOperator):
+        child: DAGNode
+        if not isinstance(task_group, (TaskGroup, SerializedTaskGroup)):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -107,7 +115,7 @@ def dag_edges(dag: DAG):
     edges = set()
     setup_teardown_edges = set()
 
-    tasks_to_trace: list[Operator] = dag.roots
+    tasks_to_trace = dag.roots
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:
@@ -124,7 +132,7 @@ def dag_edges(dag: DAG):
     # Build result dicts with the two ends of the edge, plus any extra metadata
     # if we have it.
     for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
-        record = {"source_id": source_id, "target_id": target_id}
+        record: dict[str, Any] = {"source_id": source_id, "target_id": target_id}
         label = dag.get_edge_info(source_id, target_id).get("label")
         if (source_id, target_id) in setup_teardown_edges:
             record["is_setup_teardown"] = True

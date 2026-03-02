@@ -18,6 +18,8 @@
  */
 import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import { useProviderServiceGetProviders } from "openapi/queries";
 import type { ProviderResponse } from "openapi/requests/types.gen";
@@ -26,14 +28,17 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { urlRegex } from "src/constants/urlRegex";
 
-const columns: Array<ColumnDef<ProviderResponse>> = [
+const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>> => [
   {
     accessorKey: "package_name",
     cell: ({ row: { original } }) => (
       <Link
         aria-label={original.package_name}
         color="fg.info"
-        href={`https://airflow.apache.org/docs/${original.package_name}/${original.version}/`}
+        href={
+          original.documentation_url ??
+          `https://airflow.apache.org/docs/${original.package_name}/${original.version}/`
+        }
         rel="noopener noreferrer"
         target="_blank"
       >
@@ -41,13 +46,13 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
       </Link>
     ),
     enableSorting: false,
-    header: "Package Name",
+    header: translate("providers.columns.packageName"),
   },
   {
     accessorKey: "version",
     cell: ({ row: { original } }) => original.version,
     enableSorting: false,
-    header: () => "Version",
+    header: translate("providers.columns.version"),
   },
   {
     accessorKey: "description",
@@ -66,12 +71,15 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
       );
     },
     enableSorting: false,
-    header: "Description",
+    header: translate("columns.description"),
   },
 ];
 
 export const Providers = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
+
+  const columns = createColumns(translate);
 
   const { pagination } = tableURLState;
 
@@ -82,14 +90,15 @@ export const Providers = () => {
 
   return (
     <Box p={2}>
-      <Heading>Providers</Heading>
+      <Heading>{translate("common:admin.Providers")}</Heading>
       <DataTable
         columns={columns}
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        modelName="Provider"
+        modelName="common:admin.Providers"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

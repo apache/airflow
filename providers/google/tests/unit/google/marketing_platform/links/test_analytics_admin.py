@@ -55,17 +55,15 @@ class TestGoogleAnalyticsPropertyLink:
         assert url == ""
 
     def test_persist(self):
-        mock_context = mock.MagicMock()
         mock_task_instance = mock.MagicMock()
+        mock_context = {"task_instance": mock_task_instance}
 
         GoogleAnalyticsPropertyLink.persist(
             context=mock_context,
-            task_instance=mock_task_instance,
             property_id=TEST_PROPERTY_ID,
         )
 
         mock_task_instance.xcom_push.assert_called_once_with(
-            mock_context,
             key=GoogleAnalyticsPropertyLink.key,
             value={"property_id": TEST_PROPERTY_ID},
         )

@@ -30,9 +30,9 @@ import tempfile
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, Label, task
-from airflow.utils.trigger_rule import TriggerRule
 
 PATH_TO_PYTHON_BINARY = sys.executable
 

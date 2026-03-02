@@ -57,8 +57,8 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--commit-sha",
                 "--debian-version",
                 "--python-image",
+                "--skip-asset-compiled-check",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -67,6 +67,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
+                "--airflow-fallback-no-constraints-installation",
             ],
         },
         {
@@ -112,7 +113,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             ],
         },
         {
-            "name": "Github authentication",
+            "name": "GitHub authentication",
             "options": [
                 "--github-repository",
                 "--github-token",
@@ -140,7 +141,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             ],
         },
         {
-            "name": "Github authentication",
+            "name": "GitHub authentication",
             "options": [
                 "--github-repository",
                 "--github-token",
@@ -170,7 +171,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             ],
         },
         {
-            "name": "Github authentication",
+            "name": "GitHub authentication",
             "options": [
                 "--github-repository",
                 "--github-token",

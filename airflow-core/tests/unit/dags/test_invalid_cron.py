@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.timezone import datetime
 
 # This invalid DAG has a schedule specified with an INVALID cron expression.
 # It will be used to test whether dagbag.process_file() can identify this.

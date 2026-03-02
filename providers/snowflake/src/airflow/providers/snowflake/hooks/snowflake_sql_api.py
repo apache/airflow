@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import base64
+import time
 import uuid
 import warnings
 from datetime import timedelta
@@ -25,10 +27,22 @@ from typing import Any
 
 import aiohttp
 import requests
+from aiohttp import ClientConnectionError, ClientResponseError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from requests.exceptions import ConnectionError, HTTPError, Timeout
+from tenacity import (
+    AsyncRetrying,
+    Retrying,
+    before_sleep_log,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -65,24 +79,60 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param token_life_time: lifetime of the JWT Token in timedelta
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
+    :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param http_request_kwargs: Optional keyword arguments forwarded to ``requests.Session.request`` for synchronous HTTP calls.
+        Request-defining fields (e.g. ``method``, ``url``, ``headers``, ``params``, ``json``)
+        are owned by the hook and must not be provided here.
+
+    :param aiohttp_session_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession`` for asynchronous HTTP calls.
+        Session-owned fields like ``headers`` are managed by the hook
+        and must not be overridden here.
+
+    :param aiohttp_request_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession.request`` for asynchronous HTTP calls.
+        Request identity fields (e.g. ``method``, ``url``, ``headers``,
+        ``params``) are owned by the hook and must not be overridden here.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minute lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+    HTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "headers", "params", "json"}
+    AIOHTTP_SESSION_KWARGS_GUARD_KEYS: set[str] = {"headers"}
+    AIOHTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "params", "headers"}
 
     def __init__(
         self,
         snowflake_conn_id: str,
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
+        api_retry_args: dict[Any, Any] | None = None,  # Optional retry arguments passed to tenacity.retry
+        http_request_kwargs: dict[str, Any] | None = None,
+        aiohttp_session_kwargs: dict[str, Any] | None = None,
+        aiohttp_request_kwargs: dict[str, Any] | None = None,
         *args: Any,
         **kwargs: Any,
     ):
         self.snowflake_conn_id = snowflake_conn_id
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
+
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
+
+        self.retry_config = {
+            "retry": retry_if_exception(self._should_retry_on_error),
+            "wait": wait_exponential(multiplier=1, min=1, max=60),
+            "stop": stop_after_attempt(5),
+            "before_sleep": before_sleep_log(self.log, log_level=20),  # type: ignore[arg-type]
+            "reraise": True,
+        }
+        if api_retry_args:
+            self.retry_config.update(api_retry_args)
+
+        self.http_request_kwargs = http_request_kwargs or {}
+        self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
+        self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
@@ -137,7 +187,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
         """
-        conn_config = self._get_conn_params
+        self.query_ids = []
+        conn_config = self._get_conn_params()
 
         req_id = uuid.uuid4()
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
@@ -167,13 +218,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "query_tag": query_tag,
             },
         }
-        response = requests.post(url, json=data, headers=headers, params=params)
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-        json_response = response.json()
+
+        _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
             self.query_ids = json_response["statementHandles"]
@@ -181,11 +227,34 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.query_ids.append(json_response["statementHandle"])
         else:
             raise AirflowException("No statementHandle/statementHandles present in response")
+
+        # Send Hook Level Lineage
+        len_query_ids = len(self.query_ids)
+        if len_query_ids == 1:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                job_id=self.query_ids[0],
+            )
+        else:
+            sql_statements = sql.split(";")
+            if len(sql_statements) == len_query_ids:
+                for single_sql, single_query_id in zip(sql_statements, self.query_ids):
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=single_sql,
+                        job_id=single_query_id,
+                    )
+            else:  # SQL/query ID count mismatch; can't correlate sql with id - send SQL only.
+                send_sql_hook_lineage(
+                    context=self,
+                    sql=sql,
+                )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
         """Form auth headers based on either OAuth token or JWT token from private key."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
         if all(
@@ -222,25 +291,37 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self, conn_config: dict[str, Any] | None = None) -> str:
+    def get_oauth_token(
+        self,
+        conn_config: dict[str, Any] | None = None,
+        token_endpoint: str | None = None,
+        grant_type: str = "refresh_token",
+    ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         warnings.warn(
             "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead. ",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
-        return super().get_oauth_token(conn_config=conn_config)
+        return super().get_oauth_token(
+            conn_config=conn_config, token_endpoint=token_endpoint, grant_type=grant_type
+        )
 
-    def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
+    def get_request_url_header_params(
+        self, query_id: str, url_suffix: str | None = None
+    ) -> tuple[dict[str, Any], dict[str, Any], str]:
         """
         Build the request header Url with account name identifier and query id from the connection params.
 
         :param query_id: statement handles query ids for the individual statements.
+        :param url_suffix: Optional path suffix to append to the URL. Must start with '/', e.g. '/cancel' or '/result'.
         """
         req_id = uuid.uuid4()
         header = self.get_headers()
         params = {"requestId": str(req_id)}
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements/{query_id}"
+        if url_suffix:
+            url += url_suffix
         return header, params, url
 
     def check_query_output(self, query_ids: list[str]) -> None:
@@ -251,20 +332,31 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         for query_id in query_ids:
             header, params, url = self.get_request_url_header_params(query_id)
-            try:
-                response = requests.get(url, headers=header, params=params)
-                response.raise_for_status()
-                self.log.info(response.json())
-            except requests.exceptions.HTTPError as e:
-                msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-                raise AirflowException(msg)
+            _, response_json = self._make_api_call_with_retries(
+                method="GET", url=url, headers=header, params=params
+            )
+            self.log.info(response_json)
 
     def _process_response(self, status_code, resp):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
-            return {"status": "error", "message": resp["message"]}
+            error_message = resp.get("message", "Unknown error occurred")
+            error_details = []
+            if code := resp.get("code"):
+                error_details.append(f"Code: {code}")
+            if sql_state := resp.get("sqlState"):
+                error_details.append(f"SQL State: {sql_state}")
+            if statement_handle := resp.get("statementHandle"):
+                error_details.append(f"Statement Handle: {statement_handle}")
+
+            if error_details:
+                enhanced_message = f"{error_message} ({', '.join(error_details)})"
+            else:
+                enhanced_message = error_message
+
+            return {"status": "error", "message": enhanced_message}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
@@ -287,10 +379,82 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        response = requests.get(url, params=params, headers=header)
-        status_code = response.status_code
-        resp = response.json()
+        status_code, resp = self._make_api_call_with_retries("GET", url, header, params)
         return self._process_response(status_code, resp)
+
+    def wait_for_query(
+        self, query_id: str, raise_error: bool = False, poll_interval: int = 5, timeout: int = 60
+    ) -> dict[str, str | list[str]]:
+        """
+        Wait for query to finish either successfully or with error.
+
+        :param query_id: statement handle id for the individual statement.
+        :param raise_error: whether to raise an error if the query failed.
+        :param poll_interval: time (in seconds) between checking the query status.
+        :param timeout: max time (in seconds) to wait for the query to finish before raising a TimeoutError.
+
+        :raises RuntimeError: If the query status is 'error' and `raise_error` is True.
+        :raises TimeoutError: If the query doesn't finish within the specified timeout.
+        """
+        start_time = time.time()
+
+        while True:
+            response = self.get_sql_api_query_status(query_id=query_id)
+            self.log.debug("Query status `%s`", response["status"])
+
+            if time.time() - start_time > timeout:
+                raise TimeoutError(
+                    f"Query `{query_id}` did not finish within the timeout period of {timeout} seconds."
+                )
+
+            if response["status"] != "running":
+                self.log.info("Query status `%s`", response["status"])
+                break
+
+            time.sleep(poll_interval)
+
+        if response["status"] == "error" and raise_error:
+            raise RuntimeError(response["message"])
+
+        return response
+
+    def get_result_from_successful_sql_api_query(self, query_id: str) -> list[dict[str, Any]]:
+        """
+        Based on the query id HTTP requests are made to snowflake SQL API and return result data.
+
+        :param query_id: statement handle id for the individual statement.
+
+        :raises RuntimeError: If the query status is not 'success'.
+        """
+        self.log.info("Retrieving data for query id %s", query_id)
+        header, params, url = self.get_request_url_header_params(query_id)
+        status_code, response = self._make_api_call_with_retries("GET", url, header, params)
+
+        if (query_status := self._process_response(status_code, response)["status"]) != "success":
+            msg = f"Query must have status `success` to retrieve data; got `{query_status}`."
+            raise RuntimeError(msg)
+
+        # Below fields should always be present in response, but added some safety checks
+        data = response.get("data", [])
+        if not data:
+            self.log.warning("No data found in the API response.")
+            return []
+        metadata = response.get("resultSetMetaData", {})
+        col_names = [row["name"] for row in metadata.get("rowType", [])]
+        if not col_names:
+            self.log.warning("No column metadata found in the API response.")
+            return []
+
+        num_partitions = len(metadata.get("partitionInfo", []))
+        if num_partitions > 1:
+            self.log.debug("Result data is returned as multiple partitions. Will perform additional queries.")
+            url += "?partition="
+            for partition_no in range(1, num_partitions):  # First partition was already returned
+                self.log.debug("Querying for partition no. %s", partition_no)
+                _, response = self._make_api_call_with_retries("GET", url + str(partition_no), header, params)
+                data.extend(response.get("data", []))
+
+        return [dict(zip(col_names, row)) for row in data]  # Merged column names with data
 
     async def get_sql_api_query_status_async(self, query_id: str) -> dict[str, str | list[str]]:
         """
@@ -300,10 +464,136 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        async with (
-            aiohttp.ClientSession(headers=header) as session,
-            session.get(url, params=params) as response,
+        status_code, resp = await self._make_api_call_with_retries_async("GET", url, header, params)
+        return self._process_response(status_code, resp)
+
+    def _cancel_sql_api_query_execution(self, query_id: str) -> dict[str, str | list[str]]:
+        self.log.info("Cancelling query id %s", query_id)
+        header, params, url = self.get_request_url_header_params(query_id, "/cancel")
+        status_code, resp = self._make_api_call_with_retries("POST", url, header, params)
+        return self._process_response(status_code, resp)
+
+    def cancel_queries(self, query_ids: list[str]) -> None:
+        for query_id in query_ids:
+            self._cancel_sql_api_query_execution(query_id)
+
+    @staticmethod
+    def _should_retry_on_error(exception) -> bool:
+        """
+        Determine if the exception should trigger a retry based on error type and status code.
+
+        Retries on HTTP errors 429 (Too Many Requests), 503 (Service Unavailable),
+        and 504 (Gateway Timeout) as recommended by Snowflake error handling docs.
+        Retries on connection errors and timeouts.
+
+        :param exception: The exception to check
+        :return: True if the request should be retried, False otherwise
+        """
+        if isinstance(exception, HTTPError):
+            return exception.response.status_code in [429, 503, 504]
+        if isinstance(exception, ClientResponseError):
+            return exception.status in [429, 503, 504]
+        if isinstance(
+            exception,
+            ConnectionError | Timeout | ClientConnectionError | asyncio.TimeoutError,
         ):
-            status_code = response.status
-            resp = await response.json()
-            return self._process_response(status_code, resp)
+            return True
+        return False
+
+    @staticmethod
+    def _should_raise_for_status(status: int) -> bool:
+        # _process_response handles HTTP 422 to provide richer error context.
+        # The response payload must be passed through even when the status is 422.
+        # See https://docs.snowflake.com/en/developer-guide/sql-api/reference
+        return status >= 400 and status != 422
+
+    def _make_api_call_with_retries(
+        self, method: str, url: str, headers: dict, params: dict | None = None, json: dict | None = None
+    ):
+        """
+        Make an API call to the Snowflake SQL API with retry logic for specific HTTP errors.
+
+        Error handling implemented based on Snowflake error handling docs:
+        https://docs.snowflake.com/en/developer-guide/sql-api/handling-errors
+
+        :param method: The HTTP method to use for the API call.
+        :param url: The URL for the API endpoint.
+        :param headers: The headers to include in the API call.
+        :param params: (Optional) The query parameters to include in the API call.
+        :param json: (Optional) The data to include in the API call.
+        :return: The response object from the API call.
+        """
+        if method.upper() not in ("GET", "POST"):
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_kwargs: dict[str, Any] = dict(self.http_request_kwargs or {})
+        forbidden: set[str] = self.HTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"http_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+
+        with requests.Session() as session:
+            for attempt in Retrying(**self.retry_config):  # type: ignore
+                with attempt:
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "headers": headers,
+                        "params": params,
+                        "json": json,
+                    }
+                    # Order is important
+                    # user first, base second => base wins even if guard misses something
+                    request_kwargs: dict[str, Any] = {**user_kwargs, **base_request_kwargs}
+                    response = session.request(**request_kwargs)
+                    if self._should_raise_for_status(response.status_code):
+                        response.raise_for_status()
+                    return response.status_code, response.json()
+
+    async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
+        """
+        Make an API call to the Snowflake SQL API asynchronously with retry logic for specific HTTP errors.
+
+        Error handling implemented based on Snowflake error handling docs:
+        https://docs.snowflake.com/en/developer-guide/sql-api/handling-errors
+
+        :param method: The HTTP method to use for the API call. Only GET is supported as  is synchronous.
+        :param url: The URL for the API endpoint.
+        :param headers: The headers to include in the API call.
+        :param params: (Optional) The query parameters to include in the API call.
+        :return: The response object from the API call.
+        """
+        if method.upper() != "GET":
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_session_kwargs: dict[str, Any] = dict(self.aiohttp_session_kwargs or {})
+        forbidden = self.AIOHTTP_SESSION_KWARGS_GUARD_KEYS & set(user_session_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_session_kwargs must not override session-owned fields: {sorted(forbidden)}"
+            )
+
+        user_request_kwargs: dict[str, Any] = dict(self.aiohttp_request_kwargs or {})
+        forbidden = self.AIOHTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_request_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+        base_session_kwargs: dict[str, Any] = {"headers": headers}
+        session_kwargs: dict[str, Any] = {**user_session_kwargs, **base_session_kwargs}
+        async with aiohttp.ClientSession(**session_kwargs) as session:
+            async for attempt in AsyncRetrying(**self.retry_config):
+                with attempt:
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "params": params,
+                    }
+                    request_kwargs: dict[str, Any] = {**user_request_kwargs, **base_request_kwargs}
+                    async with session.request(**request_kwargs) as response:
+                        if self._should_raise_for_status(response.status):
+                            response.raise_for_status()
+                        # Return status and json content for async processing
+                        content = await response.json()
+                        return response.status, content

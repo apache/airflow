@@ -20,9 +20,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 FUNCTION_NAME = "function_name"
 
@@ -46,7 +46,7 @@ class TestLambdaFunctionStateSensor:
         assert op.botocore_config == {"baz": "qux"}
 
     @pytest.mark.parametrize(
-        "get_function_output, expect_failure, expected",
+        ("get_function_output", "expect_failure", "expected"),
         [
             pytest.param(
                 {"Configuration": {"State": "Active"}},

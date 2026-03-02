@@ -21,13 +21,14 @@ import json
 import logging
 import os
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
 from semver import VersionInfo
 
-from airflow.exceptions import AirflowException
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -42,12 +43,14 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -198,6 +201,74 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
+    def test_task_sdk(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
+        """Test task sdk execution from end-to-end."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.key = mock_airflow_key()
+        tags_exec_config = [{"key": "FOO", "value": "BAR"}]
+        workload.ti.executor_config = {"tags": tags_exec_config}
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
+
+        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.running) == 0
+        mock_executor._process_workloads([workload])
+        assert len(mock_executor.queued_tasks) == 0
+        assert len(mock_executor.running) == 1
+        assert workload.ti.key in mock_executor.running
+        assert len(mock_executor.pending_jobs) == 1
+        assert mock_executor.pending_jobs[0].command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            '{"test_key": "test_value"}',
+        ]
+
+        mock_executor.attempt_submit_jobs()
+        mock_executor.batch.submit_job.assert_called_once()
+        assert len(mock_executor.pending_jobs) == 0
+        mock_executor.batch.submit_job.assert_called_once_with(
+            jobDefinition="some-job-def",
+            jobName="some-job-name",
+            jobQueue="some-job-queue",
+            tags=tags_exec_config,
+            containerOverrides={
+                "command": [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_workload,
+                ],
+                "environment": [
+                    {
+                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                        "value": "true",
+                    },
+                ],
+            },
+        )
+
+        # Task is stored in active worker.
+        assert len(mock_executor.active_workers) == 1
+        # Get the job_id for this task key
+        job_id = next(
+            job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == workload.ti.key
+        )
+        assert job_id == ARN1
+        running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
 
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor):
@@ -375,7 +446,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -384,7 +455,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -392,7 +463,10 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.sync_running_jobs()
         for i in range(2):
-            assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.max_submit_job_attempts} times. Marking as failed"
+                in caplog.text
+            )
 
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
     def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):
@@ -636,6 +710,47 @@ class TestAwsBatchExecutor:
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
+    def test_team_config(self):
+        """Test that the executor uses team-specific configuration when provided via self.conf."""
+        # Team name to be used throughout
+        team_name = "team_a"
+        # Patch environment to include two sets of configs for the Batch executor. One that is related to a
+        # team and one that is not. Then we will create two executors (one with a team and one without) and
+        # ensure the correct configs are used.
+        config_overrides = [
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}", "some-job-queue"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}", "some-job-def"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}", "some-job-name"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.REGION_NAME}", "us-west-1"),
+            # team Config
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}",
+                "team_a_job_queue",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}",
+                "team_a_job_def",
+            ),
+            (f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}", "team_a_job_name"),
+            (f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.REGION_NAME}", "us-west-2"),
+        ]
+        with patch("os.environ", {key.upper(): value for key, value in config_overrides}):
+            team_executor = AwsBatchExecutor(team_name=team_name)
+            submit_kwargs = batch_executor_config.build_submit_kwargs(team_executor.conf)
+
+            assert submit_kwargs["jobQueue"] == "team_a_job_queue"
+            assert submit_kwargs["jobDefinition"] == "team_a_job_def"
+            assert submit_kwargs["jobName"] == "team_a_job_name"
+
+            # Now create an executor without a team and ensure the non-team configs are used.
+            non_team_executor = AwsBatchExecutor()
+            submit_kwargs = batch_executor_config.build_submit_kwargs(non_team_executor.conf)
+
+            assert submit_kwargs["jobQueue"] == "some-job-queue"
+            assert submit_kwargs["jobDefinition"] == "some-job-def"
+            assert submit_kwargs["jobName"] == "some-job-name"
+
 
 class TestBatchExecutorConfig:
     @staticmethod
@@ -675,13 +790,11 @@ class TestBatchExecutorConfig:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "command'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
-        assert raised.match('Executor Config should never override "command')
-
     def test_config_defaults_are_applied(self):
-        submit_kwargs = batch_executor_config.build_submit_kwargs()
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
         found_keys = {convert_camel_to_snake(key): key for key in submit_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
@@ -711,13 +824,13 @@ class TestBatchExecutorConfig:
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         )
         os.environ[run_submit_kwargs_env_key] = json.dumps(provided_run_submit_kwargs)
-        submit_kwargs = batch_executor_config.build_submit_kwargs()
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
 
         # Verify that tag names are exempt from the camel-case conversion.
         assert submit_kwargs["tags"] == templated_tags
 
     @pytest.mark.parametrize(
-        "submit_job_kwargs, exec_config, expected_result",
+        ("submit_job_kwargs", "exec_config", "expected_result"),
         [
             # No input submit_job_kwargs or executor overrides
             (

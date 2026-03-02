@@ -86,16 +86,16 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 
 def build_airflow_packages(distribution_format: str):
     reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_YAML_PATH.read_text())["source-date-epoch"]
-    envcopy = os.environ.copy()
-    envcopy["SOURCE_DATE_EPOCH"] = str(reproducible_date)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(reproducible_date), "PATH": os.environ["PATH"]}
     airflow_core_build_command = [sys.executable, "-m", "hatch", "build", "-t", "custom"]
     apply_distribution_format_to_hatch_command(airflow_core_build_command, distribution_format)
     console.print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
     build_process = subprocess.run(
         airflow_core_build_command,
+        check=False,
         capture_output=False,
         cwd=AIRFLOW_CORE_ROOT_PATH,
-        env=envcopy,
+        env=hatch_env,
     )
     if build_process.returncode != 0:
         console.print("[red]Error building Airflow packages")
@@ -105,9 +105,10 @@ def build_airflow_packages(distribution_format: str):
     console.print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
     build_process = subprocess.run(
         airflow_build_command,
+        check=False,
         capture_output=False,
         cwd=AIRFLOW_ROOT_PATH,
-        env=envcopy,
+        env=hatch_env,
     )
     if build_process.returncode != 0:
         console.print("[red]Error building Airflow packages")

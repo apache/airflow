@@ -23,14 +23,15 @@ import contextlib
 import logging
 import random
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -587,7 +588,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
                 job = await self.get_job(
                     project_id=project_id,
                     job_id=job_id,
-                    session=session,  #  type: ignore
+                    session=session,  # type: ignore
                 )
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)

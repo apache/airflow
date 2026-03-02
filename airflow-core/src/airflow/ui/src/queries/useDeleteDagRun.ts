@@ -23,7 +23,8 @@ import {
   useDagRunServiceDeleteDagRun,
   useDagRunServiceGetDagRunsKey,
   UseDagRunServiceGetDagRunKeyFn,
-  UseGridServiceGridDataKeyFn,
+  useTaskInstanceServiceGetTaskInstancesKey,
+  useTaskInstanceServiceGetHitlDetailsKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -40,7 +41,7 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("dags:runAndTaskActions.delete.error", { type: "Run" }),
+      title: translate("dags:runAndTaskActions.delete.error", { type: translate("dagRun_one") }),
       type: "error",
     });
   };
@@ -49,14 +50,17 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      [useTaskInstanceServiceGetTaskInstancesKey],
+      [useTaskInstanceServiceGetHitlDetailsKey],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: translate("dags:runAndTaskActions.delete.success.description", { type: "Run" }),
-      title: translate("dags:runAndTaskActions.delete.success.title", { type: "Run" }),
+      description: translate("dags:runAndTaskActions.delete.success.description", {
+        type: translate("dagRun_one"),
+      }),
+      title: translate("dags:runAndTaskActions.delete.success.title", { type: translate("dagRun_one") }),
       type: "success",
     });
 

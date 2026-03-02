@@ -68,40 +68,42 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait for the query the snowflake query to complete."""
-        SnowflakeSqlApiHook(
+        hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
             self.token_renewal_delta,
         )
+
         try:
-            statement_query_ids: list[str] = []
             for query_id in self.query_ids:
                 while True:
-                    statement_status = await self.get_query_status(query_id)
+                    statement_status = await self.get_query_status(query_id, hook)
                     if statement_status["status"] not in ["running"]:
                         break
                     await asyncio.sleep(self.poll_interval)
                 if statement_status["status"] == "error":
                     yield TriggerEvent(statement_status)
                     return
-                if statement_status["status"] == "success":
-                    statement_query_ids.extend(statement_status["statement_handles"])
             yield TriggerEvent(
                 {
                     "status": "success",
-                    "statement_query_ids": statement_query_ids,
+                    "statement_query_ids": self.query_ids,
                 }
             )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
-    async def get_query_status(self, query_id: str) -> dict[str, Any]:
+    async def get_query_status(
+        self, query_id: str, hook: SnowflakeSqlApiHook | None = None
+    ) -> dict[str, Any]:
         """Return True if the SQL query is still running otherwise return False."""
-        hook = SnowflakeSqlApiHook(
-            self.snowflake_conn_id,
-            self.token_life_time,
-            self.token_renewal_delta,
-        )
+        if not hook:
+            hook = SnowflakeSqlApiHook(
+                self.snowflake_conn_id,
+                self.token_life_time,
+                self.token_renewal_delta,
+            )
+
         return await hook.get_sql_api_query_status_async(query_id)
 
     def _set_context(self, context):

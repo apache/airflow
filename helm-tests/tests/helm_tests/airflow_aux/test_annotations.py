@@ -38,10 +38,11 @@ class TestServiceAccountAnnotations:
     """Tests Service Account Annotations."""
 
     @pytest.mark.parametrize(
-        "values,show_only,expected_annotations",
+        ("values", "show_only", "expected_annotations"),
         [
             (
                 {
+                    "executor": "KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -54,6 +55,22 @@ class TestServiceAccountAnnotations:
                 "templates/cleanup/cleanup-serviceaccount.yaml",
                 {
                     "example": "cleanup",
+                },
+            ),
+            (
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "database-cleanup",
+                            },
+                        },
+                    },
+                },
+                "templates/database-cleanup/database-cleanup-serviceaccount.yaml",
+                {
+                    "example": "database-cleanup",
                 },
             ),
             (
@@ -244,10 +261,10 @@ class TestServiceAccountAnnotations:
             assert v == obj["metadata"]["annotations"][k]
 
     def test_annotations_on_webserver(self):
-        """Test annotations are added on webserver for Airflow 1 & 2"""
+        """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.10.0",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "serviceAccount": {
                         "annotations": {
@@ -266,7 +283,7 @@ class TestServiceAccountAnnotations:
 
 
 @pytest.mark.parametrize(
-    "values,show_only,expected_annotations",
+    ("values", "show_only", "expected_annotations"),
     [
         (
             {
@@ -350,16 +367,31 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
                         "example": "cleanup",
                     },
-                }
+                },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {
                 "example": "cleanup",
+            },
+        ),
+        (
+            {
+                "databaseCleanup": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "database-cleanup",
+                    },
+                }
+            },
+            "templates/database-cleanup/database-cleanup-cronjob.yaml",
+            {
+                "example": "database-cleanup",
             },
         ),
         (

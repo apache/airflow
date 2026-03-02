@@ -23,8 +23,8 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 
 /** Render a "const" field where user can not change data as hidden */
-export const HiddenInput = ({ name }: FlexibleFormElementProps) => {
-  const { paramsDict } = useParamStore();
+export const HiddenInput = ({ name, namespace = "default" }: FlexibleFormElementProps) => {
+  const { paramsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
   return (

@@ -16,23 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, HStack, Text } from "@chakra-ui/react";
+import { Box, Field, HStack, Text } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { Switch } from "src/components/ui";
 
 type Props = {
+  readonly onMenuScrollToBottom: () => void;
+  readonly onMenuScrollToTop: () => void;
   readonly onSelectTagsChange: (tags: MultiValue<{ label: string; value: string }>) => void;
   readonly onTagModeChange: ({ checked }: { checked: boolean }) => void;
+  readonly onUpdate: (newValue: string) => void;
   readonly selectedTags: Array<string>;
   readonly tagFilterMode: string;
   readonly tags: Array<string>;
 };
 
 export const TagFilter = ({
+  onMenuScrollToBottom,
+  onMenuScrollToTop,
   onSelectTagsChange,
   onTagModeChange,
+  onUpdate,
   selectedTags,
   tagFilterMode,
   tags,
@@ -40,7 +46,7 @@ export const TagFilter = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <>
+    <Box maxWidth="300px" minWidth="64px">
       <Field.Root>
         <ReactSelect
           aria-label={translate("table.filterByTag")}
@@ -51,11 +57,12 @@ export const TagFilter = ({
             }),
             container: (provided) => ({
               ...provided,
+              maxWidth: 300,
               minWidth: 64,
             }),
             control: (provided) => ({
               ...provided,
-              colorPalette: "blue",
+              colorPalette: "brand",
             }),
             menu: (provided) => ({
               ...provided,
@@ -66,6 +73,9 @@ export const TagFilter = ({
           isMulti
           noOptionsMessage={() => translate("table.noTagsFound")}
           onChange={onSelectTagsChange}
+          onInputChange={(newValue) => onUpdate(newValue)}
+          onMenuScrollToBottom={onMenuScrollToBottom}
+          onMenuScrollToTop={onMenuScrollToTop}
           options={tags.map((tag) => ({
             label: tag,
             value: tag,
@@ -96,6 +106,6 @@ export const TagFilter = ({
           </Text>
         </HStack>
       )}
-    </>
+    </Box>
   );
 };

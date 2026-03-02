@@ -26,6 +26,7 @@ class ProviderResponse(BaseModel):
     package_name: str
     description: str
     version: str
+    documentation_url: str | None
 
 
 class ProviderCollectionResponse(BaseModel):

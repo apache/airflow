@@ -20,8 +20,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.links.comprehend import (
     ComprehendDocumentClassifierLink,
@@ -34,12 +32,12 @@ from airflow.providers.amazon.aws.triggers.comprehend import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.utils.timezone import utcnow
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 
 if TYPE_CHECKING:
     import boto3
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class ComprehendBaseOperator(AwsBaseOperator[ComprehendHook]):
@@ -157,7 +155,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
     def execute(self, context: Context) -> str:
         if self.start_pii_entities_kwargs.get("JobName", None) is None:
             self.start_pii_entities_kwargs["JobName"] = (
-                f"start_pii_entities_detection_job-{int(utcnow().timestamp())}"
+                f"start_pii_entities_detection_job-{int(timezone.utcnow().timestamp())}"
             )
 
         self.log.info(
@@ -289,7 +287,6 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -305,7 +302,6 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         if self.output_data_config:

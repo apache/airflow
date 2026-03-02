@@ -246,7 +246,7 @@ into a temporary file. By default, the file is placed in a temporary directory
 
 
 To execute a bash script, place it in a location relative to the directory containing
-the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
+the Dag file. So if your Dag file is in ``/usr/local/airflow/dags/test_dag.py``, you can
 move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
 ``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
 as shown below:
@@ -280,7 +280,7 @@ in files composed in different languages, and general flexibility in structuring
 pipelines.
 
 It is also possible to define your ``template_searchpath`` as pointing to any folder
-locations in the DAG constructor call.
+locations in the Dag constructor call.
 
 .. tab-set::
 

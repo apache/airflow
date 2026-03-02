@@ -22,8 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
     METADATA,
@@ -35,10 +34,9 @@ from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service impo
     CloudStorageTransferServiceCheckJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):

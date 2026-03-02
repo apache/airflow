@@ -25,9 +25,11 @@ import (
 	"resty.dev/v3"
 )
 
-const API_VERSION = "2025-04-11"
+const API_VERSION = "2025-05-20"
 
-//go:generate go run -modfile=../../tools.mod github.com/ashb/oapi-resty-codegen --config oapi-codegen.yml ../../openapi-fmt.json
+//go:generate -command openapi-gen go run github.com/ashb/oapi-resty-codegen@latest --config oapi-codegen.yml
+
+//go:generate openapi-gen https://airflow.staged.apache.org/schemas/execution-api/2025-05-20.json
 
 func correlationIdInjector(_ *resty.Client, req *resty.Request) error {
 	if uuid, err := uuid.NewV7(); err != nil {

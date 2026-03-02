@@ -18,9 +18,9 @@
  */
 import { Field, Stack } from "@chakra-ui/react";
 import { useState } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useTranslation } from "react-i18next";
 
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
@@ -28,15 +28,18 @@ import { FieldSelector } from "./FieldSelector";
 import { isRequired } from "./isParamRequired";
 
 /** Render a normal form row with a field that is auto-selected */
-export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
-  const { paramsDict } = useParamStore();
+export const FieldRow = ({
+  name,
+  namespace = "default",
+  onUpdate: rowOnUpdate,
+}: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
+  const { paramsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const [error, setError] = useState<unknown>(
-    isRequired(param) && param.value === null ? "This field is required" : undefined,
+    isRequired(param) && param.value === null ? translate("flexibleForm.validationErrorRequired") : undefined,
   );
   const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
-
-  // console.log(param);
 
   const onUpdate = (value?: string, _error?: unknown) => {
     if (Boolean(_error)) {
@@ -45,8 +48,8 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
       rowOnUpdate(undefined, _error);
     } else if (isRequired(param) && (!Boolean(value) || value === "")) {
       setIsValid(false);
-      setError("This field is required");
-      rowOnUpdate(undefined, "This field is required");
+      setError(translate("flexibleForm.validationErrorRequired"));
+      rowOnUpdate(undefined, translate("flexibleForm.validationErrorRequired"));
     } else {
       setIsValid(true);
       setError(undefined);
@@ -62,11 +65,11 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
         </Field.Label>
       </Stack>
       <Stack css={{ flexBasis: "70%" }}>
-        <FieldSelector name={name} onUpdate={onUpdate} />
+        <FieldSelector name={name} namespace={namespace} onUpdate={onUpdate} />
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
             <Field.HelperText>
-              <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
+              <ReactMarkdown>{param.schema.description_md}</ReactMarkdown>
             </Field.HelperText>
           )
         ) : (

@@ -1,0 +1,46 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "اصل",
+      "extra": "إضافي",
+      "user": "مستخدم",
+      "when": "متى"
+    },
+    "filters": {
+      "eventType": "نوع الأصل"
+    },
+    "title": "سجل المراجعة"
+  },
+  "xcom": {
+    "add": {
+      "error": "فشل في إضافة XCom",
+      "errorTitle": "خطأ",
+      "success": "تمت إضافة XCom بنجاح",
+      "successTitle": "تمت إضافة XCom",
+      "title": "إضافة XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "مفتاح",
+      "value": "قيمة"
+    },
+    "delete": {
+      "error": "فشل في حذف XCom",
+      "errorTitle": "خطأ",
+      "success": "تم حذف XCom بنجاح",
+      "successTitle": "تم حذف XCom",
+      "title": "حذف XCom",
+      "warning": "هل أنت متأكد أنك تريد حذف هذا XCom؟ لا يمكن التراجع عن هذا الإجراء."
+    },
+    "edit": {
+      "error": "فشل في تحديث XCom",
+      "errorTitle": "خطأ",
+      "success": "تم تحديث XCom بنجاح",
+      "successTitle": "تم تحديث XCom",
+      "title": "تعديل XCom"
+    },
+    "key": "مفتاح",
+    "title": "(XCom) إكس كوم",
+    "value": "قيمة"
+  }
+}

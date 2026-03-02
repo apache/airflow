@@ -42,11 +42,14 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+         # See https://bugs.launchpad.net/lxml/+bug/2110068
+         if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
             # for uv only install dev group when we install from sources
-            export EXTRA_INSTALL_FLAGS="--group=dev"
+            export EXTRA_INSTALL_FLAGS="--group=dev --no-binary lxml --no-binary xmlsec"
         else
-            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_INSTALL_FLAGS="--no-binary lxml --no-binary xmlsec"
         fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
@@ -62,7 +65,10 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="pip"
         export PACKAGING_TOOL_CMD="pip"
-        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore --no-binary lxml,xmlsec"
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
@@ -153,12 +159,6 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
-        echo
-        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
-    fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
@@ -181,20 +181,19 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
         fi
     fi
-    if  [[ ${AIRFLOW_PRE_COMMIT_VERSION=} == "" ]]; then
+    if  [[ ${AIRFLOW_PREK_VERSION=} == "" ]]; then
         echo
-        echo "${COLOR_BLUE}Installing latest pre-commit with pre-commit-uv uv${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing latest prek, uv${COLOR_RESET}"
         echo
-        uv tool install pre-commit --with pre-commit-uv --with uv
+        uv tool install prek --with uv
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     else
         echo
-        echo "${COLOR_BLUE}Installing predefined versions of pre-commit with pre-commit-uv and uv:${COLOR_RESET}"
-        echo "${COLOR_BLUE}pre_commit(${AIRFLOW_PRE_COMMIT_VERSION}) uv(${AIRFLOW_UV_VERSION}) pre_commit-uv(${AIRFLOW_PRE_COMMIT_UV_VERSION})${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing predefined versions of prek, uv:${COLOR_RESET}"
+        echo "${COLOR_BLUE}prek(${AIRFLOW_PREK_VERSION}) uv(${AIRFLOW_UV_VERSION})${COLOR_RESET}"
         echo
-        uv tool install "pre-commit==${AIRFLOW_PRE_COMMIT_VERSION}" \
-            --with "uv==${AIRFLOW_UV_VERSION}" --with "pre-commit-uv==${AIRFLOW_PRE_COMMIT_UV_VERSION}"
+        uv tool install "prek==${AIRFLOW_PREK_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi

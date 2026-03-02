@@ -20,8 +20,6 @@ from datetime import datetime
 
 import boto3
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
@@ -31,7 +29,13 @@ from airflow.providers.amazon.aws.operators.emr import (
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.common.compat.sdk import DAG, chain
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -47,7 +51,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -122,7 +125,7 @@ with DAG(
         force_stop=True,
     )
     # [END howto_operator_emr_serverless_stop_application]
-    stop_app.waiter_check_interval_seconds = 1
+    stop_app.waiter_delay = 1
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
@@ -130,7 +133,7 @@ with DAG(
         application_id=emr_serverless_app_id,
     )
     # [END howto_operator_emr_serverless_delete_application]
-    delete_app.waiter_check_interval_seconds = 1
+    delete_app.waiter_delay = 1
     delete_app.trigger_rule = TriggerRule.ALL_DONE
 
     delete_s3_bucket = S3DeleteBucketOperator(

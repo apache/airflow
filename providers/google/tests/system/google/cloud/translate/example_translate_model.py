@@ -37,7 +37,12 @@ from airflow.providers.google.cloud.operators.translate import (
     TranslateTextOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "gcp_translate_automl_native_model"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

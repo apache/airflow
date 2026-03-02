@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-import pendulum
+from pendulum import local_timezone
 
 import airflow
 from airflow.api_fastapi.app import get_auth_manager
@@ -33,7 +33,10 @@ def init_jinja_globals(app, enable_plugins: bool):
     """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
-        server_timezone = pendulum.local_timezone().name  # type: ignore[operator]
+        if callable(local_timezone):
+            server_timezone = local_timezone().name
+        else:
+            raise ValueError("`local_timezone` is not callable")
     elif server_timezone == "utc":
         server_timezone = "UTC"
 

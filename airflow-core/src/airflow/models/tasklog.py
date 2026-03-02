@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, Text
+from datetime import datetime
 
+from sqlalchemy import Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -34,10 +37,10 @@ class LogTemplate(Base):
 
     __tablename__ = "log_template"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    filename = Column(Text, nullable=False)
-    elasticsearch_id = Column(Text, nullable=False)
-    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    elasticsearch_id: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))

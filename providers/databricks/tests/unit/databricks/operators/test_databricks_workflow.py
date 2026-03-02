@@ -21,9 +21,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -33,8 +36,6 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
-
-pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
@@ -103,7 +104,6 @@ def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_g
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = mock_task_group
     operator._hook.list_jobs.return_value = [{"job_id": 123}]
-    operator._hook.create_job.return_value = 123
 
     job_id = operator._create_or_reset_job(context)
     assert job_id == 123
@@ -135,13 +135,11 @@ def test_wait_for_job_to_start(mock_databricks_hook):
     mock_hook_instance.get_run_state.assert_called()
 
 
+@pytest.mark.db_test
 def test_execute(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = mock_task_group
-    mock_task_group.jar_params = {}
-    mock_task_group.python_params = {}
-    mock_task_group.spark_submit_params = {}
 
     mock_hook_instance = mock_databricks_hook.return_value
     mock_hook_instance.run_now.return_value = 789
@@ -218,9 +216,12 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         databricks_conn_id="databricks_conn",
         existing_clusters=[],
         extra_job_params={},
+        jar_params=[],
         job_clusters=[],
         max_concurrent_runs=1,
         notebook_params={},
+        python_params=[],
+        spark_submit_params=[],
     )
 
 

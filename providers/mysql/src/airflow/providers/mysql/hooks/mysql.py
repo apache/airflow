@@ -24,13 +24,14 @@ import logging
 from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import quote_plus, urlencode
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
@@ -130,7 +131,7 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("charset", False):
             conn_config["charset"] = conn.extra_dejson["charset"]
-            if conn_config["charset"].lower() in ("utf8", "utf-8"):
+            if str(conn_config.get("charset", "undef")).lower() in ("utf8", "utf-8"):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get("cursor", False):
             try:
@@ -248,12 +249,20 @@ class MySqlHook(DbApiHook):
         if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
             raise ValueError(f"Invalid table name: {table}")
 
+        sql_statement = f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`"
+        parameters = (tmp_file,)
         cur.execute(
-            f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
-            (tmp_file,),
+            sql_statement,
+            parameters,
         )
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql_statement,
+            sql_parameters=parameters,
+            cur=cur,
+        )
+        conn.close()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
@@ -265,12 +274,15 @@ class MySqlHook(DbApiHook):
         if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
             raise ValueError(f"Invalid table name: {table}")
 
+        sql_statement = f"SELECT * INTO OUTFILE %s FROM `{table}`"
+        parameters = (tmp_file,)
         cur.execute(
-            f"SELECT * INTO OUTFILE %s FROM `{table}`",
-            (tmp_file,),
+            sql_statement,
+            parameters,
         )
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        send_sql_hook_lineage(context=self, sql=sql_statement, sql_parameters=parameters, cur=cur)
+        conn.close()
 
     @staticmethod
     def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
@@ -330,14 +342,17 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cursor = conn.cursor()
 
+        sql_statement = f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s"
+        parameters = (tmp_file, duplicate_key_handling, extra_options)
         cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
-            (tmp_file, duplicate_key_handling, extra_options),
+            sql_statement,
+            parameters,
         )
 
+        send_sql_hook_lineage(context=self, sql=sql_statement, sql_parameters=parameters, cur=cursor)
         cursor.close()
         conn.commit()
-        conn.close()  # type: ignore[misc]
+        conn.close()
 
     def get_openlineage_database_info(self, connection):
         """Return MySQL specific information for OpenLineage."""
@@ -373,6 +388,8 @@ class MySqlHook(DbApiHook):
         # Determine URI prefix based on client
         if client_name == "mysql-connector-python":
             uri_prefix = "mysql+mysqlconnector://"
+        elif client_name == "pymysql":
+            uri_prefix = "mysql+pymysql://"
         else:  # default: mysqlclient
             uri_prefix = "mysql://"
 

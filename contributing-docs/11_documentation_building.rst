@@ -36,12 +36,12 @@ Documentation in separate distributions:
 
 Documentation for general overview and summaries not connected with any specific distribution:
 
-* ``docker-stack-docs`` - documentation for Docker Stack'
+* ``docker-stack-docs`` - documentation for Docker Stack
 * ``providers-summary-docs`` - documentation for provider summary page
 
 Each of the distributions have a ``conf.py`` file in the root of the documentation and there
 are various configuration parameters for sphinx configured in the ``conf.py`` files. A number of common
-functions in those ``conf.py`` files are imported from ``deve-common`` distribution, from ``doc`` package,
+functions in those ``conf.py`` files are imported from ``devel-common`` distribution, from ``doc`` package,
 you can also find ``sphinx_ext`` folder there that keeps extensions used during our documentation build.
 
 Building documentation with uv in local venv
@@ -50,7 +50,7 @@ Building documentation with uv in local venv
 Prerequisites
 .............
 
-*  The ``uv`` as mandatory tour
+*  `uv <https://docs.astral.sh/uv/>`_ as mandatory tool.
 
 First of all. you need to have ``uv`` installed. You can very easily build the documentation
 in your local virtualenv using ``uv`` command. Because some dependencies are not easy to be installed
@@ -62,7 +62,7 @@ that installs the documentation dependencies.
 
 .. warning::
 
-   At least until we manage to workaround it you need to uese at most Python 3.11 to build documentation for
+   At least until we manage to workaround it you need to use at most Python 3.11 to build documentation for
    some packages (``samba`` and ``google``).
 
    When you try to build docs locally (at least on MacOS) with Python 3.12, you get
@@ -116,15 +116,15 @@ Building the documentation
 ..........................
 
 In Airflow 3 the documentation is placed closely to where source code is placed (in most distribution
-packages it is in the ``doc`` subfolder of a distribution you want to build the documentation for.
-Some distributions do not have ``docs``subfolder - when they are ``doc-only``. The ``build-doc`` script
-is installed automatically from ``devel-common` distribution and available to run using ``uv run``
+packages, its documentation is in the ``doc`` subfolder).
+Some distributions do not have ``docs`` subfolder - when they are ``doc-only``. The ``build-doc`` script
+is installed automatically from ``devel-common`` distribution and available to run using ``uv run``
 command (or directly ``build-docs`` inside the ``breeze`` container). This script will automatically
 detect which distribution you are in and build the documentation for it.
 
 .. note::
 
-    You can also run all those commands directly (without ``uv run --group-doc``) inside ``breeze``
+    You can also run all those commands directly (without ``uv run --group docs``) inside ``breeze``
     container, because there all dependencies are already installed and there is no need to
     sync dependencies.
 

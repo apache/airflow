@@ -75,6 +75,7 @@ Extra (optional)
       - ``namedtuplecursor``: Returns query results as named tuples using ``psycopg2.extras.NamedTupleCursor``.
 
       For more information, refer to the psycopg2 documentation on `connection and cursor subclasses <https://www.psycopg.org/docs/extras.html#connection-and-cursor-subclasses>`_.
+      If using psycopg (v3), refer to the documentation on `connection classes <https://www.psycopg.org/psycopg3/docs/api/connections.html>`_.
 
     More details on all Postgres parameters supported can be found in
     `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.
@@ -95,7 +96,9 @@ Extra (optional)
     * ``iam`` - If set to ``True`` than use AWS IAM database authentication for
       `Amazon RDS <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html>`__,
       `Amazon Aurora <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html>`__
-      or `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__.
+      `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__
+      or use Microsoft Entra Authentication for
+      `Azure Postgres Flexible Server <https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/security-entra-concepts>`__.
     * ``aws_conn_id`` - AWS Connection ID which use for authentication via AWS IAM,
       if not specified then **aws_default** is used.
     * ``redshift`` - Used when AWS IAM database authentication enabled.
@@ -103,6 +106,8 @@ Extra (optional)
     * ``cluster-identifier`` - The unique identifier of the Amazon Redshift Cluster that contains the database
       for which you are requesting credentials. This parameter is case sensitive.
       If not specified than hostname from **Connection Host** is used.
+    * ``azure_conn_id`` - Azure Connection ID to be used for authentication via Azure Entra ID. Azure Oauth token
+      is retrieved from the azure connection which is used as password for PostgreSQL connection. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[postgres]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
 
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 
@@ -122,6 +127,15 @@ Extra (optional)
           "aws_conn_id": "aws_awesome_redshift_conn",
           "redshift": "/tmp/server-ca.pem",
           "cluster-identifier": "awesome-redshift-identifier"
+       }
+
+    Example "extras" field (to use Azure Entra Authentication for Postgres Flexible Server):
+
+    .. code-block:: json
+
+       {
+          "iam": true,
+          "azure_conn_id": "azure_default_conn"
        }
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it

@@ -23,8 +23,8 @@ from typing import Any
 
 from github import GithubException
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.providers.github.sensors.github import GithubSensor, GithubTagSensor
 
@@ -61,7 +61,7 @@ with DAG(
                 all_tags = [x.name for x in repo.get_tags()]
                 result = tag_name in all_tags
 
-        except GithubException as github_error:  # type: ignore[misc]
+        except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
         except Exception as e:
             raise AirflowException(f"GitHub operator error: {e}")

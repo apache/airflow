@@ -20,12 +20,11 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Developer commands",
     "commands": [
         "start-airflow",
-        "static-checks",
         "build-docs",
         "down",
         "shell",
         "exec",
-        "compile-ui-assets",
+        "run",
         "cleanup",
         "generate-migration-file",
         "doctor",
@@ -39,6 +38,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
+                "--auth-manager",
             ],
         },
         {
@@ -64,7 +64,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -85,6 +84,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-default-connections",
                 "--standalone-dag-processor",
                 "--start-api-server-with-examples",
+                "--auth-manager",
             ],
         },
         {
@@ -130,7 +130,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -147,8 +146,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--airflow-skip-constraints",
                 "--clean-airflow-installation",
+                "--force-lowest-dependencies",
+                "--test-type",
                 "--excluded-providers",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
@@ -158,6 +158,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--mount-ui-dist",
+                "--allow-pre-releases",
                 "--use-distributions-from-dist",
                 "--install-airflow-python-client",
             ],
@@ -166,6 +168,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Upgrading/downgrading/removing selected packages",
             "options": [
                 "--upgrade-boto",
+                "--upgrade-sqlalchemy",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
             ],
@@ -188,15 +191,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze compile-ui-assets": [
-        {
-            "name": "Compile ui assets flag",
-            "options": [
-                "--dev",
-                "--force-clean",
-            ],
-        }
-    ],
     "breeze start-airflow": [
         {
             "name": "Execution mode",
@@ -205,6 +199,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
+                "--terminal-multiplexer",
+                "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -235,12 +231,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Auth manager",
-            "options": [
-                "--auth-manager",
-            ],
-        },
-        {
             "name": "Asset compilation options",
             "options": [
                 "--skip-assets-compilation",
@@ -254,7 +244,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--uv-http-timeout",
             ],
         },
         {
@@ -270,8 +259,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
-                "--airflow-skip-constraints",
                 "--clean-airflow-installation",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--distribution-format",
                 "--providers-constraints-location",
@@ -279,18 +268,59 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--mount-ui-dist",
+                "--allow-pre-releases",
                 "--use-distributions-from-dist",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": ["--forward-credentials", "--create-all-roles"],
+        },
+        {
+            "name": "Debugging options",
+            "options": ["--debug", "--debugger"],
+        },
+    ],
+    "breeze exec": [
+        {"name": "Drops in the interactive shell of active airflow container"},
+    ],
+    "breeze run": [
+        {
+            "name": "Command execution",
+            "options": [
+                "--python",
+                "--backend",
+                "--postgres-version",
+                "--mysql-version",
+                "--forward-ports",
+                "--tty",
+            ],
+        },
+        {
+            "name": "Build CI image (before running command)",
+            "options": [
+                "--force-build",
+                "--platform",
+                "--github-repository",
+                "--builder",
+                "--use-uv",
+            ],
+        },
+        {
+            "name": "Docker Compose project management",
+            "options": [
+                "--project-name",
+                "--docker-host",
             ],
         },
         {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--skip-image-upgrade-check",
             ],
         },
-    ],
-    "breeze exec": [
-        {"name": "Drops in the interactive shell of active airflow container"},
     ],
     "breeze down": [
         {
@@ -330,36 +360,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
-            ],
-        },
-    ],
-    "breeze static-checks": [
-        {
-            "name": "Pre-commit flags",
-            "options": [
-                "--type",
-                "--show-diff-on-failure",
-                "--initialize-environment",
-                "--max-initialization-attempts",
-            ],
-        },
-        {
-            "name": "Selecting files to run the checks on",
-            "options": [
-                "--file",
-                "--all-files",
-                "--commit-ref",
-                "--last-commit",
-                "--only-my-changes",
-            ],
-        },
-        {
-            "name": "Building image before running checks",
-            "options": [
-                "--skip-image-upgrade-check",
-                "--force-build",
-                "--github-repository",
-                "--builder",
             ],
         },
     ],

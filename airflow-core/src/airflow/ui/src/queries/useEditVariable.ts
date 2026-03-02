@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePatchVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -33,6 +34,7 @@ export const useEditVariable = (
 ) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "admin"]);
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -40,8 +42,12 @@ export const useEditVariable = (
     });
 
     toaster.create({
-      description: "Variable has been edited successfully",
-      title: "Variable Edit Request Submitted",
+      description: translate("toaster.update.success.description", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
+      title: translate("toaster.update.success.title", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
       type: "success",
     });
 
@@ -57,24 +63,28 @@ export const useEditVariable = (
     onSuccess,
   });
 
-  const editVariable = (addVariableRequestBody: VariableBody) => {
+  const editVariable = (editVariableRequestBody: VariableBody) => {
     const updateMask: Array<string> = [];
 
-    if (addVariableRequestBody.value !== initialVariable.value) {
+    if (editVariableRequestBody.value !== initialVariable.value) {
       updateMask.push("value");
     }
-    if (addVariableRequestBody.description !== initialVariable.description) {
+    if (editVariableRequestBody.description !== initialVariable.description) {
       updateMask.push("description");
+    }
+    if (editVariableRequestBody.team_name !== initialVariable.team_name) {
+      updateMask.push("team_name");
     }
 
     const parsedDescription =
-      addVariableRequestBody.description === "" ? undefined : addVariableRequestBody.description;
+      editVariableRequestBody.description === "" ? undefined : editVariableRequestBody.description;
 
     mutate({
       requestBody: {
         description: parsedDescription,
-        key: addVariableRequestBody.key,
-        value: addVariableRequestBody.value,
+        key: editVariableRequestBody.key,
+        team_name: editVariableRequestBody.team_name,
+        value: editVariableRequestBody.value,
       },
       updateMask,
       variableKey: initialVariable.key,

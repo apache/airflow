@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Heading, HStack } from "@chakra-ui/react";
+import { Button, Heading, HStack, Text } from "@chakra-ui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 
 type DeleteDialogProps = {
   readonly deleteButtonText?: string;
@@ -47,7 +47,14 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
+    <Dialog.Root
+      data-testid="delete-dialog"
+      lazyMount
+      onOpenChange={onClose}
+      open={open}
+      size="md"
+      unmountOnExit
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
@@ -55,16 +62,21 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
         <Dialog.CloseTrigger />
         <Dialog.Body>
           <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
-          <Text color="red.500" fontWeight="bold" mt={4}>
+          <Text color="fg.error" fontWeight="bold" mt={4}>
             {warningText}
           </Text>
         </Dialog.Body>
         <Dialog.Footer>
           <HStack justifyContent="flex-end" width="100%">
-            <Button onClick={onClose} variant="outline">
+            <Button data-testid="delete-cancel-button" onClick={onClose} variant="outline">
               {translate("modal.cancel")}
             </Button>
-            <Button colorPalette="red" loading={isDeleting} onClick={onDelete}>
+            <Button
+              colorPalette="danger"
+              data-testid="delete-confirm-button"
+              loading={isDeleting}
+              onClick={onDelete}
+            >
               <FiTrash2 style={{ marginRight: "8px" }} />{" "}
               {deleteButtonText ?? translate("modal.delete.button")}
             </Button>

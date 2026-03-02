@@ -20,7 +20,7 @@ import pytest
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
 
-pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
+pytest.importorskip("airflow.providers.common.messaging.providers.base_provider")
 
 MOCK_KAFKA_TRIGGER_APPLY_FUNCTION = "mock_kafka_trigger_apply_function"
 
@@ -41,7 +41,7 @@ class TestKafkaMessageQueueProvider:
         assert isinstance(self.provider, BaseMessageQueueProvider)
 
     @pytest.mark.parametrize(
-        "queue_uri, expected_result",
+        ("queue_uri", "expected_result"),
         [
             pytest.param("kafka://localhost:9092/topic1", True, id="single_broker_single_topic"),
             pytest.param(
@@ -55,12 +55,25 @@ class TestKafkaMessageQueueProvider:
         """Test the queue_matches method with various URLs."""
         assert self.provider.queue_matches(queue_uri) == expected_result
 
+    @pytest.mark.parametrize(
+        ("scheme", "expected_result"),
+        [
+            pytest.param("kafka", True, id="kafka_scheme"),
+            pytest.param("redis+pubsub", False, id="redis_scheme"),
+            pytest.param("sqs", False, id="sqs_scheme"),
+            pytest.param("unknown", False, id="unknown_scheme"),
+        ],
+    )
+    def test_scheme_matches(self, scheme, expected_result):
+        """Test the scheme_matches method with various schemes."""
+        assert self.provider.scheme_matches(scheme) == expected_result
+
     def test_trigger_class(self):
         """Test the trigger_class method."""
         assert self.provider.trigger_class() == AwaitMessageTrigger
 
     @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_result",
+        ("queue_uri", "extra_kwargs", "expected_result"),
         [
             pytest.param(
                 "kafka://broker:9092/topic1,topic2",
@@ -82,7 +95,7 @@ class TestKafkaMessageQueueProvider:
         assert kwargs == expected_result
 
     @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_error, error_match",
+        ("queue_uri", "extra_kwargs", "expected_error", "error_match"),
         [
             pytest.param(
                 "kafka://broker:9092/topic1",

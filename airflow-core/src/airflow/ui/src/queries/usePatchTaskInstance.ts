@@ -17,26 +17,21 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePatchTaskInstance,
+  UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetGridTiSummariesKeyFn,
+  useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
-
-const onError = () => {
-  toaster.create({
-    description: "Patch Task Instance request failed",
-    title: "Failed to patch the Task Instance",
-    type: "error",
-  });
-};
 
 export const usePatchTaskInstance = ({
   dagId,
@@ -52,15 +47,41 @@ export const usePatchTaskInstance = ({
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
 
-  const onSuccessFn = async () => {
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("toaster.update.error", {
+        resourceName: translate("taskInstance_one"),
+      }),
+      type: "error",
+    });
+  };
+
+  const onSuccessFn = async (
+    _: unknown,
+    variables: {
+      dagId: string;
+      dagRunId: string;
+      requestBody: { include_future?: boolean; include_past?: boolean };
+      taskId: string;
+    },
+  ) => {
+    // Check if this patch operation affects multiple DAG runs
+    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
+    const affectsMultipleRuns = includeFuture === true || includePast === true;
+
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      affectsMultipleRuns
+        ? [useGridServiceGetGridTiSummariesKey, { dagId }]
+        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

@@ -21,15 +21,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState
 from airflow.providers.apache.livy.operators.livy import LivyOperator
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
-
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 BATCH_ID = 100
@@ -39,10 +36,11 @@ LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 
 
 class TestLivyOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"
             )
@@ -556,7 +554,10 @@ class TestLivyOperator:
             operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
             operator.execute(MagicMock())
 
-            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+            assert (
+                "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
         assert operator.spark_params["conf"] == {}
 
 
@@ -587,8 +588,7 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: LivyOperator = ti.task
+    task = ti.render_templates()
     assert task.spark_params == {
         "archives": "literal-archives",
         "args": "literal-args",

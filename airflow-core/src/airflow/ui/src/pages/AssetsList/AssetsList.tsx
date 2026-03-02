@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link, VStack } from "@chakra-ui/react";
+import { Box, Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
@@ -26,17 +26,21 @@ import type { AssetResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
-import { pluralize } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const columns: Array<ColumnDef<AssetResponse>> = [
+const createColumns = (
+  translate: (key: string) => string,
+  open?: boolean,
+): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -44,7 +48,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
       </Link>
     ),
-    header: () => "Name",
+    header: () => translate("name"),
   },
   {
     accessorKey: "last_asset_event",
@@ -59,21 +63,21 @@ const columns: Array<ColumnDef<AssetResponse>> = [
       return <Time datetime={timestamp} />;
     },
     enableSorting: false,
-    header: () => "Last Asset Event",
+    header: () => translate("lastAssetEvent"),
   },
   {
     accessorKey: "group",
     enableSorting: false,
-    header: () => "Group",
+    header: () => translate("group"),
   },
   {
-    accessorKey: "consuming_dags",
+    accessorKey: "scheduled_dags",
     cell: ({ row: { original } }: AssetRow) =>
-      original.consuming_dags.length ? (
-        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+      original.scheduled_dags.length ? (
+        <DependencyPopover dependencies={original.scheduled_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Consuming Dags",
+    header: () => translate("scheduledDags"),
   },
   {
     accessorKey: "producing_tasks",
@@ -82,27 +86,45 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <DependencyPopover dependencies={original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Producing Tasks",
+    header: () => translate("producingTasks"),
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => <CreateAssetEvent asset={row.original} withText={false} />,
+    cell: ({ row }) => <CreateAssetEvent asset={row.original} />,
     enableSorting: false,
     header: "",
   },
+  {
+    accessorKey: "extra",
+    cell: ({ row: { original } }) => {
+      if (original.extra !== null) {
+        return <RenderedJsonField content={original.extra ?? {}} jsonProps={{ collapsed: !open }} />;
+      }
+
+      return undefined;
+    },
+    enableSorting: false,
+    header: translate("extra"),
+    meta: {
+      skeletonWidth: 200,
+    },
+  },
 ];
 
-const NAME_PATTERN_PARAM = SearchParamsKeys.NAME_PATTERN;
+const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
 
 export const AssetsList = () => {
+  const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const namePattern = searchParams.get(NAME_PATTERN) ?? "";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
+
+  const { onClose, onOpen, open } = useDisclosure();
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
@@ -111,33 +133,42 @@ export const AssetsList = () => {
     orderBy,
   });
 
+  const columns = createColumns(translate, open);
+
   const handleSearchChange = (value: string) => {
-    if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
-    } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
-    }
-    setSearchParams(searchParams);
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
-    setNamePattern(value);
+    if (value) {
+      searchParams.set(NAME_PATTERN, value);
+    } else {
+      searchParams.delete(NAME_PATTERN);
+    }
+    searchParams.delete(OFFSET);
+    setSearchParams(searchParams);
   };
 
   return (
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
-          defaultValue={namePattern ?? ""}
+          defaultValue={namePattern}
           onChange={handleSearchChange}
-          placeHolder="Search Assets"
+          placeholder={translate("searchPlaceholder")}
         />
 
-        <Heading py={3} size="md">
-          {pluralize("Asset", data?.total_entries)}
-        </Heading>
+        <Flex alignItems="center" justifyContent="space-between">
+          <Heading py={3} size="md">
+            {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
+          </Heading>
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
+        </Flex>
       </VStack>
       <Box overflow="auto">
         <DataTable
@@ -146,8 +177,9 @@ export const AssetsList = () => {
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName="Asset"
+          modelName="common:asset"
           onStateChange={setTableURLState}
+          showRowCountHeading={false}
           total={data?.total_entries}
         />
       </Box>

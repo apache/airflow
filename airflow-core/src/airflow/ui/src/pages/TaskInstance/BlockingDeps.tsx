@@ -17,17 +17,30 @@
  * under the License.
  */
 import { Box, Table, Heading } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetTaskInstanceDependencies } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
-  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies({
-    dagId: taskInstance.dag_id,
-    dagRunId: taskInstance.dag_run_id,
-    mapIndex: taskInstance.map_index,
-    taskId: taskInstance.task_id,
-  });
+type BlockingDepsProps = {
+  readonly refetchInterval: number | false;
+  readonly taskInstance: TaskInstanceResponse;
+};
+
+export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProps) => {
+  const { t: translate } = useTranslation("dag");
+  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies(
+    {
+      dagId: taskInstance.dag_id,
+      dagRunId: taskInstance.dag_run_id,
+      mapIndex: taskInstance.map_index,
+      taskId: taskInstance.task_id,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   if (data === undefined || data.dependencies.length < 1) {
     return undefined;
@@ -36,13 +49,13 @@ export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInst
   return (
     <Box flexGrow={1} mt={3}>
       <Heading py={2} size="sm">
-        Dependencies Blocking Task From Getting Scheduled
+        {translate("blockingDeps.title")}
       </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.ColumnHeader>Dependency</Table.ColumnHeader>
-            <Table.ColumnHeader>Reason</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.dependency")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.reason")}</Table.ColumnHeader>
           </Table.Row>
           {data.dependencies.map((dep) => (
             <Table.Row key={dep.name}>

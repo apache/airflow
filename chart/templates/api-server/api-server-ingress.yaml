@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Ingress
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
@@ -55,7 +55,7 @@ spec:
   {{- if .tls }}
   {{- if .tls.enabled }}
     - hosts:
-        - {{ .name | quote }}
+        - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
   {{- end }}
   {{- end }}
@@ -64,7 +64,9 @@ spec:
   {{- else if .Values.ingress.apiServer.tls.enabled }}
   tls:
     - hosts:
-        {{- .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) | toYaml | nindent 8 }}
+        {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+        - {{ tpl . $ | quote }}
+        {{- end }}
       secretName: {{ .Values.ingress.apiServer.tls.secretName }}
   {{- end }}
   rules:
@@ -76,7 +78,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}
@@ -94,7 +96,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}

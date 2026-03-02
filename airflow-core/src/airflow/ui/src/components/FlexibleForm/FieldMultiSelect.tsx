@@ -18,6 +18,7 @@
  */
 import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
@@ -31,8 +32,9 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) => {
-  const { paramsDict, setParamsDict } = useParamStore();
+export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
   // Initialize `selectedOptions` directly from `paramsDict`
@@ -69,18 +71,22 @@ export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) =
 
   return (
     <ReactSelect
-      aria-label="Select one or multiple values"
+      aria-label={translate("flexibleForm.placeholderMulti")}
       id={`element_${name}`}
       isClearable
+      isDisabled={disabled}
       isMulti
       name={`element_${name}`}
       onChange={handleChange}
       options={
-        param.schema.examples?.map((value) => ({
-          label: labelLookup(value, param.schema.values_display),
-          value,
-        })) ?? []
+        (param.schema.examples ?? param.schema.enum)
+          ?.filter((value): value is boolean | number | string => value !== null)
+          .map((value) => ({
+            label: labelLookup(String(value), param.schema.values_display),
+            value: String(value),
+          })) ?? []
       }
+      placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"
       value={selectedOptions}
     />

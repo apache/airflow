@@ -17,9 +17,11 @@
  * under the License.
  */
 import { Flex, type FlexProps } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
+import { BasicTooltip } from "src/components/BasicTooltip";
 
 type Props = {
   readonly dagId: string;
@@ -41,39 +43,53 @@ export const GridButton = ({
   state,
   taskId,
   ...rest
-}: Props) =>
-  isGroup ? (
-    <Flex
-      background={`${state}.solid`}
-      borderRadius={2}
-      height="10px"
-      minW="14px"
-      pb="2px"
-      px="2px"
-      title={`${label}\n${state}`}
-      {...rest}
-    >
-      {children}
-    </Flex>
-  ) : (
-    <Link
-      replace
-      to={{
-        pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-        search: searchParams.toString(),
-      }}
-    >
+}: Props) => {
+  const { t: translate } = useTranslation();
+
+  const tooltipContent = (
+    <>
+      {label}
+      <br />
+      {translate("state")}:{" "}
+      {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+    </>
+  );
+
+  return isGroup ? (
+    <BasicTooltip content={tooltipContent}>
       <Flex
         background={`${state}.solid`}
         borderRadius={2}
         height="10px"
+        minW="14px"
         pb="2px"
         px="2px"
-        title={`${label}\n${state}`}
-        width="14px"
         {...rest}
       >
         {children}
       </Flex>
-    </Link>
+    </BasicTooltip>
+  ) : (
+    <BasicTooltip content={tooltipContent}>
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+          search: searchParams.toString(),
+        }}
+      >
+        <Flex
+          background={`${state}.solid`}
+          borderRadius={2}
+          height="10px"
+          pb="2px"
+          px="2px"
+          width="14px"
+          {...rest}
+        >
+          {children}
+        </Flex>
+      </Link>
+    </BasicTooltip>
   );
+};

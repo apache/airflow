@@ -20,7 +20,10 @@ import warnings
 from collections.abc import Sequence
 from typing import Any
 
-from airflow.utils.types import NOTSET
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET
+except ImportError:
+    from airflow.utils.types import NOTSET  # type: ignore[attr-defined,no-redef]
 
 
 class ConnectionExtraConfig:

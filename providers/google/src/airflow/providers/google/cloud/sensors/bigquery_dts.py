@@ -25,15 +25,14 @@ from typing import TYPE_CHECKING
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):

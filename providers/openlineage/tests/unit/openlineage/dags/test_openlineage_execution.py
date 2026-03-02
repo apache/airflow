@@ -21,8 +21,8 @@ import datetime
 import time
 
 from airflow.models.dag import DAG
-from airflow.models.operator import BaseOperator
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 

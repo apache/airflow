@@ -24,47 +24,53 @@
 Apache Kafka Message Queue
 ==========================
 
-
 Apache Kafka Queue Provider
 ---------------------------
 
 Implemented by :class:`~airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider`
 
 
-The Apache Kafka Queue Provider is a message queue provider that uses
+The Apache Kafka Queue Provider is a :class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider` that uses
 Apache Kafka as the underlying message queue system.
-It allows you to send and receive messages using Kafka topics in your Airflow workflows.
-The provider supports Kafka topics and provides features for consuming and processing
-messages from Kafka brokers.
+It allows you to send and receive messages using Kafka topics in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
-The queue must be matching this regex:
 
-.. exampleinclude:: /../src/airflow/providers/apache/kafka/queues/kafka.py
+.. include:: /../src/airflow/providers/apache/kafka/queues/kafka.py
+    :start-after: [START kafka_message_queue_provider_description]
+    :end-before: [END kafka_message_queue_provider_description]
+
+
+.. _howto/triggers:KafkaMessageQueueTrigger:
+
+Apache Kafka Message Queue Trigger
+----------------------------------
+
+Implemented by :class:`~airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger`
+
+Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger`
+
+Wait for a message in a queue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of how you can configure an Airflow Dag to be triggered by a message in Apache Kafka.
+
+.. exampleinclude:: /../tests/system/apache/kafka/example_dag_kafka_message_queue_trigger.py
     :language: python
-    :dedent: 0
-    :start-after: [START queue_regexp]
-    :end-before: [END queue_regexp]
+    :start-after: [START howto_trigger_message_queue]
+    :end-before: [END howto_trigger_message_queue]
 
-Queue URI Format:
 
-.. code-block:: text
+How it works
+------------
 
-    kafka://<broker>/<topic_list>
+1. **Kafka Message Queue Trigger**: The ``KafkaMessageQueueTrigger`` listens for messages from Apache Kafka Topic(s).
 
-Where:
+2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the Kafka queue in this example.
+The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
+asset.
 
-- ``broker``: Kafka brokers (hostname:port)
-- ``topic_list``: Comma-separated list of Kafka topics to consume messages from
+3. **Event-Driven Dag**: Instead of running on a fixed schedule, the Dag executes when the asset receives an update
+(e.g., a new message in the queue).
 
-The ``queue`` parameter is used to configure the underlying
-:class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger` class and
-passes all kwargs directly to the trigger constructor, if provided.
-The ``apply_function`` kwarg is **required**.
-
-Topics can also be specified via the Queue URI instead of the ``topics`` kwarg. The provider will extract topics from the URI as follows:
-
-.. exampleinclude:: /../src/airflow/providers/apache/kafka/queues/kafka.py
-    :language: python
-    :dedent: 0
-    :start-after: [START extract_topics]
-    :end-before: [END extract_topics]
+For how to use the trigger, refer to the documentation of the
+:ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`

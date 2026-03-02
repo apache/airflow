@@ -74,7 +74,7 @@ In the case of conflicts, the order of precedence from lowest to highest is:
    provided.
 
 .. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(executor_config)``
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -134,8 +134,8 @@ ECS Executor, this role needs to have at least the
 ``AmazonECSTaskExecutionRolePolicy`` as well as the
 ``CloudWatchLogsFullAccess`` (or ``CloudWatchLogsFullAccessV2``) policies. The Task Role is the role that is
 used by the containers to make AWS API requests. This role needs to have
-permissions based on the tasks that are described in the DAG being run.
-If you are loading DAGs via an S3 bucket, this role needs to have
+permissions based on the tasks that are described in the Dag being run.
+If you are loading Dags via an S3 bucket, this role needs to have
 permission to read the S3 bucket.
 
 To create a new Task Role or Task Execution Role, follow the steps

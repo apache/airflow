@@ -21,7 +21,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -74,7 +73,6 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
     option_version_suffix,
 )
@@ -126,7 +124,7 @@ if TYPE_CHECKING:
 @click.group(
     cls=BreezeGroup, name="ci-image", help="Tools that developers can use to manually manage CI images"
 )
-def ci_image():
+def ci_image_group():
     pass
 
 
@@ -177,7 +175,7 @@ def run_build_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images built correctly",
+        success_message="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -189,35 +187,13 @@ def prepare_for_building_ci_image(params: BuildCiParams):
     make_sure_builder_configured(params=params)
 
 
-def build_timout_handler(build_process_group_id: int, signum, frame):
-    # Kill the forked process group - it will kill the build even if it is running in parallel
-    # with multiple processes and docker build sessions
-    os.killpg(build_process_group_id, signal.SIGTERM)
-    os.waitpid(build_process_group_id, 0)
-    # give the output a little time to flush so that the helpful error message is not hidden
-    time.sleep(5)
-    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-        get_console().print("::endgroup::")
-    get_console().print()
-    sys.exit(1)
-
-
 def kill_process_group(build_process_group_id: int):
     with contextlib.suppress(OSError):
         os.killpg(build_process_group_id, signal.SIGTERM)
 
 
 def get_exitcode(status: int) -> int:
-    # In Python 3.9+ we will be able to use
-    # os.waitstatus_to_exitcode(status) - see https://github.com/python/cpython/issues/84275
-    # but until then we need to do this ugly conversion
-    if os.WIFSIGNALED(status):
-        return -os.WTERMSIG(status)
-    if os.WIFEXITED(status):
-        return os.WEXITSTATUS(status)
-    if os.WIFSTOPPED(status):
-        return -os.WSTOPSIG(status)
-    return 1
+    return os.waitstatus_to_exitcode(status)
 
 
 option_upgrade_to_newer_dependencies = click.option(
@@ -258,7 +234,7 @@ option_ci_image_file_to_load = click.option(
 )
 
 
-@ci_image.command(name="build")
+@ci_image_group.command(name="build")
 @option_additional_airflow_extras
 @option_additional_dev_apt_command
 @option_additional_dev_apt_deps
@@ -296,7 +272,6 @@ option_ci_image_file_to_load = click.option(
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 @option_version_suffix
 def build(
@@ -335,7 +310,6 @@ def build(
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
-    uv_http_timeout: int,
     version_suffix: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -382,7 +356,6 @@ def build(
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         version_suffix=version_suffix,
     )
     if platform:
@@ -427,7 +400,7 @@ def build(
         run_build(ci_image_params=base_build_params)
 
 
-@ci_image.command(name="pull")
+@ci_image_group.command(name="pull")
 @option_python
 @option_run_in_parallel
 @option_parallelism
@@ -528,14 +501,14 @@ def run_verify_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images verified",
+        success_message="All images verified",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
     )
 
 
-@ci_image.command(name="save")
+@ci_image_group.command(name="save")
 @option_ci_image_file_to_save
 @option_github_repository
 @option_image_file_dir
@@ -574,7 +547,7 @@ def save(
         sys.exit(result.returncode)
 
 
-@ci_image.command(name="load")
+@ci_image_group.command(name="load")
 @option_ci_image_file_to_load
 @option_dry_run
 @option_from_run
@@ -590,7 +563,7 @@ def load(
     from_run: str | None,
     from_pr: str | None,
     github_repository: str,
-    github_token: str,
+    github_token: str | None,
     image_file: Path | None,
     image_file_dir: Path,
     platform: str,
@@ -624,6 +597,13 @@ def load(
         )
         sys.exit(1)
 
+    if from_run or from_pr and not github_token:
+        get_console().print(
+            "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
+            "provided. Exiting.[/]"
+        )
+        sys.exit(1)
+
     if from_run:
         download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
     elif from_pr:
@@ -646,7 +626,7 @@ def load(
     mark_image_as_rebuilt(ci_image_params=build_ci_params)
 
 
-@ci_image.command(
+@ci_image_group.command(
     name="verify",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -841,9 +821,7 @@ def run_build_ci_image(
         process = subprocess.run(
             [
                 sys.executable,
-                os.fspath(
-                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
-                ),
+                os.fspath(AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"),
             ],
             check=False,
         )
@@ -933,7 +911,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
             sys.exit(return_code)
 
 
-@ci_image.command(name="export-mount-cache")
+@ci_image_group.command(name="export-mount-cache")
 @click.option(
     "--cache-file",
     required=True,
@@ -948,13 +926,13 @@ def export_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = f"""
     # syntax=docker/dockerfile:1.4
-    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-bookworm-slim
+    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-debian-slim
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
@@ -998,7 +976,7 @@ def export_mount_cache(
     get_console().print(f"[success]Exported mount cache to {cache_file}[/]")
 
 
-@ci_image.command(name="import-mount-cache")
+@ci_image_group.command(name="import-mount-cache")
 @click.option(
     "--cache-file",
     required=True,
@@ -1013,13 +991,13 @@ def import_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.9-slim-bookworm
+    FROM python:3.10-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz
@@ -1062,6 +1040,7 @@ def import_mount_cache(
     get_console().print("[info]Built temporary image and copied cache[/]")
     get_console().print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
+    run_command(["docker", "system", "prune", "-f"], check=True)
     get_console().print("[info]Built temporary image and copying context[/]")
     get_console().print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()

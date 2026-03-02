@@ -20,20 +20,17 @@ from __future__ import annotations
 
 import inspect
 import logging
-import logging.config
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook, resolve_dialects
-from airflow.utils.session import provide_session
 
 from tests_common.test_utils.common_sql import mock_db_hook
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -49,15 +46,18 @@ class DBApiHookForTests(DbApiHook):
     get_conn = MagicMock(name="conn")
 
 
-@provide_session
 @pytest.fixture(autouse=True)
-def create_connection(session):
-    conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-    conn.host = HOST
-    conn.login = None
-    conn.password = PASSWORD
-    conn.extra = None
-    session.commit()
+def create_connection(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="sqlite",
+            host=HOST,
+            login=None,
+            password=PASSWORD,
+            extra=None,
+        )
+    )
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
@@ -69,8 +69,16 @@ index = 0
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -225,7 +233,6 @@ def test_query(
 
 class TestDbApiHook:
     def setup_method(self, **kwargs):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = True
 
     @pytest.mark.db_test
@@ -239,9 +246,8 @@ class TestDbApiHook:
     )
     def test_no_query(self, empty_statement):
         dbapi_hook = mock_db_hook(DbApiHook)
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             dbapi_hook.run(sql=empty_statement)
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):
@@ -311,7 +317,7 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("test_default_df_type", pd.DataFrame),
             ("pandas", pd.DataFrame),
@@ -326,3 +332,49 @@ class TestDbApiHook:
         else:
             df = dbapi_hook.get_df("SQL", df_type=df_type)
             assert isinstance(df, expected_type)
+
+
+class TestDbApiHookGetTableSchema:
+    @pytest.mark.db_test
+    def test_get_table_schema(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "id", "type": "INTEGER", "nullable": True},
+            {"name": "name", "type": "VARCHAR(255)", "nullable": False},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_schema("users")
+
+        assert result == [
+            {"name": "id", "type": "INTEGER"},
+            {"name": "name", "type": "VARCHAR(255)"},
+        ]
+        mock_inspector.get_columns.assert_called_once_with("users", schema=None)
+
+    @pytest.mark.db_test
+    def test_get_table_schema_with_schema(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock()
+        mock_inspector.get_columns.return_value = [
+            {"name": "col1", "type": "TEXT"},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            dbapi_hook.get_table_schema("my_table", schema="my_schema")
+
+        mock_inspector.get_columns.assert_called_once_with("my_table", schema="my_schema")
+
+
+def test_inspector_is_cached():
+    """inspector should return the same object on repeated access (not create N engines)."""
+    hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+    mock_engine = MagicMock()
+    with patch.object(hook, "get_sqlalchemy_engine", return_value=mock_engine) as mock_get_engine:
+        inspector1 = hook.inspector
+        inspector2 = hook.inspector
+        assert inspector1 is inspector2
+        mock_get_engine.assert_called_once()

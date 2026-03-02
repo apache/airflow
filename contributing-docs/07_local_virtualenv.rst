@@ -34,7 +34,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.9, 3.10, 3.11, 3.12)
+* Python (One of: 3.10, 3.11, 3.12, 3.13)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -70,7 +70,7 @@ The ``uv`` utility is a build frontend tool that is designed to manage python, v
 and testing of Python projects. It is a modern tool that is designed to work with PEP 517/518 compliant projects
 and it is much faster than "reference" ``pip`` tool. It has extensive support to not only create development
 environment but also to manage python versions, development environments, workspaces and Python tools used
-to develop Airflow (via ``uv tool`` command - such as ``pre-commit`` and others, you can also use ``uv tool``
+to develop Airflow (via ``uv tool`` command - such as ``prek`` and others, you can also use ``uv tool``
 to install ``breeze`` - containerized development environment for Airflow that we use to reproduce the
 CI environment locally and to run release-management and certain development tasks.
 
@@ -100,11 +100,11 @@ Installing Python versions
 
    This step can be skipped - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
-You can install Python versions using ``uv python install`` command. For example, to install Python 3.9.7, you can run:
+You can install Python versions using ``uv python install`` command. For example, to install Python 3.10.7, you can run:
 
 .. code:: bash
 
-    uv python install 3.9.7
+    uv python install 3.10.7
 
 This is optional step - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
@@ -124,7 +124,7 @@ with a specific Python version by running:
 
 .. code:: bash
 
-    uv venv --python 3.9.7
+    uv venv --python 3.10.7
 
 You can also create a venv with a different venv directory name by running:
 
@@ -247,7 +247,7 @@ dependencies, and sometimes ``development dependencies`` (in ``dev`` dependency 
 to run tests and are installed automatically when you install environment with ``uv-sync``.
 
 If you want to add another dependency to a provider, you should add it to corresponding ``pyproject.toml``,
-add the files to your commit with ``git add`` and run ``pre-commit run`` to update generated dependencies.
+add the files to your commit with ``git add`` and run ``prek`` to update generated dependencies.
 Note that in the future we will remove that step.
 
 For ``uv`` it's simple, you need to run ``uv sync`` in providers directory after you modified
@@ -275,12 +275,12 @@ to avoid "works-for-me" syndrome, where you use different version of dependencie
 that are used in main, CI tests and by other contributors.
 
 There are different constraint files for different python versions. For example this command will install
-all basic devel requirements and requirements of google provider as last successfully tested for Python 3.9:
+all basic devel requirements and requirements of google provider as last successfully tested for Python 3.10:
 
 .. code:: bash
 
     uv pip install -e ".[devel,google]" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.10.txt"
 
 
 In the future we will utilise ``uv.lock`` to manage dependencies and constraints, but for the moment we do not
@@ -305,7 +305,7 @@ and install to latest supported ones by pure Airflow core.
 .. code:: bash
 
     uv pip install -e ".[devel]" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.10.txt"
 
 These are examples of the development options available with the local virtualenv in your IDE:
 

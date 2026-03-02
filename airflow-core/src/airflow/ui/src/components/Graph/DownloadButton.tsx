@@ -17,31 +17,32 @@
  * under the License.
  */
 import { IconButton } from "@chakra-ui/react";
-import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from "@xyflow/react";
+import { Panel, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
+import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
 import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
-  const { getNodes, getZoom } = useReactFlow();
+  const { t: translate } = useTranslation("components");
 
-  const onClick = () => {
-    const nodesBounds = getNodesBounds(getNodes());
+  const { fitView } = useReactFlow();
+
+  const onClick = async () => {
+    // Ensure the graph fits before taking screenshot
+    await fitView({ duration: 0, padding: 0.1 });
 
     // Method obtained from https://reactflow.dev/examples/misc/download-image
     const container = document.querySelector(".react-flow__viewport");
 
     if (container instanceof HTMLElement) {
       const dimensions = { height: container.clientHeight, width: container.clientWidth };
-      const zoom = getZoom();
-      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, zoom, zoom, 2);
 
       toPng(container, {
         height: dimensions.height,
         style: {
           height: `${dimensions.height}px`,
-          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           width: `${dimensions.width}px`,
         },
         width: dimensions.width,
@@ -55,8 +56,8 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
         })
         .catch(() => {
           toaster.create({
-            description: "Failed to download graph image.",
-            title: "Download Failed",
+            description: translate("graph.downloadImageError"),
+            title: translate("graph.downloadImageErrorTitle"),
             type: "error",
           });
         });
@@ -66,10 +67,13 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
       <IconButton
-        aria-label="Download graph image"
-        onClick={onClick}
+        aria-label={translate("graph.downloadImage")}
+        colorPalette="info"
+        onClick={() => {
+          void onClick();
+        }}
         size="xs"
-        title="Download graph image"
+        title={translate("graph.downloadImage")}
         variant="ghost"
       >
         <FiDownload />

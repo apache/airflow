@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.utils.mixins import (
     AwsBaseHookMixin,
     AwsHookParams,
     AwsHookType,
     aws_template_fields,
 )
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
+from airflow.providers.common.compat.sdk import BaseOperator
 
 
 class AwsBaseOperator(BaseOperator, AwsBaseHookMixin[AwsHookType]):

@@ -29,7 +29,12 @@ from datetime import datetime, timedelta
 import scrapbook as sb
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 
 START_DATE = datetime(2021, 1, 1)

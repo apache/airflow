@@ -28,7 +28,7 @@ from google.cloud.compute_v1.services.instance_templates import InstanceTemplate
 from google.cloud.compute_v1.services.instances import InstancesClient
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 

@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 

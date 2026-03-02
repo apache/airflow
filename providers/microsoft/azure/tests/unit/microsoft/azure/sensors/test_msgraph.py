@@ -28,16 +28,15 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response
+from unit.microsoft.azure.test_utils import mock_json_response, patch_hook_and_request_adapter
 
 
-class TestMSGraphSensor(Base):
+class TestMSGraphSensor:
     def test_execute_with_result_processor_with_old_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -54,26 +53,26 @@ class TestMSGraphSensor(Base):
             ):
                 results, events = execute_operator(sensor)
 
-                assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
-                assert isinstance(results, str)
-                assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
-                assert len(events) == 3
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(status[0])
-                assert isinstance(events[1], TriggerEvent)
-                assert isinstance(events[1].payload, datetime)
-                assert isinstance(events[2], TriggerEvent)
-                assert events[2].payload["status"] == "success"
-                assert events[2].payload["type"] == "builtins.dict"
-                assert events[2].payload["response"] == json.dumps(status[1])
+            assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
+            assert isinstance(results, str)
+            assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
+            assert len(events) == 3
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(status[0])
+            assert isinstance(events[1], TriggerEvent)
+            assert isinstance(events[1].payload, datetime)
+            assert isinstance(events[2], TriggerEvent)
+            assert events[2].payload["status"] == "success"
+            assert events[2].payload["type"] == "builtins.dict"
+            assert events[2].payload["response"] == json.dumps(status[1])
 
     def test_execute_with_result_processor_with_new_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -105,7 +104,7 @@ class TestMSGraphSensor(Base):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",

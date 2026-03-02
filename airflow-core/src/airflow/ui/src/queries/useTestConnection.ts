@@ -16,20 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
+import { useConnectionServiceTestConnection } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
+import { toaster } from "src/components/ui";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
-  const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("admin");
 
-  const onSuccess = async (res: ConnectionTestResponse) => {
-    await queryClient.invalidateQueries({
-      queryKey: [useConnectionServiceGetConnectionsKey],
-    });
+  const onSuccess = (res: ConnectionTestResponse) => {
     setConnected(res.status);
+    if (res.status) {
+      toaster.create({
+        description: res.message,
+        title: translate("connections.testSuccess.title"),
+        type: "success",
+      });
+    } else {
+      toaster.create({
+        description: res.message,
+        title: translate("connections.testError.title"),
+        type: "error",
+      });
+    }
   };
 
   const onError = () => {

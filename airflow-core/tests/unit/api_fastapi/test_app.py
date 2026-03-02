@@ -19,6 +19,10 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from fastapi import FastAPI
+
+import airflow.api_fastapi.app as app_module
+import airflow.plugins_manager as plugins_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -90,3 +94,27 @@ def test_catch_all_route_last(client):
     """
     test_app = client(apps="all").app
     assert test_app.routes[-1].path == "/{rest_of_path:path}"
+
+
+@pytest.mark.parametrize(
+    ("fastapi_apps", "expected_message", "invalid_path"),
+    [
+        (
+            [{"name": "test", "app": FastAPI(), "url_prefix": ""}],
+            "'url_prefix' key is empty string for the fastapi app: test",
+            "",
+        ),
+        (
+            [{"name": "test", "app": FastAPI(), "url_prefix": next(iter(app_module.RESERVED_URL_PREFIXES))}],
+            "attempted to use reserved url_prefix",
+            next(iter(app_module.RESERVED_URL_PREFIXES)),
+        ),
+    ],
+)
+def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+        app_module.init_plugins(app)
+
+    assert any(expected_message in rec.message for rec in caplog.records)
+    assert not any(r.path == invalid_path for r in app.routes)

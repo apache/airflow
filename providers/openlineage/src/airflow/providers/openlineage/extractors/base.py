@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, Union
+from typing import Generic, TypeVar
 
 from attrs import Factory, define
 from openlineage.client.event_v2 import Dataset as OLDataset
@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 # this is not to break static checks compatibility with v1 OpenLineage facet classes
 DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)
-BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet])
+BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=BaseFacet_V1 | RunFacet | JobFacet)
 
 OL_METHOD_NAME_START = "get_openlineage_facets_on_start"
 OL_METHOD_NAME_COMPLETE = "get_openlineage_facets_on_complete"
@@ -49,6 +49,14 @@ class OperatorLineage(Generic[DatasetSubclass, BaseFacetSubclass]):
     run_facets: dict[str, BaseFacetSubclass] = Factory(dict)
     job_facets: dict[str, BaseFacetSubclass] = Factory(dict)
 
+    def merge(self, other: OperatorLineage) -> OperatorLineage:
+        return OperatorLineage(
+            inputs=self.inputs + (other.inputs or []),
+            outputs=self.outputs + (other.outputs or []),
+            run_facets={**(other.run_facets or {}), **self.run_facets},
+            job_facets={**(other.job_facets or {}), **self.job_facets},
+        )
+
 
 class BaseExtractor(ABC, LoggingMixin):
     """
@@ -59,7 +67,7 @@ class BaseExtractor(ABC, LoggingMixin):
 
     _allowed_query_params: list[str] = []
 
-    def __init__(self, operator):  # type: ignore
+    def __init__(self, operator):
         super().__init__()
         self.operator = operator
 

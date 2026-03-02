@@ -21,18 +21,11 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import (
-    AirflowException,
-    TaskDeferred,
-)
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 ACCOUNT_ID = 11111
 RUN_ID = 5555
@@ -45,6 +38,15 @@ class TestDbtCloudJobRunSensor:
     DBT_RUN_ID = 1234
     TIMEOUT = 300
 
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        # Connection
+        conn = Connection(
+            conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=str(ACCOUNT_ID), password=TOKEN
+        )
+        create_connection_without_db(conn)
+
     def setup_class(self):
         self.sensor = DbtCloudJobRunSensor(
             task_id="job_run_sensor",
@@ -53,18 +55,15 @@ class TestDbtCloudJobRunSensor:
             account_id=ACCOUNT_ID,
             timeout=30,
             poke_interval=15,
+            hook_params={"retry_limit": 3, "retry_delay": 2.0},
         )
-
-        # Connection
-        conn = Connection(conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=ACCOUNT_ID, password=TOKEN)
-
-        db.merge_conn(conn)
 
     def test_init(self):
         assert self.sensor.dbt_cloud_conn_id == "dbt"
         assert self.sensor.run_id == RUN_ID
         assert self.sensor.timeout == 30
         assert self.sensor.poke_interval == 15
+        assert self.sensor.hook_params == {"retry_limit": 3, "retry_delay": 2.0}
 
     @pytest.mark.parametrize(
         argnames=("job_run_status", "expected_poke_result"),
@@ -148,7 +147,7 @@ class TestDbtCloudJobRunSensor:
         mock_log_info.assert_called_with(msg)
 
     @pytest.mark.parametrize(
-        "mock_status, mock_message",
+        ("mock_status", "mock_message"),
         [
             ("cancelled", "Job run 1234 has been cancelled."),
             ("error", "Job run 1234 has failed."),

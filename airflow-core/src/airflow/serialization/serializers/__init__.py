@@ -15,3 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""Deprecated serializers module - moved to airflow.sdk.serde.serializers."""
+
+from __future__ import annotations
+
+import importlib
+import warnings
+
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+
+def __getattr__(name: str):
+    """Redirect all submodule imports to airflow.sdk.serde.serializers with deprecation warning."""
+    warnings.warn(
+        f"`airflow.serialization.serializers.{name}` is deprecated. "
+        f"Please use `airflow.sdk.serde.serializers.{name}` instead.",
+        DeprecatedImportWarning,
+        stacklevel=2,
+    )
+    try:
+        return importlib.import_module(f"airflow.sdk.serde.serializers.{name}")
+    except ModuleNotFoundError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

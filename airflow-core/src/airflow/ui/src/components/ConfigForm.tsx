@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion, Box, Field } from "@chakra-ui/react";
+import { Box, Field } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
+import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: React.ReactNode;
@@ -50,6 +52,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   setErrors,
   setFormError,
 }: ConfigFormProps<T>) => {
+  const { t: translate } = useTranslation(["components", "common"]);
   const { conf, setConf } = useParamStore();
 
   const validateAndPrettifyJson = (value: string) => {
@@ -66,11 +69,11 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
 
       return formattedJson;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : translate("common:error.unknown");
 
       setErrors((prev) => ({
         ...prev,
-        conf: `Invalid JSON format: ${errorMessage}`,
+        conf: translate("configForm.invalidJson", { errorMessage }),
       }));
 
       return value;
@@ -80,8 +83,10 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
+      data-testid="config-form"
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
+      overflow="visible"
       size="lg"
       variant="enclosed"
     >
@@ -91,7 +96,9 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
         setError={setFormError}
       />
       <Accordion.Item key="advancedOptions" value="advancedOptions">
-        <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
+        <Accordion.ItemTrigger cursor="button">
+          {translate("configForm.advancedOptions")}
+        </Accordion.ItemTrigger>
         <Accordion.ItemContent>
           <Box p={4}>
             {children}
@@ -100,7 +107,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
               name={"conf" as Path<T>}
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.conf)} mt={6}>
-                  <Field.Label fontSize="md">Configuration JSON</Field.Label>
+                  <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
                   <JsonEditor
                     {...field}
                     onBlur={() => {

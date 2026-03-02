@@ -24,13 +24,13 @@ image: gitpod/workspace-python-3.11
 
 tasks:
   - init: ./scripts/ci/install_breeze.sh
-  - name: Install pre-commit
+  - name: Install prek
     openMode: split-right
     command: |
       printf '%s\n' "export PIP_USER=no" >> "$HOME/.bashrc"
       source "$HOME/.bashrc"
-      pip install pre-commit
-      pre-commit install
+      pip install prek
+      prek install
       echo "for running integration test with breeze"
 
 # Ports to expose on workspace startup

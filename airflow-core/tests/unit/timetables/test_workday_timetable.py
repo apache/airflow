@@ -22,9 +22,9 @@ import datetime
 import pendulum
 import pytest
 
+from airflow._shared.timezones.timezone import utc
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.utils.timezone import utc
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # This is a Saturday.
 
@@ -53,11 +53,16 @@ def timetable():
 
 
 @pytest.mark.parametrize(
-    "start, end",
+    ("start", "end"),
     list(zip(WEEK_1_WEEKDAYS[:-1], WEEK_1_WEEKDAYS[1:])),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
-    expected_info = DagRunInfo(run_after=end, data_interval=DataInterval(start, end))
+    expected_info = DagRunInfo(
+        run_after=end,
+        data_interval=DataInterval(start, end),
+        partition_date=None,
+        partition_key=None,
+    )
     assert DagRunInfo.interval(start, end) == expected_info
 
 
@@ -71,7 +76,7 @@ def test_first_schedule(timetable: Timetable, restriction: TimeRestriction):
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, expected_next_info",
+    ("last_automated_data_interval", "expected_next_info"),
     [
         pytest.param(
             DataInterval(day, day + datetime.timedelta(days=1)),

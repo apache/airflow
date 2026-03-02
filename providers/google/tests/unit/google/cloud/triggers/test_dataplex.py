@@ -92,7 +92,7 @@ class TestDataplexDataQualityJobTrigger:
         expected_event = TriggerEvent(
             {
                 "job_id": TEST_JOB_ID,
-                "job_state": DataScanJob.State.SUCCEEDED,
+                "job_state": DataScanJob.State.SUCCEEDED.name,
                 "job": {},
             }
         )
@@ -113,7 +113,7 @@ class TestDataplexDataQualityJobTrigger:
         await asyncio.sleep(0.5)
 
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": DataScanJob.State.FAILED, "job": {}}
+            {"job_id": TEST_JOB_ID, "job_state": DataScanJob.State.FAILED.name, "job": {}}
         )
         assert expected_event == actual_event
 
@@ -132,4 +132,4 @@ class TestDataplexDataQualityJobTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {DataScanJob.State.RUNNING}, sleeping for {TEST_POLL_INTERVAL} seconds."
+        assert f"Current state is: RUNNING, sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text

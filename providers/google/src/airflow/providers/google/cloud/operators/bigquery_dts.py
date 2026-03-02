@@ -32,8 +32,7 @@ from google.cloud.bigquery_datatransfer_v1 import (
     TransferState,
 )
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -43,7 +42,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _get_transfer_config_details(config_transfer_name: str):
@@ -134,7 +133,6 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
         transfer_config = _get_transfer_config_details(response.name)
         BigQueryDataTransferConfigLink.persist(
             context=context,
-            task_instance=self,
             region=transfer_config["region"],
             config_id=transfer_config["config_id"],
             project_id=transfer_config["project_id"],
@@ -142,7 +140,7 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
 
         result = TransferConfig.to_dict(response)
         self.log.info("Created DTS transfer config %s", get_object_id(result))
-        self.xcom_push(context, key="transfer_config_id", value=get_object_id(result))
+        context["ti"].xcom_push(key="transfer_config_id", value=get_object_id(result))
         # don't push AWS secret in XCOM
         result.get("params", {}).pop("secret_access_key", None)
         result.get("params", {}).pop("access_key_id", None)
@@ -329,7 +327,6 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         transfer_config = _get_transfer_config_details(response.runs[0].name)
         BigQueryDataTransferConfigLink.persist(
             context=context,
-            task_instance=self,
             region=transfer_config["region"],
             config_id=transfer_config["config_id"],
             project_id=transfer_config["project_id"],
@@ -337,7 +334,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
 
         result = StartManualTransferRunsResponse.to_dict(response)
         run_id = get_object_id(result["runs"][0])
-        self.xcom_push(context, key="run_id", value=run_id)
+        context["ti"].xcom_push(key="run_id", value=run_id)
 
         if not self.deferrable:
             # Save as attribute for further use by OpenLineage

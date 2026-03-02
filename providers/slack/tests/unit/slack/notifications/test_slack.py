@@ -22,9 +22,6 @@ from unittest import mock
 import pytest
 
 from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
 
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
@@ -32,7 +29,7 @@ DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "r
 class TestSlackNotifier:
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
     @pytest.mark.parametrize(
-        "extra_kwargs, hook_extra_kwargs",
+        ("extra_kwargs", "hook_extra_kwargs"),
         [
             pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
             pytest.param(
@@ -52,12 +49,9 @@ class TestSlackNotifier:
             ),
         ],
     )
-    def test_slack_notifier(self, mock_slack_hook, dag_maker, extra_kwargs, hook_extra_kwargs):
-        with dag_maker("test_slack_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_slack_notifier(self, mock_slack_hook, create_dag_without_db, extra_kwargs, hook_extra_kwargs):
         notifier = send_slack_notification(slack_conn_id="test_conn_id", text="test", **extra_kwargs)
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_slack_notifier")})
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
             json={
@@ -75,12 +69,9 @@ class TestSlackNotifier:
         mock_slack_hook.assert_called_once_with(slack_conn_id="test_conn_id", **hook_extra_kwargs)
 
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
-    def test_slack_notifier_with_notifier_class(self, mock_slack_hook, dag_maker):
-        with dag_maker("test_slack_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_slack_notifier_with_notifier_class(self, mock_slack_hook, create_dag_without_db):
         notifier = SlackNotifier(text="test")
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_slack_notifier")})
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
             json={
@@ -97,16 +88,13 @@ class TestSlackNotifier:
         )
 
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
-    def test_slack_notifier_templated(self, mock_slack_hook, dag_maker):
-        with dag_maker("test_slack_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_slack_notifier_templated(self, mock_slack_hook, create_dag_without_db):
         notifier = send_slack_notification(
             text="test {{ username }}",
             channel="#test-{{dag.dag_id}}",
             attachments=[{"image_url": "{{ dag.dag_id }}.png"}],
         )
-        context = {"dag": dag}
+        context = {"dag": create_dag_without_db("test_slack_notifier")}
         notifier(context)
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
@@ -124,17 +112,42 @@ class TestSlackNotifier:
         )
 
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
-    def test_slack_notifier_unfurl_options(self, mock_slack_hook, dag_maker):
-        with dag_maker("test_slack_notifier_unfurl_options") as dag:
-            EmptyOperator(task_id="task1")
+    def test_slack_notifier_unfurl_options(self, mock_slack_hook, create_dag_without_db):
+        notifier = send_slack_notification(
+            text="test",
+            unfurl_links=False,
+            unfurl_media=False,
+        )
+        notifier({"dag": create_dag_without_db("test_slack_notifier")})
+        mock_slack_hook.return_value.call.assert_called_once_with(
+            "chat.postMessage",
+            json={
+                "channel": "#general",
+                "username": "Airflow",
+                "text": "test",
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
+                "/src/airflow/ui/public/pin_100.png",
+                "attachments": "[]",
+                "blocks": "[]",
+                "unfurl_links": False,
+                "unfurl_media": False,
+            },
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    async def test_async_slack_notifier(self, mock_slack_hook):
+        mock_slack_hook.return_value.async_call = mock.AsyncMock()
 
         notifier = send_slack_notification(
             text="test",
             unfurl_links=False,
             unfurl_media=False,
         )
-        notifier({"dag": dag})
-        mock_slack_hook.return_value.call.assert_called_once_with(
+
+        await notifier.async_notify({})
+
+        mock_slack_hook.return_value.async_call.assert_called_once_with(
             "chat.postMessage",
             json={
                 "channel": "#general",

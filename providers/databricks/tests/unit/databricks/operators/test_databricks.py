@@ -25,13 +25,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -47,8 +50,6 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.providers.databricks.utils import databricks as utils
-
-pytestmark = pytest.mark.db_test
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
@@ -569,42 +570,6 @@ class TestDatabricksCreateJobsOperator:
         assert return_result == JOB_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_exec_update_job_permission(self, db_mock_class):
-        """
-        Test job permission update.
-        """
-        json = {
-            "name": JOB_NAME,
-            "tags": TAGS,
-            "tasks": TASKS,
-            "job_clusters": JOB_CLUSTERS,
-            "email_notifications": EMAIL_NOTIFICATIONS,
-            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-            "timeout_seconds": TIMEOUT_SECONDS,
-            "schedule": SCHEDULE,
-            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-            "git_source": GIT_SOURCE,
-            "access_control_list": ACCESS_CONTROL_LIST,
-        }
-        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
-        db_mock = db_mock_class.return_value
-        db_mock.find_job_id_by_name.return_value = JOB_ID
-
-        op.execute({})
-
-        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
-
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksCreateJobsOperator",
-        )
-
-        db_mock.update_job_permission.assert_called_once_with(JOB_ID, expected)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_update_job_permission_with_empty_acl(self, db_mock_class):
         """
         Test job permission update.
@@ -812,7 +777,6 @@ class TestDatabricksSubmitRunOperator:
         )
         assert expected == utils.normalise_json_content(op.json)
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {
             "new_cluster": NEW_CLUSTER,
@@ -1250,7 +1214,6 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 
@@ -2368,7 +2331,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2414,7 +2377,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2441,10 +2404,10 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError, match="Both new_cluster and existing_cluster_id are set. Only one should be set."
+        ):
             operator._get_run_json()
-        exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
-        assert str(exc_info.value) == exception_message
 
     def test_both_new_and_existing_cluster_unset(self):
         operator = DatabricksNotebookOperator(
@@ -2453,10 +2416,8 @@ class TestDatabricksNotebookOperator:
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="Must specify either existing_cluster_id or new_cluster."):
             operator._get_run_json()
-        exception_message = "Must specify either existing_cluster_id or new_cluster."
-        assert str(exc_info.value) == exception_message
 
     def test_job_runs_forever_by_default(self):
         operator = DatabricksNotebookOperator(
@@ -2479,13 +2440,12 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             execution_timeout=timedelta(seconds=0),
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError,
+            match="If you've set an `execution_timeout` for the task, ensure it's not `0`. "
+            "Set it instead to `None` if you desire the task to run indefinitely.",
+        ):
             operator._get_run_json()
-        exception_message = (
-            "If you've set an `execution_timeout` for the task, ensure it's not `0`. "
-            "Set it instead to `None` if you desire the task to run indefinitely."
-        )
-        assert str(exc_info.value) == exception_message
 
     def test_extend_workflow_notebook_packages(self):
         """Test that the operator can extend the notebook packages of a Databricks workflow task group."""

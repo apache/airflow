@@ -17,12 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com"
 
@@ -73,20 +68,6 @@ class CloudDLPDeidentifyTemplatesListLink(BaseGoogleLink):
     key = "cloud_dlp_deidentify_templates_list_key"
     format_str = DLP_DEIDENTIFY_TEMPLATES_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPDeidentifyTemplatesListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )
-
 
 class CloudDLPDeidentifyTemplateDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -94,22 +75,6 @@ class CloudDLPDeidentifyTemplateDetailsLink(BaseGoogleLink):
     name = "Cloud DLP Deidentify Template Details"
     key = "cloud_dlp_deidentify_template_details_key"
     format_str = DLP_DEIDENTIFY_TEMPLATE_DETAILS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        template_name: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPDeidentifyTemplateDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "template_name": template_name,
-            },
-        )
 
 
 class CloudDLPJobTriggersListLink(BaseGoogleLink):
@@ -119,20 +84,6 @@ class CloudDLPJobTriggersListLink(BaseGoogleLink):
     key = "cloud_dlp_job_triggers_list_key"
     format_str = DLP_JOB_TRIGGER_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPJobTriggersListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )
-
 
 class CloudDLPJobTriggerDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -140,22 +91,6 @@ class CloudDLPJobTriggerDetailsLink(BaseGoogleLink):
     name = "Cloud DLP Job Triggers Details"
     key = "cloud_dlp_job_trigger_details_key"
     format_str = DLP_JOB_TRIGGER_DETAILS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        trigger_name: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPJobTriggerDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "trigger_name": trigger_name,
-            },
-        )
 
 
 class CloudDLPJobsListLink(BaseGoogleLink):
@@ -165,20 +100,6 @@ class CloudDLPJobsListLink(BaseGoogleLink):
     key = "cloud_dlp_jobs_list_key"
     format_str = DLP_JOBS_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPJobsListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )
-
 
 class CloudDLPJobDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -186,22 +107,6 @@ class CloudDLPJobDetailsLink(BaseGoogleLink):
     name = "Cloud DLP Job Details"
     key = "cloud_dlp_job_details_key"
     format_str = DLP_JOB_DETAILS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        job_name: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPJobDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "job_name": job_name,
-            },
-        )
 
 
 class CloudDLPInspectTemplatesListLink(BaseGoogleLink):
@@ -211,20 +116,6 @@ class CloudDLPInspectTemplatesListLink(BaseGoogleLink):
     key = "cloud_dlp_inspect_templates_list_key"
     format_str = DLP_INSPECT_TEMPLATES_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPInspectTemplatesListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )
-
 
 class CloudDLPInspectTemplateDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -232,22 +123,6 @@ class CloudDLPInspectTemplateDetailsLink(BaseGoogleLink):
     name = "Cloud DLP Inspect Template Details"
     key = "cloud_dlp_inspect_template_details_key"
     format_str = DLP_INSPECT_TEMPLATE_DETAILS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        template_name: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPInspectTemplateDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "template_name": template_name,
-            },
-        )
 
 
 class CloudDLPInfoTypesListLink(BaseGoogleLink):
@@ -257,20 +132,6 @@ class CloudDLPInfoTypesListLink(BaseGoogleLink):
     key = "cloud_dlp_info_types_list_key"
     format_str = DLP_INFO_TYPES_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPInfoTypesListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )
-
 
 class CloudDLPInfoTypeDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -279,22 +140,6 @@ class CloudDLPInfoTypeDetailsLink(BaseGoogleLink):
     key = "cloud_dlp_info_type_details_key"
     format_str = DLP_INFO_TYPE_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        info_type_name: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPInfoTypeDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "info_type_name": info_type_name,
-            },
-        )
-
 
 class CloudDLPPossibleInfoTypesListLink(BaseGoogleLink):
     """Helper class for constructing Cloud Data Loss Prevention link."""
@@ -302,17 +147,3 @@ class CloudDLPPossibleInfoTypesListLink(BaseGoogleLink):
     name = "Cloud DLP Possible Info Types List"
     key = "cloud_dlp_possible_info_types_list_key"
     format_str = DLP_POSSIBLE_INFO_TYPES_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDLPPossibleInfoTypesListLink.key,
-            value={
-                "project_id": project_id,
-            },
-        )

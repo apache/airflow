@@ -188,32 +188,6 @@ caches results of a query for increased performance and efficiency.
     :start-after: [START howto_operator_bigquery_create_materialized_view]
     :end-before: [END howto_operator_bigquery_create_materialized_view]
 
-.. _howto/operator:BigQueryCreateEmptyTableOperator:
-
-Create native table
-"""""""""""""""""""
-
-.. warning::
-    This operator is deprecated and will be removed after July 30, 2025. Please use
-    :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator`.
-
-To create a new, empty table in the given BigQuery dataset, optionally with
-schema you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`.
-
-.. _howto/operator:BigQueryCreateExternalTableOperator:
-
-Create external table
-"""""""""""""""""""""
-
-.. warning::
-    This operator is deprecated and will be removed after July 30, 2025. Please use
-    :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator`.
-
-To create a new external table in a dataset with the data in Google Cloud Storage
-you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
-
 .. _howto/operator:BigQueryGetDataOperator:
 
 Fetch data from table
@@ -223,6 +197,10 @@ To fetch data from a BigQuery table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator` .
 Alternatively you can fetch data for selected columns if you pass fields to
 ``selected_fields``.
+
+.. note::
+   The ``project_id`` parameter is **deprecated** and will be removed in a future
+   release. Please use ``table_project_id`` instead.
 
 The result of this operator can be retrieved in two different formats based on the value of the ``as_dict`` parameter:
 ``False`` (default) - A Python list of lists, where the number of elements in the nesting list will be equal to the number of rows fetched. Each element in the

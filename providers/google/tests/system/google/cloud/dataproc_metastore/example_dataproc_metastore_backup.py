@@ -34,7 +34,12 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreListBackupsOperator,
     DataprocMetastoreRestoreServiceOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -45,8 +50,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 SERVICE_ID = f"{DAG_ID}-service-{ENV_ID}".replace("_", "-")
 BACKUP_ID = f"{DAG_ID}-backup-{ENV_ID}".replace("_", "-")
-REGION = "europe-west1"
-TIMEOUT = 1200
+REGION = "europe-west3"
 # Service definition
 SERVICE = {
     "name": "test-service",
@@ -71,7 +75,6 @@ with DAG(
         project_id=PROJECT_ID,
         service=SERVICE,
         service_id=SERVICE_ID,
-        timeout=TIMEOUT,
     )
     # [START how_to_cloud_dataproc_metastore_create_backup_operator]
     backup_service = DataprocMetastoreCreateBackupOperator(
@@ -81,7 +84,6 @@ with DAG(
         service_id=SERVICE_ID,
         backup=BACKUP,
         backup_id=BACKUP_ID,
-        timeout=TIMEOUT,
     )
     # [END how_to_cloud_dataproc_metastore_create_backup_operator]
     # [START how_to_cloud_dataproc_metastore_list_backups_operator]
@@ -99,7 +101,6 @@ with DAG(
         region=REGION,
         service_id=SERVICE_ID,
         backup_id=BACKUP_ID,
-        timeout=TIMEOUT,
     )
     # [END how_to_cloud_dataproc_metastore_delete_backup_operator]
     delete_backup.trigger_rule = TriggerRule.ALL_DONE
@@ -113,7 +114,6 @@ with DAG(
         backup_region=REGION,
         backup_project_id=PROJECT_ID,
         backup_service_id=SERVICE_ID,
-        timeout=TIMEOUT,
     )
     # [END how_to_cloud_dataproc_metastore_restore_service_operator]
     delete_service = DataprocMetastoreDeleteServiceOperator(
@@ -121,7 +121,6 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
         service_id=SERVICE_ID,
-        timeout=TIMEOUT,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     (create_service >> backup_service >> list_backups >> restore_service >> delete_backup >> delete_service)

@@ -28,29 +28,33 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
-from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
-from airflow.models.dagrun import DagRun
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.execution_time.secrets_masker import RedactedIO
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.utils import cli as cli_utils, timezone
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
-    get_dag,
+    get_bagged_dag,
     get_dag_by_file_location,
     get_dags,
+    get_db_dag,
     suppress_logs_and_warning,
 )
+from airflow.utils.helpers import ask_yesno
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -58,8 +62,9 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.operator import Operator
-    from airflow.typing_compat import Self
+    from airflow.sdk import Context
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -78,7 +83,7 @@ def _generate_temporary_run_id() -> str:
 
 def _get_dag_run(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     create_if_necessary: CreateIfNecessary,
     logical_date_or_run_id: str | None = None,
     session: Session | None = None,
@@ -105,7 +110,7 @@ def _get_dag_run(
         dag_run, logical_date = fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
             value=logical_date_or_run_id,
-            session=session,
+            session=cast("Session", session),
         )
         if dag_run is not None:
             return dag_run, False
@@ -121,6 +126,11 @@ def _get_dag_run(
         else None
     )
     run_after = data_interval.end if data_interval else timezone.utcnow()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
@@ -130,19 +140,20 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=user,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
     if create_if_necessary == "db":
-        scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))  # type: ignore[arg-type]
-        dag_run = _get_or_create_dagrun(
-            dag=scheduler_dag,
+        dag_run = get_or_create_dagrun(
+            dag=dag,
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
-            session=session,
+            triggering_user_name=user,
+            session=cast("Session", session),
             start_date=logical_date or run_after,
             conf=None,
         )
@@ -193,13 +204,18 @@ def _get_ti(
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if not dag_version:
+            # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
+            raise ValueError(
+                f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
+            )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task, pool_override=pool)
 
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
@@ -208,6 +224,24 @@ def _get_ti(
     ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
 
     return ti, dr_created
+
+
+def _get_template_context(ti: TaskInstance, task: SdkOperator) -> Context:
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=TIRunContext(
+            dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
+            max_tries=ti.max_tries,
+            variables=[],
+            connections=[],
+            xcom_keys_to_clear=[],
+        ),
+    )
+    return runtime_ti.get_template_context()
 
 
 class TaskCommandMarker:
@@ -229,8 +263,7 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args.bundle_name, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
+    task = get_db_dag(args.bundle_name, args.dag_id).get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -253,7 +286,8 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.bundle_name, args.dag_id, from_db=True)
+    if not (dag := SerializedDagModel.get_dag(args.dag_id)):
+        raise SystemExit(f"Can not find dag {args.dag_id!r}")
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)
@@ -264,7 +298,7 @@ def task_state(args) -> None:
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_dag(args.bundle_name, args.dag_id)
+    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -331,12 +365,12 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
             "dag_id": ti.dag_id,
             "logical_date": dag_run.logical_date.isoformat() if dag_run.logical_date else "",
             "task_id": ti.task_id,
-            "state": ti.state,
+            "state": ti.state or "",
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
         }
         if has_mapped_instances:
-            data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
+            data["map_index"] = str(ti.map_index) if ti.map_index is not None and ti.map_index >= 0 else ""
         return data
 
     AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
@@ -349,7 +383,9 @@ def task_test(args, dag: DAG | None = None) -> None:
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
 
-    settings.MASK_SECRETS_IN_LOGS = True
+    from airflow.sdk._shared.secrets_masker import SecretsMasker
+
+    SecretsMasker.enable_log_masking()
 
     handlers = logging.getLogger("airflow.task").handlers
     already_has_stream_handler = False
@@ -365,23 +401,35 @@ def task_test(args, dag: DAG | None = None) -> None:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_dag(args.bundle_name, args.dag_id)
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
 
-    task = dag.get_task(task_id=args.task_id)
+    sdk_task = sdk_dag.get_task(args.task_id)
+
     # Add CLI provided task_params to task.params
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
-        task.params.update(passed_in_params)
+        sdk_task.params.update(passed_in_params)
 
-    if task.params and isinstance(task.params, ParamsDict):
-        task.params.validate()
+    if sdk_task.params and isinstance(sdk_task.params, ParamsDict):
+        sdk_task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
+        scheduler_dag.get_task(args.task_id),
+        args.map_index,
+        logical_date_or_run_id=args.logical_date_or_run_id,
+        create_if_necessary="db",
     )
     try:
+        # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
+        from airflow.sdk._shared.secrets_masker import RedactedIO
+
         with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti, run_triggerer=True)
+            _run_task(ti=ti, task=sdk_task, run_triggerer=True)
         if ti.state == State.FAILED and args.post_mortem:
             debugger = _guess_debugger()
             debugger.set_trace()
@@ -400,23 +448,33 @@ def task_test(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
-    if not dag:
-        dag = get_dag(args.bundle_name, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
     ti, _ = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
+        scheduler_dag.get_task(task_id=args.task_id),
+        args.map_index,
+        logical_date_or_run_id=args.logical_date_or_run_id,
+        create_if_necessary="memory",
     )
-    with create_session() as session, set_current_task_instance_session(session=session):
-        ti.render_templates()
+
+    task = sdk_dag.get_task(args.task_id)
+    context = _get_template_context(ti, task)
+    task.render_template_fields(context)
     for attr in task.template_fields:
         print(
             textwrap.dedent(
-                f"""        # ----------------------------------------------------------
-        # property: {attr}
-        # ----------------------------------------------------------
-        {getattr(ti.task, attr)}
-        """
-            )
+                f"""\
+                # ----------------------------------------------------------
+                # property: {attr}
+                # ----------------------------------------------------------
+                """
+            ),
+            getattr(context["task"], attr),  # This shouldn't be dedented.
+            sep="",
         )
 
 
@@ -424,7 +482,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:
@@ -440,61 +498,25 @@ def task_clear(args) -> None:
                     include_upstream=args.upstream,
                 )
 
-    SchedulerDAG.clear_dags(
+    if not args.yes:
+        tis = SerializedDAG.clear_dags(
+            dags,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            only_failed=args.only_failed,
+            only_running=args.only_running,
+            dry_run=True,
+        )
+        if not tis:
+            return
+        if not ask_yesno(f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"):
+            print("Cancelled, nothing was cleared.")
+            return
+
+    SerializedDAG.clear_dags(
         dags,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.yes,
     )
-
-
-class LoggerMutationHelper:
-    """
-    Helper for moving and resetting handlers and other logger attrs.
-
-    :meta private:
-    """
-
-    def __init__(self, logger: logging.Logger) -> None:
-        self.handlers = logger.handlers[:]
-        self.level = logger.level
-        self.propagate = logger.propagate
-        self.source_logger = logger
-
-    def apply(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Set ``logger`` with attrs stored on instance.
-
-        If ``logger`` is root logger, don't change propagate.
-        """
-        if replace:
-            logger.handlers[:] = self.handlers
-        else:
-            for h in self.handlers:
-                if h not in logger.handlers:
-                    logger.addHandler(h)
-        logger.level = self.level
-        if logger is not logging.getLogger():
-            logger.propagate = self.propagate
-
-    def move(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Replace ``logger`` attrs with those from source.
-
-        :param logger: target logger
-        :param replace: if True, remove all handlers from target first; otherwise add if not present.
-        """
-        self.apply(logger, replace=replace)
-        self.source_logger.propagate = True
-        self.source_logger.handlers[:] = []
-
-    def reset(self) -> None:
-        self.apply(self.source_logger)
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.reset()

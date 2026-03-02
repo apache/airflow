@@ -19,15 +19,15 @@ from __future__ import annotations
 
 import os
 import zipfile
-from pathlib import Path
+from pprint import pformat
 from unittest import mock
 
 import pytest
 
+from airflow._shared.module_loading import find_path_from_directory
 from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
-    find_path_from_directory,
     list_py_file_paths,
     open_maybe_zipped,
 )
@@ -96,23 +96,6 @@ class TestOpenMaybeZipped:
 
 
 class TestListPyFilesPath:
-    @pytest.fixture
-    def test_dir(self, tmp_path):
-        # create test tree with symlinks
-        source = os.path.join(tmp_path, "folder")
-        target = os.path.join(tmp_path, "symlink")
-        py_file = os.path.join(source, "hello_world.py")
-        ignore_file = os.path.join(tmp_path, ".airflowignore")
-        os.mkdir(source)
-        os.symlink(source, target)
-        # write ignore files
-        with open(ignore_file, "w") as f:
-            f.write("folder")
-        # write sample pyfile
-        with open(py_file, "w") as f:
-            f.write("print('hello world')")
-        return tmp_path
-
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
@@ -125,55 +108,33 @@ class TestListPyFilesPath:
         assert all(os.path.basename(file) not in should_ignore for file in files)
 
     def test_find_path_from_directory_glob_ignore(self):
-        should_ignore = [
+        should_ignore = {
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
             "test_invalid_cron.py",
             "test_invalid_param.py",
             "test_ignore_this.py",
             "test_prev_dagrun_dep.py",
             "test_nested_dag.py",
             ".airflowignore",
-        ]
-        should_not_ignore = [
+        }
+        should_not_ignore = {
             "test_on_kill.py",
+            "test_negate_ignore.py",
             "test_dont_ignore_this.py",
-        ]
-        files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
+            "test_nested_negate_ignore.py",
+            "test_explicit_dont_ignore.py",
+        }
+        actual_files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
 
-        assert files
-        assert all(os.path.basename(file) not in should_ignore for file in files)
-        assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
-            should_not_ignore
+        assert actual_files
+        assert all(os.path.basename(file) not in should_ignore for file in actual_files)
+        actual_included_filenames = set(
+            [os.path.basename(f) for f in actual_files if os.path.basename(f) in should_not_ignore]
         )
-
-    def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
-        ignore_list_file = ".airflowignore"
-        found = list(find_path_from_directory(test_dir, ignore_list_file))
-
-        assert os.path.join(test_dir, "symlink", "hello_world.py") in found
-        assert os.path.join(test_dir, "folder", "hello_world.py") not in found
-
-    def test_find_path_from_directory_respects_symlinks_glob_ignore(self, test_dir):
-        ignore_list_file = ".airflowignore"
-        found = list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
-
-        assert os.path.join(test_dir, "symlink", "hello_world.py") in found
-        assert os.path.join(test_dir, "folder", "hello_world.py") not in found
-
-    def test_find_path_from_directory_fails_on_recursive_link(self, test_dir):
-        # add a recursive link
-        recursing_src = os.path.join(test_dir, "folder2", "recursor")
-        recursing_tgt = os.path.join(test_dir, "folder2")
-        os.mkdir(recursing_tgt)
-        os.symlink(recursing_tgt, recursing_src)
-
-        ignore_list_file = ".airflowignore"
-
-        error_message = (
-            f"Detected recursive loop when walking DAG directory {test_dir}: "
-            f"{Path(recursing_tgt).resolve()} has appeared more than once."
+        assert actual_included_filenames == should_not_ignore, (
+            f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
-        with pytest.raises(RuntimeError, match=error_message):
-            list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
     def test_might_contain_dag_with_default_callable(self):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
@@ -225,6 +186,8 @@ class TestListPyFilesPath:
         # No_dags is empty, _invalid_ is ignored by .airflowignore
         ignored_files = {
             "no_dags.py",
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
             "test_invalid_cron.py",
             "test_invalid_dup_task.py",
             "test_ignore_this.py",
@@ -234,6 +197,7 @@ class TestListPyFilesPath:
             "test_invalid_param4.py",
             "test_nested_dag.py",
             "test_imports.py",
+            "test_nested_negate_ignore.py",
             "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
             "test.py",  # no_dag test case in test_zip_module folder
             "__init__.py",
@@ -244,11 +208,13 @@ class TestListPyFilesPath:
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
         detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
-        assert detected_files == expected_files
+        assert detected_files == expected_files, (
+            f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
+        )
 
 
 @pytest.mark.parametrize(
-    "edge_filename, expected_modification",
+    ("edge_filename", "expected_modification"),
     [
         ("test_dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),
         ("test-dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),

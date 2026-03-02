@@ -18,12 +18,16 @@ from __future__ import annotations
 
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
+
+import pytest
+
+pytestmark = pytest.mark.db_test
 
 
 class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
@@ -31,7 +35,7 @@ class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="sagemaker_transform_job_details",
                 value={
                     "region_name": "us-east-1",

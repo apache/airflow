@@ -1,0 +1,38 @@
+Support numeric multiplier values for retry_exponential_backoff parameter
+
+The ``retry_exponential_backoff`` parameter now accepts numeric values to specify custom exponential backoff multipliers for task retries. Previously, this parameter only accepted boolean values (``True`` or ``False``), with ``True`` using a hardcoded multiplier of ``2.0``.
+
+**New behavior:**
+
+- Numeric values (e.g., ``2.0``, ``3.5``) directly specify the exponential backoff multiplier
+- ``retry_exponential_backoff=2.0`` doubles the delay between each retry attempt
+- ``retry_exponential_backoff=0`` or ``False`` disables exponential backoff (uses fixed ``retry_delay``)
+
+**Backwards compatibility:**
+
+Existing DAGs using boolean values continue to work:
+
+- ``retry_exponential_backoff=True`` → converted to ``2.0`` (maintains original behavior)
+- ``retry_exponential_backoff=False`` → converted to ``0.0`` (no exponential backoff)
+
+**API changes:**
+
+The REST API schema for ``retry_exponential_backoff`` has changed from ``type: boolean`` to ``type: number``. API clients must use numeric values (boolean values will be rejected).
+
+**Migration:**
+
+While boolean values in Python DAGs are automatically converted for backwards compatibility, we recommend updating to explicit numeric values for clarity:
+
+- Change ``retry_exponential_backoff=True`` → ``retry_exponential_backoff=2.0``
+- Change ``retry_exponential_backoff=False`` → ``retry_exponential_backoff=0``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

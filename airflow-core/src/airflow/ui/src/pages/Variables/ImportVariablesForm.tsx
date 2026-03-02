@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, HStack, Spinner } from "@chakra-ui/react";
+import { Box, Button, Center, CloseButton, FileUpload, HStack, Spinner } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button, CloseButton, InputGroup } from "src/components/ui";
-import { FileUpload } from "src/components/ui/FileUpload";
-import { FileInput } from "src/components/ui/FileUpload/FileInput";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
@@ -33,25 +32,26 @@ type ImportVariablesFormProps = {
   readonly onClose: () => void;
 };
 
-const actionIfExistsOptions = [
+const actionIfExistsOptions = (translate: TFunction) => [
   {
-    description: "Fails the import if any existing variables are detected.",
-    title: "Fail",
+    description: translate("variables.import.options.fail.description"),
+    title: translate("variables.import.options.fail.title"),
     value: "fail",
   },
   {
-    description: "Overwrites the variable in case of a conflict.",
-    title: "Overwrite",
+    description: translate("variables.import.options.overwrite.description"),
+    title: translate("variables.import.options.overwrite.title"),
     value: "overwrite",
   },
   {
-    description: "Skips importing variables that already exist.",
-    title: "Skip",
+    description: translate("variables.import.options.skip.description"),
+    title: translate("variables.import.options.skip.title"),
     value: "skip",
   },
 ];
 
 const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
+  const { t: translate } = useTranslation("admin");
   const { error, isPending, mutate, setError } = useImportVariables({
     onSuccessConfirm: onClose,
   });
@@ -65,22 +65,22 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     const reader = new FileReader();
 
     reader.addEventListener("load", (event) => {
+      const text = event.target?.result as string;
+
       try {
-        const text = event.target?.result as string;
         const parsedContent = JSON.parse(text) as Record<string, unknown>;
 
         setFileContent(parsedContent);
       } catch {
         setError({
           body: {
-            detail:
-              'Error Parsing JSON File: Upload a JSON file containing variables (e.g., {"key": "value", ...}).',
+            detail: translate("variables.import.errorParsingJsonFile"),
           },
         });
         setFileContent(undefined);
-      } finally {
-        setIsParsing(false);
       }
+
+      setIsParsing(false);
     });
 
     reader.readAsText(file);
@@ -124,35 +124,39 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         }}
         required
       >
+        <FileUpload.HiddenInput />
         <FileUpload.Label fontSize="md" mb={3}>
-          Upload a JSON File{" "}
+          {translate("variables.import.upload")}
         </FileUpload.Label>
-        <InputGroup
-          endElement={
-            <FileUpload.ClearTrigger asChild>
-              <CloseButton
-                color="fg.subtle"
-                focusRingWidth="2px"
-                focusVisibleRing="inside"
-                me="-1"
-                onClick={() => {
-                  setError(undefined);
-                  setFileContent(undefined);
-                }}
-                pointerEvents="auto"
-                size="xs"
-                variant="plain"
-              />
-            </FileUpload.ClearTrigger>
-          }
-          startElement={<LuFileUp />}
-          w="full"
-        >
-          <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
-        </InputGroup>
+        <FileUpload.Trigger asChild>
+          <Button variant="outline">
+            <LuFileUp /> {translate("variables.import.uploadPlaceholder")}
+          </Button>
+        </FileUpload.Trigger>
+        <FileUpload.ItemGroup>
+          <FileUpload.Context>
+            {({ acceptedFiles }) =>
+              acceptedFiles.map((file) => (
+                <FileUpload.Item file={file} key={file.name}>
+                  <FileUpload.ItemName />
+                  <FileUpload.ItemSizeText />
+                  <FileUpload.ItemDeleteTrigger
+                    asChild
+                    onClick={() => {
+                      setError(undefined);
+                      setFileContent(undefined);
+                    }}
+                  >
+                    <CloseButton size="xs" variant="ghost" />
+                  </FileUpload.ItemDeleteTrigger>
+                </FileUpload.Item>
+              ))
+            }
+          </FileUpload.Context>
+        </FileUpload.ItemGroup>
         {isParsing ? (
           <Center mt={2}>
-            <Spinner color="blue.solid" marginRight={2} size="sm" /> Parsing file...
+            <Spinner color="brand.solid" marginRight={2} size="sm" /> Parsing file...
           </Center>
         ) : undefined}
       </FileUpload.Root>
@@ -166,10 +170,10 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         }}
       >
         <RadioCardLabel fontSize="md" mb={3}>
-          Select Variable Conflict Resolution
+          {translate("variables.import.conflictResolution")}
         </RadioCardLabel>
         <HStack align="stretch">
-          {actionIfExistsOptions.map((item) => (
+          {actionIfExistsOptions(translate).map((item) => (
             <RadioCardItem
               description={item.description}
               key={item.value}
@@ -184,12 +188,12 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         {isPending ? (
           <Box bg="bg.muted" inset="0" pos="absolute">
             <Center h="full">
-              <Spinner borderWidth="4px" color="blue.solid" size="xl" />
+              <Spinner borderWidth="4px" color="brand.solid" size="xl" />
             </Center>
           </Box>
         ) : undefined}
-        <Button colorPalette="blue" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
-          <FiUploadCloud /> Import
+        <Button colorPalette="brand" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
+          <FiUploadCloud /> {translate("variables.import.button")}
         </Button>
       </Box>
     </>

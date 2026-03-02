@@ -27,6 +27,9 @@ The configuration parameters of the Edge Executor can be found in the Edge provi
 
 To understand the setup of the Edge Executor, please also take a look to :doc:`architecture`.
 
+ See more details Airflow documentation
+  :ref:`apache-airflow:using-multiple-executors-concurrently`.
+
 .. _edge_executor:queue:
 
 Queues
@@ -43,12 +46,18 @@ Workers can listen to one or multiple queues of tasks. When a worker is
 started (using command ``airflow edge worker``), a set of comma-delimited queue
 names (with no whitespace) can be given (e.g. ``airflow edge worker -q remote,wisconsin_site``).
 This worker will then only pick up tasks wired to the specified queue(s).
+If the ``queue`` attribute is not given then a worker will pick tasks from all queues.
 
 This can be useful if you need specialized workers, either from a
 resource perspective (for say very lightweight tasks where one worker
 could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
+
+When using EdgeExecutor in addition to other executors and EdgeExecutor not being the default executor
+(that is to say the first one in the list of executors), be reminded to also define EdgeExecutor
+as the executor at task or Dag level in addition to the queues you are targeting.
+For more details on multiple executors please see :ref:`apache-airflow:using-multiple-executors-concurrently`.
 
 .. _edge_executor:concurrency_slots:
 
@@ -99,9 +108,10 @@ Current Limitations Edge Executor
 
 - Some known limitations
 
-  - Log upload will only work if you use a single web server instance or they need to share one log file volume.
-    Logs are uploaded in chunks and are transferred via API. If you use multiple webservers w/o a shared log volume
-    the logs will be scattered across the webserver instances.
+  - Log upload will only work if you use a single api-server / webserver instance or they need to share one log file
+    volume. Logs are uploaded in chunks and are transferred via API. If you use multiple api-servers / webservers w/o
+    a shared log volume the logs will be scattered across the api-server / webserver instances and if you view the
+    logs on UI you will only see fractions of the logs.
   - Performance: No extensive performance assessment and scaling tests have been made. The edge executor package is
     optimized for stability. This will be incrementally improved in future releases. Setups have reported stable
-    operation with ~50 workers until now. Note that executed tasks require more webserver API capacity.
+    operation with ~80 workers until now. Note that executed tasks require more api-server / webserver API capacity.

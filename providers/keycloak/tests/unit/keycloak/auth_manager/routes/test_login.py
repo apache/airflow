@@ -19,32 +19,12 @@ from __future__ import annotations
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
-
-from tests_common.test_utils.config import conf_vars
-
-
-@pytest.fixture
-def client():
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            ("keycloak_auth_manager", "client_id"): "test",
-            ("keycloak_auth_manager", "client_secret"): "test",
-            ("keycloak_auth_manager", "realm"): "test",
-            ("keycloak_auth_manager", "base_url"): "http://host.docker.internal:48080",
-        }
-    ):
-        yield TestClient(create_app())
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
 
 class TestLoginRouter:
-    @patch("airflow.providers.keycloak.auth_manager.routes.login._get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login(self, mock_get_keycloak_client, client):
         redirect_url = "redirect_url"
         mock_keycloak_client = Mock()
@@ -56,7 +36,7 @@ class TestLoginRouter:
         assert response.headers["location"] == redirect_url
 
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.routes.login._get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client):
         code = "code"
         token = "token"
@@ -64,6 +44,7 @@ class TestLoginRouter:
         mock_keycloak_client.token.return_value = {
             "access_token": "access_token",
             "refresh_token": "refresh_token",
+            "id_token": "id_token",
         }
         mock_keycloak_client.userinfo.return_value = {
             "sub": "sub",
@@ -92,7 +73,32 @@ class TestLoginRouter:
         assert "location" in response.headers
         assert "_token" in response.cookies
         assert response.cookies["_token"] == token
+        assert response.cookies["_id_token"] == "id_token"
 
     def test_login_callback_without_code(self, client):
         response = client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback")
         assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        ("id_token", "logout_callback_url"),
+        [
+            (None, "http://testserver/auth/logout_callback"),
+            (
+                "id_token",
+                "logout_url?post_logout_redirect_uri=http://testserver/auth/logout_callback&id_token_hint=id_token",
+            ),
+        ],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_logout(self, mock_get_keycloak_client, id_token, logout_callback_url, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.well_known.return_value = {"end_session_endpoint": "logout_url"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/logout",
+            cookies={"_id_token": id_token},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert "location" in response.headers
+        assert response.headers["location"] == logout_callback_url

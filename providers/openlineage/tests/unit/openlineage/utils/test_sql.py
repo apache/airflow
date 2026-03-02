@@ -250,7 +250,7 @@ def test_get_table_schemas_with_other_database():
 
 
 @pytest.mark.parametrize(
-    "schema_mapping, expected",
+    ("schema_mapping", "expected"),
     [
         pytest.param({None: {None: ["C1", "C2"]}}, "information_schema.columns.table_name IN ('C1', 'C2')"),
         pytest.param(

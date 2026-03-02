@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 
@@ -38,7 +38,7 @@ FAILURE_STATUSES = {"FAILED"}
 
 class TestCloudDataFusionPipelineStateSensor:
     @pytest.mark.parametrize(
-        "expected_status, current_status, sensor_return",
+        ("expected_status", "current_status", "sensor_return"),
         [
             (PipelineStates.COMPLETED, PipelineStates.COMPLETED, True),
             (PipelineStates.COMPLETED, PipelineStates.RUNNING, False),

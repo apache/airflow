@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from botocore.exceptions import WaiterError
+
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
@@ -34,10 +34,11 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
@@ -49,10 +50,9 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         :ref:`howto/operator:RedshiftCreateClusterOperator`
 
     :param cluster_identifier:  A unique identifier for the cluster.
-    :param node_type: The node type to be provisioned for the cluster.
-            Valid Values: ``ds2.xlarge``, ``ds2.8xlarge``, ``dc1.large``,
-            ``dc1.8xlarge``, ``dc2.large``, ``dc2.8xlarge``, ``ra3.xlplus``,
-            ``ra3.4xlarge``, and ``ra3.16xlarge``.
+    :param node_type: The node type to be provisioned for the cluster. Refer
+            https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-clusters.html#rs-node-type-info
+            for the list of available node types.
     :param master_username: The username associated with the admin user account for
         the cluster that is being created.
     :param master_user_password: The password associated with the admin user account for
@@ -107,7 +107,9 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
     :param wait_for_completion: Whether wait for the cluster to be in ``available`` state
     :param max_attempt: The maximum number of attempts to be made. Default: 5
     :param poll_interval: The amount of time in seconds to wait between attempts. Default: 60
-    :param deferrable: If True, the operator will run in deferrable mode
+    :param deferrable: If True, the operator will run in deferrable mode.
+    :param delete_cluster_on_failure: If True, best-effort deletion of the redshift cluster will be attempted
+        after post-creation failure. Default: True.
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -190,6 +192,7 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         max_attempt: int = 5,
         poll_interval: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        delete_cluster_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -231,6 +234,7 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.poll_interval = poll_interval
         self.deferrable = deferrable
         self.kwargs = kwargs
+        self.delete_cluster_on_failure = delete_cluster_on_failure
 
     def execute(self, context: Context):
         self.log.info("Creating Redshift cluster %s", self.cluster_identifier)
@@ -313,17 +317,39 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
                 ),
                 method_name="execute_complete",
             )
-        if self.wait_for_completion:
-            self.hook.get_conn().get_waiter("cluster_available").wait(
-                ClusterIdentifier=self.cluster_identifier,
-                WaiterConfig={
-                    "Delay": self.poll_interval,
-                    "MaxAttempts": self.max_attempt,
-                },
-            )
 
-        self.log.info("Created Redshift cluster %s", self.cluster_identifier)
-        self.log.info(cluster)
+        try:
+            if self.wait_for_completion:
+                self.hook.get_conn().get_waiter("cluster_available").wait(
+                    ClusterIdentifier=self.cluster_identifier,
+                    WaiterConfig={
+                        "Delay": self.poll_interval,
+                        "MaxAttempts": self.max_attempt,
+                    },
+                )
+
+            self.log.info("Created Redshift cluster %s", self.cluster_identifier)
+            self.log.info(cluster)
+        except WaiterError:
+            # Best-effort cleanup when post-initiation steps fail (e.g. IAM/permission errors).
+            if cluster:
+                self.log.warning(
+                    "Execution failed after Redshift cluster %s was started by this task instance.",
+                    self.cluster_identifier,
+                )
+
+                if self.delete_cluster_on_failure:
+                    try:
+                        self.log.warning(
+                            "Attempting deletion of Redshift cluster %s.", self.cluster_identifier
+                        )
+                        self.hook.delete_cluster(cluster_identifier=self.cluster_identifier)
+                    except Exception:
+                        self.log.exception(
+                            "Failed while attempting to delete Reshift cluster %s.",
+                            self.cluster_identifier,
+                        )
+            raise
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)

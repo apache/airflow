@@ -22,8 +22,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -31,18 +30,24 @@ else:
     from airflow.models.skipmixin import SkipMixin
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class BranchMixIn(SkipMixin):
     """Utility helper which handles the branching as one-liner."""
 
-    def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
+    def do_branch(
+        self, context: Context, branches_to_execute: str | Iterable[str] | None
+    ) -> str | Iterable[str] | None:
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
-        branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
-        self.skip_all_except(context["ti"], branch_task_ids)
+        if branches_to_execute is None:
+            # When None is returned, skip all downstream tasks
+            self.skip_all_except(context["ti"], None)
+        else:
+            branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
+            self.skip_all_except(context["ti"], branch_task_ids)
         return branches_to_execute
 
     def _expand_task_group_roots(
@@ -57,9 +62,7 @@ class BranchMixIn(SkipMixin):
         if TYPE_CHECKING:
             assert dag
 
-        if branches_to_execute is None:
-            return
-        elif isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
+        if isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:
@@ -89,13 +92,13 @@ class BaseBranchOperator(BaseOperator, BranchMixIn):
 
     inherits_from_skipmixin = True
 
-    def choose_branch(self, context: Context) -> str | Iterable[str]:
+    def choose_branch(self, context: Context) -> str | Iterable[str] | None:
         """
         Abstract method to choose which branch to run.
 
         Subclasses should implement this, running whatever logic is
         necessary to choose a branch and returning a task_id or list of
-        task_ids.
+        task_ids. If None is returned, all downstream tasks will be skipped.
 
         :param context: Context dictionary as passed to execute()
         """

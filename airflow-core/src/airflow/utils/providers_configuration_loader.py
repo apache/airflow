@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, TypeVar
-
-from airflow.typing_compat import ParamSpec
+from typing import ParamSpec, TypeVar
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")

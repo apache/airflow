@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useVariableServiceBulkVariables, useVariableServiceGetVariablesKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -25,6 +26,7 @@ import { toaster } from "src/components/ui";
 export const useImportVariables = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "admin"]);
 
   const onSuccess = async (responseData: { create?: { errors: Array<unknown>; success: Array<string> } }) => {
     await queryClient.invalidateQueries({
@@ -42,8 +44,14 @@ export const useImportVariables = ({ onSuccessConfirm }: { onSuccessConfirm: () 
         });
       } else if (Array.isArray(success) && success.length > 0) {
         toaster.create({
-          description: `${success.length} variables created successfully. Keys: ${success.join(", ")}`,
-          title: "Import Variables Request Successful",
+          description: translate("toaster.import.success.description", {
+            count: success.length,
+            keys: success.join(", "),
+            resourceName: translate("admin:variables.variable_other"),
+          }),
+          title: translate("toaster.import.success.title", {
+            resourceName: translate("admin:variables.variable_other"),
+          }),
           type: "success",
         });
         onSuccessConfirm();

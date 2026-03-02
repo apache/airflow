@@ -1,16 +1,23 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.2
+// generated with @7nohe/openapi-react-query-codegen@2.0.0
+import { type Options } from "@hey-api/client-axios";
 import { type QueryClient } from "@tanstack/react-query";
 
-import { SimpleAuthManagerLoginService } from "../requests/services.gen";
+import { createTokenAllAdmins, loginAllAdmins } from "../requests/services.gen";
 import * as Common from "./common";
 
-export const ensureUseSimpleAuthManagerLoginServiceCreateTokenAllAdminsData = (queryClient: QueryClient) =>
+export const ensureUseCreateTokenAllAdminsData = (
+  queryClient: QueryClient,
+  clientOptions: Options<unknown, true> = {},
+) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(),
-    queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins(),
+    queryKey: Common.UseCreateTokenAllAdminsKeyFn(clientOptions),
+    queryFn: () => createTokenAllAdmins({ ...clientOptions }).then((response) => response.data),
   });
-export const ensureUseSimpleAuthManagerLoginServiceLoginAllAdminsData = (queryClient: QueryClient) =>
+export const ensureUseLoginAllAdminsData = (
+  queryClient: QueryClient,
+  clientOptions: Options<unknown, true> = {},
+) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(),
-    queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins(),
+    queryKey: Common.UseLoginAllAdminsKeyFn(clientOptions),
+    queryFn: () => loginAllAdmins({ ...clientOptions }).then((response) => response.data),
   });

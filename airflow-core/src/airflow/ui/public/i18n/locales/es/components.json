@@ -1,0 +1,151 @@
+{
+  "backfill": {
+    "affected_many": "Se activarán {{count}} ejecuciones.",
+    "affected_one": "1 ejecución será activada.",
+    "affected_other": "Se activarán {{count}} ejecuciones.",
+    "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
+    "allRuns": "Todas las Ejecuciones",
+    "backwards": "Ejecutar Hacia Atrás",
+    "dateRange": "Rango de Fechas",
+    "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
+    "maxRuns": "Máximo de Ejecuciones Activas",
+    "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
+    "missingRuns": "Ejecutaciones Faltantes",
+    "reprocessBehavior": "Comportamiento de Reprocesamiento",
+    "run": "Ejecutar Backfill",
+    "selectDescription": "Ejecutar este Dag para un rango de fechas",
+    "selectLabel": "Backfill",
+    "title": "Ejecutar Backfill",
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs han sido activados exitosamente.",
+        "title": "Backfill generado"
+      }
+    },
+    "tooltip": "Backfill requiere una programación",
+    "unpause": "Reanudar {{dag_display_name}} al activarse",
+    "validation": {
+      "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",
+      "startBeforeEnd": "El intervalo de Fecha Inicial debe ser menor o igual a la Fecha Final."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill en progreso",
+    "cancel": "Cancelar backfill",
+    "pause": "Pausar backfill",
+    "unpause": "Reanudar backfill"
+  },
+  "clipboard": {
+    "copy": "Copiar"
+  },
+  "close": "Cerrar",
+  "configForm": {
+    "advancedOptions": "Opciones Avanzadas",
+    "configJson": "Configuración JSON",
+    "invalidJson": "Formato JSON inválido: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_many": "Errores",
+    "error_one": "1 Error",
+    "error_other": "Errores",
+    "errorAndWarning": "1 Error y {{warningText}}",
+    "warning_many": "{{count}} Advertencias",
+    "warning_one": "1 Advertencia",
+    "warning_other": "{{count}} Advertencias"
+  },
+  "durationChart": {
+    "duration": "Duración (segundos)",
+    "lastDagRun_many": "Últimas {{count}} Ejecuciones de Dag",
+    "lastDagRun_one": "Última Ejecución de Dag",
+    "lastDagRun_other": "Últimas {{count}} Ejecuciones de Dag",
+    "lastTaskInstance_many": "Últimas {{count}} Instancias de Tarea",
+    "lastTaskInstance_one": "Última Instancia de Tarea",
+    "lastTaskInstance_other": "Últimas {{count}} Instancias de Tarea",
+    "queuedDuration": "Duración en Cola",
+    "runAfter": "Ejecutar Después",
+    "runDuration": "Duración de la Ejecución"
+  },
+  "fileUpload": {
+    "files_many": "{{count}} archivos",
+    "files_one": "{{count}} archivo",
+    "files_other": "{{count}} archivos"
+  },
+  "flexibleForm": {
+    "placeholder": "Seleccionar Valor",
+    "placeholderArray": "Ingrese cada cadena en una nueva línea",
+    "placeholderExamples": "Comience a escribir para ver opciones",
+    "placeholderMulti": "Seleccionar uno o múltiples valores",
+    "validationErrorArrayNotArray": "El valor debe ser un array.",
+    "validationErrorArrayNotNumbers": "Todos los elementos en el array deben ser números.",
+    "validationErrorArrayNotObject": "Todos los elementos en el array deben ser objetos.",
+    "validationErrorRequired": "Este campo es requerido"
+  },
+  "graph": {
+    "directionDown": "De arriba a abajo",
+    "directionLeft": "De derecha a izquierda",
+    "directionRight": "De izquierda a derecha",
+    "directionUp": "De abajo a arriba",
+    "downloadImage": "Descargar imagen",
+    "downloadImageError": "Error al descargar la imagen.",
+    "downloadImageErrorTitle": "Descarga Fallida",
+    "otherDagRuns": "+Otras Ejecuciones de Dag",
+    "taskCount_many": "{{count}} Tareas",
+    "taskCount_one": "{{count}} Tarea",
+    "taskCount_other": "{{count}} Tareas",
+    "taskGroup": "Grupo de Tareas"
+  },
+  "limitedList": "+{{count}} más",
+  "limitedList.allItems": "Todos los {{count}} elementos:",
+  "limitedList.allTags_many": "Todas las etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas las etiquetas (1)",
+  "limitedList.allTags_other": "Todas las etiquetas ({{count}})",
+  "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
+  "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
+  "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementos",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementos",
+  "logs": {
+    "file": "Archivo",
+    "location": "línea {{line}} en {{name}}"
+  },
+  "reparseDag": "Reparar Dag",
+  "sortedAscending": "ordenado ascendente",
+  "sortedDescending": "ordenado descendente",
+  "sortedUnsorted": "sin ordenar",
+  "taskTries": "Intentos de Tarea",
+  "toggleCardView": "Mostrar vista de tarjeta",
+  "toggleTableView": "Mostrar vista de tabla",
+  "triggerDag": {
+    "button": "Trigger",
+    "loading": "Cargando información del Dag...",
+    "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
+    "runIdHelp": "Opcional - se generará si no se proporciona",
+    "selectDescription": "Activar una ejecución única de este Dag",
+    "selectLabel": "Ejecución Única",
+    "title": "Activar Dag",
+    "toaster": {
+      "success": {
+        "description": "La ejecución del Dag ha sido activada exitosamente.",
+        "title": "Ejecución del Dag Activada"
+      }
+    },
+    "unpause": "Reanudar {{dagDisplayName}} al activarse"
+  },
+  "trimText": {
+    "details": "Detalles",
+    "empty": "Vacío",
+    "noContent": "No hay contenido disponible."
+  },
+  "versionDetails": {
+    "bundleLink": "Enlace del Bundle",
+    "bundleName": "Nombre del Bundle",
+    "bundleVersion": "Versión del Bundle",
+    "createdAt": "Creado en",
+    "versionId": "ID de la Versión"
+  },
+  "versionSelect": {
+    "dagVersion": "Versión del Dag",
+    "versionCode": "v{{versionCode}}"
+  }
+}

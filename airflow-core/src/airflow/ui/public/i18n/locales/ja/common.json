@@ -1,0 +1,334 @@
+{
+  "admin": {
+    "Config": "設定",
+    "Connections": "接続",
+    "Plugins": "プラグイン",
+    "Pools": "プール",
+    "Providers": "Providers",
+    "Variables": "変数"
+  },
+  "allOperators": "全オペレータ",
+  "appearance": {
+    "appearance": "外観モード",
+    "darkMode": "ダークモード",
+    "lightMode": "ライトモード",
+    "systemMode": "OS 設定に合わせる"
+  },
+  "asset_one": "アセット",
+  "asset_other": "アセット",
+  "assetEvent_one": "アセットのイベント",
+  "assetEvent_other": "アセットのイベント",
+  "backfill_one": "過去分の再実行",
+  "backfill_other": "過去分の再実行",
+  "browse": {
+    "auditLog": "監査ログ",
+    "requiredActions": "要対応項目",
+    "xcoms": "XComs"
+  },
+  "collapseAllExtra": "追加情報の JSON を閉じる",
+  "collapseDetailsPanel": "詳細パネルを閉じる",
+  "createdAssetEvent_one": "作成したアセットイベント",
+  "createdAssetEvent_other": "作成したアセットイベント",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "遅延分の追跡実行",
+    "dagRunTimeout": "Dag 実行タイムアウト",
+    "defaultArgs": "デフォルトパラメータ",
+    "description": "説明",
+    "documentation": "Dag ドキュメント",
+    "fileLocation": "保存先",
+    "hasTaskConcurrencyLimits": "タスク同時実行制限",
+    "lastExpired": "最終期限切れ日時",
+    "lastParseDuration": "最終パース時間",
+    "lastParsed": "最終パース日時",
+    "latestDagVersion": "最新の Dag バージョン",
+    "latestRun": "最終実行日時",
+    "maxActiveRuns": "最大アクティブ実行数",
+    "maxActiveTasks": "最大アクティブタスク数",
+    "maxConsecutiveFailedDagRuns": "連続失敗 Dag 実行の最大回数",
+    "nextRun": "次の実行",
+    "owner": "オーナー",
+    "params": "パラメータ",
+    "schedule": "スケジュール",
+    "tags": "タグ"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "設定",
+    "dagVersions": "Dag バージョン",
+    "dataIntervalEnd": "データ期間の終了",
+    "dataIntervalStart": "データ期間の開始",
+    "lastSchedulingDecision": "最終スケジューリング決定時刻",
+    "partitionKey": "パーティションキー",
+    "queuedAt": "キュー登録時刻",
+    "runAfter": "最早実行可能時間",
+    "runType": "実行タイプ",
+    "sourceAssetEvent": "元アセットのイベント",
+    "triggeredBy": "実行トリガー",
+    "triggeringUser": "トリガーユーザ"
+  },
+  "dagRun_one": "Dag 実行",
+  "dagRun_other": "Dag 実行",
+  "dagRunId": "Dag 実行 ID",
+  "dagWarnings": "Dag 実行警告/エラー",
+  "defaultToGraphView": "グラフ表示を既定にします",
+  "defaultToGridView": "グリッド表示を既定にします",
+  "diff": "差分",
+  "diffCompareWith": "比較する",
+  "diffExit": "差分表示終了",
+  "direction": "方向",
+  "docs": {
+    "documentation": "ドキュメント",
+    "githubRepo": "GitHub リポジトリ",
+    "restApiReference": "REST API 仕様書"
+  },
+  "download": {
+    "download": "ダウンロード",
+    "hotkey": "d",
+    "tooltip": "ログをダウンロードするには {{hotkey}} キーを押してください"
+  },
+  "duration": "実行時間",
+  "endDate": "終了日",
+  "error": {
+    "back": "戻る",
+    "defaultMessage": "予期せぬエラーが発生しました",
+    "home": "ホーム",
+    "invalidUrl": "ページが見つかりません。URLを確認して再度お試しください",
+    "notFound": "ページが見つかりません",
+    "title": "エラー"
+  },
+  "expand": {
+    "collapse": "閉じる",
+    "expand": "展開する",
+    "hotkey": "e",
+    "tooltip": "切り替えるには {{hotkey}} を押してください"
+  },
+  "expandAllExtra": "追加情報の JSON を展開",
+  "expression": {
+    "all": "すべて",
+    "and": "かつ",
+    "any": "いずれか",
+    "or": "または"
+  },
+  "filter": "フィルタ",
+  "filters": {
+    "durationFrom": "開始時刻",
+    "durationTo": "終了時刻",
+    "endTime": "終了時刻",
+    "logicalDateFrom": "論理開始日",
+    "logicalDateTo": "論理終了日",
+    "runAfterFrom": "実行開始日時の指定",
+    "runAfterTo": "実行終了日時の指定",
+    "selectDateRange": "日付範囲を選択",
+    "startTime": "開始時刻"
+  },
+  "logicalDate": "論理日付",
+  "logout": "ログアウト",
+  "logoutConfirmation": "ログアウトしてもよろしいですか",
+  "mapIndex": "Map Index",
+  "modal": {
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "delete": {
+      "button": "削除",
+      "confirmation": "{{resourceName}} を削除してもよろしいですか。この操作は元に戻せません"
+    }
+  },
+  "nav": {
+    "admin": "管理",
+    "assets": "アセット",
+    "browse": "閲覧",
+    "dags": "Dags",
+    "docs": "ヘルプ",
+    "home": "ホーム",
+    "legacyFabViews": "旧式ビュー",
+    "plugins": "プラグイン",
+    "security": "セキュリティ"
+  },
+  "noItemsFound": "{{modelName}} が見つかりません",
+  "note": {
+    "add": "ノートの追加",
+    "dagRun": "Dag 実行ノート",
+    "label": "ノート",
+    "placeholder": "ノートの追加...",
+    "taskInstance": "タスクインスタンスノート"
+  },
+  "pools": {
+    "deferred": "延期済",
+    "open": "開く",
+    "pools_one": "プール",
+    "pools_other": "プール",
+    "queued": "待機中",
+    "running": "実行中",
+    "scheduled": "スケジュール済"
+  },
+  "reset": "リセット",
+  "runId": "実行 ID",
+  "runTypes": {
+    "asset_triggered": "トリガー済アセット",
+    "backfill": "過去分の再実行",
+    "manual": "手動",
+    "scheduled": "スケジュール済"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "下",
+      "top": "上"
+    },
+    "tooltip": "{{direction}} に動かすには {{hotkey}} を押してください"
+  },
+  "security": {
+    "actions": "アクション",
+    "permissions": "権限",
+    "resources": "リソース",
+    "roles": "ロール",
+    "users": "ユーザ"
+  },
+  "selectLanguage": "言語を選択",
+  "showDetailsPanel": "詳細パネル表示",
+  "signedInAs": "サインインしているユーザ",
+  "source": {
+    "hide": "ソースを隠す",
+    "hotkey": "s",
+    "show": "ソースを表示"
+  },
+  "sourceAssetEvent_one": "元のアセットイベント",
+  "sourceAssetEvent_other": "元のアセットイベント",
+  "startDate": "開始日",
+  "state": "状態",
+  "states": {
+    "deferred": "延期済",
+    "failed": "失敗した",
+    "no_status": "ステータスなし",
+    "none": "ステータスなし",
+    "planned": "計画済",
+    "queued": "待機中",
+    "removed": "削除済",
+    "restarting": "再起動中",
+    "running": "実行中",
+    "scheduled": "スケジュール済",
+    "skipped": "スキップ済",
+    "success": "成功",
+    "up_for_reschedule": "リスケジュール待ち",
+    "up_for_retry": "再試行待ち",
+    "upstream_failed": "上流が失敗しました"
+  },
+  "table": {
+    "completedAt": "完了時刻",
+    "createdAt": "作成時刻",
+    "filterByTag": "タグでフィルタします",
+    "filterColumns": "テーブルの列をフィルタします",
+    "filterReset_one": "フィルタのリセット",
+    "filterReset_other": "フィルタのリセット",
+    "from": "開始時間",
+    "maxActiveRuns": "最大アクティブ実行",
+    "noTagsFound": "タグが見つかりません",
+    "tagMode": {
+      "all": "すべて",
+      "any": "いずれか"
+    },
+    "tagPlaceholder": "タグでフィルタします",
+    "to": "終了時間"
+  },
+  "task": {
+    "documentation": "タスクドキュメント",
+    "lastInstance": "最終インスタンス",
+    "operator": "オペレータ",
+    "triggerRule": "トリガールール"
+  },
+  "task_one": "タスク",
+  "task_other": "タスク",
+  "taskGroup": "タスクグループ",
+  "taskId": "タスク ID",
+  "taskInstance": {
+    "dagVersion": "Dag バージョン",
+    "executor": "エクゼキュータ",
+    "executorConfig": "エクゼキュータ設定",
+    "hostname": "ホスト名",
+    "maxTries": "最大試行回数",
+    "pid": "PID",
+    "pool": "プール",
+    "poolSlots": "プールスロット",
+    "priorityWeight": "優先度",
+    "queue": "キュー",
+    "queuedWhen": "キューイング時刻",
+    "scheduledWhen": "スケジュールされた時刻",
+    "triggerer": {
+      "assigned": "割り当てられたTriggerer",
+      "class": "トリガーカテゴリ",
+      "createdAt": "トリガー作成時刻",
+      "id": "トリガー ID",
+      "latestHeartbeat": "最新のTriggererハートビート",
+      "title": "Triggerer情報"
+    },
+    "unixname": "Unix 名"
+  },
+  "taskInstance_one": "タスクインスタンス",
+  "taskInstance_other": "タスクインスタンス",
+  "timeRange": {
+    "last12Hours": "直近12時間",
+    "last24Hours": "直近24時間",
+    "lastHour": "直近の1時間",
+    "pastWeek": "先週"
+  },
+  "timestamp": {
+    "hide": "タイムスタンプを非表示にします",
+    "hotkey": "t",
+    "show": "タイムスタンプを表示します"
+  },
+  "timezone": "タイムゾーン",
+  "timezoneModal": {
+    "current-timezone": "現在のタイムゾーン",
+    "placeholder": "タイムゾーンを選択",
+    "title": "タイムゾーンを選択",
+    "utc": "UTC"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "{{resourceName}} の一括削除が失敗しました",
+      "success": {
+        "description": "{{count}} {{resourceName}} が削除済。 キー: {{keys}}",
+        "title": "{{resourceName}} 一括削除リクエストが送信済"
+      }
+    },
+    "create": {
+      "error": "{{resourceName}} の作成リクエストが失敗しました",
+      "success": {
+        "description": "{{resourceName}} 作成が完了しました",
+        "title": "{{resourceName}} 作成リクエスト送信済み"
+      }
+    },
+    "delete": {
+      "error": "{{resourceName}} 削除リクエストが失敗しました",
+      "success": {
+        "description": "{{resourceName}} が削除済",
+        "title": "{{resourceName}} の削除リクエスト送信済み"
+      }
+    },
+    "import": {
+      "error": "{{resourceName}} のインポートに失敗しました",
+      "success": {
+        "description": "{{count}} {{resourceName}} のインポートが成功しました",
+        "title": "{{resourceName}} インポートリクエスト送信済み"
+      }
+    },
+    "update": {
+      "error": "{{resourceName}} の更新処理が失敗しました",
+      "success": {
+        "description": "{{resourceName}} の更新が成功しました",
+        "title": "{{resourceName}} の更新リクエスト送信済み"
+      }
+    }
+  },
+  "total": "合計 {{state}}",
+  "triggered": "トリガー済",
+  "tryNumber": "試行回数",
+  "user": "ユーザ",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "折り返し表示を切替えるには {{hotkey}} を押してください",
+    "unwrap": "改行なし",
+    "wrap": "改行"
+  }
+}

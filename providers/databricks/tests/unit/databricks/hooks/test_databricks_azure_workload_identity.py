@@ -28,7 +28,6 @@ from azure.core.credentials import AccessToken
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.hooks.databricks_base import DEFAULT_AZURE_CREDENTIAL_SETTING_KEY
-from airflow.utils.session import provide_session
 
 
 def create_successful_response_mock(content):
@@ -55,16 +54,20 @@ DEFAULT_RETRY_ARGS = dict(
 class TestDatabricksHookAadTokenWorkloadIdentity:
     _hook: DatabricksHook
 
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.extra = json.dumps(
-            {
-                DEFAULT_AZURE_CREDENTIAL_SETTING_KEY: True,
-            }
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                extra=json.dumps(
+                    {
+                        DEFAULT_AZURE_CREDENTIAL_SETTING_KEY: True,
+                    }
+                ),
+            )
         )
-        session.commit()
 
         # This will use the default connection id (databricks_default)
         self._hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)

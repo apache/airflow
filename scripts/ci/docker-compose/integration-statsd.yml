@@ -17,7 +17,7 @@
 ---
 services:
   statsd-exporter:
-    image: quay.io/prometheus/statsd-exporter:v0.26.0
+    image: quay.io/prometheus/statsd-exporter:v0.28.0
     labels:
       breeze.description: "Integration required for Statsd hooks."
     container_name: "breeze-statsd-exporter"
@@ -37,7 +37,7 @@ services:
       - ./prometheus/volume:/prometheus
 
   grafana:
-    image: grafana/grafana:8.2.4
+    image: grafana/grafana:12.2.1
     container_name: "breeze-grafana"
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: true

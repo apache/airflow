@@ -20,16 +20,17 @@ from __future__ import annotations
 import functools
 import logging
 from importlib import metadata
+from typing import Any
 
 from packaging.version import Version
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 log = logging.getLogger(__name__)
 
 
 def require_openlineage_version(
-    provider_min_version: str | None = None, client_min_version: str | None = None
+    provider_min_version: str | None | Any = None, client_min_version: str | None = None
 ):
     """
     Enforce minimum version requirements for OpenLineage provider or client.

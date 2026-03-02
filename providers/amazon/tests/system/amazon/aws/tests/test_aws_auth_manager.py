@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import boto3
 import pytest
 
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
@@ -62,9 +63,6 @@ permit (
 );
 """
 
-env_id_cache: str | None = None
-policy_store_id_cache: str | None = None
-
 
 def create_avp_policy_store(env_id):
     description = f"Created by system test TestAwsAuthManager: {env_id}"
@@ -99,12 +97,9 @@ def create_avp_policy_store(env_id):
     return policy_store_id
 
 
-@pytest.fixture
+@cache
 def env_id():
-    global env_id_cache
-    if not env_id_cache:
-        env_id_cache = set_env_id("test_aws_auth_manager")
-    return env_id_cache
+    return set_env_id("test_aws_auth_manager")
 
 
 @pytest.fixture
@@ -113,11 +108,9 @@ def region_name():
 
 
 @pytest.fixture
-def avp_policy_store_id(env_id):
-    global policy_store_id_cache
-    if not policy_store_id_cache:
-        policy_store_id_cache = create_avp_policy_store(env_id)
-    return policy_store_id_cache
+@cache
+def avp_policy_store_id():
+    return create_avp_policy_store(env_id())
 
 
 @pytest.fixture
@@ -128,6 +121,7 @@ def base_app(region_name, avp_policy_store_id):
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "conn_id"): "aws_default",
             ("aws_auth_manager", "region_name"): region_name,
             ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             ("aws_auth_manager", "avp_policy_store_id"): avp_policy_store_id,
@@ -191,7 +185,7 @@ class TestAwsAuthManager:
             for page in pages
             for store in page["policyStores"]
             if "description" in store
-            and f"Created by system test TestAwsAuthManager: {env_id_cache}" in store["description"]
+            and f"Created by system test TestAwsAuthManager: {env_id()}" in store["description"]
         ]
 
         for policy_store_id in policy_store_ids:

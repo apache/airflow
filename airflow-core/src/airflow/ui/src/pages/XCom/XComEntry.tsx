@@ -16,29 +16,68 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text } from "@chakra-ui/react";
+import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
-import type { XComResponseString } from "openapi/requests/types.gen";
+import type { XComResponseNative } from "openapi/requests/types.gen";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
+import { urlRegex } from "src/constants/urlRegex";
 
 type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
+  readonly open?: boolean;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
 };
 
-export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
-  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseString>({
+const renderTextWithLinks = (text: string) => {
+  const urls = text.match(urlRegex);
+  const parts = text.split(/\s+/u);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        const isLastPart = index === parts.length - 1;
+
+        if (urls?.includes(part)) {
+          return (
+            <Link
+              color="fg.info"
+              href={part}
+              key={part}
+              rel="noopener noreferrer"
+              target="_blank"
+              textDecoration="underline"
+            >
+              {part}
+            </Link>
+          );
+        }
+
+        return `${part}${isLastPart ? "" : " "}`;
+      })}
+    </>
+  );
+};
+
+export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
+  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
+    deserialize: true,
     mapIndex,
-    stringify: true,
+    stringify: false,
     taskId,
     xcomKey,
   });
+  // When deserialize=true, the API returns a stringified representation
+  // so we don't need to JSON.stringify it again
+  const xcomValue = data?.value;
+  const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
+  const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
 
   return isLoading ? (
     <Skeleton
@@ -47,14 +86,22 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
       height="10px"
       width={200} // TODO: Make Skeleton take style from column definition
     />
-  ) : (data?.value?.length ?? 0) > 0 ? (
+  ) : (
     <HStack>
-      <Text>{data?.value}</Text>
-      {Boolean(data?.value) ? (
-        <ClipboardRoot value={data?.value ?? ""}>
+      {isObjectOrArray ? (
+        <RenderedJsonField
+          content={xcomValue as object}
+          enableClipboard={false}
+          jsonProps={{ collapsed: !open }}
+        />
+      ) : (
+        <Text>{renderTextWithLinks(valueFormatted)}</Text>
+      )}
+      {xcomValue === undefined || xcomValue === null ? undefined : (
+        <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />
         </ClipboardRoot>
-      ) : undefined}
+      )}
     </HStack>
-  ) : undefined;
+  );
 };

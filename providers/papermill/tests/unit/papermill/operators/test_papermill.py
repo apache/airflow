@@ -51,14 +51,14 @@ class TestPapermillOperator:
             PapermillOperator(task_id="missing_input_nb", input_nb="foo-bar")
 
     @pytest.mark.parametrize(
-        "output_nb_url, output_as_object",
+        ("output_nb_url", "output_as_object"),
         [
             pytest.param(TEST_OUTPUT_URL, False, id="output-as-string"),
             pytest.param(TEST_OUTPUT_URL, True, id="output-as-notebook-object"),
         ],
     )
     @pytest.mark.parametrize(
-        "input_nb_url, input_as_object",
+        ("input_nb_url", "input_as_object"),
         [
             pytest.param(TEST_INPUT_URL, False, id="input-as-string"),
             pytest.param(TEST_INPUT_URL, True, id="input-as-notebook-object"),

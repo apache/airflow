@@ -23,15 +23,15 @@ from typing import TYPE_CHECKING, Any, cast
 
 from bson import json_util
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
 if TYPE_CHECKING:
     from pymongo.command_cursor import CommandCursor
     from pymongo.cursor import Cursor
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MongoToS3Operator(BaseOperator):

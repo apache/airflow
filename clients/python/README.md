@@ -178,14 +178,6 @@ For details on enabling/configuring CORS, see
 To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
 and it is even possible to add your own method.
 
-If you want to check which auth backend is currently set, you can use
-`airflow config get-value api auth_backends` command as in the example below.
-
-```bash
-$ airflow config get-value api auth_backends
-airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-```
-
 The default is to deny all requests.
 
 For details on configuring the authentication, see
@@ -279,24 +271,62 @@ import airflow_client.client
 
 ## Getting Started
 
+Before attempting the following examples ensure you have an account with API access.
+As an example you can create an account for usage with the API as follows using the Airflow CLI.
+
+```bash
+airflow users create -u admin-api -e admin-api@example.com -f admin-api -l admin-api -p $PASSWORD -r Admin
+```
+
 Please follow the [installation procedure](#installation--usage) and then run the following:
 
 ```python
 import airflow_client.client
+import requests
 from airflow_client.client.rest import ApiException
 from pprint import pprint
+from pydantic import BaseModel
+
+
+# What we expect back from auth/token
+class AirflowAccessTokenResponse(BaseModel):
+    access_token: str
+
+
+# An optional helper function to retrieve an access token
+def get_airflow_client_access_token(
+    host: str,
+    username: str,
+    password: str,
+) -> str:
+    url = f"{host}/auth/token"
+    payload = {
+        "username": username,
+        "password": password,
+    }
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code != 201:
+        raise RuntimeError(f"Failed to get access token: {response.status_code} {response.text}")
+    response_success = AirflowAccessTokenResponse(**response.json())
+    return response_success.access_token
+
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = airflow_client.client.Configuration(host="http://localhost")
+host = "http://localhost"
+configuration = airflow_client.client.Configuration(host=host)
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-configuration.access_token = os.environ["ACCESS_TOKEN"]
-
+configuration.access_token = get_airflow_client_access_token(
+    host=host,
+    username="admin-api",
+    password=os.environ["PASSWORD"],
+)
 
 # Enter a context with an instance of the API client
 with airflow_client.client.ApiClient(configuration) as api_client:
@@ -364,6 +394,7 @@ Class | Method | HTTP request | Description
 *DagRunApi* | [**get_dag_runs**](docs/DagRunApi.md#get_dag_runs) | **GET** /api/v2/dags/{dag_id}/dagRuns | Get Dag Runs
 *DagRunApi* | [**get_list_dag_runs_batch**](docs/DagRunApi.md#get_list_dag_runs_batch) | **POST** /api/v2/dags/{dag_id}/dagRuns/list | Get List Dag Runs Batch
 *DagRunApi* | [**get_upstream_asset_events**](docs/DagRunApi.md#get_upstream_asset_events) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get Upstream Asset Events
+*DagRunApi* | [**wait_dag_run_until_finished**](docs/DagRunApi.md#wait_dag_run_until_finished) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait | Experimental: Wait for a dag run to complete, and return task results if requested.
 *DagRunApi* | [**patch_dag_run**](docs/DagRunApi.md#patch_dag_run) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id} | Patch Dag Run
 *DagRunApi* | [**trigger_dag_run**](docs/DagRunApi.md#trigger_dag_run) | **POST** /api/v2/dags/{dag_id}/dagRuns | Trigger Dag Run
 *DagSourceApi* | [**get_dag_source**](docs/DagSourceApi.md#get_dag_source) | **GET** /api/v2/dagSources/{dag_id} | Get Dag Source
@@ -599,6 +630,7 @@ You can also set it by env variable: `export AIRFLOW__CORE__LOAD_EXAMPLES=True`
 
 * optionally expose configuration (NOTE! that this is dangerous setting). The script will happily run with
   the default setting, but if you want to see the configuration, you need to expose it.
+  Note that sensitive configuration values are always masked.
   In the `[api]` section of your `airflow.cfg` set:
 
 ```ini

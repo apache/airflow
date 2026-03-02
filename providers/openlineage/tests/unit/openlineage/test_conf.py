@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
     config_path,
@@ -320,7 +320,7 @@ def test_transport_valid():
 @pytest.mark.parametrize("transport_value", ('["a", "b"]', "[]", '[{"a": "b"}]'))
 def test_transport_not_valid(transport_value):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): transport_value}):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="OpenLineage transport"):
             transport()
 
 
@@ -473,6 +473,39 @@ def test_is_disabled_env_var_true_has_precedence_over_conf_false():
     }
 )
 def test_is_disabled_empty_conf_option():
+    assert is_disabled() is True
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPORT": '{"type": "console"}'}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_present():
+    assert is_disabled() is False
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPORT": ""}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_not_present():
+    assert is_disabled() is True
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPOR": '{"type": "console"}'}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_not_present_typo():
     assert is_disabled() is True
 
 

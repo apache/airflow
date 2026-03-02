@@ -36,9 +36,21 @@ with DAG(
     max_active_runs=1,
     catchup=False,
 ) as dag:
-    show_databases = AnalyticDBSparkSQLOperator(task_id="task1", sql="SHOE DATABASES;")
+    show_databases = AnalyticDBSparkSQLOperator(
+        task_id="task1",
+        sql="SHOE DATABASES;",
+        cluster_id="<your cluster id>",
+        rg_name="<your resource group name>",
+    )
 
-    show_tables = AnalyticDBSparkSQLOperator(task_id="task2", sql="SHOW TABLES;")
+    show_tables = AnalyticDBSparkSQLOperator(
+        task_id="task2",
+        sql="SHOW TABLES;",
+        cluster_id="<your cluster id>",
+        rg_name="<your resource group name>",
+    )
+
+    #  Replace the above cluster_id and rg_name with your own values.
 
     show_databases >> show_tables
 

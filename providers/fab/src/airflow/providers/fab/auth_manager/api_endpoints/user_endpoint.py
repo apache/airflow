@@ -56,10 +56,10 @@ def get_user(*, username: str) -> APIResponse:
 
 @requires_access_custom_view("GET", permissions.RESOURCE_USER)
 @format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
+def get_users(*, limit: int, order_by: str = "id", offset: int | None = None) -> APIResponse:
     """Get users."""
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
-    session = security_manager.get_session
+    session = security_manager.session
     total_entries = session.execute(select(func.count(User.id))).scalar()
     direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
@@ -120,7 +120,9 @@ def post_user() -> APIResponse:
         raise BadRequest(detail=detail)
 
     if not roles_to_add:  # No roles provided, use the F.A.B's default registered user role.
-        roles_to_add.append(security_manager.find_role(security_manager.auth_user_registration_role))
+        r = security_manager.find_role(security_manager.auth_user_registration_role)
+        if r:
+            roles_to_add.append(r)
 
     user = security_manager.add_user(role=roles_to_add, **data)
     if not user:
@@ -162,8 +164,8 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     if update_mask is not None:
         masked_data = {}
         missing_mask_names = []
-        for field in update_mask:
-            field = field.strip()
+        for field_raw in update_mask:
+            field = field_raw.strip()
             try:
                 masked_data[field] = data[field]
             except KeyError:
@@ -212,7 +214,7 @@ def delete_user(*, username: str) -> APIResponse:
         raise NotFound(title="User not found", detail=detail)
 
     user.roles = []  # Clear foreign keys on this user first.
-    security_manager.get_session.delete(user)
-    security_manager.get_session.commit()
+    security_manager.session.delete(user)
+    security_manager.session.commit()
 
     return NoContent, HTTPStatus.NO_CONTENT

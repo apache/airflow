@@ -28,14 +28,14 @@ Prerequisite Tasks
 .. _howto/operator:ComputeEngineInsertInstanceOperator:
 
 ComputeEngineInsertInstanceOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceOperator`
 to create new Google Compute Engine instance.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -73,14 +73,14 @@ See Google Compute Engine API documentation to `insert an instance
 .. _howto/operator:ComputeEngineInsertInstanceFromTemplateOperator:
 
 ComputeEngineInsertInstanceFromTemplateOperator
------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceFromTemplateOperator`
 to create new Google Compute Engine instance based on specified instance template.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -118,14 +118,14 @@ See Google Compute Engine API documentation to `insert an instance from template
 .. _howto/operator:ComputeEngineDeleteInstanceOperator:
 
 ComputeEngineDeleteInstanceOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineDeleteInstanceOperator`
 to delete an existing Google Compute Engine instance.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 You can create the operator without project id - project id will be retrieved
 from the Google Cloud connection id used. The code to create the operator:
@@ -155,14 +155,14 @@ See Google Compute Engine API documentation to `delete an instance
 .. _howto/operator:ComputeEngineStartInstanceOperator:
 
 ComputeEngineStartInstanceOperator
-----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator`
 to start an existing Google Compute Engine instance.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -200,7 +200,7 @@ See Google Compute Engine API documentation to `start an instance
 .. _howto/operator:ComputeEngineStopInstanceOperator:
 
 ComputeEngineStopInstanceOperator
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to stop Google Compute Engine instance.
 
@@ -208,7 +208,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -245,20 +245,18 @@ See Google Compute Engine API documentation to `stop an instance
 .. _howto/operator:ComputeEngineSetMachineTypeOperator:
 
 ComputeEngineSetMachineTypeOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to change machine type of a Google Compute Engine instance.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator`.
 
-Arguments
-"""""""""
 
 
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -295,7 +293,7 @@ See Google Compute Engine API documentation to `set the machine type
 .. _howto/operator:ComputeEngineDeleteInstanceTemplateOperator:
 
 ComputeEngineDeleteInstanceTemplateOperator
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to delete Google Compute Engine instance template.
 
@@ -303,7 +301,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineDeleteInstanceTemplateOperator`.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -334,7 +332,7 @@ See Google Compute Engine API documentation to `delete a template
 .. _howto/operator:ComputeEngineInsertInstanceTemplateOperator:
 
 ComputeEngineInsertInstanceTemplateOperator
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to create Google Compute Engine instance template.
 
@@ -342,7 +340,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceTemplateOperator`.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -379,7 +377,7 @@ See Google Compute Engine API documentation to `create a new template
 .. _howto/operator:ComputeEngineCopyInstanceTemplateOperator:
 
 ComputeEngineCopyInstanceTemplateOperator
------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to copy an existing Google Compute Engine instance template
 applying a patch to it.
@@ -388,7 +386,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -425,19 +423,16 @@ See Google Compute Engine API documentation to `create a new instance with an ex
 .. _howto/operator:ComputeEngineInsertInstanceGroupManagerOperator:
 
 ComputeEngineInsertInstanceGroupManagerOperator
------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to create a Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceGroupManagerOperator`.
 
-Arguments
-"""""""""
-
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 
@@ -474,19 +469,17 @@ See Google Compute Engine API documentation to `create a group instance
 .. _howto/operator:ComputeEngineDeleteInstanceGroupManagerOperator:
 
 ComputeEngineDeleteInstanceGroupManagerOperator
------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to delete a Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineDeleteInstanceGroupManagerOperator`.
 
-Arguments
-"""""""""
 
 
 Using the operator
-""""""""""""""""""
+------------------
 
 You can create the operator without project id - project id will be retrieved
 from the Google Cloud connection used. The code to create the operator:
@@ -516,19 +509,17 @@ See Google Compute Engine API documentation to `delete a group instance
 .. _howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator:
 
 ComputeEngineInstanceGroupUpdateManagerTemplateOperator
--------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
 
-Arguments
-"""""""""
 
 
 Using the operator
-""""""""""""""""""
+------------------
 
 The code to create the operator:
 

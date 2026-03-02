@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineTy
 
 class TestDataFusionPipelineType:
     @pytest.mark.parametrize(
-        "str_value, expected_item",
+        ("str_value", "expected_item"),
         [
             ("batch", DataFusionPipelineType.BATCH),
             ("stream", DataFusionPipelineType.STREAM),
@@ -33,5 +33,5 @@ class TestDataFusionPipelineType:
         assert DataFusionPipelineType.from_str(str_value) == expected_item
 
     def test_from_str_error(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid value 'non-existing value'."):
             DataFusionPipelineType.from_str("non-existing value")

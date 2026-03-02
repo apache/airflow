@@ -18,12 +18,23 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pendulum
 import pytest
+from sqlalchemy import select
 
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_apdr, clear_db_dags, clear_db_pakl, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -32,6 +43,8 @@ pytestmark = pytest.mark.db_test
 def cleanup():
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_apdr()
+    clear_db_pakl()
 
 
 class TestNextRunAssets:
@@ -46,7 +59,8 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        response = test_client.get("/next_run_assets/upstream")
+        with assert_queries_count(4):
+            response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -74,3 +88,137 @@ class TestNextRunAssets:
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/next_run_assets/upstream")
         assert response.status_code == 403
+
+    def test_should_set_last_update_only_for_queued_and_hide_flag(self, test_client, dag_maker, session):
+        with dag_maker(
+            dag_id="two_assets_equal",
+            schedule=[
+                Asset(uri="s3://bucket/A", name="A"),
+                Asset(uri="s3://bucket/B", name="B"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        assets = {
+            a.uri: a
+            for a in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
+            )
+        }
+        # Queue and add an event only for A
+        session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets_equal"))
+        session.add(
+            AssetEvent(asset_id=assets["s3://bucket/A"].id, timestamp=dr.logical_date or pendulum.now())
+        )
+        session.commit()
+
+        response = test_client.get("/next_run_assets/two_assets_equal")
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_expression": {
+                "all": [
+                    {
+                        "asset": {
+                            "uri": "s3://bucket/A",
+                            "name": "A",
+                            "group": "asset",
+                            "id": mock.ANY,
+                        }
+                    },
+                    {
+                        "asset": {
+                            "uri": "s3://bucket/B",
+                            "name": "B",
+                            "group": "asset",
+                            "id": mock.ANY,
+                        }
+                    },
+                ]
+            },
+            # events are ordered by uri
+            "events": [
+                {"id": mock.ANY, "uri": "s3://bucket/A", "name": "A", "lastUpdate": mock.ANY},
+                {"id": mock.ANY, "uri": "s3://bucket/B", "name": "B", "lastUpdate": None},
+            ],
+        }
+
+    def test_last_update_respects_latest_run_filter(self, test_client, dag_maker, session):
+        with dag_maker(
+            dag_id="filter_run",
+            schedule=[Asset(uri="s3://bucket/F", name="F")],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset = session.scalars(select(AssetModel).where(AssetModel.uri == "s3://bucket/F")).one()
+        session.add(AssetDagRunQueue(asset_id=asset.id, target_dag_id="filter_run"))
+        # event before latest_run should be ignored
+        ts_base = dr.logical_date or pendulum.now()
+        session.add(AssetEvent(asset_id=asset.id, timestamp=ts_base.subtract(minutes=10)))
+        # event after latest_run counts
+        session.add(AssetEvent(asset_id=asset.id, timestamp=ts_base.add(minutes=10)))
+        session.commit()
+
+        resp = test_client.get("/next_run_assets/filter_run")
+        assert resp.status_code == 200
+        ev = resp.json()["events"][0]
+        assert ev["lastUpdate"] is not None
+        assert "queued" not in ev
+
+    @pytest.mark.parametrize(
+        ("fulfilled", "expect_last_update"),
+        [(False, True), (True, False)],
+        ids=["pending", "fulfilled"],
+    )
+    def test_partitioned_dag_last_update(
+        self, test_client, dag_maker, session, fulfilled, expect_last_update
+    ):
+        asset = Asset(uri="s3://bucket/part", name="part")
+        with dag_maker(
+            dag_id="part_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset_model = session.scalars(select(AssetModel).where(AssetModel.uri == "s3://bucket/part")).one()
+        event = AssetEvent(
+            asset_id=asset_model.id, timestamp=(dr.logical_date or pendulum.now()).add(minutes=5)
+        )
+        session.add(event)
+        session.flush()
+
+        pdr = AssetPartitionDagRun(
+            target_dag_id="part_dag",
+            partition_key="2024-01-01",
+            created_dag_run_id=dr.id if fulfilled else None,
+        )
+        session.add(pdr)
+        session.flush()
+
+        session.add(
+            PartitionedAssetKeyLog(
+                asset_id=asset_model.id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=pdr.id,
+                source_partition_key="2024-01-01",
+                target_dag_id="part_dag",
+                target_partition_key="2024-01-01",
+            )
+        )
+        session.commit()
+
+        resp = test_client.get("/next_run_assets/part_dag")
+        assert resp.status_code == 200
+        ev = resp.json()["events"][0]
+        assert (ev["lastUpdate"] is not None) == expect_last_update

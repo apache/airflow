@@ -19,6 +19,7 @@
 import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { usePoolServiceGetPools } from "openapi/queries";
@@ -42,22 +43,23 @@ const cardDef = (): CardDef<PoolResponse> => ({
   },
 });
 
-const poolSortOptions = createListCollection({
-  items: [
-    { label: "Name (A-Z)", value: "name" },
-    { label: "Name (Z-A)", value: "-name" },
-  ],
-});
-
 export const Pools = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
+
+  const poolSortOptions = createListCollection({
+    items: [
+      { label: translate("pools.sort.asc"), value: "name" },
+      { label: translate("pools.sort.desc"), value: "-name" },
+    ],
+  });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["name"];
 
   const { data, error, isLoading } = usePoolServiceGetPools({
     limit: pagination.pageSize,
@@ -68,10 +70,11 @@ export const Pools = () => {
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setPoolNamePattern(value);
   };
@@ -91,10 +94,9 @@ export const Pools = () => {
     <>
       <ErrorAlert error={error} />
       <SearchBar
-        buttonProps={{ disabled: true }}
         defaultValue={poolNamePattern ?? ""}
         onChange={handleSearchChange}
-        placeHolder="Search Pools"
+        placeholder={translate("pools.searchPlaceholder")}
       />
       <HStack gap={4} mt={4}>
         <Select.Root
@@ -105,7 +107,7 @@ export const Pools = () => {
           width={130}
         >
           <Select.Trigger>
-            <Select.ValueText placeholder="Sort by" />
+            <Select.ValueText placeholder={translate("pools.sort.placeholder")} />
           </Select.Trigger>
 
           <Select.Content>
@@ -126,7 +128,8 @@ export const Pools = () => {
           displayMode="card"
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName="Pool"
+          modelName="admin:pools.pool"
+          noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}
         />

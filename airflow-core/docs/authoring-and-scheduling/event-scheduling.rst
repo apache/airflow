@@ -20,13 +20,13 @@ Event-driven scheduling
 
 .. versionadded:: 3.0
 
-Apache Airflow allows for event-driven scheduling, enabling dags to be triggered based on external events rather than
+Apache Airflow allows for event-driven scheduling, enabling Dags to be triggered based on external events rather than
 predefined time-based schedules.
 This is particularly useful in modern data architectures where workflows need to react to real-time data changes,
 messages, or system signals.
 
-By using assets, as described in :doc:`asset-scheduling`, you can configure dags to start execution when specific external events
-occur. Assets provide a mechanism to establish dependencies between external events and DAG execution, ensuring that
+By using assets, as described in :doc:`asset-scheduling`, you can configure Dags to start execution when specific external events
+occur. Assets provide a mechanism to establish dependencies between external events and Dag execution, ensuring that
 workflows react dynamically to changes in the external environment.
 
 The ``AssetWatcher`` class plays a crucial role in this mechanism. It monitors an external event source, such as a
@@ -41,10 +41,10 @@ Supported triggers for event-driven scheduling
 Not all :doc:`triggers <deferring>` in Airflow can be used for event-driven scheduling. As opposed to all triggers that
 inherit from ``BaseTrigger``, only a subset that inherit from ``BaseEventTrigger`` are compatible.
 The reason for this restriction is that some triggers are not designed for event-driven scheduling, and using them to
-schedule dags could lead to unintended results.
+schedule Dags could lead to unintended results.
 
 ``BaseEventTrigger`` ensures that triggers used for scheduling adhere to an event-driven paradigm, reacting appropriately
-to external event changes without causing unexpected DAG behavior.
+to external event changes without causing unexpected Dag behavior.
 
 Writing event-driven compatible triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,19 +77,19 @@ for an external resource to reach a given state. Examples:
 Scheduling under such conditions can lead to infinite rescheduling. This is because once the condition becomes true,
 it is likely to remain true for an extended period.
 
-For example, consider a DAG scheduled to run when a specific job reaches a "success" state.
-Once the job succeeds, it will typically remain in that state. As a result, the DAG will be triggered repeatedly every
+For example, consider a Dag scheduled to run when a specific job reaches a "success" state.
+Once the job succeeds, it will typically remain in that state. As a result, the Dag will be triggered repeatedly every
 time the triggerer checks the condition.
 
 Another example is the ``S3KeyTrigger``, which checks for the presence of a specific file in an S3 bucket.
 Once the file is created, the trigger will continue to succeed on every check, since the condition
 "is file X present in bucket Y" remains true.
-This leads to the DAG being triggered indefinitely every time the trigger mechanism runs.
+This leads to the Dag being triggered indefinitely every time the trigger mechanism runs.
 
 When creating custom triggers, be cautious about using conditions that remain permanently true once met.
-This can unintentionally result in infinite DAG executions and overwhelm your system.
+This can unintentionally result in infinite Dag executions and overwhelm your system.
 
-Use cases for event-driven dags
+Use cases for event-driven Dags
 -------------------------------
 
 * **Data ingestion pipelines**: Trigger ETL workflows when new data arrives in a storage system.

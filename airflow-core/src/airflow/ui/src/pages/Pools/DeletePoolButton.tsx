@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeletePool } from "src/queries/useDeletePool";
 
 type Props = {
   readonly poolName: string;
-  readonly withText?: boolean;
 };
 
-const DeletePoolButton = ({ poolName, withText = false }: Props) => {
+const DeletePoolButton = ({ poolName }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeletePool({
     onSuccessConfirm: onClose,
@@ -36,15 +37,17 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName="Delete Pool"
-        colorPalette="red"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-        text="Delete Pool"
-        variant="solid"
-        withText={withText}
-      />
+      <Tooltip content={translate("pools.delete.title")}>
+        <IconButton
+          aria-label={translate("pools.delete.title")}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}
@@ -52,8 +55,8 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
         onDelete={() => mutate({ poolName })}
         open={open}
         resourceName={poolName}
-        title="Delete Pool"
-        warningText="This will remove all metadata related to the pool and may affect tasks using this pool."
+        title={translate("pools.delete.title")}
+        warningText={translate("pools.delete.warning")}
       />
     </>
   );

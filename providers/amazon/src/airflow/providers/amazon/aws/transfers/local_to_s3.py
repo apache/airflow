@@ -20,11 +20,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class LocalFilesystemToS3Operator(BaseOperator):

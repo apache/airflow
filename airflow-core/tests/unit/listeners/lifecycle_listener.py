@@ -17,27 +17,35 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import cache
 from typing import Any
 
 from airflow.listeners import hookimpl
 
-started_component: Any = None
-stopped_component: Any = None
+
+@dataclass
+class ListenerState:
+    started_component: Any = None
+    stopped_component: Any = None
+
+
+@cache
+def get_listener_state() -> ListenerState:
+    return ListenerState()
 
 
 @hookimpl
 def on_starting(component):
-    global started_component
-    started_component = component
+    get_listener_state().started_component = component
 
 
 @hookimpl
 def before_stopping(component):
-    global stopped_component
-    stopped_component = component
+    get_listener_state().stopped_component = component
 
 
 def clear():
-    global started_component, stopped_component
-    started_component = None
-    stopped_component = None
+    listener_state = get_listener_state()
+    listener_state.started_component = None
+    listener_state.stopped_component = None

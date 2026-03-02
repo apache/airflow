@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
 
 import kerberos
 from flask import Response, current_app, g, make_response, request

@@ -27,10 +27,8 @@ from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils import db
 
 
-@pytest.mark.db_test
 class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
@@ -39,8 +37,11 @@ class TestAirbyteSyncTrigger:
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
-    def setup_method(self):
-        db.merge_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte")
+        )
 
     def test_serialization(self):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
@@ -79,7 +80,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
         ],
@@ -110,7 +111,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
         ],
@@ -141,7 +142,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.FAILED, "error", "Job run 1234 has failed."),
         ],
@@ -222,7 +223,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (JobStatusEnum.SUCCEEDED, False),
         ],
@@ -246,7 +247,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (JobStatusEnum.RUNNING, True),
         ],

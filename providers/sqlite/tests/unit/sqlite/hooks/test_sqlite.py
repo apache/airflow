@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy
@@ -26,7 +26,14 @@ import sqlalchemy
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
-pytestmark = pytest.mark.db_test
+
+def mock_connection(host=None, extra=None, uri=None):
+    """Create a mock connection object without triggering SQLAlchemy ORM initialization."""
+    conn = MagicMock(spec=Connection)
+    conn.host = host
+    conn.extra = extra
+    conn.get_uri.return_value = uri if uri is not None else (host or "")
+    return conn
 
 
 class TestSqliteHookConn:
@@ -37,15 +44,24 @@ class TestSqliteHookConn:
         self.db_hook = UnitTestSqliteHook()
 
     @pytest.mark.parametrize(
-        "connection, uri",
+        ("connection", "uri"),
         [
-            (Connection(host="host"), "file:host"),
-            (Connection(host="host", extra='{"mode":"ro"}'), "file:host?mode=ro"),
-            (Connection(host=":memory:"), "file::memory:"),
-            (Connection(), "file:"),
-            (Connection(uri="sqlite://relative/path/to/db?mode=ro"), "file:relative/path/to/db?mode=ro"),
-            (Connection(uri="sqlite:///absolute/path/to/db?mode=ro"), "file:/absolute/path/to/db?mode=ro"),
-            (Connection(uri="sqlite://?mode=ro"), "file:?mode=ro"),
+            (mock_connection(host="host", uri="sqlite:///host"), "file:/host"),
+            (
+                mock_connection(host="host", extra='{"mode":"ro"}', uri="sqlite:///host?mode=ro"),
+                "file:/host?mode=ro",
+            ),
+            (mock_connection(host=":memory:", uri="sqlite:///:memory:"), "file:/:memory:"),
+            (mock_connection(uri="sqlite:///"), "file:/"),
+            (
+                mock_connection(uri="sqlite:///relative/path/to/db?mode=ro"),
+                "file:/relative/path/to/db?mode=ro",
+            ),
+            (
+                mock_connection(uri="sqlite:////absolute/path/to/db?mode=ro"),
+                "file://absolute/path/to/db?mode=ro",
+            ),
+            (mock_connection(uri="sqlite://?mode=ro"), "sqlite:/?mode=ro"),
         ],
     )
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
@@ -56,10 +72,12 @@ class TestSqliteHookConn:
 
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.get_connection = mock.Mock(return_value=Connection(host="host"))
+        self.db_hook.get_connection = mock.Mock(
+            return_value=mock_connection(host="host", uri="sqlite:///host")
+        )
         self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with("file:host", uri=True)
+        mock_connect.assert_called_once_with("file:/host", uri=True)
         self.db_hook.get_connection.assert_called_once_with("non_default")
 
 
@@ -78,6 +96,7 @@ class TestSqliteHook:
                 return conn
 
         self.db_hook = UnitTestSqliteHook()
+        self.db_hook.get_connection = mock.Mock(return_value=Connection(conn_type="sqlite"))
 
     def test_get_first_record(self):
         statement = "SQL"
@@ -135,6 +154,7 @@ class TestSqliteHook:
         self.db_hook.run(statement)
         assert self.db_hook.log.info.call_count == 2
 
+    @pytest.mark.db_test
     def test_generate_insert_sql_replace_false(self):
         expected_sql = "INSERT INTO Customer (first_name, last_name) VALUES (?,?)"
         rows = ("James", "1")
@@ -145,6 +165,7 @@ class TestSqliteHook:
 
         assert sql == expected_sql
 
+    @pytest.mark.db_test
     def test_generate_insert_sql_replace_true(self):
         expected_sql = "REPLACE INTO Customer (first_name, last_name) VALUES (?,?)"
         rows = ("James", "1")
@@ -154,6 +175,55 @@ class TestSqliteHook:
         )
 
         assert sql == expected_sql
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+        self.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (?)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
 
     @pytest.mark.db_test
     def test_sqlalchemy_engine(self):

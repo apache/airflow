@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from redis import Redis
 
     from airflow.models import TaskInstance
+    from airflow.utils.log.file_task_handler import LogMetadata
 
 
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):
@@ -60,8 +61,14 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         max_lines: int = 10000,
         ttl_seconds: int = 60 * 60 * 24 * 28,
         conn_id: str | None = None,
-    ):
-        super().__init__(base_log_folder)
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: _RedisHandler | None = None
         self.max_lines = max_lines
         self.ttl_seconds = ttl_seconds
@@ -75,8 +82,8 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         self,
         ti: TaskInstance,
         try_number: int,
-        metadata: dict[str, Any] | None = None,
-    ):
+        metadata: LogMetadata | None = None,
+    ) -> tuple[str | list[str], LogMetadata]:
         log_str = b"\n".join(
             self.conn.lrange(self._render_filename(ti, try_number), start=0, end=-1)
         ).decode()

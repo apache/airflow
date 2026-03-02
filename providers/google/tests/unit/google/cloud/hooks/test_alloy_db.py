@@ -25,10 +25,19 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import alloydb_v1
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 TEST_GCP_PROJECT = "test-project"
 TEST_GCP_REGION = "global"
 TEST_GCP_CONN_ID = "test_conn_id"
@@ -58,7 +67,7 @@ HOOK_PATH = "airflow.providers.google.cloud.hooks.alloy_db.{}"
 
 class TestAlloyDbHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection"):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection"):
             self.hook = AlloyDbHook(
                 gcp_conn_id=TEST_GCP_CONN_ID,
             )
@@ -79,7 +88,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_timeout, expected_timeout",
+        ("given_timeout", "expected_timeout"),
         [
             (None, None),
             (0.0, None),
@@ -99,7 +108,7 @@ class TestAlloyDbHook:
         mock_operation.result.assert_called_once_with(timeout=expected_timeout)
 
     @pytest.mark.parametrize(
-        "given_timeout, expected_timeout",
+        ("given_timeout", "expected_timeout"),
         [
             (None, None),
             (0.0, None),
@@ -220,7 +229,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_cluster, expected_cluster",
+        ("given_cluster", "expected_cluster"),
         [
             (TEST_CLUSTER, {**deepcopy(TEST_CLUSTER), **{"name": TEST_CLUSTER_NAME}}),
             (alloydb_v1.Cluster(), {"name": TEST_CLUSTER_NAME}),
@@ -381,7 +390,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_user, expected_user",
+        ("given_user", "expected_user"),
         [
             (TEST_USER, {**deepcopy(TEST_USER), **{"name": TEST_USER_NAME}}),
             (alloydb_v1.User(), {"name": TEST_USER_NAME}),
@@ -540,7 +549,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_backup, expected_backup",
+        ("given_backup", "expected_backup"),
         [
             (TEST_BACKUP, {**deepcopy(TEST_BACKUP), **{"name": TEST_BACKUP_NAME}}),
             (alloydb_v1.Backup(), {"name": TEST_BACKUP_NAME}),

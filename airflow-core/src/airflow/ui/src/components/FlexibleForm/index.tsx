@@ -19,10 +19,10 @@
 
 export type FlexibleFormElementProps = {
   readonly name: string;
+  readonly namespace?: string;
   readonly onUpdate: (value?: string, error?: unknown) => void;
 };
 
 export const flexibleFormDefaultSection = "Run Parameters";
-export const flexibleFormExtraFieldSection = "Extra Fields";
 
 export { FlexibleForm } from "./FlexibleForm";

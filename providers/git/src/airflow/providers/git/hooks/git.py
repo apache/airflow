@@ -24,8 +24,7 @@ import os
 import tempfile
 from typing import Any
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class GitHook(BaseHook):
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
-                "login": "Username",
+                "login": "Username or Access Token name",
                 "host": "Repository URL",
                 "password": "Access Token (optional)",
             },
@@ -68,6 +67,7 @@ class GitHook(BaseHook):
         super().__init__()
         connection = self.get_connection(git_conn_id)
         self.repo_url = repo_url or connection.host
+        self.user_name = connection.login or "user"
         self.auth_token = connection.password
         self.private_key = connection.extra_dejson.get("private_key")
         self.key_file = connection.extra_dejson.get("key_file")
@@ -89,7 +89,12 @@ class GitHook(BaseHook):
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
-            self.repo_url = self.repo_url.replace("https://", f"https://{self.auth_token}@")
+            self.repo_url = self.repo_url.replace("https://", f"https://{self.user_name}:{self.auth_token}@")
+        elif self.auth_token and self.repo_url.startswith("http://"):
+            self.repo_url = self.repo_url.replace("http://", f"http://{self.user_name}:{self.auth_token}@")
+        elif self.repo_url.startswith("http://"):
+            # if no auth token, use the repo url as is
+            self.repo_url = self.repo_url
         elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
 

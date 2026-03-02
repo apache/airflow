@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import {
@@ -27,13 +28,14 @@ import {
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
-import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const DagBreadcrumb = () => {
+  const { t: translate } = useTranslation();
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -54,9 +56,9 @@ export const DagBreadcrumb = () => {
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
 
   const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    { dagId, dagRunId: runId ?? "", mapIndex: parseInt(mapIndex, 10), taskId: taskId ?? "" },
+    { dagId, dagRunId: runId ?? "", mapIndex: parsedMapIndex, taskId: taskId ?? "" },
     undefined,
-    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" },
+    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" && !isNaN(parsedMapIndex) },
   );
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
@@ -71,7 +73,7 @@ export const DagBreadcrumb = () => {
             skipConfirm
           />
         ),
-        title: "Dag",
+        title: translate("dag_one"),
         value: `/dags/${dagId}`,
       },
     ];
@@ -79,9 +81,9 @@ export const DagBreadcrumb = () => {
   // Add dag run breadcrumb
   if (runId !== undefined) {
     links.push({
-      label: dagRun === undefined ? runId : <Time datetime={dagRun.run_after} />,
+      label: dagRun === undefined ? runId : dagRun.dag_run_id,
       labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
-      title: "Dag Run",
+      title: translate("dagRun_one"),
       value: `/dags/${dagId}/runs/${runId}`,
     });
   }
@@ -90,8 +92,8 @@ export const DagBreadcrumb = () => {
   if (groupId !== undefined) {
     if (runId === undefined) {
       links.push({
-        label: "All Runs",
-        title: "Dag Run",
+        label: translate("allRuns", { ns: "dag" }),
+        title: translate("dagRun_one"),
         value: `/dags/${dagId}/runs`,
       });
     }
@@ -108,24 +110,34 @@ export const DagBreadcrumb = () => {
     if (task?.is_mapped) {
       links.push({
         label: `${task.task_display_name ?? taskId} [ ]`,
-        title: "Task",
+        title: translate("task_one"),
         value: `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`,
       });
     } else {
       links.push({
         label: task?.task_display_name ?? taskId,
-        title: "Task",
+        title: translate("task_one"),
       });
     }
   }
 
   if (runId === undefined && taskId !== undefined) {
-    links.push({ label: "All Runs", title: "Dag Run", value: `/dags/${dagId}/runs` });
-    links.push({ label: task?.task_display_name ?? taskId, title: "Task" });
+    links.push({
+      label: translate("allRuns", { ns: "dag" }),
+      title: translate("dagRun_one"),
+      value: `/dags/${dagId}/runs`,
+    });
+    links.push({
+      label: task?.task_display_name ?? taskId,
+      title: translate("task_one"),
+    });
   }
 
   if (mapIndex !== "-1") {
-    links.push({ label: mappedTaskInstance?.rendered_map_index ?? mapIndex, title: "Map Index" });
+    links.push({
+      label: mappedTaskInstance?.rendered_map_index ?? mapIndex,
+      title: translate("mapIndex"),
+    });
   }
 
   return <BreadcrumbStats links={links} />;

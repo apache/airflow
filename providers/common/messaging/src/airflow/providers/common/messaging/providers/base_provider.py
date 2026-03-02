@@ -31,6 +31,19 @@ class BaseMessageQueueProvider:
     to ``MESSAGE_QUEUE_PROVIDERS``.
     """
 
+    scheme: str | None = None
+
+    def scheme_matches(self, scheme: str) -> bool:
+        """
+        Return whether a given scheme (string) matches a specific provider's pattern.
+
+        This function must be as specific as possible to avoid collision with other providers.
+        Functions in this provider should NOT overlap with each other in their matching criteria.
+
+        :param scheme: The scheme identifier
+        """
+        return self.scheme == scheme
+
     @abstractmethod
     def queue_matches(self, queue: str) -> bool:
         """

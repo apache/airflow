@@ -21,10 +21,10 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from airflow import DAG
 from airflow.models import Connection
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
-from airflow.utils import timezone
+
+from tests_common.test_utils.compat import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -37,10 +37,18 @@ def mocked_hook():
         yield m
 
 
-@pytest.mark.db_test
 class TestSqlToSlackWebhookOperator:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="slack_connection",
+                conn_type="slackwebhook",
+                password="xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
+            )
+        )
+
     def setup_method(self):
-        self.example_dag = DAG(TEST_DAG_ID, schedule=None, start_date=DEFAULT_DATE)
         self.default_hook_parameters = {"timeout": None, "proxy": None, "retry_handlers": None}
 
     @staticmethod
@@ -49,7 +57,7 @@ class TestSqlToSlackWebhookOperator:
         return operator
 
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param(
                 {}, {"timeout": None, "proxy": None, "retry_handlers": None}, id="default-hook-parameters"
@@ -74,14 +82,14 @@ class TestSqlToSlackWebhookOperator:
             "slack_message": "message: {{ ds }}, {{ results_df }}",
             "slack_channel": "#test",
             "sql": "sql {{ ds }}",
-            "dag": self.example_dag,
             **slack_op_kwargs,
         }
         sql_to_slack_operator = self._construct_operator(**operator_args)
 
         slack_webhook_hook = mocked_hook.return_value
         sql_to_slack_operator._get_hook = mock_dbapi_hook
-        sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        sql_to_slack_operator.render_template_fields({"ds": "2017-01-01"})
+        sql_to_slack_operator.execute({"ds": "2017-01-01"})
 
         # Test that the Slack hook is instantiated with the right parameters
         mocked_hook.assert_called_once_with(slack_webhook_conn_id="slack_connection", **hook_extra_kwargs)
@@ -105,13 +113,14 @@ class TestSqlToSlackWebhookOperator:
             "slack_message": "message: {{ ds }}, {{ results_df }}",
             "slack_channel": "#test",
             "sql": "sql {{ ds }}",
-            "dag": self.example_dag,
         }
         sql_to_slack_operator = self._construct_operator(**operator_args)
 
         slack_webhook_hook = mocked_hook.return_value
         sql_to_slack_operator._get_hook = mock_dbapi_hook
-        sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        sql_to_slack_operator.render_template_fields({"ds": "2017-01-01"})
+        sql_to_slack_operator.execute({"ds": "2017-01-01"})
 
         # Test that the Slack hook is instantiated with the right parameters
         mocked_hook.assert_called_once_with(
@@ -125,7 +134,7 @@ class TestSqlToSlackWebhookOperator:
         )
 
     @pytest.mark.parametrize(
-        "slack_webhook_conn_id, warning_expected, expected_conn_id",
+        ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),
         [
             pytest.param("foo", False, "foo", id="slack-webhook-conn-id"),
             pytest.param("spam", True, "spam", id="mixin-conn-ids"),
@@ -167,13 +176,14 @@ class TestSqlToSlackWebhookOperator:
             "slack_channel": "#test",
             "sql": "sql {{ ds }}",
             "results_df_name": "testing",
-            "dag": self.example_dag,
         }
         sql_to_slack_operator = self._construct_operator(**operator_args)
 
         slack_webhook_hook = mocked_hook.return_value
         sql_to_slack_operator._get_hook = mock_dbapi_hook
-        sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        sql_to_slack_operator.render_template_fields({"ds": "2017-01-01"})
+        sql_to_slack_operator.execute({"ds": "2017-01-01"})
 
         # Test that the Slack hook is instantiated with the right parameters
         mocked_hook.assert_called_once_with(
@@ -202,7 +212,6 @@ class TestSqlToSlackWebhookOperator:
             "slack_webhook_conn_id": "slack_connection",
             "parameters": ["1", "2", "3"],
             "slack_message": "message: {{ ds }}, {{ xxxx }}",
-            "dag": self.example_dag,
         }
         sql_to_slack_operator = SqlToSlackWebhookOperator(task_id=TEST_TASK_ID, **operator_args)
 

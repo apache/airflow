@@ -158,7 +158,7 @@ By default Breeze starts only Airflow container without any integration enabled.
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
 to start more than one integration at a time.
-Finally you can specify ``--integration all-testable`` to start all testable integrations and
+Finally, you can specify ``--integration all-testable`` to start all testable integrations and
 ``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with

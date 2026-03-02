@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, Integer, MetaData, String, text
-from sqlalchemy.orm import registry
+from sqlalchemy import Integer, MetaData, String, text
+from sqlalchemy.orm import Mapped, mapped_column, registry
 
 from airflow.configuration import conf
 
@@ -52,6 +52,9 @@ if TYPE_CHECKING:
     Base = Any
 else:
     Base = mapper_registry.generate_base()
+    # TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
+    # unblock the development of SQLA2 support.
+    Base.__allow_unmapped__ = True
 
 ID_LEN = 250
 
@@ -89,7 +92,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))

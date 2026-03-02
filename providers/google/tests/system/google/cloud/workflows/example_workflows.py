@@ -36,7 +36,12 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsUpdateWorkflowOperator,
 )
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -77,7 +82,7 @@ SLEEP_WORKFLOW_CONTENT = """
 - someSleep:
     call: sys.sleep
     args:
-        seconds: 120
+        seconds: 200
 """
 
 SLEEP_WORKFLOW = {

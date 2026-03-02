@@ -21,7 +21,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Annotated, Any, Union
+from typing import Annotated, Any
 
 import structlog
 from pydantic import (
@@ -62,6 +62,8 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     to be able to return the arguments (possible to encode with Airflow-JSON) that will
     let them be re-instantiated elsewhere.
     """
+
+    supports_triggerer_queue: bool = True
 
     def __init__(self, **kwargs):
         # these values are set by triggerer when preparing to run the instance
@@ -133,6 +135,8 @@ class BaseEventTrigger(BaseTrigger):
     ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
     event-driven scheduling.
     """
+
+    supports_triggerer_queue: bool = False
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
@@ -229,11 +233,9 @@ def trigger_event_discriminator(v):
 
 
 DiscrimatedTriggerEvent = Annotated[
-    Union[
-        Annotated[TriggerEvent, Tag("_event_")],
-        Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)],
-        Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)],
-        Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
-    ],
+    Annotated[TriggerEvent, Tag("_event_")]
+    | Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)]
+    | Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)]
+    | Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
     Discriminator(trigger_event_discriminator),
 ]

@@ -102,7 +102,7 @@ class TestParseFilename:
             assert parse_filename("Untitled File", self.SUPPORTED_FORMAT)
 
     @pytest.mark.parametrize(
-        "filename,expected_format",
+        ("filename", "expected_format"),
         [
             ("libc.so", "so"),
             ("kernel32.dll", "dll"),
@@ -119,7 +119,7 @@ class TestParseFilename:
             assert parse_filename(filename, self.SUPPORTED_FORMAT)
 
     @pytest.mark.parametrize(
-        "filename,expected",
+        ("filename", "expected"),
         [
             ("libc.so.6", ("so", "6")),
             ("kernel32.dll.zip", ("dll", "zip")),

@@ -134,10 +134,9 @@ Here are the guidelines that you should follow to make validation forward-compat
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
-from typing import Callable
+from collections.abc import Callable, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 COMPOSITE_FIELD_TYPES = ["union", "dict", "list"]

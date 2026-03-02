@@ -53,7 +53,8 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
           render={({ field, fieldState }) => (
             <Field.Root invalid={Boolean(fieldState.error)} required>
               <Field.Label>Username</Field.Label>
-              <Input {...field} />
+              {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+              <Input autoFocus variant="subtle" {...field} />
             </Field.Root>
           )}
           rules={{ required: true }}
@@ -65,13 +66,13 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
           render={({ field, fieldState }) => (
             <Field.Root invalid={Boolean(fieldState.error)} required>
               <Field.Label>Password</Field.Label>
-              <Input {...field} type="password" />
+              <Input variant="subtle" {...field} type="password" />
             </Field.Root>
           )}
           rules={{ required: true }}
         />
 
-        <Button colorPalette="blue" disabled={!isValid || isPending} type="submit">
+        <Button colorPalette="brand" disabled={!isValid || isPending} type="submit">
           Sign in
         </Button>
       </Stack>

@@ -25,7 +25,8 @@ import pytest
 from airflow import macros
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.date_time import DateTimeSensor
-from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
@@ -37,7 +38,7 @@ class TestDateTimeSensor:
         cls.dag = DAG("test_dag", schedule=None, default_args=args)
 
     @pytest.mark.parametrize(
-        "task_id, target_time, expected",
+        ("task_id", "target_time", "expected"),
         [
             (
                 "valid_datetime",
@@ -74,7 +75,7 @@ class TestDateTimeSensor:
             )
 
     @pytest.mark.parametrize(
-        "task_id, target_time, expected",
+        ("task_id", "target_time", "expected"),
         [
             (
                 "poke_datetime",
@@ -94,7 +95,7 @@ class TestDateTimeSensor:
         assert op.poke(None) == expected
 
     @pytest.mark.parametrize(
-        "native, target_time, expected_type",
+        ("native", "target_time", "expected_type"),
         [
             (False, "2025-01-01T00:00:00+00:00", pendulum.DateTime),
             (True, "{{ data_interval_end }}", pendulum.DateTime),

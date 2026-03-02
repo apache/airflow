@@ -19,10 +19,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.dms import (
@@ -33,10 +31,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationTerminalStatusTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.utils.context import Context
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.common.compat.sdk import AirflowException, Context, conf
 
 
 class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
@@ -91,7 +86,6 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         table_mappings: dict,
         migration_type: str = "full-load",
         create_task_kwargs: dict | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -102,7 +96,6 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         self.migration_type = migration_type
         self.table_mappings = table_mappings
         self.create_task_kwargs = create_task_kwargs or {}
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
         """

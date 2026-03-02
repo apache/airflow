@@ -18,7 +18,9 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import type { TFunction } from "i18next";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useConnectionServiceGetConnections } from "openapi/queries";
@@ -32,12 +34,14 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
@@ -50,86 +54,102 @@ export type ConnectionBody = {
   password: string;
   port: string;
   schema: string;
+  team_name: string;
 };
 
 const getColumns = ({
   allRowsSelected,
+  multiTeam,
   onRowSelect,
   onSelectAll,
   selectedRows,
-}: GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => [
-  {
-    accessorKey: "select",
-    cell: ({ row }) => (
-      <Checkbox
-        borderWidth={1}
-        checked={selectedRows.get(row.original.connection_id)}
-        colorPalette="blue"
-        onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
-      />
-    ),
-    enableSorting: false,
-    header: () => (
-      <Checkbox
-        borderWidth={1}
-        checked={allRowsSelected}
-        colorPalette="blue"
-        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-      />
-    ),
-    meta: {
-      skeletonWidth: 10,
+  translate,
+}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
+  const columns: Array<ColumnDef<ConnectionResponse>> = [
+    {
+      accessorKey: "select",
+      cell: ({ row }) => (
+        <Checkbox
+          borderWidth={1}
+          checked={selectedRows.get(row.original.connection_id)}
+          colorPalette="brand"
+          onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
+        />
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          borderWidth={1}
+          checked={allRowsSelected}
+          colorPalette="brand"
+          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+        />
+      ),
+      meta: {
+        skeletonWidth: 10,
+      },
     },
-  },
-  {
-    accessorKey: "connection_id",
-    header: "Connection Id",
-  },
-  {
-    accessorKey: "conn_type",
-    header: "Connection Type",
-  },
-  {
-    accessorKey: "description",
-    header: "Description",
-  },
-  {
-    accessorKey: "host",
-    header: "Host",
-  },
-  {
-    accessorKey: "port",
-    header: "Port",
-  },
-  {
-    accessorKey: "actions",
-    cell: ({ row: { original } }) => (
-      <Flex justifyContent="end">
-        <TestConnectionButton connection={original} />
-        <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
-        <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
-      </Flex>
-    ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
+    {
+      accessorKey: "connection_id",
+      header: translate("connections.columns.connectionId"),
     },
-  },
-];
+    {
+      accessorKey: "conn_type",
+      header: translate("connections.columns.connectionType"),
+    },
+    {
+      accessorKey: "description",
+      header: translate("columns.description"),
+    },
+    {
+      accessorKey: "host",
+      header: translate("connections.columns.host"),
+    },
+    {
+      accessorKey: "port",
+      header: translate("connections.columns.port"),
+    },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
+    {
+      accessorKey: "actions",
+      cell: ({ row: { original } }) => (
+        <Flex justifyContent="end">
+          <TestConnectionButton connection={original} />
+          <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
+          <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
+        </Flex>
+      ),
+      enableSorting: false,
+      header: "",
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+  ];
+
+  return columns;
+};
 
 export const Connections = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [connectionIdPattern, setConnectionIdPattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [connectionIdPattern, setConnectionIdPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "connection_id";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,
@@ -143,27 +163,26 @@ export const Connections = () => {
       getKey: (connection) => connection.connection_id,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    multiTeam: multiTeamEnabled,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setConnectionIdPattern(value);
   };
@@ -172,10 +191,9 @@ export const Connections = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder="Search Connections"
+          placeholder={translate("connections.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <Spacer />
@@ -191,16 +209,19 @@ export const Connections = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName="Connection"
+          modelName="admin:connections.connection"
+          noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />
       </Box>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
-          <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("deleteActions.selected")}
+          </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected connections">
+          <Tooltip content={translate("deleteActions.tooltip")}>
             <DeleteConnectionsButton
               clearSelections={clearSelections}
               deleteKeys={[...selectedRows.keys()]}

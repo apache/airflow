@@ -28,12 +28,12 @@ from kubernetes.client import (
     V1PodStatus,
 )
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
     CustomObjectLauncher,
     SparkJobSpec,
     SparkResources,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture
@@ -212,6 +212,27 @@ class TestCustomObjectLauncher:
                 ),
             ]
         )
+
+    def test_get_body_initializes_metadata_when_missing(self, mock_launcher):
+        mock_launcher.template_body["spark"].pop("metadata", None)
+        body = mock_launcher.get_body()
+        assert isinstance(body["metadata"], dict)
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
+
+    def test_get_body_replaces_non_dict_metadata(self, mock_launcher):
+        mock_launcher.template_body["spark"]["metadata"] = "not-a-dict"
+        body = mock_launcher.get_body()
+        assert isinstance(body["metadata"], dict)
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
+
+    def test_get_body_preserves_existing_metadata_labels(self, mock_launcher):
+        mock_launcher.template_body["spark"]["metadata"] = {"labels": {"team": "data"}}
+        body = mock_launcher.get_body()
+        assert body["metadata"]["labels"]["team"] == "data"
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
 
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_start_spark_job_no_error(self, mock_pod_manager, mock_launcher):

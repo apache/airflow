@@ -24,7 +24,8 @@ from unittest.mock import ANY
 import pytest
 
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
-from airflow.utils import timezone
+
+from tests_common.test_utils.compat import timezone
 
 FLOW_NAME = "flow0"
 EXECUTION_ID = "ex_id"

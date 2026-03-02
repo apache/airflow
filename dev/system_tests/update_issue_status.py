@@ -42,7 +42,7 @@ option_github_token = click.option(
     type=str,
     help=textwrap.dedent(
         """
-        Github token used to authenticate.
+        GitHub token used to authenticate.
         You can omit it if you have the ``GITHUB_TOKEN`` env variable set
         Can be generated with:
         https://github.com/settings/tokens/new?description=Write%20issues&scopes=repo"""
@@ -154,7 +154,9 @@ def update_issue_status(
     not_completed_opened_issues: list[Issue.Issue] = []
     per_issue_num_done: dict[int, int] = {}
     per_issue_num_all: dict[int, int] = {}
-    for issue in issues[start_from : start_from + max_issues]:
+
+    issue_list: list[Issue.Issue] = list(issues[start_from : start_from + max_issues])
+    for issue in issue_list:
         console.print(f"[blue] {issue.id}: {issue.title}")
         new_body, count_re_added, count_completed, count_done, count_all = process_paths_from_body(
             issue.body, dry_run=dry_run, verbose=verbose

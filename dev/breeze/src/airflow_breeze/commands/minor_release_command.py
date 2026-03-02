@@ -22,7 +22,7 @@ import sys
 import click
 
 from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -132,6 +132,12 @@ def instruction_update_version_branch(version_branch):
                 required_approving_review_count: 1
             """
         )
+        console_print()
+        console_print(
+            "Update name of `backport` label to "
+            f"backport-to-v{version_branch}-test in .github/boring-cyborg.yml"
+        )
+        console_print()
         console_print("Once you finish with the above. Commit the changes and make a PR against main")
         confirm_action("I'm done with the changes. Continue?", abort=True)
 
@@ -148,7 +154,7 @@ def create_constraints(version_branch):
             )
 
 
-@release_management.command(
+@release_management_group.command(
     name="create-minor-branch",
     help="Create a new version branch and update the default branches in main",
 )
@@ -185,7 +191,7 @@ def create_minor_version_branch(version_branch):
     create_branch(version_branch)
     # Build ci image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.9"], check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.10"], check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

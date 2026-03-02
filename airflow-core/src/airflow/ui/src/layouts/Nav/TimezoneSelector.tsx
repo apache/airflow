@@ -21,10 +21,11 @@ import { Select, type SingleValue } from "chakra-react-select";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTimezone } from "src/context/timezone";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import type { Option as TimezoneOption } from "src/utils/option";
 
 dayjs.extend(utc);
@@ -33,22 +34,17 @@ dayjs.extend(timezone);
 const TimezoneSelector: React.FC = () => {
   const { selectedTimezone, setSelectedTimezone } = useTimezone();
   const { t: translate } = useTranslation("common");
-  const timezones = useMemo<Array<string>>(() => {
-    const tzList = Intl.supportedValuesOf("timeZone");
-    const guessedTz = dayjs.tz.guess();
-    const uniqueTimezones = new Set(["UTC", ...(guessedTz ? [guessedTz] : []), ...tzList]);
+  const [currentTime, setCurrentTime] = useState<string>("");
 
-    return [...uniqueTimezones];
-  }, []);
+  const tzList = Intl.supportedValuesOf("timeZone");
+  const guessedTz = dayjs.tz.guess();
+  const uniqueTimezones = new Set(["UTC", ...(guessedTz ? [guessedTz] : []), ...tzList]);
+  const timezones = [...uniqueTimezones];
 
-  const options = useMemo<Array<TimezoneOption>>(
-    () =>
-      timezones.map((tz) => ({
-        label: tz === "UTC" ? translate("timezoneModal.utc") : tz,
-        value: tz,
-      })),
-    [timezones, translate],
-  );
+  const options: Array<TimezoneOption> = timezones.map((tz) => ({
+    label: tz === "UTC" ? translate("timezoneModal.utc") : tz,
+    value: tz,
+  }));
 
   const handleTimezoneChange = (selectedOption: SingleValue<TimezoneOption>) => {
     if (selectedOption) {
@@ -56,7 +52,17 @@ const TimezoneSelector: React.FC = () => {
     }
   };
 
-  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT));
+    };
+
+    updateTime();
+
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedTimezone]);
 
   return (
     <VStack align="stretch" gap={6}>

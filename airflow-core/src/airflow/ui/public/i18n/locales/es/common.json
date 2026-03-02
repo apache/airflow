@@ -1,0 +1,336 @@
+{
+  "admin": {
+    "Config": "Configuración",
+    "Connections": "Conexiones",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
+    "Providers": "Proveedores",
+    "Variables": "Variables"
+  },
+  "allOperators": "Todos los operadores",
+  "appearance": {
+    "appearance": "Apariencia",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro",
+    "systemMode": "Seguir Configuración del Sistema"
+  },
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetEvent_many": "Eventos de Asset",
+  "assetEvent_one": "Evento de Asset",
+  "assetEvent_other": "Eventos de Asset",
+  "backfill_many": "Backfills",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
+  "browse": {
+    "auditLog": "Auditar Log",
+    "requiredActions": "Acciones Requeridas",
+    "xcoms": "XComs"
+  },
+  "collapseAllExtra": "Colapsar todos los extra json",
+  "collapseDetailsPanel": "Colapsar Detalles del Panel",
+  "createdAssetEvent_many": "Eventos de Asset Creados",
+  "createdAssetEvent_one": "Evento de Asset Creado",
+  "createdAssetEvent_other": "Eventos de Asset Creados",
+  "dag_many": "Dags",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "dagRunTimeout": "Tiempo de Ejecución del Dag",
+    "defaultArgs": "Argumentos por Defecto",
+    "description": "Descripción",
+    "documentation": "Documentación del Dag",
+    "fileLocation": "Ubicación del Archivo",
+    "hasTaskConcurrencyLimits": "Tiene límites de concurrencia de áreas",
+    "lastExpired": "Último Expirado",
+    "lastParseDuration": "Duración del último parseo",
+    "lastParsed": "Último Parseado",
+    "latestDagVersion": "Última Versión del Dag",
+    "latestRun": "Última Ejecución",
+    "maxActiveRuns": "Máximo de Ejecuciones Activas",
+    "maxActiveTasks": "Máximo de Tareas Activas",
+    "maxConsecutiveFailedDagRuns": "Máximo de Ejecuciones Fallidas Consecutivas del Dag",
+    "nextRun": "Siguiente Ejecución",
+    "owner": "Propietario",
+    "params": "Parámetros",
+    "schedule": "Programación",
+    "tags": "Etiquetas"
+  },
+  "dagId": "ID del Dag",
+  "dagRun": {
+    "conf": "Conf",
+    "dagVersions": "Versión(es) del Dag",
+    "dataIntervalEnd": "Intervalo de Datos Final",
+    "dataIntervalStart": "Intervalo de Datos Inicial",
+    "lastSchedulingDecision": "Última Decisión de Programación",
+    "queuedAt": "En Cola en",
+    "runAfter": "Ejecutar Después",
+    "runType": "Tipo de Ejecución",
+    "sourceAssetEvent": "Evento de Asset Fuente",
+    "triggeredBy": "Activado por",
+    "triggeringUser": "Nombre del Usuario que Activa"
+  },
+  "dagRun_many": "Ejecuciones del Dag",
+  "dagRun_one": "Ejecución del Dag",
+  "dagRun_other": "Ejecuciones del Dag",
+  "dagRunId": "ID de la Ejecución del Dag",
+  "dagWarnings": "Advertencias/Errores del Dag",
+  "defaultToGraphView": "Por defecto a vista gráfica",
+  "defaultToGridView": "Por defecto a vista en cuadrícula",
+  "direction": "Dirección",
+  "docs": {
+    "documentation": "Documentación",
+    "githubRepo": "Repositorio de GitHub",
+    "restApiReference": "Referencia de REST API"
+  },
+  "download": {
+    "download": "Descargar",
+    "hotkey": "d",
+    "tooltip": "Presiona {{hotkey}} para descargar los registros"
+  },
+  "duration": "Duración",
+  "endDate": "Fecha Final",
+  "error": {
+    "back": "Atrás",
+    "defaultMessage": "Ocurrió un error inesperado",
+    "home": "Inicio",
+    "notFound": "Página no encontrada",
+    "title": "Error"
+  },
+  "expand": {
+    "collapse": "Colapsar",
+    "expand": "Expandir",
+    "hotkey": "e",
+    "tooltip": "Presiona {{hotkey}} para alternar expandir"
+  },
+  "expandAllExtra": "Expandir todos los extra json",
+  "expression": {
+    "all": "Todos",
+    "and": "Y",
+    "any": "Cualquiera",
+    "or": "O"
+  },
+  "filter": "Filtro",
+  "filters": {
+    "durationFrom": "Duración Desde",
+    "durationTo": "Duración Hasta",
+    "logicalDateFrom": "Fecha Lógica Desde",
+    "logicalDateTo": "Fecha Lógica Hasta",
+    "runAfterFrom": "Ejecutar Después Desde",
+    "runAfterTo": "Ejecutar Después Hasta"
+  },
+  "logicalDate": "Fecha Lógica",
+  "logout": "Cerrar Sesión",
+  "logoutConfirmation": "Estás a punto de cerrar sesión de la aplicación.",
+  "mapIndex": "Mapa de Índice",
+  "modal": {
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": {
+      "button": "Eliminar",
+      "confirmation": "¿Confirmas de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
+    }
+  },
+  "nav": {
+    "admin": "Administración",
+    "assets": "Assets",
+    "browse": "Navegar",
+    "dags": "Dags",
+    "docs": "Docs",
+    "home": "Inicio",
+    "legacyFabViews": "Vistas obsoletas",
+    "plugins": "Plugins",
+    "security": "Seguridad"
+  },
+  "noItemsFound": "No se encontraron {{modelName}}s",
+  "note": {
+    "add": "Agregar una nota",
+    "dagRun": "Nota de Ejecución del Dag",
+    "label": "Nota",
+    "placeholder": "Agregar una nota...",
+    "taskInstance": "Nota de Instancia de Tarea"
+  },
+  "pools": {
+    "deferred": "Diferido",
+    "open": "Abierto",
+    "pools_many": "pools",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "En Cola",
+    "running": "En Ejecución",
+    "scheduled": "Programado"
+  },
+  "reset": "Restablecer",
+  "runId": "ID de la ejecución",
+  "runTypes": {
+    "asset_triggered": "Asset Activado",
+    "backfill": "Backfill",
+    "manual": "Manual",
+    "scheduled": "Programado"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "abajo",
+      "top": "arriba"
+    },
+    "tooltip": "Presiona {{hotkey}} para desplazarte a {{direction}}"
+  },
+  "security": {
+    "actions": "Acciones",
+    "permissions": "Permisos",
+    "resources": "Recursos",
+    "roles": "Roles",
+    "users": "Usuarios"
+  },
+  "selectLanguage": "Seleccionar Idioma",
+  "showDetailsPanel": "Mostrar Panel de Detalles",
+  "source": {
+    "hide": "Ocultar Fuente",
+    "hotkey": "s",
+    "show": "Mostrar Fuente"
+  },
+  "sourceAssetEvent_many": "Eventos de Asset Fuente",
+  "sourceAssetEvent_one": "Evento de Asset Fuente",
+  "sourceAssetEvent_other": "Eventos de Asset Fuente",
+  "startDate": "Fecha Inicial",
+  "state": "Estado",
+  "states": {
+    "deferred": "Diferido",
+    "failed": "Fallido",
+    "no_status": "Sin Estado",
+    "none": "Sin Estado",
+    "planned": "Planificado",
+    "queued": "En Cola",
+    "removed": "Removido",
+    "restarting": "Reiniciando",
+    "running": "En Ejecución",
+    "scheduled": "Programado",
+    "skipped": "Omitido",
+    "success": "Exitoso",
+    "up_for_reschedule": "Por Reprogramar",
+    "up_for_retry": "Por Reintentar",
+    "upstream_failed": "Fallido en Upstream"
+  },
+  "table": {
+    "completedAt": "Completado en",
+    "createdAt": "Creado en",
+    "filterByTag": "Filtrar Dags por etiqueta",
+    "filterColumns": "Filtrar columnas de la tabla",
+    "filterReset_many": "Restablecer filtros",
+    "filterReset_one": "Restablecer filtro",
+    "filterReset_other": "Restablecer filtros",
+    "from": "Desde",
+    "maxActiveRuns": "Máximo de Ejecuciones Activas",
+    "noTagsFound": "No se encontraron etiquetas",
+    "tagMode": {
+      "all": "Todos",
+      "any": "Cualquiera"
+    },
+    "tagPlaceholder": "Filtrar por etiqueta",
+    "to": "Hasta"
+  },
+  "task": {
+    "documentation": "Documentación de la Tarea",
+    "lastInstance": "Última Instancia",
+    "operator": "Operador",
+    "triggerRule": "Regla de Activación"
+  },
+  "task_many": "Tareas",
+  "task_one": "Tarea",
+  "task_other": "Tareas",
+  "taskGroup": "Grupo de Tareas",
+  "taskId": "ID de la Tarea",
+  "taskInstance": {
+    "dagVersion": "Versión del Dag",
+    "executor": "Executor",
+    "executorConfig": "Configuración del Executor",
+    "hostname": "Nombre de Host",
+    "maxTries": "Máximo de Intentos",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Slots del Pool",
+    "priorityWeight": "Peso de Prioridad",
+    "queue": "Cola",
+    "queuedWhen": "En Cola en",
+    "scheduledWhen": "Programado en",
+    "triggerer": {
+      "assigned": "Triggerer Asignado",
+      "class": "Clase del Trigger",
+      "createdAt": "Tiempo de Creación del Trigger",
+      "id": "ID del Trigger",
+      "latestHeartbeat": "Último Heartbeat del Triggerer",
+      "title": "Información del Triggerer"
+    },
+    "unixname": "Nombre de Unix"
+  },
+  "taskInstance_many": "Instancias de Tarea",
+  "taskInstance_one": "Instancia de Tarea",
+  "taskInstance_other": "Instancias de Tarea",
+  "timeRange": {
+    "last12Hours": "Últimas 12 Horas",
+    "last24Hours": "Últimas 24 Horas",
+    "lastHour": "Última Hora",
+    "pastWeek": "Semana Pasada"
+  },
+  "timestamp": {
+    "hide": "Ocultar marcas de tiempo",
+    "hotkey": "t",
+    "show": "Mostrar marcas de tiempo"
+  },
+  "timezone": "Zona Horaria",
+  "timezoneModal": {
+    "current-timezone": "Hora actual en",
+    "placeholder": "Seleccionar una zona horaria",
+    "title": "Seleccionar Zona Horaria",
+    "utc": "UTC (Tiempo Universal Coordinado)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Eliminar {{resourceName}} Request Fallido",
+      "success": {
+        "description": "{{count}} {{resourceName}} han sido eliminados exitosamente. Claves: {{keys}}",
+        "title": "Eliminar {{resourceName}} Request Enviado"
+      }
+    },
+    "create": {
+      "error": "Crear {{resourceName}} Request Fallido",
+      "success": {
+        "description": "{{resourceName}} ha sido creado exitosamente.",
+        "title": "Crear {{resourceName}} Request Enviado"
+      }
+    },
+    "delete": {
+      "error": "Eliminar {{resourceName}} Request Fallido",
+      "success": {
+        "description": "{{resourceName}} ha sido eliminado exitosamente.",
+        "title": "Eliminar {{resourceName}} Request Enviado"
+      }
+    },
+    "import": {
+      "error": "Importar {{resourceName}} Request Fallido",
+      "success": {
+        "description": "{{count}} {{resourceName}} han sido importados exitosamente.",
+        "title": "Importar {{resourceName}} Request Enviado"
+      }
+    },
+    "update": {
+      "error": "Actualizar {{resourceName}} Request Fallido",
+      "success": {
+        "description": "{{resourceName}} ha sido actualizado exitosamente.",
+        "title": "Actualizar {{resourceName}} Request Enviado"
+      }
+    }
+  },
+  "total": "Total {{state}}",
+  "triggered": "Activado",
+  "tryNumber": "Intento Número",
+  "user": "Usuario",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Presiona {{hotkey}} para alternar el 'envolver'",
+    "unwrap": "Desenvolver",
+    "wrap": "Envolver"
+  }
+}

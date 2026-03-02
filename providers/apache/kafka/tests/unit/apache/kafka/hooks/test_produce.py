@@ -25,10 +25,6 @@ from confluent_kafka.admin import AdminClient
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +34,9 @@ class TestProducerHook:
     Test consumer hook.
     """
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",
@@ -49,7 +46,7 @@ class TestProducerHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_bad",
                 conn_type="kafka",

@@ -19,42 +19,97 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, Union
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
+from airflow.sdk.api.datamodels._generated import WeightRule
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from pydantic import AwareDatetime
+    from pydantic import AwareDatetime, JsonValue
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk._shared.logging.types import Logger as Logger
+    from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-    Operator = Union[BaseOperator, MappedOperator]
+    Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class WeightRuleProtocol(Protocol):
+    """
+    Protocol for custom weight strategy instances.
+
+    Matches objects that implement get_weight(ti).
+    """
+
+    def get_weight(self, ti: SchedulerTaskInstance) -> int:
+        """Return the priority weight for the task instance."""
+        ...
+
+
+WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
+
+
+class TaskInstanceKey(NamedTuple):
+    """Key used to identify task instance."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    try_number: int = 1
+    map_index: int = -1
+
+    @property
+    def primary(self) -> tuple[str, str, str, int]:
+        """Return task instance primary key part of the key."""
+        return self.dag_id, self.task_id, self.run_id, self.map_index
+
+    def with_try_number(self, try_number: int) -> TaskInstanceKey:
+        """Return TaskInstanceKey with provided ``try_number``."""
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """
+        For API-compatibility with TaskInstance.
+
+        Returns self
+        """
+        return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)
 
 
 class DagRunProtocol(Protocol):
-    """Minimal interface for a DAG run available during the execution."""
+    """Minimal interface for a Dag run available during the execution."""
 
     dag_id: str
     run_id: str
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None
     data_interval_end: AwareDatetime | None
-    start_date: AwareDatetime
+    start_date: AwareDatetime | None
     end_date: AwareDatetime | None
     run_type: Any
     run_after: AwareDatetime
     conf: dict[str, Any] | None
+    triggering_user_name: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
     """Minimal interface for a task instance available during the execution."""
 
     id: uuid.UUID
+    dag_version_id: uuid.UUID
     task: BaseOperator
     task_id: str
     dag_id: str
@@ -65,14 +120,14 @@ class RuntimeTaskInstanceProtocol(Protocol):
     hostname: str | None = None
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
+    state: TaskInstanceState | None = None
 
     def xcom_pull(
         self,
         task_ids: str | list[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",
-        # TODO: `include_prior_dates` isn't yet supported in the SDK
-        # include_prior_dates: bool = False,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
@@ -84,6 +139,15 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_template_context(self) -> Context: ...
 
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None: ...
 
     @staticmethod
     def get_ti_count(
@@ -122,17 +186,17 @@ class OutletEventAccessorProtocol(Protocol):
     """Protocol for managing access to a specific outlet event accessor."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any]
+    extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
 
     def __init__(
         self,
         *,
         key: BaseAssetUniqueKey,
-        extra: dict[str, Any],
+        extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import logging.config
 import re
 from importlib import reload
 from unittest import mock
@@ -27,26 +26,30 @@ from unittest.mock import patch
 import pytest
 from kubernetes.client import models as k8s
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.models.dag import DAG
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
 )
+from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import set_context
-from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.timezone import datetime
+else:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -57,12 +60,12 @@ FILE_TASK_HANDLER = "task"
 
 class TestFileTaskLogHandler:
     def clean_up(self):
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
 
     def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
         self.clean_up()
         # We use file task handler by default.
@@ -98,7 +101,7 @@ class TestFileTaskLogHandler:
             mock_k8s_get_task_log.assert_not_called()
 
     @pytest.mark.parametrize(
-        "pod_override, namespace_to_call",
+        ("pod_override", "namespace_to_call"),
         [
             pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
             pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")), "namespace-B"),
@@ -110,7 +113,7 @@ class TestFileTaskLogHandler:
     @conf_vars({("core", "executor"): "KubernetesExecutor"})
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
-        self, mock_kube_client, pod_override, namespace_to_call
+        self, mock_kube_client, pod_override, namespace_to_call, testing_dag_bundle
     ):
         reload(executor_loader)
         mock_read_log = mock_kube_client.return_value.read_namespaced_pod_log
@@ -132,6 +135,7 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
+            dag = sync_dag_to_db(dag)
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
         dagrun = dag.create_dagrun(
@@ -141,16 +145,23 @@ class TestFileTaskLogHandler:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **dagrun_kwargs,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = create_task_instance(
+                task=task,
+                run_id=dagrun.run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
+        else:
+            ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
         ti.executor = "KubernetesExecutor"
 
         logger = ti.log
         ti.task.log.disabled = False
 
-        file_handler = next((h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None)
+        file_handler = TaskLogReader().log_handler
         set_context(logger, ti)
-        ti.run(ignore_ti_state=True)
+        run_task_instance(ti, task, ignore_ti_state=True)
         ti.state = TaskInstanceState.RUNNING
         # clear executor_instances cache
         file_handler.executor_instances = {}

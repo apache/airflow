@@ -23,12 +23,12 @@ from airflow import DAG
 from airflow.providers.microsoft.azure.operators.synapse import AzureSynapseRunSparkBatchOperator
 
 AIRFLOW_HOME = os.getenv("AIRFLOW_HOME", "/usr/local/airflow")
-EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
+EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", str(6)))
 
 default_args = {
     "execution_timeout": timedelta(hours=EXECUTION_TIMEOUT),
-    "retries": int(os.getenv("DEFAULT_TASK_RETRIES", 2)),
-    "retry_delay": timedelta(seconds=int(os.getenv("DEFAULT_RETRY_DELAY_SECONDS", 60))),
+    "retries": int(os.getenv("DEFAULT_TASK_RETRIES", str(2))),
+    "retry_delay": timedelta(seconds=int(os.getenv("DEFAULT_RETRY_DELAY_SECONDS", str(60)))),
 }
 
 SPARK_JOB_PAYLOAD = {

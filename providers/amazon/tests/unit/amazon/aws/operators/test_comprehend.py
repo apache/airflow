@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendCreateDocumentClassifierOperator,
     ComprehendStartPiiEntitiesDetectionJobOperator,
 )
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -79,6 +79,29 @@ class TestComprehendBaseOperator:
         comprehend_base_operator_mock_hook.return_value = mocked_hook
         assert comprehend_base_op.client == mocked_client
         comprehend_base_operator_mock_hook.assert_called_once()
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = ComprehendBaseOperator(
+            task_id="comprehend_base_operator",
+            input_data_config=INPUT_DATA_CONFIG,
+            output_data_config=OUTPUT_DATA_CONFIG,
+            language_code=LANGUAGE_CODE,
+            data_access_role_arn=ROLE_ARN,
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = ComprehendBaseOperator(
+            task_id="comprehend_base_operator",
+            input_data_config=INPUT_DATA_CONFIG,
+            output_data_config=OUTPUT_DATA_CONFIG,
+            language_code=LANGUAGE_CODE,
+            data_access_role_arn=ROLE_ARN,
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestComprehendStartPiiEntitiesDetectionJobOperator:
@@ -146,7 +169,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -246,7 +269,7 @@ class TestComprehendCreateDocumentClassifierOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

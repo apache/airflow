@@ -23,8 +23,8 @@ from opentelemetry import trace
 
 from airflow import DAG
 from airflow.sdk import chain, task
-from airflow.traces import otel_tracer
-from airflow.traces.tracer import Trace
+from airflow.sdk.observability.trace import Trace
+from airflow.sdk.observability.traces import otel_tracer
 
 logger = logging.getLogger("airflow.otel_test_dag")
 
@@ -45,7 +45,7 @@ def task1(ti):
     tracer_provider = otel_task_tracer.get_otel_tracer_provider()
 
     if context_carrier is not None:
-        logger.info("Found ti.context_carrier: %s.", context_carrier)
+        logger.info("Found ti.context_carrier: %s.", str(context_carrier))
         logger.info("Extracting the span context from the context_carrier.")
         parent_context = otel_task_tracer.extract(context_carrier)
         with otel_task_tracer.start_child_span(

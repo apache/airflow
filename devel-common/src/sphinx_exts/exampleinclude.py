@@ -21,9 +21,7 @@ import traceback
 from pathlib import Path
 
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import directives
 from sphinx.directives.code import LiteralIncludeReader
 from sphinx.ext.viewcode import viewcode_anchor
 from sphinx.locale import _
@@ -78,6 +76,7 @@ class ExampleInclude(SphinxDirective):
         "emphasize-lines": directives.unchanged_required,
         "class": directives.class_option,
         "name": directives.unchanged,
+        "caption": directives.unchanged_required,
         "diff": directives.unchanged_required,
     }
 

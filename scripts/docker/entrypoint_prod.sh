@@ -241,7 +241,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID in the future."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         >&2 echo
         # We still allow the image to run with `airflow` user.
         return
@@ -255,7 +255,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         # This will not work so we fail hard
         exit 1
     fi
@@ -335,6 +335,12 @@ fi
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
     && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_celery_broker
+fi
+
+# Exit cleanly if the init was only intended to migrate DB
+if [[ "$#" -eq 0 && "${_AIRFLOW_DB_MIGRATE}" == "true" ]]; then
+    echo "[INFO] No commands passed and _AIRFLOW_DB_MIGRATE=true. Exiting script with code 0."
+    exit 0
 fi
 
 exec "airflow" "${@}"

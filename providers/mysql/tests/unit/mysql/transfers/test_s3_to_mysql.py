@@ -19,19 +19,19 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import or_
+from sqlalchemy import delete, or_
 
 from airflow import models
 from airflow.providers.mysql.transfers.s3_to_mysql import S3ToMySqlOperator
-from airflow.utils import db
 from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
 
 
 class TestS3ToMySqlTransfer:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             models.Connection(
                 conn_id="s3_test",
                 conn_type="s3",
@@ -40,7 +40,7 @@ class TestS3ToMySqlTransfer:
                 ' "aws_secret_access_key"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="mysql_test",
                 conn_type="mysql",
@@ -101,10 +101,8 @@ class TestS3ToMySqlTransfer:
 
     def teardown_method(self):
         with create_session() as session:
-            (
-                session.query(models.Connection)
-                .filter(
+            session.execute(
+                delete(models.Connection).where(
                     or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "mysql_test")
                 )
-                .delete()
             )

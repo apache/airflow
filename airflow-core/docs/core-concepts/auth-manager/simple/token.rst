@@ -30,7 +30,7 @@ Example
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X 'POST' \
         "${ENDPOINT_URL}/auth/token" \
         -H 'Content-Type: application/json' \
@@ -45,5 +45,5 @@ If ``[core] simple_auth_manager_all_admins`` is set to True, you can also genera
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X 'GET' "${ENDPOINT_URL}/auth/token"

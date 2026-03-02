@@ -28,50 +28,66 @@ from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
 from datetime import datetime
+from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
+import anyio
 import attrs
 import structlog
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.module_loading import import_string
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.observability.metrics import stats_utils
+from airflow.observability.trace import Trace
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
+    CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteVariable,
+    DeleteXCom,
     DRCount,
     ErrorResponse,
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
+    MaskSecret,
+    OKResponse,
+    PutVariable,
+    SetXCom,
     TaskStatesResult,
     TICount,
+    UpdateHITLDetail,
     VariableResult,
     XComResult,
+    _new_encoder,
+    _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
-from airflow.stats import Stats
-from airflow.traces.tracer import Trace, add_span
-from airflow.triggers import base as events
-from airflow.utils import timezone
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
-    from socket import socket
-
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
@@ -79,7 +95,6 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.triggers.base import BaseTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +120,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         capacity=None,
+        queues: set[str] | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -113,6 +129,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.capacity = capacity
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
+        self.queues = queues
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -145,16 +162,22 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.trigger_runner.stop = True
         else:
             self.log.warning("Forcing exit due to second exit signal %s", signum)
-
-            self.trigger_runner.kill(signal.SIGKILL)
+            if self.trigger_runner:
+                self.trigger_runner.kill(signal.SIGKILL)
             sys.exit(os.EX_SOFTWARE)
 
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
+        self.register_signals()
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
-                job=self.job, capacity=self.capacity, logger=log
+                job=self.job,
+                capacity=self.capacity,
+                logger=log,
+                queues=self.queues,
             )
 
             # Run the main DB comms loop in this process
@@ -181,7 +204,6 @@ class messages:
     class StartTriggerer(BaseModel):
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
-        requests_fd: int
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class TriggerStateChanges(BaseModel):
@@ -193,7 +215,7 @@ class messages:
 
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
-            list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
+            list[tuple[int, DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
             # union :shrug:
             Field(default=None),
@@ -209,19 +231,36 @@ class messages:
         to_cancel: set[int]
 
 
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """
+        Create result class from API Response.
+
+        API Response is autogenerated from the API schema, so we need to convert it to Result
+        for communication between the Supervisor and the task process since it needs a
+        discriminator field.
+        """
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
+
+
 ToTriggerRunner = Annotated[
-    Union[
-        messages.StartTriggerer,
-        messages.TriggerStateSync,
-        ConnectionResult,
-        VariableResult,
-        XComResult,
-        DagRunStateResult,
-        DRCount,
-        TICount,
-        TaskStatesResult,
-        ErrorResponse,
-    ],
+    messages.StartTriggerer
+    | messages.TriggerStateSync
+    | ConnectionResult
+    | VariableResult
+    | XComResult
+    | DagRunStateResult
+    | DRCount
+    | TICount
+    | TaskStatesResult
+    | HITLDetailResponseResult
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 """
@@ -231,16 +270,22 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[
-        messages.TriggerStateChanges,
-        GetConnection,
-        GetVariable,
-        GetXCom,
-        GetTICount,
-        GetTaskStates,
-        GetDagRunState,
-        GetDRCount,
-    ],
+    messages.TriggerStateChanges
+    | GetConnection
+    | DeleteVariable
+    | GetVariable
+    | PutVariable
+    | DeleteXCom
+    | GetXCom
+    | SetXCom
+    | GetTICount
+    | GetTaskStates
+    | GetDagRunState
+    | GetDRCount
+    | GetPreviousTI
+    | GetHITLDetailResponse
+    | UpdateHITLDetail
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 """
@@ -295,12 +340,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     """
     TriggerRunnerSupervisor is responsible for monitoring the subprocess and marshalling DB access.
 
-    This class (which runs in the main process) is responsible for querying the DB, sending RunTrigger
+    This class (which runs in the main/sync process) is responsible for querying the DB, sending RunTrigger
     workload messages to the subprocess, and collecting results and updating them in the DB.
     """
 
     job: Job
     capacity: int
+    queues: set[str] | None = None
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
 
@@ -323,7 +369,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]] = attrs.field(factory=deque, init=False)
+    events: deque[tuple[int, TriggerEvent]] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
@@ -342,8 +388,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc.send_msg(msg)
+        msg = messages.StartTriggerer()
+        proc.send_msg(msg, request_id=0)
         return proc
 
     @functools.cached_property
@@ -352,10 +398,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
-    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
             TaskStatesResponse,
@@ -384,7 +430,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 to_cancel=self.cancelling_triggers,
             )
 
-            # Pull out of these deques in a thread-safe manner
+            # Pull out of these dequeues in a thread-safe manner
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
@@ -396,17 +442,29 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
-                dump_opts = {"exclude_unset": True}
+                # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -415,6 +473,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = xcom
+        elif isinstance(msg, SetXCom):
+            self.client.xcoms.set(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -451,34 +513,50 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
+        elif isinstance(msg, UpdateHITLDetail):
+            api_resp = self.client.hitl.update_response(
+                ti_id=msg.ti_id,
+                chosen_options=msg.chosen_options,
+                params_input=msg.params_input,
+            )
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, GetHITLDetailResponse):
+            api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.log import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
-        if resp:
-            self.send_msg(resp, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
-
-        reset_secrets_masker()
-
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
-                self.load_triggers()
+            self.load_triggers()
 
-                # Wait for up to 1 second for activity
-                self._service_subprocess(1)
+            # Wait for up to 1 second for activity
+            self._service_subprocess(1)
 
-                self.handle_events()
-                self.handle_failed_triggers()
-                self.clean_unused()
-                self.heartbeat()
+            self.handle_events()
+            self.handle_failed_triggers()
+            self.clean_unused()
+            self.heartbeat()
 
-                self.emit_metrics()
+            self.emit_metrics()
 
     def heartbeat(self):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
@@ -486,14 +564,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def heartbeat_callback(self, session: Session | None = None) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
 
-    @add_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
-        Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
-        ids = Trigger.ids_for_triggerer(self.job.id)
+        Trigger.assign_unassigned(
+            self.job.id,
+            self.capacity,
+            self.health_check_threshold,
+            queues=self.queues,
+        )
+        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
         self.update_triggers(set(ids))
 
-    @add_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
@@ -504,12 +585,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    @add_span
     def clean_unused(self):
         """Clean out unused or finished triggers."""
         Trigger.clean_unused()
 
-    @add_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -524,12 +603,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.running_triggers))
-        Stats.gauge("triggers.running", len(self.running_triggers), tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggers.running",
+            len(self.running_triggers),
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         capacity_left = self.capacity - len(self.running_triggers)
-        Stats.gauge(f"triggerer.capacity_left.{self.job.hostname}", capacity_left)
-        Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggerer.capacity_left",
+            capacity_left,
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         span = Trace.get_current_span()
         span.set_attributes(
@@ -545,7 +632,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Request that we update what triggers we're running.
 
         Works out the differences - ones to add, and ones to remove - then
-        adds them to the deques so the subprocess can actually mutate the running
+        adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
@@ -554,13 +641,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
+            .union(trigger.id for trigger in self.creating_triggers)
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
-        triggers_with_assets = Trigger.fetch_trigger_ids_with_asset()
+        trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations()
         to_create: list[workloads.RunTrigger] = []
         # Add in new triggers
         for new_id in new_trigger_ids:
@@ -571,11 +659,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task or an asset, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
-            if new_trigger_orm.task_instance is None and new_id not in triggers_with_assets:
+            if new_trigger_orm.task_instance is None and new_id not in trigger_ids_with_non_task_associations:
                 log.info(
                     (
                         "TaskInstance Trigger is None. It was likely updated by another trigger job. "
@@ -593,10 +681,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
+                if not new_trigger_orm.task_instance.dag_version_id:
+                    # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
+                    log.warning(
+                        "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
+                        ti_id=new_trigger_orm.task_instance.id,
+                    )
+                    continue
+                ser_ti = TaskInstanceDTO.model_validate(new_trigger_orm.task_instance, from_attributes=True)
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
                 self.logger_cache[new_id] = TriggerLoggingFactory(
                     log_path=f"{log_path}.trigger.{self.job.id}.log",
@@ -628,15 +720,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ),
         )
 
-    def _process_log_messages_from_subprocess(self) -> Generator[None, bytes, None]:
+    def _process_log_messages_from_subprocess(self) -> Generator[None, bytes | bytearray, None]:
         import msgspec
         from structlog.stdlib import NAME_TO_LEVEL
+
+        from airflow.sdk.log import configure_logging
+
+        configure_logging()
 
         fallback_log = structlog.get_logger(logger_name=__name__)
 
         from airflow.sdk.log import logging_processors
 
-        processors, _ = logging_processors(enable_pretty_log=False)
+        processors = logging_processors(json_output=True)
 
         def get_logger(trigger_id: int) -> WrappedLogger:
             # TODO: Is a separate dict worth it, or should we make `self.running_triggers` a dict?
@@ -662,16 +758,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
 
-            if ts := event.get("timestamp"):
-                # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
-                # datetime.strptime
-                #
-                # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-                # from a subprocess we know that the timezone of the log message is the same, so having some
-                # messages include tz (from subprocess) but others not (ones from supervisor process) is
-                # confusing.
-                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
-
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
                 event["error_detail"] = exc
@@ -687,18 +773,66 @@ class TriggerDetails(TypedDict):
     """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
+    is_watcher: bool
     name: str
     events: int
+
+
+@attrs.define(kw_only=True)
+class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
+    _async_writer: asyncio.StreamWriter = attrs.field(alias="async_writer")
+    _async_reader: asyncio.StreamReader = attrs.field(alias="async_reader")
+
+    body_decoder: TypeAdapter[ToTriggerRunner] = attrs.field(
+        factory=lambda: TypeAdapter(ToTriggerRunner), repr=False
+    )
+
+    def _read_frame(self):
+        from asgiref.sync import async_to_sync
+
+        return async_to_sync(self._aread_frame)()
+
+    def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        from asgiref.sync import async_to_sync
+
+        return async_to_sync(self.asend)(msg)
+
+    async def _aread_frame(self):
+        try:
+            len_bytes = await self._async_reader.readexactly(4)
+        except ConnectionResetError:
+            asyncio.current_task().cancel("Supervisor closed")
+        length = int.from_bytes(len_bytes, byteorder="big")
+        if length >= 2**32:
+            raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
+
+        buffer = await self._async_reader.readexactly(length)
+        return self.resp_decoder.decode(buffer)
+
+    async def _aget_response(self, expect_id: int) -> ToTriggerRunner | None:
+        frame = await self._aread_frame()
+        if frame.id != expect_id:
+            # Given the lock we take out in `asend`, this _shouldn't_ be possible, but I'd rather fail with
+            # this explicit error return the wrong type of message back to a Trigger
+            raise RuntimeError(f"Response read out of order! Got {frame.id=}, {expect_id=}")
+        return self._from_frame(frame)
+
+    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        bytes = frame.as_bytes()
+
+        async with self._async_lock:
+            self._async_writer.write(bytes)
+
+            return await self._aget_response(frame.id)
 
 
 class TriggerRunner:
     """
     Runtime environment for all triggers.
 
-    Mainly runs inside its own thread, where it hands control off to an asyncio
-    event loop, but is also sometimes interacted with from the main thread
-    (where all the DB queries are done). All communication between threads is
-    done via Deques.
+    Mainly runs inside its own process, where it hands control off to an asyncio
+    event loop. All communication between this and it's (sync) supervisor is done via sockets
     """
 
     # Maps trigger IDs to their running tasks and other info
@@ -714,22 +848,19 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]]
+    events: deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
 
     # Should-we-stop flag
-    # TODO: set this in a sig-int handler
     stop: bool = False
+    _stop_event: anyio.Event | None = None
 
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
 
-    requests_sock: asyncio.StreamWriter
-    response_sock: asyncio.StreamReader
-
-    decoder: TypeAdapter[ToTriggerRunner]
+    comms_decoder: TriggerCommsDecoder
 
     def __init__(self):
         super().__init__()
@@ -740,10 +871,18 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
-        self.decoder = TypeAdapter(ToTriggerRunner)
+        self._stop_event = None
+
+    def _handle_signal(self, signum, frame) -> None:
+        """Handle termination signals gracefully."""
+        self.stop = True
+        if self._stop_event is not None:
+            self._stop_event.set()
 
     def run(self):
-        """Sync entrypoint - just run a run in an async loop."""
+        """Sync entrypoint - just run arun in an async loop."""
+        signal.signal(signal.SIGINT, self._handle_signal)
+        signal.signal(signal.SIGTERM, self._handle_signal)
         asyncio.run(self.arun())
 
     async def arun(self):
@@ -756,6 +895,7 @@ class TriggerRunner:
         await self.init_comms()
 
         watchdog = asyncio.create_task(self.block_watchdog())
+        stop_event = self._stop_event = anyio.Event()
 
         last_status = time.monotonic()
         try:
@@ -771,12 +911,15 @@ class TriggerRunner:
                 await self.sync_state_to_supervisor(finished_ids)
                 await self.create_triggers()
                 await self.cancel_triggers()
-                # Sleep for a bit
-                await asyncio.sleep(1)
+                # Sleep for a bit, or exit early if stop is requested.
+                with anyio.move_on_after(1):
+                    await stop_event.wait()
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
-                    count = len(self.triggers)
-                    self.log.info("%i triggers currently running", count)
+                    watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
+                    triggers = len(self.triggers) - watchers
+                    self.log.info("%i triggers currently running", triggers)
+                    self.log.info("%i watchers currently running", watchers)
                     last_status = now
 
         except Exception:
@@ -796,35 +939,20 @@ class TriggerRunner:
         """
         from airflow.sdk.execution_time import task_runner
 
-        loop = asyncio.get_event_loop()
+        # Yes, we read and write to stdin! It's a socket, not a normal stdin.
+        reader, writer = await asyncio.open_connection(sock=socket(fileno=0))
 
-        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
-            input=sys.stdin,
-            decoder=self.decoder,
+        self.comms_decoder = TriggerCommsDecoder(
+            async_writer=writer,
+            async_reader=reader,
         )
 
-        task_runner.SUPERVISOR_COMMS = comms_decoder
+        task_runner.SUPERVISOR_COMMS = self.comms_decoder
 
-        async def connect_stdin() -> asyncio.StreamReader:
-            reader = asyncio.StreamReader()
-            protocol = asyncio.StreamReaderProtocol(reader)
-            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-            return reader
+        msg = await self.comms_decoder._aget_response(expect_id=0)
 
-        self.response_sock = await connect_stdin()
-
-        line = await self.response_sock.readline()
-
-        msg = self.decoder.validate_json(line)
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
-
-        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
-        writer_transport, writer_protocol = await loop.connect_write_pipe(
-            lambda: asyncio.streams.FlowControlMixin(loop=loop),
-            comms_decoder.request_socket,
-        )
-        self.requests_sock = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
@@ -848,8 +976,16 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                kwargs = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
-                trigger_instance = trigger_class(**kwargs)
+                from airflow.serialization.decoders import smart_decode_trigger_kwargs
+
+                # Decrypt and clean trigger kwargs before for execution
+                # Note: We only clean up serialization artifacts (__var, __type keys) here,
+                # not in `_decrypt_kwargs` because it is used during hash comparison in
+                # add_asset_trigger_references and could lead to adverse effects like hash mismatches
+                # that could cause None values in collections.
+                kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
+                deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
+                trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))
@@ -866,8 +1002,9 @@ class TriggerRunner:
             )
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
+                "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }
@@ -913,7 +1050,7 @@ class TriggerRunner:
                     saved_exc = e
                 else:
                     # See if they foolishly returned a TriggerEvent
-                    if isinstance(result, events.TriggerEvent):
+                    if isinstance(result, TriggerEvent):
                         self.log.error(
                             "Trigger returned a TriggerEvent rather than yielding it",
                             trigger=details["name"],
@@ -933,49 +1070,77 @@ class TriggerRunner:
             await asyncio.sleep(0)
         return finished_ids
 
-    async def sync_state_to_supervisor(self, finished_ids: list[int]):
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
+        # Copy out of our dequeues in threadsafe manner to sync state with parent
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        failures_to_send: list[tuple[int, list[str] | None]] = []
 
-        # Copy out of our deques in threadsafe manner to sync state with parent
-        events_to_send = []
         while self.events:
-            data = self.events.popleft()
-            events_to_send.append(data)
+            trigger_id, trigger_event = self.events.popleft()
+            events_to_send.append((trigger_id, trigger_event))
 
-        failures_to_send = []
         while self.failed_triggers:
-            id, exc = self.failed_triggers.popleft()
+            trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            failures_to_send.append((id, tb))
+            failures_to_send.append((trigger_id, tb))
 
-        msg = messages.TriggerStateChanges(
-            events=events_to_send, finished=finished_ids, failures=failures_to_send
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=finished_ids if finished_ids else None,
+            failures=failures_to_send if failures_to_send else None,
         )
 
-        if not events_to_send:
-            msg.events = None
+    def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
+        req_encoder = _new_encoder()
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
 
-        if not failures_to_send:
-            msg.failures = None
+        if msg.events:
+            for trigger_id, trigger_event in msg.events:
+                try:
+                    req_encoder.encode(trigger_event)
+                except Exception as e:
+                    logger.error(
+                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                        trigger_id,
+                        trigger_event,
+                    )
+                    self.failed_triggers.append((trigger_id, e))
+                else:
+                    events_to_send.append((trigger_id, trigger_event))
 
-        if not finished_ids:
-            msg.finished = None
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=msg.finished,
+            failures=msg.failures,
+        )
 
-        # Block triggers from making any requests for the duration of this
-        async with SUPERVISOR_COMMS.lock:
-            # Tell the monitor that we've finished triggers so it can update things
-            self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
-            line = await self.response_sock.readline()
+    async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
+        msg = self.process_trigger_events(finished_ids=finished_ids)
 
-        if line == b"":  # EoF received!
+        # Tell the monitor that we've finished triggers so it can update things
+        try:
+            resp = await self.asend(msg)
+        except NotImplementedError:
+            # A non-serializable trigger event was detected, remove it and fail associated trigger
+            resp = await self.asend(self.sanitize_trigger_events(msg))
+
+        if resp:
+            self.to_create.extend(resp.to_create)
+            self.to_cancel.extend(resp.to_cancel)
+
+    async def asend(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
+        try:
+            response = await self.comms_decoder.asend(msg)
+
+            if not isinstance(response, messages.TriggerStateSync):
+                raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
+
+            return response
+        except asyncio.IncompleteReadError:
             if task := asyncio.current_task():
                 task.cancel("EOF - shutting down")
-
-        resp = self.decoder.validate_json(line)
-        if not isinstance(resp, messages.TriggerStateSync):
-            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got f{type(msg)}")
-        self.to_create.extend(resp.to_create)
-        self.to_cancel.extend(resp.to_cancel)
+                return None
+            raise
 
     async def block_watchdog(self):
         """
@@ -1004,8 +1169,13 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id: int, trigger: BaseTrigger, timeout_after: datetime | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
+            import greenback
+
+            await greenback.ensure_portal()
+
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]
@@ -1020,7 +1190,7 @@ class TriggerRunner:
         except asyncio.CancelledError:
             # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
             # message about it
-            if timeout := trigger.timeout_after:
+            if timeout := timeout_after:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     await self.log.aerror("Trigger cancelled due to timeout")

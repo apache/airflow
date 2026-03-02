@@ -24,12 +24,12 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class VerticaToHiveOperator(BaseOperator):

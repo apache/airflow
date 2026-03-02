@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
+
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -31,7 +33,7 @@ export type ParamSchema = {
   // TODO define the structure on API as generated code
   const: string | undefined;
   description_md: string | undefined;
-  enum: Array<string> | undefined;
+  enum: Array<boolean | number | string | null> | undefined;
   examples: Array<string> | undefined;
   format: string | undefined;
   items: Record<string, unknown> | undefined;
@@ -46,13 +48,10 @@ export type ParamSchema = {
 };
 
 export const useDagParams = (dagId: string, open: boolean) => {
-  const { data, error }: { data?: Record<string, ParamsSpec>; error?: unknown } = useDagServiceGetDagDetails(
-    { dagId },
-    undefined,
-    {
-      enabled: open,
-    },
-  );
+  const { t: translate } = useTranslation("dag");
+  const { data, error } = useDagServiceGetDagDetails({ dagId }, undefined, {
+    enabled: open,
+  });
 
   if (Boolean(error)) {
     const errorDescription =
@@ -61,13 +60,13 @@ export const useDagParams = (dagId: string, open: boolean) => {
         : String(Boolean(error) ? error : ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
-      description: `Dag params request failed. Error: ${errorDescription}`,
-      title: "Getting Dag Params Failed",
+      description: errorDescription,
+      title: translate("paramsFailed"),
       type: "error",
     });
   }
 
-  const paramsDict: ParamsSpec = data?.params ?? ({} as ParamsSpec);
+  const paramsDict = (data?.params ?? {}) as ParamsSpec;
 
   return { paramsDict };
 };

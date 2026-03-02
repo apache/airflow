@@ -19,15 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AsanaCreateTaskOperator(BaseOperator):
@@ -53,9 +49,9 @@ class AsanaCreateTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         name: str,
         task_parameters: dict | None = None,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,9 +88,9 @@ class AsanaUpdateTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         asana_task_gid: str,
         task_parameters: dict,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -124,8 +120,8 @@ class AsanaDeleteTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         asana_task_gid: str,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -160,8 +156,8 @@ class AsanaFindTaskOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
         search_parameters: dict | None = None,
+        conn_id: str = "asana_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

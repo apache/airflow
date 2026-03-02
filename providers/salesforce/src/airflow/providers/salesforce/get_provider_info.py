@@ -57,6 +57,36 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.salesforce.hooks.salesforce.SalesforceHook",
                 "connection-type": "salesforce",
+                "conn-fields": {
+                    "security_token": {
+                        "label": "Security Token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "domain": {"label": "Domain", "schema": {"type": ["string", "null"]}},
+                    "consumer_key": {"label": "Consumer Key", "schema": {"type": ["string", "null"]}},
+                    "consumer_secret": {
+                        "label": "Consumer Secret",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "private_key_file_path": {
+                        "label": "Private Key File Path",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "private_key": {
+                        "label": "Private Key",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "organization_id": {"label": "Organization ID", "schema": {"type": ["string", "null"]}},
+                    "instance": {"label": "Instance", "schema": {"type": ["string", "null"]}},
+                    "instance_url": {"label": "Instance URL", "schema": {"type": ["string", "null"]}},
+                    "proxies": {"label": "Proxies", "schema": {"type": ["string", "null"]}},
+                    "version": {"label": "API Version", "schema": {"type": ["string", "null"]}},
+                    "client_id": {"label": "Client ID", "schema": {"type": ["string", "null"]}},
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra", "host"],
+                    "relabeling": {"login": "Username"},
+                },
             }
         ],
     }

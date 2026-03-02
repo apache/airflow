@@ -56,8 +56,13 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -75,6 +80,9 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./task-sdk-integration-tests \
+              --editable ./airflow-ctl-tests \
+              --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -100,8 +108,10 @@ function install_from_sources() {
                 for project_folder in "${projects_with_devel_dependencies[@]}"; do
                     echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
                     set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
-                        fallback_no_constraints_installation="true"
+                    if ! uv pip install --editable .  --directory "${project_folder}" \
+                        --constraint "${HOME}/constraints.txt" --group dev \
+                        --no-python-downloads --no-managed-python; then
+                            fallback_no_constraints_installation="true"
                     fi
                     set +x
                 done
@@ -109,13 +119,24 @@ function install_from_sources() {
         fi
         set +x
         if [[ ${fallback_no_constraints_installation} == "true" ]]; then
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
             echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
+            # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+            # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+            # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+            uv sync --all-packages --group dev --group docs --group docs-gen \
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+                --no-python-downloads --no-managed-python
             set +x
         fi
     fi
@@ -125,13 +146,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -155,6 +174,12 @@ function install_from_external_spec() {
         set -x
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
@@ -190,6 +215,7 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 

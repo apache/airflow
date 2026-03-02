@@ -1,0 +1,164 @@
+{
+  "columns": {
+    "description": "描述",
+    "key": "键",
+    "name": "名称",
+    "value": "值"
+  },
+  "config": {
+    "columns": {
+      "section": "段落"
+    },
+    "title": "Airflow 配置"
+  },
+  "connections": {
+    "add": "添加连接",
+    "columns": {
+      "connectionId": "连接 ID",
+      "connectionType": "连接类型",
+      "host": "主机地址",
+      "port": "端口"
+    },
+    "connection_one": "连接",
+    "connection_other": "连接",
+    "delete": {
+      "deleteConnection_one": "删除 1 个连接",
+      "deleteConnection_other": "删除 {{count}} 个连接",
+      "firstConfirmMessage_one": "您即将删除以下连接：",
+      "firstConfirmMessage_other": "您即将删除以下连接：",
+      "title": "删除连接"
+    },
+    "edit": "编辑连接",
+    "form": {
+      "connectionIdRequired": "连接 ID 是必填的",
+      "connectionIdRequirement": "连接 ID 不能只包含空格",
+      "connectionTypeRequired": "连接类型是必填的",
+      "extraFields": "额外字段",
+      "extraFieldsJson": "额外字段 JSON",
+      "helperText": "找不到连接类型？请确保您已安装对应的 Airflow Providers 套件。",
+      "helperTextForRedactedFields": "已遮蔽的字段 ('***') 若未修改，将保持不变。",
+      "selectConnectionType": "选择连接类型",
+      "standardFields": "标准字段"
+    },
+    "nothingFound": {
+      "description": "通过环境变量或密钥管理器定义的连接不会列在此处。",
+      "documentationLink": "在 Airflow 文件中了解更多。",
+      "learnMore": "这些连接会在执行时解析，不会在 UI 显示。",
+      "title": "找不到连接"
+    },
+    "searchPlaceholder": "搜索连接",
+    "test": "测试连接",
+    "testDisabled": "测试连接功能已停用。请联系管理员以启用。",
+    "typeMeta": {
+      "error": "获取连接类型元数据失败",
+      "standardFields": {
+        "description": "描述",
+        "host": "主机地址",
+        "login": "登录",
+        "password": "密码",
+        "port": "端口",
+        "url_schema": "Schema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "删除",
+    "modal": {
+      "confirmButton": "确定删除",
+      "secondConfirmMessage": "此操作无法恢复。",
+      "thirdConfirmMessage": "您确定要继续吗？"
+    },
+    "selected": "已选择",
+    "tooltip": "删除所选连接"
+  },
+  "formActions": {
+    "save": "保存"
+  },
+  "plugins": {
+    "columns": {
+      "source": "来源"
+    },
+    "importError_one": "插件导入错误",
+    "importError_other": "插件导入错误",
+    "searchPlaceholder": "搜索文件"
+  },
+  "pools": {
+    "add": "新增资源池",
+    "deferredSlotsIncluded": "包含延迟任务",
+    "delete": {
+      "title": "删除资源池",
+      "warning": "这将删除所有与此资源池相关的系统数据，可能会影响使用此资源池的任务。"
+    },
+    "edit": "编辑资源池",
+    "form": {
+      "checkbox": "计算可用资源池配额时，将包含延迟的任务",
+      "description": "描述",
+      "includeDeferred": "包含延迟任务",
+      "nameMaxLength": "名称最多只能包含 256 个字符",
+      "nameRequired": "名称是必填的",
+      "slots": "配额"
+    },
+    "noPoolsFound": "找不到资源池",
+    "pool_one": "资源池",
+    "pool_other": "资源池",
+    "searchPlaceholder": "搜索资源池",
+    "sort": {
+      "asc": "名称 (A-Z)",
+      "desc": "名称 (Z-A)",
+      "placeholder": "排序方式"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "插件名称",
+      "version": "版本"
+    }
+  },
+  "variables": {
+    "add": "新增变量",
+    "columns": {
+      "isEncrypted": "是否加密"
+    },
+    "delete": {
+      "deleteVariable_one": "删除 1 个变量",
+      "deleteVariable_other": "删除 {{count}} 个变量",
+      "firstConfirmMessage_one": "您即将删除以下变量：",
+      "firstConfirmMessage_other": "您即将删除以下变量：",
+      "title": "删除变量",
+      "tooltip": "删除所选变量"
+    },
+    "edit": "编辑变量",
+    "form": {
+      "invalidJson": "无效的 JSON",
+      "keyMaxLength": "键最多只能包含 250 个字符",
+      "keyRequired": "键是必填的",
+      "valueRequired": "值是必填的"
+    },
+    "import": {
+      "button": "导入",
+      "conflictResolution": "选择变量冲突解决方式",
+      "errorParsingJsonFile": "解析 JSON 文件时发生错误：请上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})。",
+      "options": {
+        "fail": {
+          "description": "如果检测到任何已存在的变量，则导入失败。",
+          "title": "严格模式"
+        },
+        "overwrite": {
+          "description": "发生冲突时覆盖变量。",
+          "title": "覆盖模式"
+        },
+        "skip": {
+          "description": "忽略导入已存在的变量。",
+          "title": "非严格模式"
+        }
+      },
+      "title": "导入变量",
+      "upload": "上传 JSON 文件",
+      "uploadPlaceholder": "上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "找不到变量",
+    "searchPlaceholder": "搜索键",
+    "variable_one": "变量",
+    "variable_other": "变量"
+  }
+}

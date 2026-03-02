@@ -23,7 +23,7 @@ Cloud-Native Workflows with Object Storage
 
 .. versionadded:: 2.8
 
-Welcome to the final tutorial in our Airflow series! By now, you've built DAGs with Python and the Taskflow API, passed
+Welcome to the final tutorial in our Airflow series! By now, you've built Dags with Python and the TaskFlow API, passed
 data with XComs, and chained tasks together into clear, reusable workflows.
 
 In this tutorial we'll take it a step further by introducing the **Object Storage API**. This API makes it easier to
@@ -86,7 +86,7 @@ You can also provide the ``conn_id`` as keyword argument for clarity:
 This is especially handy when reusing a path defined elsewhere (like in an Asset), or when the connection isn't baked
 into the URL. The keyword argument always takes precedence.
 
-.. tip:: You can safely create an ``ObjectStoragePath`` in your global DAG scope. Connections are resolved only when the
+.. tip:: You can safely create an ``ObjectStoragePath`` in your global Dag scope. Connections are resolved only when the
   path is used, not when it's created.
 
 Saving Data to Object Storage
@@ -108,7 +108,7 @@ Here's what's happening:
 - We generate a filename based on the task's logical date
 - Using ``ObjectStoragePath``, we write the data directly to cloud storage as Parquet
 
-This is a classic Taskflow pattern. The object key changes each day, allowing us to run this daily and build a dataset
+This is a classic TaskFlow pattern. The object key changes each day, allowing us to run this daily and build a dataset
 over time. We return the final object path to be used in the next task.
 
 Why this is cool: No boto3, no GCS client setup, no credentials juggling. Just simple file semantics that work across
@@ -139,7 +139,7 @@ This makes the task portable and decoupled from earlier logic.
 Bringing It All Together
 ------------------------
 
-Here's the full DAG that ties everything together:
+Here's the full Dag that ties everything together:
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial_objectstorage.py
     :language: python
@@ -148,7 +148,7 @@ Here's the full DAG that ties everything together:
 
 |
 
-You can trigger this DAG and view it in the Graph View in the Airflow UI. Each task logs its inputs and outputs clearly,
+You can trigger this Dag and view it in the Graph View in the Airflow UI. Each task logs its inputs and outputs clearly,
 and you can inspect returned paths in the Xcom tab.
 
 What to Explore Next

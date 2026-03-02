@@ -70,6 +70,18 @@ lot less resources wasted on idle Operators or Sensors:
     :start-after: [START howto_operator_gke_create_cluster_async]
     :end-before: [END howto_operator_gke_create_cluster_async]
 
+Create GKE cluster with Ray enabled
+'''''''''''''''''''''''''''''''''''
+
+`Ray <https://docs.ray.io/en/latest/ray-overview/index.html>`__ is an open source framework to build and scale ML and Python applications.
+
+Here is an example of a cluster definition with Ray enabled:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_ray.py
+    :language: python
+    :start-after: [START howto_operator_gcp_gke_create_cluster_definition_with_ray]
+    :end-before: [END howto_operator_gcp_gke_create_cluster_definition_with_ray]
+
 
 .. _howto/operator:GKEStartKueueInsideClusterOperator:
 
@@ -169,7 +181,7 @@ Use of XCom
 We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
 with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and its mount point
 is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
-``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
+``return.json`` in the sidecar. The contents of this can then be used downstream in your Dag.
 Here is an example of it being used:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py

@@ -31,7 +31,7 @@ MOCK_INSTANCE_ID = "mock_instance_id"
 
 class TestMaxComputeLogViewLink:
     @pytest.mark.parametrize(
-        "xcom_value, expected_link",
+        ("xcom_value", "expected_link"),
         [
             pytest.param("http://mock_url.com", "http://mock_url.com", id="has-log-link"),
             pytest.param(None, "", id="no-log-link"),
@@ -49,18 +49,16 @@ class TestMaxComputeLogViewLink:
         assert link == expected_link
 
     def test_persist(self):
-        mock_context = mock.MagicMock()
         mock_task_instance = mock.MagicMock()
+        mock_context = {"task_instance": mock_task_instance}
         mock_url = "mock_url"
 
         MaxComputeLogViewLink.persist(
             context=mock_context,
-            task_instance=mock_task_instance,
             log_view_url=mock_url,
         )
 
         mock_task_instance.xcom_push.assert_called_once_with(
-            mock_context,
             key=MaxComputeLogViewLink.key,
             value=mock_url,
         )

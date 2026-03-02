@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
+import pytest
+
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
@@ -29,6 +31,7 @@ from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor impor
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 does not support this executor anymore")
 class TestLocalKubernetesExecutor:
     def test_supports_pickling(self):
         assert not LocalKubernetesExecutor.supports_pickling
@@ -115,12 +118,7 @@ class TestLocalKubernetesExecutor:
         local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
         local_k8s_exec.callback_sink = mock.MagicMock()
 
-        if AIRFLOW_V_3_0_PLUS:
-            callback = DagCallbackRequest(
-                filepath="fake", dag_id="fake", run_id="fake", bundle_name="fake", bundle_version=None
-            )
-        else:
-            callback = CallbackRequest(full_filepath="fake")
+        callback = CallbackRequest(full_filepath="fake")
         local_k8s_exec.send_callback(callback)
 
         local_k8s_exec.callback_sink.send.assert_called_once_with(callback)

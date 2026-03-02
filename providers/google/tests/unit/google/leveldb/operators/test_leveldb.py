@@ -37,7 +37,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook

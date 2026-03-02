@@ -35,16 +35,19 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.types import NOTSET, ArgNotSet
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
 
     from airflow.models import TaskInstance
-
-
-if not AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -159,7 +162,7 @@ class StackdriverTaskHandler(logging.Handler):
         """Object responsible for sending data to Stackdriver."""
         # The Transport object is badly defined (no init) but in the docs client/name as constructor
         # arguments are a requirement for any class that derives from Transport class, hence ignore:
-        return self.transport_type(self._client, self.gcp_log_name)  # type: ignore[call-arg]
+        return self.transport_type(self._client, self.gcp_log_name)
 
     def _get_labels(self, task_instance=None):
         if task_instance:

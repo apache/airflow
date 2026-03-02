@@ -17,42 +17,51 @@
  * under the License.
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { PluginResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
-const columns: Array<ColumnDef<PluginResponse>> = [
-  {
-    accessorKey: "name",
-    enableSorting: false,
-    header: "Name",
-  },
-  {
-    accessorKey: "source",
-    enableSorting: false,
-    header: "Source",
-  },
-];
-
 export const Plugins = () => {
-  const { data, error } = usePluginServiceGetPlugins();
+  const { t: translate } = useTranslation(["admin", "common"]);
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination } = tableURLState;
+  const { data, error } = usePluginServiceGetPlugins({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+  });
+
+  const columns = [
+    {
+      accessorKey: "name",
+      enableSorting: false,
+      header: translate("columns.name"),
+    },
+    {
+      accessorKey: "source",
+      enableSorting: false,
+      header: translate("plugins.columns.source"),
+    },
+  ];
 
   return (
     <Box p={2}>
       <HStack>
-        <Heading>Plugins</Heading>
+        <Heading>{translate("common:admin.Plugins")}</Heading>
         <PluginImportErrors iconOnly />
       </HStack>
       <DataTable
         columns={columns}
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
-        modelName="Plugin"
+        initialState={tableURLState}
+        modelName="common:admin.Plugins"
+        onStateChange={setTableURLState}
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

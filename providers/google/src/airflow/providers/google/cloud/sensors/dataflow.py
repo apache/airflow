@@ -19,12 +19,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue, conf
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -37,10 +36,9 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):
@@ -342,7 +340,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> PokeReturnValue | bool:
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -359,8 +357,17 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
+        result = result if self.callback is None else self.callback(result)
 
-        return result if self.callback is None else self.callback(result)
+        if isinstance(result, PokeReturnValue):
+            return result
+
+        if bool(result):
+            return PokeReturnValue(
+                is_done=True,
+                xcom_value=result,
+            )
+        return False
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -464,7 +471,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> PokeReturnValue | bool:
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -481,8 +488,16 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
+        result = result if self.callback is None else self.callback(result)
+        if isinstance(result, PokeReturnValue):
+            return result
 
-        return result if self.callback is None else self.callback(result)
+        if bool(result):
+            return PokeReturnValue(
+                is_done=True,
+                xcom_value=result,
+            )
+        return False
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""

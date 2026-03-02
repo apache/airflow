@@ -26,15 +26,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.cli import cli_parser
-
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands import role_command
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
-
+from airflow.providers.fab.auth_manager.cli_commands import role_command
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -70,7 +66,7 @@ class TestCliRoles:
                     self.clear_users_and_roles()
 
     def clear_users_and_roles(self):
-        session = self.appbuilder.get_session
+        session = self.appbuilder.session
         for user in self.appbuilder.sm.get_all_users():
             session.delete(user)
         for role_name in ["FakeTeamA", "FakeTeamB", "FakeTeamC"]:
@@ -119,9 +115,9 @@ class TestCliRoles:
         self.appbuilder.sm.add_role("FakeTeamA")
         self.appbuilder.sm.add_role("FakeTeamB")
 
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout_io:
             role_command.roles_list(self.parser.parse_args(["roles", "list"]))
-            stdout = stdout.getvalue()
+            stdout = stdout_io.getvalue()
 
         assert "FakeTeamA" in stdout
         assert "FakeTeamB" in stdout

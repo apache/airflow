@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.mark.db_test
@@ -359,7 +359,7 @@ class TestDruidHook:
         assert self.db_hook.get_auth() is None
 
     @pytest.mark.parametrize(
-        "verify_ssl_arg, ca_bundle_path, expected_return_value",
+        ("verify_ssl_arg", "ca_bundle_path", "expected_return_value"),
         [
             (False, None, False),
             (True, None, True),
@@ -426,6 +426,35 @@ class TestDruidDbApiHook:
             user="test_login",
             password="test_password",
             context=passed_context,
+            ssl_verify_cert=True,
+        )
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidDbApiHook.get_connection")
+    @patch("airflow.providers.apache.druid.hooks.druid.connect")
+    def test_get_conn_respects_ssl_verify_cert(self, mock_connect, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.login = "test_login"
+        get_conn_value.password = "test_password"
+        get_conn_value.port = 10000
+        get_conn_value.extra_dejson = {
+            "endpoint": "/test/endpoint",
+            "schema": "https",
+            "ssl_verify_cert": False,
+        }
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidDbApiHook()
+        hook.get_conn()
+        mock_connect.assert_called_with(
+            host="test_host",
+            port=10000,
+            path="/test/endpoint",
+            scheme="https",
+            user="test_login",
+            password="test_password",
+            context={},
+            ssl_verify_cert=False,
         )
 
     def test_get_uri(self):
@@ -480,3 +509,40 @@ class TestDruidDbApiHook:
         assert column == df.columns[0]
         assert result_sets[0][0] == df.row(0)[0]
         assert result_sets[1][0] == df.row(1)[0]
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook().get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters

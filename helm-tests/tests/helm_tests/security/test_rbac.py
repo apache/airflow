@@ -36,6 +36,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Service", "test-rbac-flower"),
     ("Service", "test-rbac-pgbouncer"),
     ("Service", "test-rbac-redis"),
+    ("Service", "test-rbac-triggerer"),
     ("Service", "test-rbac-worker"),
     ("Deployment", "test-rbac-scheduler"),
     ("Deployment", "test-rbac-statsd"),
@@ -43,23 +44,26 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Deployment", "test-rbac-pgbouncer"),
     ("StatefulSet", "test-rbac-postgresql"),
     ("StatefulSet", "test-rbac-redis"),
+    ("StatefulSet", "test-rbac-triggerer"),
     ("StatefulSet", "test-rbac-worker"),
     ("Secret", "test-rbac-broker-url"),
     ("Secret", "test-rbac-fernet-key"),
     ("Secret", "test-rbac-redis-password"),
-    ("Secret", "test-rbac-webserver-secret-key"),
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
     ("CronJob", "test-rbac-cleanup"),
+    ("CronJob", "test-rbac-database-cleanup"),
 ]
 
 RBAC_ENABLED_KIND_NAME_TUPLES = [
     ("Role", "test-rbac-pod-launcher-role"),
     ("Role", "test-rbac-cleanup-role"),
+    ("Role", "test-rbac-database-cleanup-role"),
     ("Role", "test-rbac-pod-log-reader-role"),
     ("RoleBinding", "test-rbac-pod-launcher-rolebinding"),
     ("RoleBinding", "test-rbac-pod-log-reader-rolebinding"),
     ("RoleBinding", "test-rbac-cleanup-rolebinding"),
+    ("RoleBinding", "test-rbac-database-cleanup-rolebinding"),
 ]
 
 SERVICE_ACCOUNT_NAME_TUPLES = [
@@ -68,6 +72,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-worker"),
     ("ServiceAccount", "test-rbac-triggerer"),
     ("ServiceAccount", "test-rbac-pgbouncer"),
+    ("ServiceAccount", "test-rbac-database-cleanup"),
     ("ServiceAccount", "test-rbac-flower"),
     ("ServiceAccount", "test-rbac-statsd"),
     ("ServiceAccount", "test-rbac-create-user-job"),
@@ -82,6 +87,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_WORKER_NAME := "TestWorker"),
     (CUSTOM_TRIGGERER_NAME := "TestTriggerer"),
     (CUSTOM_CLEANUP_NAME := "TestCleanup"),
+    (CUSTOM_DATABASE_CLEANUP_NAME := "TestDatabaseCleanup"),
     (CUSTOM_FLOWER_NAME := "TestFlower"),
     (CUSTOM_PGBOUNCER_NAME := "TestPGBouncer"),
     (CUSTOM_STATSD_NAME := "TestStatsd"),
@@ -92,7 +98,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
 )
 CUSTOM_WEBSERVER_NAME = "TestWebserver"
 
-parametrize_version = pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
+parametrize_version = pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
 
 
 class TestRBAC:
@@ -108,19 +114,14 @@ class TestRBAC:
 
     def _get_object_tuples(self, version, sa: bool = True):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        if version in {"default", "3.0.0"}:
-            tuples.append(("Service", "test-rbac-triggerer"))
-            tuples.append(("StatefulSet", "test-rbac-triggerer"))
-        else:
-            tuples.append(("Deployment", "test-rbac-triggerer"))
-        if version == "2.3.2":
-            tuples.append(("Secret", "test-rbac-result-backend"))
         if self._is_airflow_3_or_above(version):
             tuples.extend(
                 (
                     ("Service", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-dag-processor"),
+                    ("Secret", "test-rbac-api-secret-key"),
+                    ("Secret", "test-rbac-jwt-secret"),
                 )
             )
             if sa:
@@ -131,6 +132,7 @@ class TestRBAC:
                 (
                     ("Service", "test-rbac-webserver"),
                     ("Deployment", "test-rbac-webserver"),
+                    ("Secret", "test-rbac-webserver-secret-key"),
                 )
             )
             if sa:
@@ -145,8 +147,15 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "rbac": {"create": False},
                     "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
+                    "databaseCleanup": {
                         "enabled": True,
                         "serviceAccount": {
                             "create": False,
@@ -185,8 +194,10 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "rbac": {"create": False},
                     "cleanup": {"enabled": True},
+                    "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                 },
@@ -206,7 +217,14 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
+                    "databaseCleanup": {
                         "enabled": True,
                         "serviceAccount": {
                             "create": False,
@@ -246,7 +264,9 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {"enabled": True},
+                    "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                 },
@@ -267,10 +287,17 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
                         "name": CUSTOM_CLEANUP_NAME,
+                    },
+                },
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_DATABASE_CLEANUP_NAME,
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
@@ -303,7 +330,7 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "fullnameOverride": "test-rbac",
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
             },
@@ -318,10 +345,17 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
                         "name": CUSTOM_CLEANUP_NAME,
+                    },
+                },
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_DATABASE_CLEANUP_NAME,
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
@@ -370,7 +404,6 @@ class TestRBAC:
                 "redis": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
-                "webserver": {"defaultUser": {"enabled": False}},
             },
         )
         list_of_sa_names = [
@@ -384,5 +417,6 @@ class TestRBAC:
             "test-rbac-api-server",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
+            "test-rbac-create-user-job",
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)

@@ -17,15 +17,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-if TYPE_CHECKING:
-    from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-else:
-    try:
-        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-    except ModuleNotFoundError:
-        from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    "write_python_script": (
+        "airflow.providers.standard.utils.python_virtualenv",
+        "airflow.utils.python_virtualenv",
+    ),
+    "prepare_virtualenv": (
+        "airflow.providers.standard.utils.python_virtualenv",
+        "airflow.utils.python_virtualenv",
+    ),
+}
 
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
 
-__all__ = ["write_python_script", "prepare_virtualenv"]
+__all__ = sorted(_IMPORT_MAP.keys())

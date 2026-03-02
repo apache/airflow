@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
 type DeleteTaskInstanceButtonProps = {
   readonly taskInstance: TaskInstanceResponse;
-  readonly withText?: boolean;
 };
 
-const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskInstanceButtonProps) => {
+const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -46,15 +45,21 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
 
   return (
     <>
-      <ActionButton
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
-        colorPalette="red"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
-        variant="solid"
-        withText={withText}
-      />
+      <Tooltip
+        content={translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_one") })}
+      >
+        <IconButton
+          aria-label={translate("dags:runAndTaskActions.delete.button", {
+            type: translate("taskInstance_one"),
+          })}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}
@@ -70,10 +75,14 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
         open={open}
         resourceName={translate("dags:runAndTaskActions.delete.dialog.resourceName", {
           id: taskInstance.task_id,
-          type: "Task Instance",
+          type: translate("taskInstance_one"),
         })}
-        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: "Task Instance" })}
-        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", { type: "Task Instance" })}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", {
+          type: translate("taskInstance_one"),
+        })}
+        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", {
+          type: translate("taskInstance_one"),
+        })}
       />
     </>
   );

@@ -20,12 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
     KinesisAnalyticsV2StartApplicationCompletedSensor,
     KinesisAnalyticsV2StopApplicationCompletedSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestKinesisAnalyticsV2StartApplicationCompletedSensor:

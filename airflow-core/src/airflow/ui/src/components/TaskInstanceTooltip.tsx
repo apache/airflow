@@ -16,44 +16,117 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type {
+  LightGridTaskInstanceSummary,
   TaskInstanceHistoryResponse,
   TaskInstanceResponse,
-  GridTaskInstanceSummary,
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { getDuration, renderDuration, sortStateEntries } from "src/utils";
 
 type Props = {
-  readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) =>
-  taskInstance === undefined ? (
+const TaskInstanceTooltip = ({ children, positioning, taskInstance, tooltip, ...rest }: Props) => {
+  const { t: translate } = useTranslation("common");
+
+  const hasTooltip = tooltip !== undefined && tooltip !== null;
+
+  const childEntries =
+    taskInstance !== undefined && "child_states" in taskInstance && taskInstance.child_states !== null
+      ? sortStateEntries(taskInstance.child_states)
+      : [];
+
+  return taskInstance === undefined && !hasTooltip ? (
     children
   ) : (
     <Tooltip
       {...rest}
       content={
-        <Box>
-          <Text>State: {taskInstance.state}</Text>
-          {"dag_run_id" in taskInstance ? <Text>Run ID: {taskInstance.dag_run_id}</Text> : undefined}
-          <Text>
-            Start Date: <Time datetime={taskInstance.start_date} />
-          </Text>
-          <Text>
-            End Date: <Time datetime={taskInstance.end_date} />
-          </Text>
-          {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
-          {"start_date" in taskInstance ? (
-            <Text>Duration: {getDuration(taskInstance.start_date, taskInstance.end_date)}</Text>
+        <VStack align="start" gap={1}>
+          {hasTooltip ? <Text fontWeight="bold">{tooltip}</Text> : undefined}
+          {taskInstance ? (
+            <>
+              <Text>
+                {translate("taskId")}: {taskInstance.task_id}
+              </Text>
+              <Text>
+                {translate("state")}:{" "}
+                {taskInstance.state
+                  ? translate(`common:states.${taskInstance.state}`)
+                  : translate("common:states.no_status")}
+              </Text>
+              {"dag_run_id" in taskInstance ? (
+                <Text>
+                  {translate("runId")}: {taskInstance.dag_run_id}
+                </Text>
+              ) : undefined}
+              {"start_date" in taskInstance ? (
+                <>
+                  {taskInstance.try_number > 1 && (
+                    <Text>
+                      {translate("tryNumber")}: {taskInstance.try_number}
+                    </Text>
+                  )}
+                  <Text>
+                    {translate("startDate")}: <Time datetime={taskInstance.start_date} />
+                  </Text>
+                  <Text>
+                    {translate("endDate")}: <Time datetime={taskInstance.end_date} />
+                  </Text>
+                  <Text>
+                    {translate("duration")}: {renderDuration(taskInstance.duration)}
+                  </Text>
+                </>
+              ) : undefined}
+              {"min_start_date" in taskInstance && taskInstance.min_start_date !== null ? (
+                <>
+                  <Text>
+                    {translate("startDate")}: <Time datetime={taskInstance.min_start_date} />
+                  </Text>
+                  {taskInstance.max_end_date !== null && (
+                    <>
+                      <Text>
+                        {translate("endDate")}: <Time datetime={taskInstance.max_end_date} />
+                      </Text>
+                      <Text>
+                        {translate("duration")}:{" "}
+                        {getDuration(taskInstance.min_start_date, taskInstance.max_end_date, false)}
+                      </Text>
+                    </>
+                  )}
+                </>
+              ) : undefined}
+              {childEntries.length > 0 ? (
+                <VStack align="start" gap={1} ps={2}>
+                  {childEntries.map(([state, count]) => (
+                    <HStack gap={2} key={state}>
+                      <Box
+                        bg={`${state}.solid`}
+                        border="1px solid"
+                        borderColor="border.emphasized"
+                        borderRadius="2px"
+                        height="10px"
+                        width="10px"
+                      />
+                      <Text fontSize="xs">
+                        {count} {translate(`common:states.${state}`)}
+                      </Text>
+                    </HStack>
+                  ))}
+                </VStack>
+              ) : undefined}
+            </>
           ) : undefined}
-        </Box>
+        </VStack>
       }
-      key={taskInstance.task_id}
+      key={taskInstance?.task_id}
       portalled
       positioning={{
         offset: {
@@ -67,5 +140,6 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
       {children}
     </Tooltip>
   );
+};
 
 export default TaskInstanceTooltip;

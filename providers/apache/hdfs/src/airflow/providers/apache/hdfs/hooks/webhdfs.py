@@ -15,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Web HDFS."""
-
 from __future__ import annotations
 
 import logging
 import socket
-from typing import Any
+from typing import Any, cast
 
 import requests
 from hdfs import HdfsError, InsecureClient
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +72,7 @@ class WebHDFSHook(BaseHook):
 
     def _find_valid_server(self) -> Any:
         connection = self.get_connection(self.webhdfs_conn_id)
-        namenodes = connection.host.split(",")
+        namenodes = cast("str", connection.host).split(",")
         for namenode in namenodes:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", namenode, connection.port)
@@ -86,10 +82,10 @@ class WebHDFSHook(BaseHook):
                     self.log.info("Trying namenode %s", namenode)
                     client = self._get_client(
                         namenode,
-                        connection.port,
-                        connection.login,
+                        cast("int", connection.port),
+                        cast("str", connection.login),
                         connection.password,
-                        connection.schema,
+                        cast("str", connection.schema),
                         connection.extra_dejson,
                     )
                     client.status("/")

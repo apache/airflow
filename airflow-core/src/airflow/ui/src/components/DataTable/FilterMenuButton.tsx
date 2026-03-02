@@ -29,6 +29,8 @@ type Props<TData> = {
 };
 
 const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
+
   const { t: translate } = useTranslation("common");
   const filterLabel = translate("table.filterColumns");
 
@@ -40,28 +42,31 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
         </IconButton>
       </Menu.Trigger>
       <Menu.Content>
-        {table.getAllLeafColumns().map((column) => {
-          const text = flexRender(column.columnDef.header, {
-            column,
-            header: { column } as Header<TData, unknown>,
-            table,
-          });
+        {table
+          .getAllLeafColumns()
+          .filter((column) => column.getCanHide())
+          .map((column) => {
+            const text = flexRender(column.columnDef.header, {
+              column,
+              header: { column } as Header<TData, unknown>,
+              table,
+            });
 
-          return text?.toString ? (
-            <Menu.Item asChild key={column.id} value={column.id}>
-              <Checkbox
-                checked={column.getIsVisible()}
-                // At least one item needs to be visible
-                disabled={table.getVisibleFlatColumns().length < 2 && column.getIsVisible()}
-                onChange={() => {
-                  column.toggleVisibility();
-                }}
-              >
-                {text}
-              </Checkbox>
-            </Menu.Item>
-          ) : undefined;
-        })}
+            return text?.toString ? (
+              <Menu.Item asChild key={column.id} value={column.id}>
+                <Checkbox
+                  checked={column.getIsVisible()}
+                  // At least one item needs to be visible
+                  disabled={table.getVisibleFlatColumns().length < 2 && column.getIsVisible()}
+                  onChange={() => {
+                    column.toggleVisibility();
+                  }}
+                >
+                  {text}
+                </Checkbox>
+              </Menu.Item>
+            ) : undefined;
+          })}
       </Menu.Content>
     </Menu.Root>
   );

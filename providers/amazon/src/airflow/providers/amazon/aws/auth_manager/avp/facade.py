@@ -22,8 +22,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_AVP_POLICY_STORE_ID_KEY,
@@ -32,11 +30,19 @@ from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_SECTION_NAME,
 )
 from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPermissionsHook
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+    try:
+        from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+    except ImportError:
+        from airflow.api_fastapi.auth.managers.base_auth_manager import (
+            ResourceMethod as ExtendedResourceMethod,
+        )
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 
 
@@ -48,7 +54,7 @@ NB_REQUESTS_PER_BATCH = 30
 class IsAuthorizedRequest(TypedDict, total=False):
     """Represent the parameters of ``is_authorized`` method in AVP facade."""
 
-    method: ResourceMethod
+    method: ExtendedResourceMethod
     entity_type: AvpEntities
     entity_id: str | None
     context: dict | None
@@ -113,7 +119,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
                 "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
-                    "actionId": get_action_id(entity_type, method),
+                    "actionId": get_action_id(entity_type, method, entity_id),
                 },
                 "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
                 "entities": {"entityList": entity_list},
@@ -274,7 +280,9 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
                 "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
-                    "actionId": get_action_id(request["entity_type"], request["method"]),
+                    "actionId": get_action_id(
+                        request["entity_type"], request["method"], request.get("entity_id")
+                    ),
                 },
                 "resource": {
                     "entityType": get_entity_type(request["entity_type"]),

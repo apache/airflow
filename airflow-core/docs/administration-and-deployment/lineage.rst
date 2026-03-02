@@ -28,10 +28,11 @@ This functionality helps you understand how data flows throughout your Airflow p
 A global instance of ``HookLineageCollector`` serves as the central hub for collecting lineage information.
 Hooks can send details about assets they interact with to this collector.
 The collector then uses this data to construct AIP-60 compliant Assets, a standard format for describing assets.
+Hooks can also send arbitrary non-asset related data to this collector as shown in the example below.
 
 .. code-block:: python
 
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.sdk.lineage import get_hook_lineage_collector
 
 
     class CustomHook(BaseHook):
@@ -40,13 +41,14 @@ The collector then uses this data to construct AIP-60 compliant Assets, a standa
             collector = get_hook_lineage_collector()
             collector.add_input_asset(self, asset_kwargs={"scheme": "file", "path": "/tmp/in"})
             collector.add_output_asset(self, asset_kwargs={"scheme": "file", "path": "/tmp/out"})
+            collector.add_extra(self, key="external_system_job_id", value="some_id_123")
 
 Lineage data collected by the ``HookLineageCollector`` can be accessed using an instance of ``HookLineageReader``,
 which is registered in an Airflow plugin.
 
 .. code-block:: python
 
-    from airflow.lineage.hook_lineage import HookLineageReader
+    from airflow.sdk.lineage import HookLineageReader
     from airflow.plugins_manager import AirflowPlugin
 
 

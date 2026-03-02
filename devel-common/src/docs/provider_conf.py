@@ -119,7 +119,7 @@ smartquotes_excludes = SMARTQUOTES_EXCLUDES
 # ones.
 extensions = BASIC_SPHINX_EXTENSIONS
 
-PROVIDER_PACKAGES_WITH_REDOC = ["apache-airflow-providers-fab"]
+PROVIDER_PACKAGES_WITH_REDOC = ["apache-airflow-providers-fab", "apache-airflow-providers-keycloak"]
 
 if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     extensions.extend(
@@ -230,6 +230,11 @@ config_descriptions = retrieve_configuration_description(
 configs, deprecated_options = get_configs_and_deprecations(
     parse_version(PACKAGE_VERSION), config_descriptions
 )
+
+PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_REPO_ROOT_PATH / "providers" / ".last_release_date.txt"
+
+PROVIDERS_RELEASE_DATE = PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
+
 jinja_contexts = {
     "config_ctx": {
         "configs": configs,
@@ -242,6 +247,7 @@ jinja_contexts = {
         "package_name": PACKAGE_NAME,
         "package_name_underscores": PACKAGE_NAME.replace("-", "_"),
         "package_version": PACKAGE_VERSION,
+        "providers_release_date": PROVIDERS_RELEASE_DATE,
     },
 }
 
@@ -356,12 +362,18 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
         __file__ as fab_auth_manager_fastapi_api_file,
     )
     from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
+    from airflow.providers.keycloak.auth_manager.openapi import (
+        __file__ as keycloak_auth_manager_fastapi_api_file,
+    )
 
     fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath(
         "v1-flask-api.yaml"
     )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
         "v2-fab-auth-manager-generated.yaml"
+    )
+    keycloak_auth_manager_fastapi_api_path = Path(keycloak_auth_manager_fastapi_api_file).parent.joinpath(
+        "v2-keycloak-auth-manager-generated.yaml"
     )
     redoc = [
         {
@@ -376,6 +388,15 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
             "name": "Fab auth manager token API",
             "page": "api-ref/fab-token-api-ref",
             "spec": fab_auth_manager_fastapi_api_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+        {
+            "name": "Keycloak auth manager token API",
+            "page": "api-ref/token-api-ref",
+            "spec": keycloak_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,

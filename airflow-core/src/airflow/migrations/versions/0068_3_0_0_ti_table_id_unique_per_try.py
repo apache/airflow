@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 # revision identifiers, used by Alembic.
 revision = "29ce7909c52b"
@@ -40,9 +39,9 @@ airflow_version = "3.0.0"
 
 
 def _get_uuid_type(dialect_name: str) -> sa.types.TypeEngine:
-    if dialect_name != "postgres":
+    if dialect_name != "postgresql":
         return sa.String(36)
-    return UUIDType(binary=False)
+    return sa.Uuid()
 
 
 def upgrade():
@@ -96,7 +95,7 @@ def downgrade():
     dialect_name = conn.dialect.name
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("try_number", sa.INTEGER(), autoincrement=False, nullable=False, default=1)
+            sa.Column("try_number", sa.INTEGER(), autoincrement=False, nullable=False, server_default="1")
         )
 
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
@@ -116,6 +115,4 @@ def downgrade():
     # This has to be in a separate batch, else on sqlite it throws `sqlalchemy.exc.CircularDependencyError`
     # (and on non sqlite batching isn't "a thing", it issue alter tables fine)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("task_instance_id", UUIDType(binary=False), autoincrement=False, nullable=False)
-        )
+        batch_op.add_column(sa.Column("task_instance_id", sa.Uuid(), autoincrement=False, nullable=True))

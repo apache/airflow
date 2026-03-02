@@ -61,7 +61,7 @@ class TestAthenaSQLHookConn:
 
         mock_get_credentials.assert_called_once_with(region_name=REGION_NAME)
 
-        assert str(athena_uri) == expected_athena_uri
+        assert athena_uri == expected_athena_uri
 
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook._get_conn_params")
     def test_get_uri_change_driver(self, mock_get_conn_params):
@@ -71,7 +71,7 @@ class TestAthenaSQLHookConn:
 
         athena_uri = self.db_hook.get_uri()
 
-        assert str(athena_uri).startswith("awsathena+arrow://")
+        assert athena_uri.startswith("awsathena+arrow://")
 
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_session")
@@ -102,7 +102,7 @@ class TestAthenaSQLHookConn:
         )
 
     @pytest.mark.parametrize(
-        "conn_params, conn_extra, expected_call_args",
+        ("conn_params", "conn_extra", "expected_call_args"),
         [
             (
                 {"schema": "athena_sql_schema1"},
@@ -148,3 +148,36 @@ class TestAthenaSQLHookConn:
         hook = AthenaSQLHook(athena_conn_id=AWS_ATHENA_CONN_ID, aws_conn_id=AWS_CONN_ID)
         assert hook.athena_conn_id == AWS_ATHENA_CONN_ID
         assert hook.aws_conn_id == AWS_CONN_ID
+
+    def test_init_ignores_unexpected_kwargs(self):
+        """Verify that connection extras passed as kwargs don't crash the constructor.
+
+        BaseSQLOperator.get_hook() passes all connection extras as hook_params which
+        end up as constructor kwargs. Extras like s3_staging_dir and work_group are
+        not valid params for AwsGenericHook.__init__ and must be filtered out.
+        """
+        hook = AthenaSQLHook(
+            athena_conn_id="athena_conn",
+            s3_staging_dir="s3://mybucket/athena/",
+            work_group="primary",
+            region_name="eu-west-1",
+            driver="rest",
+        )
+        assert hook.athena_conn_id == "athena_conn"
+        # region_name is a valid AwsGenericHook param and should be passed through
+        assert hook._region_name == "eu-west-1"
+
+    def test_init_passes_valid_aws_kwargs(self):
+        """Verify that valid AwsGenericHook kwargs are still forwarded correctly."""
+        hook = AthenaSQLHook(
+            athena_conn_id="athena_conn",
+            aws_conn_id="custom_aws",
+            verify=False,
+            region_name="us-west-2",
+            config={"retries": {"max_attempts": 5}},
+        )
+        assert hook.athena_conn_id == "athena_conn"
+        assert hook.aws_conn_id == "custom_aws"
+        assert hook._verify is False
+        assert hook._region_name == "us-west-2"
+        assert hook._config is not None

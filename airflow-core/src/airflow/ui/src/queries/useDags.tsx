@@ -29,12 +29,14 @@ export const useDags = ({
   dagIdPattern,
   dagRunsLimit,
   excludeStale = true,
+  isFavorite,
   lastDagRunState,
   limit,
   offset,
   orderBy,
   owners,
   paused,
+  pendingHitl,
   tags,
   tagsMatchMode,
 }: {
@@ -42,12 +44,14 @@ export const useDags = ({
   dagIdPattern?: string;
   dagRunsLimit: number;
   excludeStale?: boolean;
+  isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: Array<string>;
   owners?: Array<string>;
   paused?: boolean;
+  pendingHitl?: boolean;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
 }) => {
@@ -59,6 +63,8 @@ export const useDags = ({
       dagIdPattern,
       dagRunsLimit,
       excludeStale,
+      hasPendingActions: pendingHitl,
+      isFavorite,
       lastDagRunState,
       limit,
       offset,

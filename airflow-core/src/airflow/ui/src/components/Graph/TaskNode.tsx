@@ -18,14 +18,15 @@
  */
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
-import { CgRedo } from "react-icons/cg";
+import { useTranslation } from "react-i18next";
 
+import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useOpenGroups } from "src/context/openGroups";
-import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
+import { SegmentedStateBar } from "./SegmentedStateBar";
 import { TaskLink } from "./TaskLink";
 import type { CustomNodeProps } from "./reactflowUtils";
 
@@ -42,16 +43,43 @@ export const TaskNode = ({
     operator,
     setupTeardownType,
     taskInstance,
+    tooltip,
     width = 0,
   },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
+  const { t: translate } = useTranslation("components");
   const { toggleGroupId } = useOpenGroups();
   const onClick = () => {
     if (isGroup) {
       toggleGroupId(id);
     }
   };
+
+  // For task dependency nodes, parse dag_id from label (format: dag_id.task_id)
+  const parseDagIdFromLabel = (nodeLabel: string): { dagId: string | undefined; taskId: string } => {
+    if (operator !== undefined) {
+      return { dagId: undefined, taskId: nodeLabel };
+    }
+    const dotIndex = nodeLabel.indexOf(".");
+
+    if (dotIndex > 0) {
+      return {
+        dagId: nodeLabel.slice(0, Math.max(0, dotIndex)),
+        taskId: nodeLabel.slice(Math.max(0, dotIndex + 1)),
+      };
+    }
+
+    return { dagId: undefined, taskId: nodeLabel };
+  };
+
+  const { dagId, taskId } = parseDagIdFromLabel(label);
+  const displayLabel = dagId === undefined ? label : taskId;
+  const displayOperator = operator ?? dagId;
+
+  const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
 
   return (
     <NodeWrapper>
@@ -62,55 +90,57 @@ export const TaskNode = ({
             placement: "top-start",
           }}
           taskInstance={taskInstance}
+          tooltip={isGroup ? tooltip : undefined}
         >
-          <Box
+          <Flex
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
             borderColor={
-              taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
+              isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
             }
             borderRadius={5}
             borderWidth={isSelected ? 4 : 2}
+            direction="column"
             height={`${height + (isSelected ? 4 : 0)}px`}
-            justifyContent="space-between"
             overflow="hidden"
             position="relative"
             px={isSelected ? 1 : 2}
             py={isSelected ? 0 : 1}
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
-            <LinkOverlay asChild>
-              <TaskLink
-                childCount={taskInstance?.task_count}
-                id={id}
-                isGroup={isGroup}
-                isMapped={isMapped}
-                isOpen={isOpen}
-                label={label}
-                setupTeardownType={setupTeardownType}
-              />
-            </LinkOverlay>
+            <HStack>
+              <TaskIcon />
+              <LinkOverlay asChild>
+                <TaskLink
+                  childCount={thisChildCount}
+                  id={id}
+                  isGroup={isGroup}
+                  isMapped={isMapped}
+                  isOpen={isOpen}
+                  label={displayLabel}
+                  setupTeardownType={setupTeardownType}
+                />
+              </LinkOverlay>
+            </HStack>
             <Text
               color="fg.muted"
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
-              textTransform="capitalize"
               whiteSpace="nowrap"
             >
-              {isGroup ? "Task Group" : operator}
+              {isGroup ? translate("graph.taskGroup") : displayOperator}
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>
                 <StateBadge fontSize="xs" state={taskInstance.state}>
                   {taskInstance.state}
                 </StateBadge>
-                {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
               </HStack>
             )}
             {isGroup ? (
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 cursor="pointer"
                 height={8}
                 onClick={onClick}
@@ -121,30 +151,36 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {pluralize("task", childCount, undefined, false)}
+                {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
-          </Box>
+            {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
+              <SegmentedStateBar
+                childStates={taskInstance?.child_states ?? null}
+                fallbackState={taskInstance?.state}
+              />
+            ) : undefined}
+          </Flex>
         </TaskInstanceTooltip>
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
               width={`${width - 10}px`}
             />
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}

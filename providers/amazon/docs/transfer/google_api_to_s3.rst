@@ -50,7 +50,7 @@ You can find more information about the Google API endpoint used
 Google Youtube to Amazon S3
 ===========================
 
-This is a more advanced example dag for using ``GoogleApiToS3Operator`` which uses xcom to pass data between
+This is a more advanced example Dag for using ``GoogleApiToS3Operator`` which uses xcom to pass data between
 tasks to retrieve specific information about YouTube videos.
 
 It searches for up to 50 videos (due to pagination) in a given time range

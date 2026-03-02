@@ -61,7 +61,7 @@ class TestRedshiftDataTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "return_value, response",
+        ("return_value", "response"),
         [
             (
                 True,
@@ -101,7 +101,7 @@ class TestRedshiftDataTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "raised_exception, expected_response",
+        ("raised_exception", "expected_response"),
         [
             (
                 RedshiftDataQueryFailedError("Failed"),

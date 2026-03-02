@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import os
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -26,7 +25,6 @@ import pytest
 from airflow.providers.fab.www import app
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import parse_and_sync_to_db
 from unit.fab.decorators import dont_initialize_flask_app_submodules
 
 
@@ -72,14 +70,6 @@ def set_auth_role_public(request):
     yield
 
     app.config["AUTH_ROLE_PUBLIC"] = auto_role_public
-
-
-@pytest.fixture(scope="module")
-def dagbag():
-    from airflow.models import DagBag
-
-    parse_and_sync_to_db(os.devnull, include_examples=True)
-    return DagBag(read_dags_from_db=True)
 
 
 @pytest.fixture

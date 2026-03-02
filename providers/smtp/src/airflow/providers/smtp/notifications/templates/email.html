@@ -27,10 +27,12 @@
             <td>Log Link:</td>
             <td><a href="{{ ti.log_url }}" style="text-decoration:underline;">{{ ti.log_url }}</a></td>
         </tr>
+        {% if ti.mark_success_url is defined %}
         <tr>
             <td>Mark Success Link:</td>
             <td><a href="{{ ti.mark_success_url }}" style="text-decoration:underline;">{{ ti.mark_success_url }}</a></td>
         </tr>
+        {% endif %}
         {% elif slas is defined %}
         <tr>
             <td>Dag:</td>

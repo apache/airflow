@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
@@ -43,8 +42,9 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsStopDbOperator,
 )
 from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import TaskDeferred
 
+from tests_common.test_utils.compat import timezone
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -181,9 +181,9 @@ class TestBaseRdsOperator:
         )
         assert op.hook.aws_conn_id == OVERWRITTEN_CONN
 
-    def test_no_conn_passed_to_hook(self):
+    def test_default_conn_passed_to_hook(self):
         DEFAULT_CONN = "aws_default"
-        op = RdsBaseOperator(task_id="test_no_conn_passed_to_hook_task", dag=self.dag)
+        op = RdsBaseOperator(task_id="test_default_conn_passed_to_hook_task", dag=self.dag)
         assert op.hook.aws_conn_id == DEFAULT_CONN
 
 

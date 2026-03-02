@@ -22,6 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -42,11 +43,14 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
 
-  const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
+  const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
+  const searchParams = new URLSearchParams(
+    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
+  );
   const { t: translate } = useTranslation();
 
   if (endDate !== undefined) {
-    searchParams.append("end_date", endDate);
+    searchParams.append(SearchParamsKeys.END_DATE, endDate);
   }
 
   return (

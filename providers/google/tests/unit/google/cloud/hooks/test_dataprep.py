@@ -28,6 +28,15 @@ from tenacity import RetryError
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 JOB_ID = 1234567
 RECIPE_ID = 1234567
 TOKEN = "1111"
@@ -49,7 +58,7 @@ URL_WRITE_SETTINGS = URL_BASE + "/v4/writeSettings"
 
 class TestGoogleDataprepHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
         self._imported_dataset_id = 12345
@@ -602,7 +611,7 @@ class TestGoogleDataprepFlowPathHooks:
                 "description": "Test description",
             }
         )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
 

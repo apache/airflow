@@ -19,6 +19,16 @@
 
 # Contributing to the UI
 
+## System Requirements
+
+Building the UI requires at least 8GB of system RAM (6GB available).
+
+If you encounter out-of-memory errors during the build, you can increase Node.js heap size:
+
+```bash
+export NODE_OPTIONS="--max-old-space-size=8192"
+```
+
 ## Quick Start
 
 With Breeze:
@@ -26,7 +36,7 @@ With Breeze:
 
 Manually:
 
-- Have the `dev-mode` environment variable enabled
+- Have the `DEV_MODE` environment variable set to `true` when starting airflow api-server
 - Run `pnpm install && pnpm dev`
 - Note: Make sure to access the UI via the Airflow localhost port (8080 or 28080) and not the vite port (5173)
 

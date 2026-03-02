@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.decorators import (
-    dag as dag,
-    setup as setup,
-    task as task,
-    task_group as task_group,
-    teardown as teardown,
-)
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
+    __name__: {
+        "dag": "airflow.sdk.dag",
+        "setup": "airflow.sdk.setup",
+        "task": "airflow.sdk.task",
+        "task_group": "airflow.sdk.task_group",
+        "teardown": "airflow.sdk.teardown",
+    },
     "base": {
         "DecoratedMappedOperator": "airflow.sdk.bases.decorator.DecoratedMappedOperator",
         "DecoratedOperator": "airflow.sdk.bases.decorator.DecoratedOperator",

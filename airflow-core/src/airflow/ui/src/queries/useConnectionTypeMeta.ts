@@ -16,7 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
+
 import { useConnectionServiceHookMetaData } from "openapi/queries";
+import type {
+  ConnectionHookFieldBehavior,
+  ConnectionHookMetaData,
+  StandardHookFields,
+} from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import type { ParamsSpec } from "./useDagParams";
@@ -38,11 +45,58 @@ export type ConnectionMetaEntry = {
   standard_fields: StandardFieldSpec | undefined;
 };
 
-type ConnectionMeta = Array<ConnectionMetaEntry>;
+/**
+ * Type guard to check if an item has a valid (non-null) connection_type
+ */
+const hasValidConnectionType = (
+  item: ConnectionHookMetaData,
+): item is { connection_type: string } & ConnectionHookMetaData => item.connection_type !== null;
+
+/**
+ * Convert a single ConnectionHookFieldBehavior to StandardFieldSchema
+ */
+const convertField = (
+  fieldBehavior: ConnectionHookFieldBehavior | null,
+  defaultValue: StandardFieldSchema,
+): StandardFieldSchema => {
+  if (fieldBehavior === null) {
+    return { ...defaultValue };
+  }
+
+  return {
+    hidden: fieldBehavior.hidden ?? defaultValue.hidden,
+    placeholder: fieldBehavior.placeholder ?? defaultValue.placeholder,
+    title: fieldBehavior.title ?? defaultValue.title,
+  };
+};
+
+/**
+ * Convert StandardHookFields from API to StandardFieldSpec
+ */
+const convertStandardFields = (
+  apiFields: StandardHookFields | null,
+  defaultFields: StandardFieldSpec,
+): StandardFieldSpec => {
+  if (apiFields === null) {
+    return { ...defaultFields };
+  }
+
+  const result: StandardFieldSpec = {
+    description: convertField(apiFields.description, defaultFields.description ?? {}),
+    host: convertField(apiFields.host, defaultFields.host ?? {}),
+    login: convertField(apiFields.login, defaultFields.login ?? {}),
+    password: convertField(apiFields.password, defaultFields.password ?? {}),
+    port: convertField(apiFields.port, defaultFields.port ?? {}),
+    // Convert url_schema to schema for the form
+    schema: convertField(apiFields.url_schema, defaultFields.url_schema ?? {}),
+  };
+
+  return result;
+};
 
 export const useConnectionTypeMeta = () => {
-  const { data, error, isPending }: { data?: ConnectionMeta; error?: unknown; isPending: boolean } =
-    useConnectionServiceHookMetaData();
+  const { t: translate } = useTranslation("admin");
+  const { data, error, isPending } = useConnectionServiceHookMetaData();
 
   if (Boolean(error)) {
     const errorDescription =
@@ -51,65 +105,73 @@ export const useConnectionTypeMeta = () => {
         : String(Boolean(error) ? error : ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
-      description: `Connection Type Meta request failed. Error: ${errorDescription}`,
-      title: "Failed to retrieve Connection Type Meta",
+      description: errorDescription,
+      title: translate("admin:connections.typeMeta.error"),
       type: "error",
     });
   }
 
   const formattedData: Record<string, ConnectionMetaEntry> = {};
+  const hookNames: Record<string, string> = {};
   const keysList: Array<string> = [];
 
-  const defaultStandardFields: StandardFieldSpec | undefined = {
-    description: { hidden: false, placeholder: undefined, title: "Description" },
-    host: { hidden: false, placeholder: undefined, title: "Host" },
-    login: { hidden: false, placeholder: undefined, title: "Login" },
-    password: { hidden: false, placeholder: undefined, title: "Password" },
-    port: { hidden: false, placeholder: undefined, title: "Port" },
-    url_schema: { hidden: false, placeholder: undefined, title: "Schema" },
+  const defaultStandardFields: StandardFieldSpec = {
+    description: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.description"),
+    },
+    host: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.host"),
+    },
+    login: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.login"),
+    },
+    password: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.password"),
+    },
+    port: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.port"),
+    },
+    url_schema: {
+      hidden: false,
+      placeholder: undefined,
+      title: translate("admin:connections.typeMeta.standardFields.url_schema"),
+    },
   };
 
-  const mergeWithDefaults = (
-    defaultFields: StandardFieldSpec,
-    customFields?: StandardFieldSpec,
-  ): StandardFieldSpec =>
-    Object.keys(defaultFields).reduce<StandardFieldSpec>((acc, newKey) => {
-      const defaultValue = defaultFields[newKey];
-      const customValue = customFields?.[newKey];
+  // Filter to only items with valid connection_type and transform
+  const validItems = data?.filter(hasValidConnectionType) ?? [];
 
-      acc[newKey] =
-        customValue && typeof customValue === "object"
-          ? {
-              ...defaultValue,
-              ...customValue,
-            }
-          : { ...defaultValue };
-
-      return acc;
-    }, {});
-
-  data?.forEach((item) => {
+  validItems.forEach((item) => {
     const key = item.connection_type;
 
+    hookNames[key] = item.hook_name;
     keysList.push(key);
 
-    const populatedStandardFields: StandardFieldSpec = mergeWithDefaults(
-      defaultStandardFields,
-      item.standard_fields,
-    );
+    const populatedStandardFields = convertStandardFields(item.standard_fields, defaultStandardFields);
 
-    if (populatedStandardFields.url_schema) {
-      populatedStandardFields.schema = populatedStandardFields.url_schema;
-      delete populatedStandardFields.url_schema;
-    }
-
-    formattedData[key] = {
-      ...item,
+    const entry: ConnectionMetaEntry = {
+      connection_type: item.connection_type,
+      default_conn_name: item.default_conn_name ?? undefined,
+      extra_fields: (item.extra_fields ?? {}) as ParamsSpec,
+      hook_class_name: item.hook_class_name ?? "",
+      hook_name: item.hook_name,
       standard_fields: populatedStandardFields,
     };
+
+    formattedData[key] = entry;
   });
 
-  keysList.sort((first, second) => first.localeCompare(second));
+  keysList.sort((first, second) => (hookNames[first] ?? first).localeCompare(hookNames[second] ?? second));
 
-  return { formattedData, isPending, keysList };
+  return { formattedData, hookNames, isPending, keysList };
 };

@@ -32,7 +32,12 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteClusterOperator,
     DataprocDiagnoseClusterOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -85,6 +90,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
+        gcp_conn_id="google_cloud_default",
     )
     # [END how_to_cloud_dataproc_diagnose_cluster]
 
@@ -94,6 +100,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
+        gcp_conn_id="google_cloud_default",
         deferrable=True,
     )
     # [END how_to_cloud_dataproc_diagnose_cluster_deferrable]

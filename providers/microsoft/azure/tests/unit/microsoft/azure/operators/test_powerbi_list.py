@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred
 from airflow.providers.microsoft.azure.operators.powerbi import (
     PowerBIDatasetListOperator,
     PowerBIWorkspaceListOperator,
@@ -31,10 +31,14 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBIDatasetListTrigger,
     PowerBIWorkspaceListTrigger,
 )
-from airflow.utils import timezone
 
-from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import get_airflow_connection
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[no-redef]
+
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operators"
@@ -68,8 +72,8 @@ SUCCESS_LIST_EVENT_WORKSPACES = {
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
-class TestPowerBIDatasetListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+class TestPowerBIDatasetListOperator:
+    @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_dataset_list_success(self, connection):
         """Assert that get_dataset_list log success message"""
         operator = PowerBIDatasetListOperator(
@@ -148,8 +152,8 @@ class TestPowerBIDatasetListOperator(Base):
         assert context["ti"].xcom_push.call_count == 0
 
 
-class TestPowerBIWorkspaceListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+class TestPowerBIWorkspaceListOperator:
+    @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_workspace_list_success(self, connection):
         """Assert that get_workspace_list log success message"""
         operator = PowerBIWorkspaceListOperator(

@@ -18,8 +18,14 @@
  */
 import { Text, type TextProps } from "@chakra-ui/react";
 
-export const DurationTick = ({ children, ...rest }: TextProps) => (
+import { renderDuration } from "src/utils";
+
+type Props = {
+  readonly duration: number;
+} & TextProps;
+
+export const DurationTick = ({ duration, ...rest }: Props) => (
   <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
-    {children}
+    {renderDuration(duration)}
   </Text>
 );

@@ -27,12 +27,12 @@ from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 def test_cohere_embedding_operator(cohere_client, get_connection):
     """
     Test Cohere client is getting called with the correct key and that
-     the execute methods returns expected response.
+    the execute method returns expected response.
     """
-    embedded_obj = [1, 2, 3]
+    embedded_obj = [[1.0, 2.0, 3.0]]
 
-    class resp:
-        embeddings = embedded_obj
+    mock_response = MagicMock()
+    mock_response.embeddings.float_ = embedded_obj
 
     api_key = "test"
     base_url = "http://some_host.com"
@@ -43,7 +43,7 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=base_url)
     client_obj = MagicMock()
     cohere_client.return_value = client_obj
-    client_obj.embed.return_value = resp
+    client_obj.embed.return_value = mock_response
 
     op = CohereEmbeddingOperator(
         task_id="embed",

@@ -18,21 +18,73 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
+import tz from "dayjs/plugin/timezone";
 
 dayjs.extend(dayjsDuration);
+dayjs.extend(relativeTime);
+dayjs.extend(tz);
 
-export const getDuration = (startDate?: string | null, endDate?: string | null) => {
-  const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
+export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
+export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-  if (isNaN(seconds) || seconds <= 0) {
-    return "00:00:00";
+export const renderDuration = (
+  durationSeconds: number | null | undefined,
+  withMilliseconds: boolean = true,
+): string | undefined => {
+  if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
+    return undefined;
   }
 
-  if (seconds < 10) {
-    return `${seconds.toFixed(2)}s`;
+  // If under 60 seconds, render milliseconds
+  if (durationSeconds < 60 && withMilliseconds) {
+    return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
   }
 
-  return seconds < 86_400
-    ? dayjs.duration(seconds, "seconds").format("HH:mm:ss")
-    : dayjs.duration(seconds, "seconds").format("D[d]HH:mm:ss");
+  // If under 1 day, render as HH:mm:ss otherwise include the number of days
+  return durationSeconds < 86_400
+    ? dayjs.duration(durationSeconds, "seconds").format("HH:mm:ss")
+    : dayjs.duration(durationSeconds, "seconds").format("D[d]HH:mm:ss");
+};
+
+export const getDuration = (
+  startDate?: string | null,
+  endDate?: string | null,
+  withMilliseconds: boolean = true,
+) => {
+  if (startDate === undefined || startDate === null || endDate === undefined || endDate === null) {
+    return undefined;
+  }
+
+  const seconds = dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds();
+
+  return renderDuration(seconds, withMilliseconds);
+};
+
+export const formatDate = (
+  date: number | string | null | undefined,
+  timezone: string,
+  format: string = DEFAULT_DATETIME_FORMAT,
+) => {
+  if (date === null || date === undefined || !dayjs(date).isValid()) {
+    return dayjs().tz(timezone).format(format);
+  }
+
+  return dayjs(date).tz(timezone).format(format);
+};
+
+export const getRelativeTime = (date: string | null | undefined): string => {
+  if (date === null || date === "" || date === undefined) {
+    return "";
+  }
+
+  return dayjs(date).fromNow();
+};
+
+export const getTimezoneOffsetString = (timezone: string): string => dayjs().tz(timezone).format("Z");
+
+export const getTimezoneTooltipLabel = (timezone: string): string => {
+  const now = dayjs().tz(timezone);
+
+  return `${timezone} — ${now.format(DEFAULT_DATETIME_FORMAT_WITH_TZ)}`;
 };

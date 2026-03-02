@@ -28,6 +28,7 @@
 {{- $securityContext := include "localPodSecurityContext" .Values.redis }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
 {{- $containerLifecycleHooks := .Values.redis.containerLifecycleHooks }}
+{{- $persistence := .Values.redis.persistence.enabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -46,6 +47,9 @@ metadata:
   {{- end }}
 spec:
   serviceName: {{ include "airflow.fullname" . }}-redis
+  {{- if and $persistence .Values.redis.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.redis.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
@@ -57,8 +61,8 @@ spec:
         tier: airflow
         component: redis
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or .Values.labels .Values.redis.labels }}
+          {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
@@ -82,10 +86,7 @@ spec:
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
       {{- end }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       securityContext: {{ $securityContext | nindent 8 }}
       containers:
         - name: redis
@@ -95,9 +96,11 @@ spec:
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          command: ["/bin/sh"]
+          command: ["redis-server"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
-          args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+          # Not launching via shell -- parentheses are required
+          # https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#use-environment-variables-to-define-arguments
+          args: ["--requirepass", "$(REDIS_PASSWORD)"]
           ports:
             - name: redis-db
               containerPort: {{ .Values.ports.redisDB }}
@@ -110,7 +113,7 @@ spec:
                 secretKeyRef:
                   name: {{ template "redis_password_secret" . }}
                   key: password
-  {{- if not .Values.redis.persistence.enabled }}
+  {{- if not $persistence }}
       volumes:
         - name: redis-db
           emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}

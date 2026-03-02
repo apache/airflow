@@ -26,14 +26,13 @@ import pytest
 
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
-    DynamoDBToS3Operator,
-    JSONEncoder,
-)
-from airflow.utils import timezone
+from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -262,7 +261,7 @@ class TestDynamodbToS3:
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
@@ -274,8 +273,13 @@ class TestDynamodbToS3:
             source_aws_conn_id="{{ ds }}",
             dest_aws_conn_id="{{ ds }}",
         )
-        ti = TaskInstance(operator, run_id="something")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = create_task_instance(operator, run_id="something", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="something",
@@ -284,6 +288,7 @@ class TestDynamodbToS3:
                 state=DagRunState.RUNNING,
             )
         else:
+            ti = TaskInstance(operator, run_id="something")
             ti.dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="something",
@@ -293,7 +298,7 @@ class TestDynamodbToS3:
             )
         session.add(ti)
         session.commit()
-        ti.render_templates()
+        render_template_fields(ti, operator)
         assert getattr(operator, "source_aws_conn_id") == "2020-01-01"
         assert getattr(operator, "dest_aws_conn_id") == "2020-01-01"
         assert getattr(operator, "s3_bucket_name") == "2020-01-01"

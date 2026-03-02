@@ -27,12 +27,9 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow import settings
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils import db
-from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
 
@@ -118,73 +115,45 @@ class TestSSHHook:
         "ssh_with_no_host_key_check_true_and_allow_host_key_changes_false"
     )
 
-    @classmethod
-    def teardown_class(cls) -> None:
-        with create_session() as session:
-            conns_to_reset = [
-                cls.CONN_SSH_WITH_NO_EXTRA,
-                cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
-                cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
-                cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
-                cls.CONN_SSH_WITH_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_CMD_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_EXTRA,
-                cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
-                cls.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
-                cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
-                cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
-                cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
-                cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
-                cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
-                cls.CONN_SSH_WITH_EXTRA_CIPHERS,
-                cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
-                cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE,
-            ]
-            connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
-            connections.delete(synchronize_session=False)
-            session.commit()
-
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NO_EXTRA,
+                conn_id=self.CONN_SSH_WITH_NO_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=None,
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_EXTRA,
+                conn_id=self.CONN_SSH_WITH_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra='{"compress" : true, "no_host_key_check" : "true", "allow_host_key_change": false}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS,
+                conn_id=self.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS,
                 host="localhost",
                 conn_type="ssh",
                 extra='{"compress" : true, "no_host_key_check" : "true", '
                 '"allow_host_key_change": false, "look_for_keys": false}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
+                conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
+                conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps(
@@ -192,73 +161,73 @@ class TestSSHHook:
                 ),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+                conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY_ECDSA}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_TIMEOUT_EXTRA,
+                conn_id=self.CONN_SSH_WITH_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"timeout": TEST_TIMEOUT}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
+                conn_id=self.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"conn_timeout": TEST_CONN_TIMEOUT}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA,
+                conn_id=self.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"conn_timeout": TEST_CONN_TIMEOUT, "timeout": TEST_TIMEOUT}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_CMD_TIMEOUT_EXTRA,
+                conn_id=self.CONN_SSH_WITH_CMD_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"cmd_timeout": TEST_CMD_TIMEOUT_EXTRA}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA,
+                conn_id=self.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"cmd_timeout": None}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
+                conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
+                conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "host_key": "ssh-rsa " + TEST_HOST_KEY}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps(
@@ -266,9 +235,9 @@ class TestSSHHook:
                 ),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps(
@@ -276,25 +245,25 @@ class TestSSHHook:
                 ),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "no_host_key_check": False}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "no_host_key_check": True}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
+                conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps(
@@ -306,33 +275,33 @@ class TestSSHHook:
                 ),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+                conn_id=self.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"disabled_algorithms": TEST_DISABLED_ALGORITHMS}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_EXTRA_CIPHERS,
+                conn_id=self.CONN_SSH_WITH_EXTRA_CIPHERS,
                 host="localhost",
                 conn_type="ssh",
                 extra=json.dumps({"ciphers": TEST_CIPHERS}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
+                conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps({"no_host_key_check": True, "allow_host_key_change": True}),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE,
+                conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE,
                 host="remote_host",
                 conn_type="ssh",
                 extra=json.dumps({"no_host_key_check": True, "allow_host_key_change": False}),
@@ -629,7 +598,7 @@ class TestSSHHook:
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
 
     def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Must check host key when provided"):
             SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -677,7 +646,7 @@ class TestSSHHook:
             )
 
     @pytest.mark.parametrize(
-        "cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value",
+        ("cmd_timeout", "cmd_timeoutextra", "null_cmd_timeoutextra", "expected_value"),
         [
             (TEST_CMD_TIMEOUT, True, False, TEST_CMD_TIMEOUT),
             (TEST_CMD_TIMEOUT, True, True, TEST_CMD_TIMEOUT),
@@ -755,7 +724,7 @@ class TestSSHHook:
             transport = ssh_mock.return_value.get_transport.return_value
             assert transport.get_security_options.return_value.ciphers == TEST_CIPHERS
 
-    def test_openssh_private_key(self):
+    def test_openssh_private_key(self, create_connection_without_db):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
         # generated keys, so we need a test one.
         # This has been generated specifically to put here, it is not otherwise in use
@@ -780,37 +749,27 @@ class TestSSHHook:
         """
         )
 
-        session = settings.Session()
-        try:
-            conn = Connection(
-                conn_id="openssh_pkey",
-                host="localhost",
-                conn_type="ssh",
-                extra={"private_key": TEST_OPENSSH_PRIVATE_KEY},
-            )
-            session.add(conn)
-            session.flush()
-            hook = SSHHook(ssh_conn_id=conn.conn_id)
-            assert isinstance(hook.pkey, paramiko.RSAKey)
-        finally:
-            session.delete(conn)
-            session.commit()
+        conn = Connection(
+            conn_id="openssh_pkey",
+            host="localhost",
+            conn_type="ssh",
+            extra={"private_key": TEST_OPENSSH_PRIVATE_KEY},
+        )
+        create_connection_without_db(conn)
+        hook = SSHHook(ssh_conn_id=conn.conn_id)
+        assert isinstance(hook.pkey, paramiko.RSAKey)
 
-    def test_oneline_key(self):
+    def test_oneline_key(self, create_connection_without_db, mock_supervisor_comms):
         TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
-        session = settings.Session()
         conn = Connection(
             conn_id="openssh_pkey",
             host="localhost",
             conn_type="ssh",
             extra={"private_key": TEST_ONELINE_KEY},
         )
-        session.add(conn)
-        session.flush()
+        create_connection_without_db(conn)
         with pytest.raises(AirflowException, match="Key must have BEGIN and END"):
             SSHHook(ssh_conn_id=conn.conn_id)
-        session.delete(conn)
-        session.commit()
 
     @pytest.mark.flaky(reruns=5)
     def test_exec_ssh_client_command(self):

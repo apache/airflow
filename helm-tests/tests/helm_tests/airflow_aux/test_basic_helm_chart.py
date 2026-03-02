@@ -36,10 +36,9 @@ OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-triggerer"),
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-metadata"),
-    ("Secret", "test-basic-broker-url"),
-    ("Secret", "test-basic-fernet-key"),
-    ("Secret", "test-basic-airflow-webserver-secret-key"),
-    ("Secret", "test-basic-redis-password"),
+    ("Secret", "test-basic-airflow-broker-url"),
+    ("Secret", "test-basic-airflow-fernet-key"),
+    ("Secret", "test-basic-airflow-redis-password"),
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
     ("ConfigMap", "test-basic-airflow-statsd"),
@@ -71,6 +70,8 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Deployment", "test-basic-airflow-dag-processor"),
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
+        ("Secret", "test-basic-airflow-api-secret-key"),
+        ("Secret", "test-basic-airflow-jwt-secret"),
     }
 )
 
@@ -81,6 +82,7 @@ AIRFLOW2_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Service", "test-basic-airflow-webserver"),
         ("Deployment", "test-basic-airflow-webserver"),
         ("ServiceAccount", "test-basic-airflow-webserver"),
+        ("Secret", "test-basic-airflow-webserver-secret-key"),
     }
 )
 
@@ -99,15 +101,12 @@ class TestBaseChartTest:
         if self._is_airflow_3_or_above(version):
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-        if version == "2.3.2":
-            return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT + 1
-
         return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT
 
     def _is_airflow_3_or_above(self, version):
         return version == "default" or (parse_version(version) >= parse_version("3.0.0"))
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_basic_deployments(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -136,7 +135,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
@@ -149,18 +147,17 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            (self.default_trigger_obj(version), "test-basic-triggerer"),
+            ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
-        if version == "2.3.2":
-            expected.add(("Secret", "test-basic-result-backend"))
         if self._is_airflow_3_or_above(version):
             expected.update(
                 (
@@ -169,7 +166,8 @@ class TestBaseChartTest:
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-dag-processor"),
-                    ("Service", "test-basic-triggerer"),
+                    ("Secret", "test-basic-api-secret-key"),
+                    ("Secret", "test-basic-jwt-secret"),
                 )
             )
         else:
@@ -178,6 +176,7 @@ class TestBaseChartTest:
                     ("Deployment", "test-basic-webserver"),
                     ("Service", "test-basic-webserver"),
                     ("ServiceAccount", "test-basic-webserver"),
+                    ("Secret", "test-basic-webserver-secret-key"),
                 )
             )
         if version == "default":
@@ -205,7 +204,7 @@ class TestBaseChartTest:
         actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
         assert actual == DEFAULT_OBJECTS_STD_NAMING
 
-    @pytest.mark.parametrize("version", ["2.3.2", "3.0.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -236,7 +235,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
@@ -249,10 +247,11 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            (self.default_trigger_obj(version), "test-basic-triggerer"),
+            ("StatefulSet", "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
@@ -260,15 +259,14 @@ class TestBaseChartTest:
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
-        if version == "2.3.2":
-            expected.add(("Secret", "test-basic-result-backend"))
         if self._is_airflow_3_or_above(version):
             expected.update(
                 {
-                    ("Service", "test-basic-triggerer"),
                     ("Deployment", "test-basic-api-server"),
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
+                    ("Secret", "test-basic-api-secret-key"),
+                    ("Secret", "test-basic-jwt-secret"),
                 }
             )
         else:
@@ -277,6 +275,7 @@ class TestBaseChartTest:
                     ("Service", "test-basic-webserver"),
                     ("Deployment", "test-basic-webserver"),
                     ("ServiceAccount", "test-basic-webserver"),
+                    ("Secret", "test-basic-webserver-secret-key"),
                 }
             )
         assert list_of_kind_names_tuples == expected
@@ -294,20 +293,7 @@ class TestBaseChartTest:
                 f"Missing label test-label on {k8s_name}. Current labels: {labels}"
             )
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
-    def test_basic_deployment_without_default_users(self, version):
-        k8s_objects = render_chart(
-            "test-basic",
-            values=self._get_values_with_version(
-                values={"webserver": {"defaultUser": {"enabled": False}}}, version=version
-            ),
-        )
-        list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
-        ]
-        assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
-
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0"])
     def test_basic_deployment_without_statsd(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -321,14 +307,25 @@ class TestBaseChartTest:
         assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
-    def test_network_policies_are_valid(self, airflow_version):
+    @pytest.mark.parametrize(
+        ("airflow_version", "executor"),
+        [
+            ["2.11.0", "CeleryExecutor"],
+            ["2.11.0", "CeleryKubernetesExecutor"],
+            ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor"],
+            ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["default", "CeleryExecutor"],
+            ["default", "CeleryExecutor,KubernetesExecutor"],
+        ],
+    )
+    def test_network_policies_are_valid(self, airflow_version, executor):
         k8s_objects = render_chart(
             name="test-basic",
             values=self._get_values_with_version(
                 values={
                     "networkPolicies": {"enabled": True},
-                    "executor": "CeleryExecutor",
+                    "executor": executor,
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                 },
@@ -360,14 +357,24 @@ class TestBaseChartTest:
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
-    def test_labels_are_valid(self, airflow_version):
+    @pytest.mark.parametrize(
+        ("airflow_version", "executor"),
+        [
+            ["2.11.0", "CeleryExecutor"],
+            ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor"],
+            ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["default", "CeleryExecutor"],
+            ["default", "CeleryExecutor,KubernetesExecutor"],
+        ],
+    )
+    def test_labels_are_valid(self, airflow_version, executor):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
 
         values = {
             "labels": {"label1": "value1", "label2": "value2"},
-            "executor": "CeleryExecutor",
+            "executor": executor,
             "data": {
                 "resultBackendConnection": {
                     "user": "someuser",
@@ -384,6 +391,7 @@ class TestBaseChartTest:
             "ingress": {"enabled": True},
             "networkPolicies": {"enabled": True},
             "cleanup": {"enabled": True},
+            "databaseCleanup": {"enabled": True},
             "flower": {"enabled": True},
             "dagProcessor": {"enabled": True},
             "logs": {"persistence": {"enabled": True}},
@@ -402,6 +410,7 @@ class TestBaseChartTest:
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
+            (f"{release_name}-airflow-database-cleanup", "ServiceAccount", "database-cleanup"),
             (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
@@ -419,6 +428,9 @@ class TestBaseChartTest:
             (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
             (f"{release_name}-cleanup-role", "Role", None),
             (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
+            (f"{release_name}-database-cleanup", "CronJob", "database-cleanup"),
+            (f"{release_name}-database-cleanup-role", "Role", None),
+            (f"{release_name}-database-cleanup-rolebinding", "RoleBinding", None),
             (f"{release_name}-create-user", "Job", "create-user-job"),
             (f"{release_name}-fernet-key", "Secret", None),
             (f"{release_name}-flower", "Deployment", "flower"),
@@ -444,7 +456,6 @@ class TestBaseChartTest:
             (f"{release_name}-statsd", "Deployment", "statsd"),
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
-            (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
@@ -457,14 +468,17 @@ class TestBaseChartTest:
         if self._is_airflow_3_or_above(airflow_version):
             kind_names_tuples += [
                 (f"{release_name}-api-server", "Service", "api-server"),
-                (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
                 (f"{release_name}-api-server", "Deployment", "api-server"),
+                (f"{release_name}-airflow-api-server", "ServiceAccount", "api-server"),
+                (f"{release_name}-api-secret-key", "Secret", "api-server"),
+                (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
             ]
         else:
             kind_names_tuples += [
                 (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
                 (f"{release_name}-webserver", "Deployment", "webserver"),
                 (f"{release_name}-webserver", "Service", "webserver"),
+                (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
                 (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
                 (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             ]
@@ -482,8 +496,14 @@ class TestBaseChartTest:
                 expected_labels["component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
-            actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
-            assert actual_labels == expected_labels
+                if executor == "CeleryExecutor,KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
+
+            if component and component == "airflow-cleanup-pods" and executor == "CeleryExecutor":
+                assert (k8s_object_name, kind) not in kind_k8s_obj_labels_tuples
+            else:
+                actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+                assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
@@ -495,12 +515,13 @@ class TestBaseChartTest:
             name=release_name,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "executor": "CeleryExecutor",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "dagProcessor": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
@@ -525,7 +546,7 @@ class TestBaseChartTest:
             }
             assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0", "default"])
     def test_annotations_on_airflow_pods_in_deployment(self, airflow_version):
         """
         Test Annotations are correctly applied.
@@ -605,6 +626,9 @@ class TestBaseChartTest:
             "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
             "CeleryExecutor,KubernetesExecutor",
+            "CustomExecutor",
+            "my.org.CustomExecutor",
+            "CeleryExecutor,CustomExecutor",
         ],
     )
     def test_supported_executor(self, executor):
@@ -615,12 +639,20 @@ class TestBaseChartTest:
             },
         )
 
-    def test_unsupported_executor(self):
+    @pytest.mark.parametrize(
+        "invalid_executor",
+        [
+            "Executor",  # class name must include more than just Executor
+            "ExecutorCustom",  # class name must end with Executor
+            "Customexecutor",  # lowercase Executor is disallowed
+        ],
+    )
+    def test_unsupported_executor(self, invalid_executor):
         with pytest.raises(CalledProcessError):
             render_chart(
                 "test-basic",
                 {
-                    "executor": "SequentialExecutor",  # just keeping this one here as its an incompatible one
+                    "executor": invalid_executor,
                 },
             )
 
@@ -636,10 +668,7 @@ class TestBaseChartTest:
                     "images": {image: {"pullPolicy": "InvalidPolicy"}},
                 },
             )
-        assert (
-            'pullPolicy must be one of the following: "Always", "Never", "IfNotPresent"'
-            in ex_ctx.value.stderr.decode()
-        )
+        assert "value must be one of 'Always', 'Never', 'IfNotPresent'" in ex_ctx.value.stderr.decode()
 
     def test_invalid_dags_access_mode(self):
         with pytest.raises(CalledProcessError) as ex_ctx:
@@ -650,7 +679,7 @@ class TestBaseChartTest:
                 },
             )
         assert (
-            'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
+            "value must be one of 'ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'"
             in ex_ctx.value.stderr.decode()
         )
 
@@ -767,9 +796,3 @@ class TestBaseChartTest:
             base64.b64decode(doc["data"]["connection"]).decode("utf-8")
             == "redis://:test1234@my-release-airflow-redis:6379/0"
         )
-
-    @staticmethod
-    def default_trigger_obj(version):
-        if version in {"default", "3.0.0"}:
-            return "StatefulSet"
-        return "Deployment"

@@ -21,8 +21,8 @@ from unittest.mock import Mock
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError, WaiterError
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -47,13 +48,13 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
         )
         assert redshift_operator.task_id == "task_test"
         assert redshift_operator.cluster_identifier == "test_cluster"
-        assert redshift_operator.node_type == "dc2.large"
+        assert redshift_operator.node_type == "ra3.large"
         assert redshift_operator.master_username == "adminuser"
         assert redshift_operator.master_user_password == "Test123$"
 
@@ -62,7 +63,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
@@ -80,7 +81,7 @@ class TestRedshiftCreateClusterOperator:
         }
         mock_conn.create_cluster.assert_called_once_with(
             ClusterIdentifier="test-cluster",
-            NodeType="dc2.large",
+            NodeType="ra3.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
@@ -96,7 +97,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             number_of_nodes=3,
             master_username="adminuser",
             master_user_password="Test123$",
@@ -115,7 +116,7 @@ class TestRedshiftCreateClusterOperator:
         }
         mock_conn.create_cluster.assert_called_once_with(
             ClusterIdentifier="test-cluster",
-            NodeType="dc2.large",
+            NodeType="ra3.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
@@ -129,7 +130,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
@@ -143,13 +144,103 @@ class TestRedshiftCreateClusterOperator:
         operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
             deferrable=True,
         )
         validate_template_fields(operator)
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_create_cluster_cleanup_on_waiter_auth_failure(
+        self,
+        mock_conn,
+        mock_delete_cluster,
+    ):
+        # Simulate waiter failure (e.g. DescribeClusters denied).
+        waiter_error = WaiterError(
+            name="ClusterAvailable",
+            reason="AccessDenied for DescribeClusters",
+            last_response={},
+        )
+        mock_conn.get_waiter.return_value.wait.side_effect = waiter_error
+
+        operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="ra3.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+            wait_for_completion=True,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(WaiterError):
+            operator.execute({})
+
+        # Cluster creation happened.
+        mock_conn.create_cluster.assert_called_once()
+
+        # Cleanup attempted.
+        mock_delete_cluster.assert_called_once_with(
+            cluster_identifier="test-cluster",
+        )
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_create_cluster_cleanup_failure_does_not_mask_original_error(
+        self,
+        mock_conn,
+        mock_delete_cluster,
+    ):
+        # Simulate waiter failure (e.g. DescribeClusters denied).
+        waiter_error = WaiterError(
+            name="ClusterAvailable",
+            reason="AccessDenied for DescribeClusters",
+            last_response={},
+        )
+
+        # Simulate deletion failure (e.g. DeleteCluster denied).
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "UnauthorizedOperation",
+                    "Message": "You are not authorized to perform this operation",
+                }
+            },
+            operation_name="DeleteCluster",
+        )
+
+        mock_conn.get_waiter.return_value.wait.side_effect = waiter_error
+        mock_delete_cluster.side_effect = cleanup_error
+
+        operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="ra3.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+            wait_for_completion=True,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(WaiterError) as exc:
+            operator.execute({})
+
+        # Original exception must be preserved.
+        assert exc.value is waiter_error
+
+        # Cluster creation happened.
+        mock_conn.create_cluster.assert_called_once()
+
+        # Cleanup attempted despite failure.
+        mock_delete_cluster.assert_called_once_with(
+            cluster_identifier="test-cluster",
+        )
 
 
 class TestRedshiftCreateClusterSnapshotOperator:

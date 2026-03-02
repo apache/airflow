@@ -42,7 +42,12 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -128,7 +133,7 @@ with DAG(
 
     delete_gke_cluster = GKEDeleteClusterOperator(
         task_id="delete_gke_cluster",
-        name=GKE_CLUSTER_NAME,
+        cluster_name=GKE_CLUSTER_NAME,
         project_id=PROJECT_ID,
         location=REGION,
         trigger_rule=TriggerRule.ALL_DONE,

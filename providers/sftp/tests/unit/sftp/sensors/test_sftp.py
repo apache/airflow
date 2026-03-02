@@ -22,10 +22,10 @@ from unittest import mock
 from unittest.mock import Mock, patch
 
 import pytest
-from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
+from paramiko.sftp import SFTP_FAILURE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 
@@ -45,8 +45,21 @@ class TestSFTPSensor:
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_file_irregular(self, sftp_hook_mock):
+        # This mocks the behavior of SFTPHook.isfile when an OSError is raised in that method, resulting in
+        # False being returned
+        sftp_hook_mock.return_value.isfile.return_value = False
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
+        context = {"ds": "1970-01-01"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.isfile.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
+        assert not output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.isfile.side_effect = OSError(SFTP_NO_SUCH_FILE, "File missing")
+        # This is the same implementation above, however, it's simulating instead the absence of a file
+        sftp_hook_mock.return_value.isfile.return_value = False
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
@@ -83,6 +96,14 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_only_creating_one_connection_with_unmanaged_conn(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.isfile.return_value = True
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_sensor = SFTPSensor(task_id="test", path="path/to/whatever/test", use_managed_conn=False)
+        sftp_sensor.poke({})
+        assert sftp_hook_mock.return_value.get_managed_conn.called is True
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_not_new_enough(self, sftp_hook_mock):
@@ -180,9 +201,12 @@ class TestSFTPSensor:
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
-            [mock.call("/path/to/file/text_file1.txt"), mock.call("/path/to/file/text_file2.txt")]
-        )
+        assert (
+            [
+                mock.call("/path/to/file/text_file1.txt"),
+                mock.call("/path/to/file/text_file2.txt"),
+            ]
+        ) in sftp_hook_mock.return_value.get_mod_time.mock_calls
         sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
@@ -207,7 +231,7 @@ class TestSFTPSensor:
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
+        sftp_hook_mock.return_value.get_mod_time.mock_call(
             [
                 mock.call("/path/to/file/text_file1.txt"),
                 mock.call("/path/to/file/text_file2.txt"),
@@ -218,7 +242,7 @@ class TestSFTPSensor:
         assert not output
 
     @pytest.mark.parametrize(
-        "op_args, op_kwargs,",
+        ("op_args", "op_kwargs"),
         [
             pytest.param(("op_arg_1",), {"key": "value"}),
             pytest.param((), {}),
@@ -250,7 +274,7 @@ class TestSFTPSensor:
         }
 
     @pytest.mark.parametrize(
-        "op_args, op_kwargs,",
+        ("op_args", "op_kwargs"),
         [
             pytest.param(("op_arg_1",), {"key": "value"}),
             pytest.param((), {}),

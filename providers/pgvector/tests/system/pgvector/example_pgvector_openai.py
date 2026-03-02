@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task, teardown
+# This example uses common.compat for Airflow 2.x/3.x compatibility.
+# If you only need Airflow 3+, you can use: from airflow.sdk import dag, task, teardown
+from airflow.providers.common.compat.sdk import dag, task, teardown
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.pgvector.operators.pgvector import PgVectorIngestOperator
 

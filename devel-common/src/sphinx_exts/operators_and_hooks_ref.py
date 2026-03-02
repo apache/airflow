@@ -27,9 +27,7 @@ import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
 from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
@@ -302,8 +300,8 @@ def _render_deprecations_content(*, header_separator: str):
     for provider_yaml_path in get_all_provider_yaml_paths():
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "deprecations": []}
-        for root, _, file_names in os.walk(provider_parent_path):
-            file_names = [f for f in file_names if f.endswith(".py") and f != "__init__.py"]
+        for root, _, file_names_raw in os.walk(provider_parent_path):
+            file_names = [f for f in file_names_raw if f.endswith(".py") and f != "__init__.py"]
             for file_name in file_names:
                 file_path = f"{os.path.relpath(root)}/{file_name}"
                 with open(file_path) as file:
@@ -521,6 +519,35 @@ class AssetSchemeDirective(BaseJinjaReferenceDirective):
         )
 
 
+class AuthManagersDirective(BaseJinjaReferenceDirective):
+    """Generate list of auth managers"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="auth-managers",
+            template="auth-managers.rst.jinja2",
+        )
+
+
+class CliCommandsDirective(BaseJinjaReferenceDirective):
+    """Generate list of CLI commands"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        tabular_data = [
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("cli") is not None
+        ]
+        return _render_template(
+            "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -536,6 +563,8 @@ def setup(app):
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
     app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)
+    app.add_directive("airflow-auth-managers", AuthManagersDirective)
+    app.add_directive("airflow-cli-commands", CliCommandsDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

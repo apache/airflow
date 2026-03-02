@@ -20,11 +20,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, JobState
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import JobState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

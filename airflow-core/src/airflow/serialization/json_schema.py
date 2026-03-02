@@ -39,6 +39,8 @@ class Validator(Protocol):
     Hence, you can not have ``type: Draft7Validator``.
     """
 
+    schema: dict
+
     def is_valid(self, instance) -> bool:
         """Check if the instance is valid under the current schema."""
         ...

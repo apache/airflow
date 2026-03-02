@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -122,14 +123,14 @@ def default_action_log(
     """
     from sqlalchemy.exc import OperationalError, ProgrammingError
 
+    from airflow._shared.timezones import timezone
     from airflow.models.log import Log
-    from airflow.utils import timezone
 
     try:
         # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
         # on in the CLI
         session.bulk_insert_mappings(
-            Log,
+            Log,  # type: ignore[arg-type]
             [
                 {
                     "event": f"cli_{sub_command}",

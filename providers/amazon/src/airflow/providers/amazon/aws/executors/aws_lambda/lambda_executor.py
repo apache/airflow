@@ -25,8 +25,6 @@ from typing import TYPE_CHECKING
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
@@ -42,10 +40,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.stats import Stats
-from airflow.utils import timezone
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -65,6 +61,8 @@ class AwsLambdaExecutor(BaseExecutor):
     to update task state in Airflow.
     """
 
+    supports_multi_team: bool = True
+
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
         # TODO: TaskSDK: move this type change into BaseExecutor
@@ -74,12 +72,23 @@ class AwsLambdaExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self.pending_tasks: deque = deque()
         self.running_tasks: dict[str, TaskInstanceKey] = {}
-        self.lambda_function_name = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
-        self.sqs_queue_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
-        self.dlq_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
-        self.qualifier = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUALIFIER, fallback=None)
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.providers.common.compat.sdk import conf
+
+            self.conf = conf
+
+        self.lambda_function_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
+        self.sqs_queue_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
+        self.dlq_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
+        self.qualifier = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUALIFIER, fallback=None)
         # Maximum number of retries to invoke Lambda.
-        self.max_invoke_attempts = conf.get(
+        self.max_invoke_attempts = self.conf.get(
             CONFIG_GROUP_NAME,
             AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS,
         )
@@ -90,7 +99,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
+        check_health = self.conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
 
         if not check_health:
             return
@@ -156,8 +165,8 @@ class AwsLambdaExecutor(BaseExecutor):
         :param check_connection: If True, check the health of the connection after loading it.
         """
         self.log.info("Loading Connections")
-        aws_conn_id = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID)
-        region_name = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME, fallback=None)
+        aws_conn_id = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID)
+        region_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME, fallback=None)
         self.sqs_client = SqsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.lambda_client = LambdaHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
 
@@ -270,6 +279,7 @@ class AwsLambdaExecutor(BaseExecutor):
             payload = {
                 "task_key": ser_task_key,
                 "command": cmd,
+                "executor_config": task_to_run.executor_config,
             }
             if timezone.utcnow() < task_to_run.next_attempt_time:
                 self.pending_tasks.append(task_to_run)
@@ -362,26 +372,57 @@ class AwsLambdaExecutor(BaseExecutor):
             MaxNumberOfMessages=10,
         )
 
+        # Pagination? Maybe we don't need it. But we don't always delete messages after viewing them so we
+        # could possibly accumulate a lot of messages in the queue and get stuck if we don't read bigger
+        # chunks and paginate.
         messages = response.get("Messages", [])
-        # Pagination? Maybe we don't need it. Since we always delete messages after looking at them.
-        # But then that may delete messages that could have been adopted. Let's leave it for now and see how it goes.
+        # The keys that we validate in the messages below will be different depending on whether or not
+        # the message is from the dead letter queue or the main results queue.
+        message_keys = ("return_code", "task_key")
         if messages and queue_url == self.dlq_url:
             self.log.warning("%d messages received from the dead letter queue", len(messages))
+            message_keys = ("command", "task_key")
 
         for message in messages:
+            delete_message = False
             receipt_handle = message["ReceiptHandle"]
-            body = json.loads(message["Body"])
+            try:
+                body = json.loads(message["Body"])
+            except json.JSONDecodeError:
+                self.log.warning(
+                    "Received a message from the queue that could not be parsed as JSON: %s",
+                    message["Body"],
+                )
+                delete_message = True
+            # If the message is not already marked for deletion, check if it has the required keys.
+            if not delete_message and not all(key in body for key in message_keys):
+                self.log.warning(
+                    "Message is not formatted correctly, %s and/or %s are missing: %s", *message_keys, body
+                )
+                delete_message = True
+            if delete_message:
+                self.log.warning("Deleting the message to avoid processing it again.")
+                self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+                continue
             return_code = body.get("return_code")
             ser_task_key = body.get("task_key")
             # Fetch the real task key from the running_tasks dict, using the serialized task key.
             try:
                 task_key = self.running_tasks[ser_task_key]
             except KeyError:
-                self.log.warning(
-                    "Received task %s from the queue which is not found in running tasks. Removing message.",
+                self.log.debug(
+                    "Received task %s from the queue which is not found in running tasks, it is likely "
+                    "from another Lambda Executor sharing this queue or might be a stale message that needs "
+                    "deleting manually. Marking the message as visible again.",
                     ser_task_key,
                 )
-                task_key = None
+                # Mark task as visible again in SQS so that another executor can pick it up.
+                self.sqs_client.change_message_visibility(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=receipt_handle,
+                    VisibilityTimeout=0,
+                )
+                continue
 
             if task_key:
                 if return_code == 0:
@@ -390,17 +431,26 @@ class AwsLambdaExecutor(BaseExecutor):
                         "Successful Lambda invocation for task %s received from SQS queue.", task_key
                     )
                 else:
-                    # In this case the Lambda likely started but failed at run time since we got a non-zero
-                    # return code. We could consider retrying these tasks within the executor, because this _likely_
-                    # means the Airflow task did not run to completion, however we can't be sure (maybe the
-                    # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
-                    # perhaps not retrying is the safest option.
                     self.fail(task_key)
-                    self.log.error(
-                        "Lambda invocation for task: %s has failed to run with return code %s",
-                        task_key,
-                        return_code,
-                    )
+                    if queue_url == self.dlq_url and return_code is None:
+                        # DLQ failure: AWS Lambda service could not complete the invocation after retries.
+                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
+                        # where the function was unable to successfully execute to return a result.
+                        self.log.error(
+                            "DLQ message received: Lambda invocation for task: %s was unable to successfully execute. This likely indicates a Lambda-level failure (timeout, memory limit, crash, etc.).",
+                            task_key,
+                        )
+                    else:
+                        # In this case the Lambda likely started but failed at run time since we got a non-zero
+                        # return code. We could consider retrying these tasks within the executor, because this _likely_
+                        # means the Airflow task did not run to completion, however we can't be sure (maybe the
+                        # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
+                        # perhaps not retrying is the safest option.
+                        self.log.debug(
+                            "Lambda invocation for task: %s completed but the underlying Airflow task has returned a non-zero exit code %s",
+                            task_key,
+                            return_code,
+                        )
                 # Remove the task from the tracking mapping.
                 self.running_tasks.pop(ser_task_key)
 
@@ -455,7 +505,9 @@ class AwsLambdaExecutor(BaseExecutor):
         :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
         """
         self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
-        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT))
+        time_to_wait = int(
+            self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0")
+        )
         start_time = timezone.utcnow()
         while True:
             if time_to_wait:

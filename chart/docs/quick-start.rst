@@ -23,11 +23,11 @@ This article will show you how to install Airflow using Helm Chart on `Kind <htt
 Install kind, and create a cluster
 ----------------------------------
 
-We recommend testing with Kubernetes 1.20+, example:
+We recommend testing with Kubernetes 1.30+, example:
 
 .. code-block:: bash
 
-   kind create cluster --image kindest/node:v1.21.1
+   kind create cluster --image kindest/node:v1.30.13
 
 Confirm it's up:
 
@@ -59,7 +59,7 @@ Install the chart
   export RELEASE_NAME=example-release
   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
 
-Use the following code to install the chart with Example dags:
+Use the following code to install the chart with Example Dags:
 
 .. code-block:: bash
 
@@ -82,13 +82,13 @@ Airflow is working.
 
 .. code-block:: bash
 
-   kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 --namespace $NAMESPACE
+   kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 --namespace $NAMESPACE
 
 Extending Airflow Image
 -----------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However, when you try it out you want to add your own dags, custom dependencies,
+However, when you try it out you want to add your own Dags, custom dependencies,
 packages, or even custom providers.
 
 .. note::
@@ -96,11 +96,11 @@ packages, or even custom providers.
    when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
    Also keep in mind, that in cases when you run pure Python tasks, you can use the
    `Python Virtualenv functions <https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#pythonvirtualenvoperator>`_
-   which will dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+   which will dynamically source and install python dependencies during runtime. Virtualenvs can also be cached.
 
 The best way to achieve it, is to build your own, custom image.
 
-Adding dags to your image
+Adding Dags to your image
 .........................
 
 1. Create a project

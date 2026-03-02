@@ -25,11 +25,10 @@ from typing import TYPE_CHECKING, Any
 
 from spython.main import Client
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SingularityOperator(BaseOperator):
@@ -88,7 +87,7 @@ class SingularityOperator(BaseOperator):
         self.environment = environment or {}
         self.force_pull = force_pull
         self.image = image
-        self.instance = None
+        self.instance: Any = None
         self.options = options or []
         self.pull_folder = pull_folder
         self.volumes = volumes or []
@@ -140,8 +139,8 @@ class SingularityOperator(BaseOperator):
             self.image, options=self.options, args=self.start_command, start=False
         )
 
-        self.instance.start()  # type: ignore[attr-defined]
-        self.log.info(self.instance.cmd)  # type: ignore[attr-defined]
+        self.instance.start()
+        self.log.info(self.instance.cmd)
         self.log.info("Created instance %s from %s", self.instance, self.image)
 
         self.log.info("Running command %s", self._get_command())
@@ -152,7 +151,7 @@ class SingularityOperator(BaseOperator):
 
         # Stop the instance
         self.log.info("Stopping instance %s", self.instance)
-        self.instance.stop()  # type: ignore[attr-defined]
+        self.instance.stop()
 
         if self.auto_remove and os.path.exists(self.image):
             shutil.rmtree(self.image)

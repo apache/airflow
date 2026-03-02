@@ -45,7 +45,7 @@ Create an Amazon EMR EKS virtual cluster
 
 
 The ``EmrEksCreateClusterOperator`` will create an Amazon EMR on EKS virtual cluster.
-The example DAG below shows how to create an EMR on EKS virtual cluster.
+The example Dag below shows how to create an EMR on EKS virtual cluster.
 
 To create an Amazon EMR cluster on Amazon EKS, you need to specify a virtual cluster name,
 the eks cluster that you would like to use , and an eks namespace.
@@ -93,7 +93,7 @@ for more details on job configuration.
     :end-before: [END howto_operator_emr_eks_config]
 
 We pass the ``virtual_cluster_id`` and ``execution_role_arn`` values as operator parameters, but you
-can store them in a connection or provide them in the DAG. Your AWS region should be defined either
+can store them in a connection or provide them in the Dag. Your AWS region should be defined either
 in the ``aws_default`` connection as ``{"region_name": "us-east-1"}`` or a custom connection name
 that gets passed to the operator with the ``aws_conn_id`` parameter. The operator returns the Job ID of the job run.
 

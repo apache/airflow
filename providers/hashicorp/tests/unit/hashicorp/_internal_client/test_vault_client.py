@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import time
 from unittest import mock
-from unittest.mock import mock_open, patch
+from unittest.mock import call, mock_open, patch
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
@@ -253,86 +255,217 @@ class TestVaultClient:
                 secret_id="pass",
             )
 
+    @mock.patch("builtins.open", create=True)
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_gcp(self, mock_hvac, mock_get_credentials, mock_get_scopes):
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    @mock.patch("googleapiclient.discovery.build")
+    def test_gcp(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open):
+        # Mock the content of the file 'path.json'
+        mock_file = mock.MagicMock()
+        mock_file.read.return_value = '{"client_email": "service_account_email"}'
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
+        mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
+
+        # Mock the current time to use for iat and exp
+        current_time = int(time.time())
+        iat = current_time
+        exp = iat + 3600  # 1 hour after iat
+
+        # Mock the signJwt API to return the expected payload
+        mock_sign_jwt = (
+            mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
+        )
+        mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
+
         vault_client = _VaultClient(
             auth_type="gcp",
             gcp_key_path="path.json",
             gcp_scopes="scope1,scope2",
+            role_id="role",
             url="http://localhost:8180",
             session=None,
         )
-        client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+
+        # Preserve the original json.dumps
+        original_json_dumps = json.dumps
+
+        # Inject the mocked payload into the JWT signing process
+        with mock.patch("json.dumps") as mock_json_dumps:
+
+            def mocked_json_dumps(payload):
+                # Override the payload to inject controlled iat and exp values
+                payload["iat"] = iat
+                payload["exp"] = exp
+                return original_json_dumps(payload)  # Use the original json.dumps
+
+            mock_json_dumps.side_effect = mocked_json_dumps
+
+            client = vault_client.client  # Trigger the Vault client creation
+
+        # Validate that the HVAC client and other mocks are called correctly
+        mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(
-            credentials="credentials",
-        )
+
+        # Extract the arguments passed to the mocked signJwt API
+        args, kwargs = mock_sign_jwt.call_args
+        payload = json.loads(kwargs["body"]["payload"])
+
+        # Assert iat and exp values are as expected
+        assert payload["iat"] == iat
+        assert payload["exp"] == exp
+        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
+
+        client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
+    @mock.patch("builtins.open", create=True)
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_gcp_different_auth_mount_point(self, mock_hvac, mock_get_credentials, mock_get_scopes):
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    @mock.patch("googleapiclient.discovery.build")
+    def test_gcp_different_auth_mount_point(
+        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open
+    ):
+        # Mock the content of the file 'path.json'
+        mock_file = mock.MagicMock()
+        mock_file.read.return_value = '{"client_email": "service_account_email"}'
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
+        mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
+
+        mock_sign_jwt = (
+            mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
+        )
+        mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
+
+        # Generate realistic iat and exp values
+        current_time = int(time.time())
+        iat = current_time
+        exp = current_time + 3600  # 1 hour later
+
         vault_client = _VaultClient(
             auth_type="gcp",
             gcp_key_path="path.json",
             gcp_scopes="scope1,scope2",
+            role_id="role",
             url="http://localhost:8180",
             auth_mount_point="other",
             session=None,
         )
-        client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+
+        # Preserve the original json.dumps
+        original_json_dumps = json.dumps
+
+        # Inject the mocked payload into the JWT signing process
+        with mock.patch("json.dumps") as mock_json_dumps:
+
+            def mocked_json_dumps(payload):
+                # Override the payload to inject controlled iat and exp values
+                payload["iat"] = iat
+                payload["exp"] = exp
+                return original_json_dumps(payload)  # Use the original json.dumps
+
+            mock_json_dumps.side_effect = mocked_json_dumps
+
+            client = vault_client.client  # Trigger the Vault client creation
+
+        # Assertions
+        mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(credentials="credentials", mount_point="other")
+        # Extract the arguments passed to the mocked signJwt API
+        args, kwargs = mock_sign_jwt.call_args
+        payload = json.loads(kwargs["body"]["payload"])
+
+        # Assert iat and exp values are as expected
+        assert payload["iat"] == iat
+        assert payload["exp"] == exp
+        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
+
+        client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
+    @mock.patch(
+        "builtins.open", new_callable=mock_open, read_data='{"client_email": "service_account_email"}'
+    )
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_gcp_dict(self, mock_hvac, mock_get_credentials, mock_get_scopes):
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    @mock.patch("googleapiclient.discovery.build")
+    def test_gcp_dict(
+        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_file
+    ):
         mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
+        mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
+
+        mock_sign_jwt = (
+            mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
+        )
+        mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
+
+        # Generate realistic iat and exp values
+        current_time = int(time.time())
+        iat = current_time
+        exp = current_time + 3600  # 1 hour later
+
         vault_client = _VaultClient(
             auth_type="gcp",
-            gcp_keyfile_dict={"key": "value"},
+            gcp_keyfile_dict={"client_email": "service_account_email"},
             gcp_scopes="scope1,scope2",
+            role_id="role",
             url="http://localhost:8180",
             session=None,
         )
-        client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+
+        # Preserve the original json.dumps
+        original_json_dumps = json.dumps
+
+        # Inject the mocked payload into the JWT signing process
+        with mock.patch("json.dumps") as mock_json_dumps:
+
+            def mocked_json_dumps(payload):
+                # Override the payload to inject controlled iat and exp values
+                payload["iat"] = iat
+                payload["exp"] = exp
+                return original_json_dumps(payload)  # Use the original json.dumps
+
+            mock_json_dumps.side_effect = mocked_json_dumps
+
+            client = vault_client.client  # Trigger the Vault client creation
+
+        # Assertions
+        mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
-            key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
+            key_path=None, keyfile_dict={"client_email": "service_account_email"}, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.auth.gcp.configure.assert_called_with(
-            credentials="credentials",
-        )
+        # Extract the arguments passed to the mocked signJwt API
+        args, kwargs = mock_sign_jwt.call_args
+        payload = json.loads(kwargs["body"]["payload"])
+
+        # Assert iat and exp values are as expected
+        assert payload["iat"] == iat
+        assert payload["exp"] == exp
+        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
+
+        client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
@@ -451,6 +584,103 @@ class TestVaultClient:
                 auth_type="kubernetes",
                 kubernetes_role="kube_role",
                 kubernetes_jwt_path=None,
+                url="http://localhost:8180",
+            )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token_path="path/to/jwt",
+            url="http://localhost:8180",
+            session=None,
+        )
+        with patch("builtins.open", mock_open(read_data="eyJhbGciOiJSUzI1NiJ9.jwt-from-file")) as mock_file:
+            client = vault_client.client
+        assert mock_file.call_args_list == [call("path/to/jwt")]
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.jwt-from-file")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token_strips_whitespace(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="  eyJhbGciOiJSUzI1NiJ9.test  \n",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        client.auth.jwt.jwt_login.assert_called_with(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_different_auth_mount_point(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+            auth_mount_point="custom-jwt",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test", path="custom-jwt")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_missing_role(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with pytest.raises(VaultError, match="requires 'jwt_role'"):
+            _VaultClient(
+                auth_type="jwt",
+                jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+                url="http://localhost:8180",
+            )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_missing_token_and_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with pytest.raises(VaultError, match="requires 'jwt_token' or 'jwt_token_path'"):
+            _VaultClient(
+                auth_type="jwt",
+                jwt_role="my-role",
+                jwt_token_path=None,
                 url="http://localhost:8180",
             )
 
@@ -921,6 +1151,76 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert secret == {"value": "world"}
         assert vault_client.kwargs["session"].verify == "/etc/ssl/certificates/ca-bundle.pem"
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_with_proxies_applied(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify=False,
+            proxies={
+                "http": "http://10.10.1.10:3128",
+                "https": "http://10.10.1.10:1080",
+            },
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert secret == {"value": "world"}
+        assert vault_client.kwargs["session"].proxies["http"] == "http://10.10.1.10:3128"
+        assert vault_client.kwargs["session"].proxies["https"] == "http://10.10.1.10:1080"
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_with_client_cert_applied(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify=False,
+            cert=("/path/client.cert", "/path/client.key"),
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert secret == {"value": "world"}
+        assert vault_client.kwargs["session"].cert == ("/path/client.cert", "/path/client.key")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
         )

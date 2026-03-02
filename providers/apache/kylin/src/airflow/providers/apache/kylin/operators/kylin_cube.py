@@ -24,12 +24,11 @@ from typing import TYPE_CHECKING
 
 from kylinpy import kylinpy
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class KylinCubeOperator(BaseOperator):

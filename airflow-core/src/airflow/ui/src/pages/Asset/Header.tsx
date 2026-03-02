@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -23,24 +24,24 @@ import { HeaderCard } from "src/components/HeaderCard";
 
 import { DependencyPopover } from "../AssetsList/DependencyPopover";
 
-export const Header = ({
-  asset,
-  isRefreshing,
-}: {
-  readonly asset?: AssetResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
+  const { t: translate } = useTranslation("assets");
+
   const stats = [
-    { label: "Group", value: asset?.group },
+    { label: translate("group"), value: asset?.group },
     {
-      label: "Producing Tasks",
+      label: translate("producingTasks"),
       value: <DependencyPopover dependencies={asset?.producing_tasks ?? []} type="Task" />,
     },
     {
-      label: "Consuming Dags",
-      value: <DependencyPopover dependencies={asset?.consuming_dags ?? []} type="Dag" />,
+      label: translate("consumingTasks"),
+      value: <DependencyPopover dependencies={asset?.consuming_tasks ?? []} type="Task" />,
+    },
+    {
+      label: translate("scheduledDags"),
+      value: <DependencyPopover dependencies={asset?.scheduled_dags ?? []} type="Dag" />,
     },
   ];
 
-  return <HeaderCard icon={<FiDatabase />} isRefreshing={isRefreshing} stats={stats} title={asset?.name} />;
+  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} />;
 };
