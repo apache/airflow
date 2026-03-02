@@ -55,7 +55,7 @@ The following terms must remain untranslated:
 |-------------|------|
 | Dag | डैग |
 | Dag Run | डैग रन |
-| Task | टास्क |
+| Task | कार्य |
 | Task Instance | टास्क इंस्टेंस |
 | Asset | एसेट |
 | Asset Event | एसेट इवेंट |
