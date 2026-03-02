@@ -17,9 +17,14 @@
 - **Run a Python script:** `breeze run python dev/my_script.py`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint/format (runs on host):** `prek run --all-files`
-- **Lint with ruff only:** `prek run ruff --all-files`
-- **Format with ruff only:** `prek run ruff-format --all-files`
+- **Lint with ruff only:** `prek run ruff --ref-from <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --ref-from <target_branch>`
+- **Run regular (fast) static checks:** `prek run --ref-from <target_branch> --hook-stage pre-commit`
+- **Run manual (slower) checks:** `prek run --ref-from <target_branch> --hook-stage manual`
+
+`<target_branch>` is the branch the PR will be merged into — usually `main`, but could be
+`v3-1-test` when creating a PR for the 3.1 branch.
+
 - **Build docs:** `breeze build-docs`
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
@@ -80,6 +85,68 @@ Write commit messages focused on user impact, not implementation details.
 
 Add a newsfragment for user-visible changes:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+### Creating Pull Requests
+
+**Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
+directly to `main`.
+
+Before pushing, determine the GitHub username with `gh api user -q .login` and identify the
+user's fork remote from the existing remotes. Run `git remote -v` and look for a remote
+pointing to `github.com:<GITHUB_USER>/airflow.git` where `<GITHUB_USER>` is **not** `apache`.
+That is the user's fork remote. If no such remote exists, create the fork and add it:
+
+```bash
+gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
+```
+
+Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
+in [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst) and the
+code review checklist in [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md):
+
+1. Review the full diff (`git diff main...HEAD`) and verify every change is intentional and
+   related to the task — remove any unrelated changes.
+2. Read `.github/instructions/code-review.instructions.md` and check your diff against every
+   rule — architecture boundaries, database correctness, code quality, testing requirements,
+   API correctness, and AI-generated code signals. Fix any violations before pushing.
+3. Confirm the code follows the project's coding standards and architecture boundaries
+   described in this file.
+4. Run regular (fast) static checks (`prek run --ref-from <target_branch> --hook-stage pre-commit`)
+   and fix any failures.
+5. Run manual (slower) checks (`prek run --ref-from <target_branch> --hook-stage manual`) and fix any failures.
+6. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
+7. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
+Then push the branch to the user's fork remote and open the PR creation page in the browser
+with the body pre-filled (including the generative AI disclosure already checked):
+
+```bash
+git push -u <GITHUB_USER> <branch-name>
+gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
+Brief description of the changes.
+
+closes: #ISSUE  (if applicable)
+
+---
+
+##### Was generative AI tooling used to co-author this PR?
+
+- [X] Yes — <Agent Name and Version>
+
+Generated-by: <Agent Name and Version> following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
+
+EOF
+)"
+```
+
+The `--web` flag opens the browser so the user can review and submit. The `--body` flag
+pre-fills the PR template with the generative AI disclosure already completed.
+
+Remind the user to:
+
+1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
+2. Add a brief description of the changes at the top of the body.
+3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
 ## Boundaries
 
