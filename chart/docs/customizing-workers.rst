@@ -22,6 +22,7 @@ Both ``CeleryExecutor`` and ``KubernetesExecutor`` workers can be highly customi
 For example, to set resources on workers:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    workers:
      resources:
@@ -55,6 +56,7 @@ As an example, let's say you want to set ``priorityClassName`` on your workers:
 .. _pod_template_file: https://github.com/apache/airflow/blob/main/chart/files/pod-template-file.kubernetes-helm-yaml
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    podTemplate: |
      apiVersion: v1

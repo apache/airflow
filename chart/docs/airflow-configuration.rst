@@ -22,10 +22,11 @@ The Helm Chart allows for setting arbitrary Airflow configuration in values file
 Some of the defaults in the chart may differ from those of core Airflow and can be found in
 `values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__.
 
-As an example of setting arbitrary configuration, the following yaml demonstrates how one would
+As an example of setting arbitrary configuration, the following ``overwrite.yaml`` file demonstrates how one would
 allow Airflow UI users to view the Airflow configuration directly via UI:
 
 .. code-block:: yaml
+   :caption: overwrite.yaml
 
    config:
      api:

@@ -42,9 +42,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
         - {{ param["description"] }}
         - ``{{ param["default"] }}``
          {% if param["examples"] %}
-          Examples:
 
           .. code-block:: yaml
+             :caption: Examples
 
              {{ param["examples"] | indent(width=10) }}
 
@@ -65,8 +65,8 @@ Specify each parameter using the ``--set key=value[,key=value]`` argument to ``h
 or overwrite values by using the ``overwrite-values.yaml`` file:
 
 .. code-block:: yaml
+   :caption: overwrite-values.yaml
 
-   # overwrite-values.yaml
    executor: CeleryExecutor
    enablePodLaunching: false
 

@@ -158,6 +158,7 @@ When installing the chart using Argo CD, Flux, Rancher or Terraform, you **must*
 will not start as the migrations will not be run:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    createUserJob:
      useHelmHooks: false
@@ -179,6 +180,7 @@ This is so these CI/CD services can perform updates without issues and preserve 
 To run database migrations with Argo CD automatically, you will need to add:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    migrateDatabaseJob:
      jobAnnotations:
@@ -195,6 +197,7 @@ If you use the ``CeleryExecutor`` or ``CeleryKubernetesExecutor`` with the built
 To avoid potential problems, it is recommended to disable these hooks by setting ``useHelmHooks=false`` as shown in the following examples:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    extraSecrets:
      '{{ .Release.Name }}-example':
@@ -215,6 +218,7 @@ For new installations it is highly recommended to start using standard naming co
 It is not enabled by default as this may cause unexpected behaviours on existing installations. However you can enable it using ``useStandardNaming``:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    useStandardNaming: true
 

@@ -30,8 +30,7 @@ environment variables into Airflow using the Helm Chart. To illustrate, lets cre
 to overwrite values under these sections of the ``values.yaml`` file.
 
 .. code-block:: yaml
-
-   # overwrite.yaml
+   :caption: overwrite.yaml
 
    secret:
      - envName: "AIRFLOW_CONN_GCP"
@@ -62,6 +61,7 @@ With the Helm Chart, you can also inject environment variables into Airflow. In 
 we can overwrite values of interest in the ``env`` section of the ``values.yaml`` file.
 
 .. code-block:: yaml
+   :caption: overwrite.yaml
 
    env:
      - name: "AIRFLOW_VAR_KEY"
@@ -73,6 +73,7 @@ we can overwrite values of interest in the ``env`` section of the ``values.yaml`
 You can also utilize ``extraEnv`` and ``extraEnvFrom`` if you need the name or value to be templated.
 
 .. code-block:: yaml
+   :caption: overwrite.yaml
 
    extraEnv: |
      - name: AIRFLOW_VAR_HELM_RELEASE_NAME

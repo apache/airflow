@@ -56,6 +56,7 @@ In order to add the Airflow chart as a dependency (often called ``subcharts``) t
 add the following lines to your ``Chart.yaml`` file:
 
 .. code-block:: yaml
+   :caption: Chart.yaml
 
    dependencies:
      - name: airflow
@@ -76,6 +77,7 @@ You can disable the installation of Airflow by adding the ``condition`` field to
 like in the example below:
 
 .. code-block:: yaml
+   :caption: Chart.yaml
 
    dependencies:
      - name: airflow
@@ -113,6 +115,7 @@ E.g. if you want that the Airflow chart be installed with the ``KubernetesExecut
 you can do it by adding the following section to your ``values.yaml``:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    airflow:
      executor: KubernetesExecutor

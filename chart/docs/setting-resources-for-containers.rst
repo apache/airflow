@@ -62,6 +62,7 @@ Possible containers where resources can be configured include:
 For example, specifying resources for worker Kerberos sidecar:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    workers:
      kerberosSidecar:

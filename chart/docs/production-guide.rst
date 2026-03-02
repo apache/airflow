@@ -39,6 +39,7 @@ are using it. Supported databases and versions can be found at :doc:`Set up a Da
 To disable deployment of Postgres pod, set below values in your ``values.yaml`` file:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    postgresql:
      enabled: false
@@ -51,6 +52,7 @@ Values file
 This is the simpler options, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    data:
      metadataConnection:
@@ -81,6 +83,7 @@ You can store the credentials in a Kubernetes Secret (it requires manual creatio
 After secret creation, configure the chart to use the secret:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    data:
      metadataSecretName: mydatabase
@@ -94,6 +97,7 @@ It is recommended to periodically clean up the Airflow metadata database to remo
 A Kubernetes CronJob can be enabled for this purpose:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    databaseCleanup:
      enabled: true
@@ -113,6 +117,7 @@ Database credentials stored Values file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    pgbouncer:
      enabled: true
@@ -138,6 +143,7 @@ Furthermore, two additional Kubernetes Secret are required for PgBouncer to be a
 2. ``airflow-pgbouncer-config`` secret:
 
    .. code-block:: yaml
+      :caption: airflow-pgbouncer-config
 
       apiVersion: v1
       kind: Secret
@@ -152,6 +158,7 @@ Furthermore, two additional Kubernetes Secret are required for PgBouncer to be a
    1. ``pgbouncer.ini`` value is equal to the base64 encoded version of below text:
 
       .. code-block:: text
+         :caption: pgbouncer.ini
 
          [databases]
          airflow-metadata = host={external_database_host} dbname={external_database_dbname} port=5432 pool_size=10
@@ -175,12 +182,14 @@ Furthermore, two additional Kubernetes Secret are required for PgBouncer to be a
    2. ``users.txt`` value is equal to the base64 encoded version of below text:
 
       .. code-block:: text
+         :caption: users.txt
 
          "{ external_database_username }" "{ external_database_pass }"
 
 In the ``values.yaml`` below secret-related parameters should be adjusted like:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    pgbouncer:
      enabled: true
@@ -193,6 +202,7 @@ In the ``values.yaml`` below secret-related parameters should be adjusted like:
    Depending on the size of your Airflow instance, you may want to adjust the following as well (defaults are shown):
 
    .. code-block:: yaml
+      :caption: values.yaml
 
       pgbouncer:
         # The maximum number of connections to PgBouncer
@@ -228,12 +238,14 @@ Follow below steps to create static API secret key:
 2. Add the secret to your values file:
 
    .. code-block:: yaml
+      :caption: values.yaml
 
       apiSecretKey: <secret_key>
 
    or create a Kubernetes Secret and use ``apiSecretKeySecretName``:
 
    .. code-block:: yaml
+      :caption: values.yaml
 
       apiSecretKeySecretName: my-api-secret
       # Where the random key is under `webserver-secret-key` in the k8s Secret
@@ -259,6 +271,7 @@ When running Airflow along with the `Kubernetes Cluster Autoscaler <https://gith
 This setting can be configured in the Airflow chart at different levels:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    workers:
      safeToEvict: true
@@ -323,6 +336,7 @@ for GitHub, but the same can be done for any provider:
 4. If values are the same, add the public key to your values. It'll look something like this:
 
    .. code-block:: yaml
+      :caption: values.yaml
 
       dags:
         gitSync:
@@ -335,6 +349,7 @@ External Scheduler
 To use an external Scheduler instance:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    scheduler:
      enabled: false
@@ -352,6 +367,7 @@ External API Server
 To use an external API Server:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    apiServer:
      enabled: false
@@ -369,6 +385,7 @@ LoadBalancer Service
 You can change the Service type for the API Server to be ``LoadBalancer``, and set any necessary annotations:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    apiServer:
      service:
@@ -399,6 +416,7 @@ External StatsD
 To use an external StatsD instance:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    statsd:
      enabled: false
@@ -414,6 +432,7 @@ IPv6 StatsD
 To use an StatsD instance with IPv6 address. Example with Kubernetes with IPv6 enabled:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    statsd:
      enabled: true
@@ -430,6 +449,7 @@ Datadog
 If you are using a Datadog agent in your environment, this will enable Airflow to export metrics to the Datadog agent.
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    statsd:
      enabled: false
@@ -451,6 +471,7 @@ If you are using ``CeleryExecutor`` or ``CeleryKubernetesExecutor``, you can bri
 By default, the chart will deploy Redis. However, you can use any supported Celery backend instead:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    redis:
      enabled: false
@@ -475,6 +496,7 @@ When deploying Airflow to OpenShift, one can leverage the SCCs and allow the Pod
 In order to enable the usage of SCCs, one must set the parameter ``rbac.createSCCRoleBinding`` to ``true`` as shown below:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    rbac:
      create: true
@@ -501,6 +523,7 @@ In the Airflow Helm chart, the ``securityContext`` can be configured in several 
 The same way one can configure the global :ref:`securityContexts <parameters:Kubernetes>`. It is also possible to configure different values for specific workloads by setting their local ``securityContexts`` as follows:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    scheduler:
      securityContexts:
@@ -516,6 +539,7 @@ In the example above, the scheduler pod ``securityContext`` will be set to ``run
 As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContexts`` options in this chart:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    uid: 40000
    gid: 0
@@ -534,6 +558,7 @@ As one can see, the local setting will take precedence over the global setting w
 This will generate the following scheduler deployment:
 
 .. code-block:: yaml
+   :caption: airflow-scheduler
 
    kind: Deployment
    apiVersion: apps/v1
@@ -549,6 +574,7 @@ This will generate the following scheduler deployment:
 If we remove both the ``securityContexts`` and ``scheduler.securityContexts`` from the example above:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    uid: 40000
    gid: 0
@@ -561,6 +587,7 @@ If we remove both the ``securityContexts`` and ``scheduler.securityContexts`` fr
 it will generate the following scheduler deployment:
 
 .. code-block:: yaml
+   :caption: airflow-scheduler
 
    kind: Deployment
    apiVersion: apps/v1
@@ -582,6 +609,7 @@ it will generate the following scheduler deployment:
 And finally if we set ``securityContexts``, but not ``scheduler.securityContexts``:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    uid: 40000
    gid: 0
@@ -597,6 +625,7 @@ And finally if we set ``securityContexts``, but not ``scheduler.securityContexts
 This will generate the following scheduler deployment:
 
 .. code-block:: yaml
+   :caption: airflow-scheduler
 
    kind: Deployment
    apiVersion: apps/v1
@@ -644,6 +673,7 @@ For example in order to use a command to retrieve the DB connection, you should 
 file) specify:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    extraEnv:
      AIRFLOW_CONN_AIRFLOW_DB_CMD: "/usr/local/bin/retrieve_connection_url"
@@ -752,6 +782,7 @@ Configuration Options
 The service account token volume configuration is available for the scheduler component and includes the following options:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    scheduler:
      serviceAccount:
@@ -802,6 +833,7 @@ To migrate from automatic to manual token mounting:
 2. Update your ``values.yaml``:
 
    .. code-block:: yaml
+      :caption: values.yaml
 
       scheduler:
         serviceAccount:

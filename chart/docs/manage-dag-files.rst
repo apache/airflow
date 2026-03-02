@@ -232,6 +232,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
 5. Create a yaml file called ``overwrite-values.yaml`` to overwrite default values, instead of using ``--set``:
 
    .. code-block:: yaml
+      :caption: overwrite-values.yaml
 
       dags:
         gitSync:

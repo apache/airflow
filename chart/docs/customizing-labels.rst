@@ -26,6 +26,7 @@ Global Labels
 Global labels can be set using the ``labels`` parameter in your values file. These labels will be applied to all Airflow objects and pods defined in the chart:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    labels:
      environment: production
@@ -38,6 +39,7 @@ You can also set specific labels for individual Airflow components, which will b
 For example, to add specific labels to different components:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    # Global labels applied to all pods
    labels:

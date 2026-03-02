@@ -27,6 +27,7 @@ You can define different containers for the scheduler, webserver, api server, wo
 For example, sidecars that sync Dags from object storage:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    scheduler:
      extraContainers:
@@ -54,6 +55,7 @@ You can define different containers for the scheduler, webserver, api server, wo
 For example, an init container that just says hello:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
    scheduler:
      extraInitContainers:

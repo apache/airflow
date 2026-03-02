@@ -52,8 +52,8 @@ Default Automatic Token Mounting
 This is the default behavior that continues to work without any changes:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: true  # Default value
@@ -64,8 +64,8 @@ Manual Token Volume Configuration
 Basic manual configuration that disables automatic mounting and enables manual token volume:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -87,8 +87,8 @@ High-Security Environment
 For environments requiring enhanced security with shorter token lifetimes:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -115,8 +115,8 @@ Configuration that complies with Kyverno policies requiring ``automountServiceAc
 .. _Restrict Auto-Mount of Service Account Tokens: https://kyverno.io/policies/other/restrict-sa-automount-sa-token/restrict-sa-automount-sa-token/
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false  # Required by Kyverno policy
@@ -131,8 +131,8 @@ Custom Mount Path Configuration
 For applications that expect service account tokens at custom locations:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -153,8 +153,8 @@ KubernetesExecutor Configuration
 Optimal configuration for ``KubernetesExecutor`` with security focus:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    executor: KubernetesExecutor
 
    scheduler:
@@ -176,8 +176,8 @@ CeleryKubernetesExecutor Configuration
 Configuration for hybrid executor that launches both Celery workers and Kubernetes task pods:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    executor: CeleryKubernetesExecutor
 
    scheduler:
@@ -201,8 +201,8 @@ Development Environment
 Relaxed configuration for development with longer token lifetimes:
 
 .. code-block:: yaml
+   :caption: values-dev.yaml
 
-   # values-dev.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -217,16 +217,7 @@ Production Environment
 Strict production configuration with enhanced security:
 
 .. code-block:: yaml
-
-   # values-prod.yaml
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: false
-       serviceAccountTokenVolume:
-         enabled: true
-         expirationSeconds: 1800   # 30 minutes for production security
-         audience: "https://kubernetes.default.svc.cluster.local"
-         volumeName: prod-airflow-token
+   :caption: values-prod.yaml
 
    # Additional production security settings
    securityContexts:
@@ -238,6 +229,15 @@ Strict production configuration with enhanced security:
        allowPrivilegeEscalation: false
        readOnlyRootFilesystem: true
        runAsNonRoot: true
+
+   scheduler:
+     serviceAccount:
+       automountServiceAccountToken: false
+       serviceAccountTokenVolume:
+         enabled: true
+         expirationSeconds: 1800   # 30 minutes for production security
+         audience: "https://kubernetes.default.svc.cluster.local"
+         volumeName: prod-airflow-token
 
 .. note::
 
@@ -253,8 +253,8 @@ Gradual Migration from Automatic to Manual
 1. Test manual configuration alongside automatic (for validation):
 
    .. code-block:: yaml
+      :caption: values-test.yaml
 
-      # values-test.yaml
       scheduler:
         serviceAccount:
           automountServiceAccountToken: true   # Keep automatic for now
@@ -264,8 +264,8 @@ Gradual Migration from Automatic to Manual
 2. Enable manual configuration while keeping automatic (transition phase):
 
    .. code-block:: yaml
+      :caption: values-transition.yaml
 
-      # values-transition.yaml
       scheduler:
         serviceAccount:
           automountServiceAccountToken: true   # Still automatic
@@ -276,8 +276,8 @@ Gradual Migration from Automatic to Manual
 3. Complete migration to manual-only:
 
    .. code-block:: yaml
+      :caption: values-final.yaml
 
-      # values-final.yaml
       scheduler:
         serviceAccount:
           automountServiceAccountToken: false  # Disable automatic
@@ -294,8 +294,8 @@ Debug Configuration
 Configuration with extended token lifetime for troubleshooting:
 
 .. code-block:: yaml
+   :caption: values-debug.yaml
 
-   # values-debug.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -338,8 +338,8 @@ Custom Audience Configuration
 For environments requiring specific token audiences:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-   # values.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -354,8 +354,8 @@ Multi-Cluster Configuration
 Configuration for multi-cluster deployments:
 
 .. code-block:: yaml
+   :caption: values-cluster-a.yaml
 
-   # values-cluster-a.yaml
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -371,8 +371,13 @@ Integration with External Security Tools
 Configuration compatible with external security scanning and policy tools:
 
 .. code-block:: yaml
+   :caption: values-security-compliant.yaml
 
-   # values-security-compliant.yaml
+   # Additional security annotations
+   airflowPodAnnotations:
+     security.policy/scanned: "true"
+     security.policy/compliant: "service-account-token-manual"
+
    scheduler:
      serviceAccount:
        automountServiceAccountToken: false
@@ -381,11 +386,6 @@ Configuration compatible with external security scanning and policy tools:
          expirationSeconds: 1800  # Short-lived tokens
          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
          volumeName: security-compliant-token
-
-   # Additional security annotations
-   airflowPodAnnotations:
-     security.policy/scanned: "true"
-     security.policy/compliant: "service-account-token-manual"
 
 Best Practices Summary
 ----------------------
