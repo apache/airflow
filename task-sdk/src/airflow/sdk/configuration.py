@@ -145,6 +145,21 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
+    def load_providers_configuration(self):
+        """
+        Load configuration for providers.
+
+        This should be done after initial configuration have been performed. Initializing and discovering
+        providers is an expensive operation and cannot be performed when we load configuration for the first
+        time when airflow starts, because we initialize configuration very early, during importing of the
+        `airflow` package and the module is not yet ready to be used when it happens and until configuration
+        and settings are loaded. Therefore, in order to reload provider configuration we need to additionally
+        load provider - specific configuration.
+        """
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+        self._load_providers_configuration(ProvidersManagerTaskRuntime, create_default_config_parser)
+
     def expand_all_configuration_values(self):
         """Expand all configuration values using SDK-specific expansion variables."""
         all_vars = get_sdk_expansion_variables()

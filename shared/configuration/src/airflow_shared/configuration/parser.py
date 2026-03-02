@@ -33,10 +33,11 @@ import warnings
 from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
+from copy import deepcopy
 from enum import Enum
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any, TypeVar, overload
+from typing import IO, TYPE_CHECKING, Any, TypeVar, overload
 
 from .exceptions import AirflowConfigException
 
@@ -76,6 +77,11 @@ ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+
+if TYPE_CHECKING:
+    from airflow.providers_manager import ProvidersManager
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 
 class ValueNotFound:
@@ -1045,6 +1051,58 @@ class AirflowConfigParser(ConfigParser):
             )
 
         return section, key, deprecated_section, deprecated_key, warning_emitted
+
+    def _load_providers_configuration(
+        self,
+        provider_manager_type: type[ProvidersManager] | type[ProvidersManagerTaskRuntime],
+        create_default_config_parser_callable: Callable[[dict[str, dict[str, Any]]], ConfigParser],
+    ) -> None:
+        """
+        Load configuration for providers.
+
+        This should be done after initial configuration have been performed. Initializing and discovering
+        providers is an expensive operation and cannot be performed when we load configuration for the first
+        time when airflow starts, because we initialize configuration very early, during importing of the
+        `airflow` package and the module is not yet ready to be used when it happens and until configuration
+        and settings are loaded. Therefore, in order to reload provider configuration we need to additionally
+        load provider - specific configuration.
+
+        :param provider_manager_type: Either ProvidersManager or ProvidersManagerTaskRuntime, depending on the context of the caller.
+        :param create_default_config_parser_callable: The `create_default_config_parser` function from core or SDK, depending on the context of the caller.
+        """
+        log.debug("Loading providers configuration")
+
+        self.restore_core_default_configuration()
+        for provider, config in provider_manager_type().already_initialized_provider_configs:
+            for provider_section, provider_section_content in config.items():
+                provider_options = provider_section_content["options"]
+                section_in_current_config = self.configuration_description.get(provider_section)
+                if not section_in_current_config:
+                    self.configuration_description[provider_section] = deepcopy(provider_section_content)
+                    section_in_current_config = self.configuration_description.get(provider_section)
+                    section_in_current_config["source"] = f"default-{provider}"
+                    for option in provider_options:
+                        section_in_current_config["options"][option]["source"] = f"default-{provider}"
+                else:
+                    section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                        "default-"
+                    )[-1]
+                    raise AirflowConfigException(
+                        f"The provider {provider} is attempting to contribute "
+                        f"configuration section {provider_section} that "
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
+                        "cannot contribute options to existing sections or override other "
+                        "provider's configuration.",
+                        UserWarning,
+                    )
+        self._default_values = create_default_config_parser_callable(self.configuration_description)
+        # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
+        # the cached values, and it will be refreshed on next access.
+        with contextlib.suppress(AttributeError):
+            # no problem if cache is not set yet
+            del self.sensitive_config_values
+        self._providers_configuration_loaded = True
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
