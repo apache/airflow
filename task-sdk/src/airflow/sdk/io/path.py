@@ -111,7 +111,11 @@ class ObjectStoragePath(ProxyUPath):
         # override conn_id if explicitly provided
         if conn_id is not None:
             storage_options["conn_id"] = conn_id
-        super().__init__(*args, protocol=protocol, **storage_options)
+
+        # pop conn_id before calling super to prevent it from being passed
+        # to the underlying fsspec filesystem, which doesn't understand it
+        storage_options_without_conn_id = {k: v for k, v in storage_options.items() if k != "conn_id"}
+        super().__init__(*args, protocol=protocol, **storage_options_without_conn_id)
 
     @property
     def fs(self) -> AbstractFileSystem:
