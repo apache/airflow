@@ -170,10 +170,20 @@ class AirflowGunicornApp(BaseApplication):
         super().__init__()
 
     def load_config(self) -> None:
-        """Load configuration from options dict into gunicorn config."""
+        """Load configuration from options dict, then GUNICORN_CMD_ARGS env var."""
         for key, value in self.options.items():
             if key in self.cfg.settings and value is not None:
                 self.cfg.set(key.lower(), value)
+
+        cmd_args = self.cfg.get_cmd_args_from_env()
+        if cmd_args:
+            log.info("Applying GUNICORN_CMD_ARGS: %s", cmd_args)
+            parser = self.cfg.parser()
+            env_args = parser.parse_args(cmd_args)
+            for k, v in vars(env_args).items():
+                if v is None or k == "args":
+                    continue
+                self.cfg.set(k.lower(), v)
 
     def load(self) -> Any:
         """Load and return the WSGI/ASGI application."""

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-ydb"
-version = "2.4.0"
+version = "2.5.0"
 description = "Provider package apache-airflow-providers-ydb for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.10.1",
-    "apache-airflow-providers-common-sql>=1.20.0",  # Use next version
+    "apache-airflow-providers-common-sql>=1.32.0",
     "ydb>=3.18.8",
     "ydb-dbapi>=0.1.0",
 ]
@@ -101,8 +101,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.4.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.4.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

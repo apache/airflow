@@ -3766,7 +3766,7 @@ export const $ExternalViewResponse = {
         },
         destination: {
             type: 'string',
-            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'base'],
             title: 'Destination',
             default: 'nav'
         }
@@ -5016,7 +5016,7 @@ export const $ReactAppResponse = {
         },
         destination: {
             type: 'string',
-            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'dashboard'],
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'base', 'dashboard'],
             title: 'Destination',
             default: 'nav'
         }
@@ -7850,6 +7850,26 @@ export const $DashboardDagStatsResponse = {
     description: 'Dashboard DAG Stats serializer for responses.'
 } as const;
 
+export const $DeadlineCollectionResponse = {
+    properties: {
+        deadlines: {
+            items: {
+                '$ref': '#/components/schemas/DeadlineResponse'
+            },
+            type: 'array',
+            title: 'Deadlines'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['deadlines', 'total_entries'],
+    title: 'DeadlineCollectionResponse',
+    description: 'Deadline Collection serializer for responses.'
+} as const;
+
 export const $DeadlineResponse = {
     properties: {
         id: {
@@ -7898,26 +7918,6 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
-} as const;
-
-export const $DealineCollectionResponse = {
-    properties: {
-        deadlines: {
-            items: {
-                '$ref': '#/components/schemas/DeadlineResponse'
-            },
-            type: 'array',
-            title: 'Deadlines'
-        },
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        }
-    },
-    type: 'object',
-    required: ['deadlines', 'total_entries'],
-    title: 'DealineCollectionResponse',
-    description: 'Deadline Collection serializer for responses.'
 } as const;
 
 export const $EdgeResponse = {
@@ -8193,6 +8193,14 @@ export const $GridRunsResponse = {
         run_type: {
             '$ref': '#/components/schemas/DagRunType'
         },
+        dag_versions: {
+            items: {
+                '$ref': '#/components/schemas/DagVersionResponse'
+            },
+            type: 'array',
+            title: 'Dag Versions',
+            default: []
+        },
         has_missed_deadline: {
             type: 'boolean',
             title: 'Has Missed Deadline'
@@ -8308,6 +8316,17 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Max End Date'
+        },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
         }
     },
     type: 'object',
