@@ -17,10 +17,10 @@
 - **Run a Python script:** `breeze run python dev/my_script.py`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint with ruff only:** `prek run ruff --ref-from <target_branch>`
-- **Format with ruff only:** `prek run ruff-format --ref-from <target_branch>`
-- **Run regular (fast) static checks:** `prek run --ref-from <target_branch> --hook-stage pre-commit`
-- **Run manual (slower) checks:** `prek run --ref-from <target_branch> --hook-stage manual`
+- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --hook-stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --hook-stage manual`
 
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be
 `v3-1-test` when creating a PR for the 3.1 branch.
@@ -111,9 +111,9 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
-4. Run regular (fast) static checks (`prek run --ref-from <target_branch> --hook-stage pre-commit`)
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --hook-stage pre-commit`)
    and fix any failures.
-5. Run manual (slower) checks (`prek run --ref-from <target_branch> --hook-stage manual`) and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --hook-stage manual`) and fix any failures.
 6. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
 7. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
