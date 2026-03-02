@@ -85,7 +85,7 @@ dependencies = [
     # the new pagefind-bin installed
     "pagefind>=1.5.0a3",
     "pagefind-bin>=1.5.0a3",
-    "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.3.0/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
+    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3",
     "sphinx-autobuild>=2024.10.2",
