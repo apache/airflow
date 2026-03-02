@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.definitions.callback import AsyncCallback, Callback
+from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -149,7 +149,7 @@ class DeadlineAlert:
         self.reference = reference
         self.interval = interval
 
-        if not isinstance(callback, AsyncCallback):
+        if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
         self.callback = callback
 

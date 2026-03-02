@@ -175,7 +175,7 @@ def check_docker_is_running():
     response = run_command(
         ["docker", "info"],
         no_output_dump_on_exception=True,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
@@ -183,6 +183,18 @@ def check_docker_is_running():
         get_console().print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
+        if response.stderr:
+            get_console().print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
+        if os.environ.get("CODESPACES", "").lower() == "true":
+            get_console().print(
+                "\n[info]It looks like you are running in a GitHub Codespace.[/]\n"
+                "[info]Try the following troubleshooting steps:[/]\n"
+                "  1. Check if the Docker socket exists: ls -la /var/run/docker.sock\n"
+                "  2. Check Docker socket permissions: groups $USER\n"
+                "  3. Try restarting the Codespace from the GitHub Codespaces dashboard\n"
+                "  4. If the issue persists, rebuild the devcontainer "
+                "(Command Palette -> 'Codespaces: Rebuild Container')\n"
+            )
         sys.exit(1)
 
 
@@ -1047,6 +1059,7 @@ def check_docker_buildx_plugin():
         check=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     if result_docker_buildx.returncode != 0:
         get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
@@ -1055,7 +1068,7 @@ def check_docker_buildx_plugin():
         sys.exit(1)
     from packaging.version import Version
 
-    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v").split("-")[0]
     packaging_version = Version(version)
     if packaging_version < Version("0.13.0"):
         get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
