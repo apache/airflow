@@ -213,8 +213,6 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
-
 {{- if .Values.securityContext }}
 
  DEPRECATION WARNING:
@@ -479,6 +477,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #
