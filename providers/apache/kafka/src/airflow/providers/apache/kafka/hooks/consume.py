@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 
 from confluent_kafka import Consumer, KafkaError
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 from airflow.providers.common.compat.module_loading import import_string
+
+log = logging.getLogger(__name__)
 
 
 class KafkaAuthenticationError(Exception):
@@ -34,7 +37,7 @@ def error_callback(err):
     """Handle kafka errors."""
     if err.code() == KafkaError._AUTHENTICATION:
         raise KafkaAuthenticationError(f"Authentication failed: {err}")
-    print("Exception received: ", err)
+    log.error("Exception received from Kafka: %s", err)
 
 
 class KafkaConsumerHook(KafkaBaseHook):
