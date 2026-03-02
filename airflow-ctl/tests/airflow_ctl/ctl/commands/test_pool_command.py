@@ -48,21 +48,21 @@ class TestPoolImportCommand:
         """Test import with missing file."""
         non_existent = tmp_path / "non_existent.json"
         with pytest.raises(SystemExit, match=f"Missing pools file {non_existent}"):
-            pool_command.import_(mock.MagicMock(file=non_existent))
+            pool_command.import_(mock.MagicMock(file=non_existent, action_on_existing_key="fail"))
 
     def test_import_invalid_json(self, mock_client, tmp_path):
         """Test import with invalid JSON file."""
         invalid_json = tmp_path / "invalid.json"
         invalid_json.write_text("invalid json")
         with pytest.raises(SystemExit, match="Invalid json file"):
-            pool_command.import_(mock.MagicMock(file=invalid_json))
+            pool_command.import_(mock.MagicMock(file=invalid_json, action_on_existing_key="fail"))
 
     def test_import_invalid_pool_config(self, mock_client, tmp_path):
         """Test import with invalid pool configuration."""
         invalid_pool = tmp_path / "invalid_pool.json"
         invalid_pool.write_text(json.dumps([{"invalid": "config"}]))
         with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
-            pool_command.import_(mock.MagicMock(file=invalid_pool))
+            pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
 
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""
@@ -87,7 +87,7 @@ class TestPoolImportCommand:
 
         mock_client.pools.bulk.return_value = mock_bulk_builder
 
-        pool_command.import_(mock.MagicMock(file=pools_file))
+        pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
 
         # Verify bulk operation was called with correct parameters
         mock_client.pools.bulk.assert_called_once()
@@ -107,6 +107,34 @@ class TestPoolImportCommand:
         # Update the assertion to match the actual output format
         captured = capsys.readouterr()
         assert str(["test_pool"]) in captured.out
+
+    @pytest.mark.parametrize(
+        ("action_on_existing_key", "expected_enum"),
+        [
+            ("overwrite", BulkActionOnExistence.OVERWRITE),
+            ("skip", BulkActionOnExistence.SKIP),
+            ("fail", BulkActionOnExistence.FAIL),
+        ],
+    )
+    def test_import_action_on_existing_key(
+        self, mock_client, tmp_path, action_on_existing_key, expected_enum
+    ):
+        """Test that --action-on-existing-key is passed through to the bulk API."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(json.dumps([{"name": "test_pool", "slots": 1}]))
+
+        mock_response = mock.MagicMock()
+        mock_response.success = ["test_pool"]
+        mock_response.errors = []
+        mock_bulk_builder = mock.MagicMock()
+        mock_bulk_builder.create = mock_response
+        mock_client.pools.bulk.return_value = mock_bulk_builder
+
+        pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key=action_on_existing_key))
+
+        call_args = mock_client.pools.bulk.call_args[1]
+        action = call_args["pools"].actions[0]
+        assert action.action_on_existence == expected_enum
 
 
 class TestPoolExportCommand:
