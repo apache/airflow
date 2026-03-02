@@ -1566,7 +1566,7 @@ export const useDashboardServiceDagStats = <TData = Common.DashboardServiceDagSt
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
-* @returns DealineCollectionResponse Successful Response
+* @returns DeadlineCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useDeadlinesServiceGetDagRunDeadlines = <TData = Common.DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, offset, orderBy }: {

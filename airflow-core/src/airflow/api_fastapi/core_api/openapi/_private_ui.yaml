@@ -615,7 +615,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DealineCollectionResponse'
+                $ref: '#/components/schemas/DeadlineCollectionResponse'
         '404':
           content:
             application/json:
@@ -2076,6 +2076,22 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineCollectionResponse:
+      properties:
+        deadlines:
+          items:
+            $ref: '#/components/schemas/DeadlineResponse'
+          type: array
+          title: Deadlines
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadlines
+      - total_entries
+      title: DeadlineCollectionResponse
+      description: Deadline Collection serializer for responses.
     DeadlineResponse:
       properties:
         id:
@@ -2111,22 +2127,6 @@ components:
       - created_at
       title: DeadlineResponse
       description: Deadline serializer for responses.
-    DealineCollectionResponse:
-      properties:
-        deadlines:
-          items:
-            $ref: '#/components/schemas/DeadlineResponse'
-          type: array
-          title: Deadlines
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - deadlines
-      - total_entries
-      title: DealineCollectionResponse
-      description: Deadline Collection serializer for responses.
     EdgeResponse:
       properties:
         source_id:
