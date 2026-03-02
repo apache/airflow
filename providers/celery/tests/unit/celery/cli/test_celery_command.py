@@ -33,7 +33,7 @@ from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
-from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
+from airflow.providers.celery.cli.celery_command import _bundle_cleanup_main, _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -632,7 +632,16 @@ def test_stale_bundle_cleanup(mock_process):
     calls = mock_process.call_args_list
     assert len(calls) == 1
     actual = [x.kwargs["target"] for x in calls]
-    assert actual[0].__name__ == "bundle_cleanup_main"
+    assert actual[0] is _bundle_cleanup_main
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
+def test_bundle_cleanup_main_is_picklable():
+    """Regression test: _bundle_cleanup_main must be a module-level function so it can be
+    pickled by multiprocessing on macOS (which uses 'spawn' start method)."""
+    import pickle
+
+    pickle.dumps(_bundle_cleanup_main)
 
 
 class TestLoggerSetupHandler:
