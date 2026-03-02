@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -62,14 +62,14 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         super().__init__(**kwargs)
         self.allow_multiple_branches = allow_multiple_branches
 
-    def execute(self, context: Context) -> str | list[str] | None:
+    def execute(self, context: Context) -> str | Iterable[str] | None:
         if not self.downstream_task_ids:
             raise ValueError(
                 f"{self.task_id!r} has no downstream tasks. "
                 "LLMBranchOperator requires at least one downstream task to branch into."
             )
 
-        downstream_tasks_enum = Enum(
+        downstream_tasks_enum = Enum(  # type: ignore[misc]
             "DownstreamTasks",
             {task_id: task_id for task_id in self.downstream_task_ids},
         )
@@ -83,6 +83,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         result = agent.run_sync(self.prompt)
         output = result.output
 
+        branches: str | list[str]
         if isinstance(output, list):
             branches = [item.value for item in output]
         elif isinstance(output, Enum):
