@@ -23,7 +23,6 @@ import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { DAGS_TAG_FILTER_KEY, DAGS_TAG_MATCH_MODE_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
@@ -61,8 +60,8 @@ const toBooleanFilterValue = (
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(DAGS_TAG_FILTER_KEY, []);
-  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<string>(DAGS_TAG_MATCH_MODE_KEY, "any");
+  const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(TAGS_PARAM, []);
+  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<string>(TAGS_MATCH_MODE_PARAM, "any");
   const restoredRef = useRef(false);
 
   const showPaused = searchParams.get(PAUSED_PARAM);
