@@ -96,7 +96,8 @@ class TestJobsApiRoutes:
 
             mock_stats_incr.assert_called_with(
                 "edge_worker.ti.finish",
-                tags={
+                tags={},
+                legacy_name_tags={
                     "dag_id": DAG_ID,
                     "queue": QUEUE,
                     "state": TaskInstanceState.SUCCESS,
