@@ -3608,6 +3608,10 @@ dags:
     # Git-Sync liveness service http bind port
     httpPort: 1234
 
+    # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
+    # use a dedicated Git-Sync liveness service
+    recommendedProbeSetting: false
+
     readinessProbe: {}
     livenessProbe: {}
 

@@ -10654,6 +10654,11 @@
                             "type": "integer",
                             "default": 1234
                         },
+                        "recommendedProbeSetting": {
+                            "description": "Setting this to true, will remove readinessProbe usage and configure livenessProbe to use a dedicated Git-Sync liveness service.",
+                            "type": "boolean",
+                            "default": false
+                        },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",
