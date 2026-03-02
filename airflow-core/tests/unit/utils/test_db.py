@@ -80,14 +80,10 @@ def ensure_clean_engine_state():
 @pytest.fixture
 def initialized_db():
     """Ensure database is properly initialized with alembic_version table."""
-    # Check if DB is already initialized
-    if not _get_current_revision(settings.Session()):
-        # Initialize it properly
-        initdb(session=settings.Session())
-
+    session = settings.Session()
+    if not _get_current_revision(session):
+        initdb(session=session)
     yield
-
-    # Cleanup if needed
     settings.Session.remove()
 
 
@@ -103,7 +99,8 @@ class TestDb:
         # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
-        # External DB Managers
+        # External DB Managers — include all auto-discovered managers so the
+        # metadata matches what initialized_db migrated via initdb().
         external_db_managers = RunDBManager()
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
@@ -143,6 +140,14 @@ class TestDb:
             lambda t: t[0] == "remove_table" and t[1].name == "sqlite_sequence",
             # fab version table
             lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_fab",
+            # edge3 version table
+            lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_edge3",
+            # edge3 data tables — may be present in DB from a previous initdb run
+            # when edge3 is installed, but absent from the model in lower-dep CI runs
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_worker",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_job",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_logs",
+            lambda t: t[0] == "remove_index" and t[1].name == "rj_order",
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
@@ -245,9 +250,6 @@ class TestDb:
 
         mock_upgrade = mocker.patch("alembic.command.upgrade")
 
-        from airflow.api_fastapi.app import purge_cached_app
-
-        purge_cached_app()
         with conf_vars(auth):
             upgradedb()
 

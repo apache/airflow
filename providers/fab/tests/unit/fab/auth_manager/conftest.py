@@ -22,9 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.api_fastapi.app import purge_cached_app
 from airflow.providers.fab.www import app
-from airflow.providers.fab.www.app import purge_cached_app as purge_fab_cached_app
 
 from tests_common.test_utils.config import conf_vars
 from unit.fab.decorators import dont_initialize_flask_app_submodules
@@ -32,9 +30,6 @@ from unit.fab.decorators import dont_initialize_flask_app_submodules
 
 @pytest.fixture(scope="session")
 def minimal_app_for_auth_api():
-    purge_cached_app()
-    purge_fab_cached_app()
-
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",

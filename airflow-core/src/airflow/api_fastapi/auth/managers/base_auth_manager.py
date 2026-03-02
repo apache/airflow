@@ -119,11 +119,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     """
 
     def init(self) -> None:
-        """
-        Run operations when Airflow is initializing.
+        """Run operations when Airflow is initializing."""
+        if conf.getboolean("core", "multi_team"):
+            am_teams = self._get_teams()
+            db_teams = Team.get_all_team_names()
 
-        By default, do nothing.
-        """
+            if not db_teams.issuperset(am_teams):
+                raise ValueError(
+                    f"Teams defined in the auth manager ({am_teams}) are not present in the database ({db_teams})."
+                )
 
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
@@ -797,6 +801,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
         return []
+
+    def _get_teams(self) -> set[str]:
+        """
+        Return the set of teams defined in the auth manager.
+
+        This method is used only when the Airflow environment is configured in multi-team mode.
+        """
+        raise NotImplementedError()
 
     @staticmethod
     def get_db_manager() -> str | None:

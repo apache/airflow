@@ -31,10 +31,12 @@ from airflow.models import DagModel
 from airflow.sdk import CronPartitionTimetable
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.trigger import (
+    CronPartitionTimetable as CoreCronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
 )
+from airflow.utils.types import DagRunType
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -809,3 +811,21 @@ def test_next_run_info_from_dag_model(schedule, partition_key, expected, dag_mak
     dm = dag_maker.dag_model
     info = dag_maker.serialized_dag.timetable.next_run_info_from_dag_model(dag_model=dm)
     assert info == expected
+
+
+def test_generate_run_id_without_partition_key() -> None:
+    """
+    Tests the generate_run_id method of CronPartitionTimetable.
+
+    generate_run_id shouldn't break even if when the run is manually trigger (partition_key might be missing).
+    """
+    cron_partitioned_timetabe = CoreCronPartitionTimetable(
+        "0 * * * *",
+        timezone=pendulum.UTC,
+    )
+    run_id = cron_partitioned_timetabe.generate_run_id(
+        run_type=DagRunType.MANUAL,
+        run_after=pendulum.DateTime(2025, 6, 7, 8, 9, tzinfo=pendulum.UTC),
+        data_interval=None,
+    )
+    assert run_id.startswith("manual__2025-06-07T08:09:00+00:00__")

@@ -118,6 +118,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return SimpleAuthManager._get_passwords(file)
 
     def init(self) -> None:
+        super().init()
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
@@ -265,7 +266,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: TeamDetails | None = None,
     ) -> bool:
-        return details.name in user.teams if details else False
+        if not details:
+            return False
+        if self._is_admin(user):
+            return True
+        return details.name in user.teams
 
     def is_authorized_variable(
         self,
@@ -356,6 +361,21 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         return app
 
+    def _get_teams(self) -> set[str]:
+        users = self.get_users()
+        return {team for user in users for team in user.teams}
+
+    @staticmethod
+    def _is_admin(user: SimpleAuthManagerUser) -> bool:
+        """Return whether the user has the Admin role."""
+        if not user.role:
+            return False
+
+        role_str = user.role.upper()
+        role = SimpleAuthManagerRole[role_str]
+
+        return role == SimpleAuthManagerRole.ADMIN
+
     @staticmethod
     def _is_authorized(
         *,
@@ -379,9 +399,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         if not user.role:
             return False
 
-        role_str = user.role.upper()
-        role = SimpleAuthManagerRole[role_str]
-        if role == SimpleAuthManagerRole.ADMIN:
+        if SimpleAuthManager._is_admin(user):
             return True
 
         if team_name and team_name not in user.teams:
@@ -390,6 +408,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         if not allow_get_role:
             allow_get_role = allow_role
 
+        role_str = user.role.upper()
+        role = SimpleAuthManagerRole[role_str]
         if method == "GET":
             return role.order >= allow_get_role.order
         return role.order >= allow_role.order
