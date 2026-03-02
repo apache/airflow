@@ -24,7 +24,7 @@ brings together AWS data, analytics, artificial intelligence (AI), and machine l
 It provides a place to build, deploy, execute, and monitor end-to-end workflows from a single interface.
 This helps drive collaboration across teams and facilitate agile development.
 
-Airflow provides different operators for running artifacts in SageMaker Unified Studio. Read the descriptions 
+Airflow provides different operators for running artifacts in SageMaker Unified Studio. Read the descriptions
 below to understand which operator is best suited for your use case.
 
 Prerequisite Tasks
@@ -45,7 +45,7 @@ Run Jupyter notebooks, Querybooks, and Visual ETL jobs
 ======================================================
 
 Use :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookOperator`
-to execute Jupyter notebooks, querybooks, and visual ETL jobs. This operator relies on the ``sagemaker_studio`` 
+to execute Jupyter notebooks, querybooks, and visual ETL jobs. This operator relies on the ``sagemaker_studio``
 Python library to execute these artifacts.
 
 The artifact is identified by its relative file path within the project (e.g. ``test_notebook.ipynb``).
@@ -64,7 +64,7 @@ Run SageMaker Unified Studio notebooks
 Use :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook.SageMakerUnifiedStudioNotebookOperator`
 to execute SMUS notebooks through the DataZone ``StartNotebookRun`` API.
 
-The notebook is identified by its notebook ID (e.g. ``nb-1234567890``), along with the domain ID and project ID 
+The notebook is identified by its notebook ID (e.g. ``nb-1234567890``), along with the domain ID and project ID
 where the notebook resides.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio_notebook.py
