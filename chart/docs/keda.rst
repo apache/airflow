@@ -41,7 +41,7 @@ One advantage of KEDA is it allows you to scale your application to/from 0 worke
        --namespace keda \
        --version "v2.0.0"
 
-Enable for the Airflow instance by setting ``workers.keda.enabled=true`` in your
+Enable for the Airflow instance by setting ``workers.celery.keda.enabled=true`` in your
 helm command or in the ``values.yaml``.
 
 Make sure ``values.yaml`` shows that either KEDA or HPA is enabled, but not both.
@@ -56,7 +56,7 @@ They will compete with each other resulting in odd scaling behavior.
    helm install airflow apache-airflow/airflow \
        --namespace airflow \
        --set executor=CeleryExecutor \
-       --set workers.keda.enabled=true
+       --set workers.celery.keda.enabled=true
 
 A ``ScaledObject`` and an ``hpa`` will be created in the Airflow namespace.
 

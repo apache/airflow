@@ -1879,17 +1879,17 @@
                     }
                 },
                 "keda": {
-                    "description": "KEDA configuration of Airflow Celery workers.",
+                    "description": "KEDA configuration of Airflow Celery workers (deprecated, use `workers.celery.keda` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow KEDA autoscaling.",
+                            "description": "Allow KEDA autoscaling (deprecated, use `workers.celery.keda.enabled` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "namespaceLabels": {
-                            "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy.",
+                            "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy (deprecated, use `workers.celery.keda.namespaceLabels` instead).",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -1897,38 +1897,38 @@
                             }
                         },
                         "pollingInterval": {
-                            "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                            "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA (deprecated, use `workers.celery.keda.pollingInterval` instead).",
                             "type": "integer",
                             "default": 5
                         },
                         "cooldownPeriod": {
-                            "description": "How many seconds KEDA will wait before scaling to zero.",
+                            "description": "How many seconds KEDA will wait before scaling to zero (deprecated, use `workers.celery.keda.cooldownPeriod` instead).",
                             "type": "integer",
                             "default": 30
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of Airflow Celery workers created by KEDA.",
+                            "description": "Minimum number of Airflow Celery workers created by KEDA (deprecated, use `workers.celery.keda.minReplicaCount` instead).",
                             "type": "integer",
                             "default": 0
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of Airflow Celery workers created by KEDA.",
+                            "description": "Maximum number of Airflow Celery workers created by KEDA (deprecated, use `workers.celery.keda.maxReplicaCount` instead).",
                             "type": "integer",
                             "default": 10
                         },
                         "advanced": {
-                            "description": "Advanced KEDA configuration.",
+                            "description": "Advanced KEDA configuration (deprecated, use `workers.celery.keda.advanced` instead).",
                             "type": "object",
                             "default": {},
                             "additionalProperties": false,
                             "properties": {
                                 "horizontalPodAutoscalerConfig": {
-                                    "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                    "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config (deprecated, use `workers.celery.keda.advanced.horizontalPodAutoscalerConfig` instead).",
                                     "type": "object",
                                     "default": {},
                                     "properties": {
                                         "behavior": {
-                                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target (deprecated, use `workers.celery.keda.advanced.horizontalPodAutoscalerConfig.behavior` instead).",
                                             "type": "object",
                                             "default": {},
                                             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
@@ -1938,12 +1938,12 @@
                             }
                         },
                         "query": {
-                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "description": "Query to use for KEDA autoscaling (deprecated, use `workers.celery.keda.query` instead). Must return a single integer.",
                             "type": "string",
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
-                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled (deprecated, use `workers.celery.keda.usePgbouncer` instead). This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": true
                         }
@@ -2916,6 +2916,98 @@
                                             "default": null
                                         }
                                     }
+                                }
+                            }
+                        },
+                        "keda": {
+                            "description": "KEDA configuration of Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Allow KEDA autoscaling.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "namespaceLabels": {
+                                    "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "pollingInterval": {
+                                    "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "cooldownPeriod": {
+                                    "description": "How many seconds KEDA will wait before scaling to zero.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "minReplicaCount": {
+                                    "description": "Minimum number of Airflow Celery workers created by KEDA.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "maxReplicaCount": {
+                                    "description": "Maximum number of Airflow Celery workers created by KEDA.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "advanced": {
+                                    "description": "Advanced KEDA configuration.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "horizontalPodAutoscalerConfig": {
+                                            "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                            "type": "object",
+                                            "default": {},
+                                            "properties": {
+                                                "behavior": {
+                                                    "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                                    "type": "object",
+                                                    "default": {},
+                                                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "query": {
+                                    "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "usePgbouncer": {
+                                    "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 }
                             }
                         },

@@ -399,6 +399,78 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.workers.keda.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.keda.enabled` has been renamed to `workers.celery.keda.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.keda.namespaceLabels) }}
+
+ DEPRECATION WARNING:
+    `workers.keda.namespaceLabels` has been renamed to `workers.celery.keda.namespaceLabels`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.keda.pollingInterval) 5 }}
+
+ DEPRECATION WARNING:
+    `workers.keda.pollingInterval` has been renamed to `workers.celery.keda.pollingInterval`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.keda.cooldownPeriod) 30 }}
+
+ DEPRECATION WARNING:
+    `workers.keda.cooldownPeriod` has been renamed to `workers.celery.keda.cooldownPeriod`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.keda.minReplicaCount) 0 }}
+
+ DEPRECATION WARNING:
+    `workers.keda.minReplicaCount` has been renamed to `workers.celery.keda.minReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.keda.maxReplicaCount) 10 }}
+
+ DEPRECATION WARNING:
+    `workers.keda.maxReplicaCount` has been renamed to `workers.celery.keda.maxReplicaCount`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.keda.advanced) }}
+
+ DEPRECATION WARNING:
+    `workers.keda.advanced` has been renamed to `workers.celery.keda.advanced`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (quote .Values.workers.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}") }}
+
+ DEPRECATION WARNING:
+    `workers.keda.query` has been renamed to `workers.celery.keda.query`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.keda.usePgbouncer }}
+
+ DEPRECATION WARNING:
+    `workers.keda.usePgbouncer` has been renamed to `workers.celery.keda.usePgbouncer`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:
