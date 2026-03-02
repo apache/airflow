@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-28T13:59:55.251701
+# This constraints file was automatically generated on 2026-03-02T14:07:31.676227
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.2
-Authlib==1.6.8
+Authlib==1.6.9
 Deprecated==1.3.1
 Events==0.5
 Flask-AppBuilder==5.0.1
@@ -220,7 +220,7 @@ colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.13.0
+confluent-kafka==2.13.2
 connexion==2.14.2
 crcmod==1.7
 cron_descriptor==2.0.6
@@ -254,11 +254,11 @@ eventlet==0.40.4
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.24
-fastapi==0.134.0
+fastapi==0.135.1
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.24.3
+filelock==3.25.0
 flask-babel==4.0.0
 flower==2.0.1
 frozenlist==1.8.0
@@ -396,8 +396,8 @@ kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.8.0
-linkify-it-py==2.0.3
-litellm==1.81.16
+linkify-it-py==2.1.0
+litellm==1.82.0
 lockfile==0.12.2
 logfire-api==4.25.0
 looker_sdk==26.2.0
@@ -534,7 +534,7 @@ python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-discovery==1.1.0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
@@ -630,7 +630,7 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.3
 tzlocal==5.3.1
-uc-micro-py==1.0.3
+uc-micro-py==2.0.0
 universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
@@ -655,9 +655,9 @@ xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.379.0
-yarl==1.22.0
+yarl==1.23.0
 ydb-dbapi==0.1.19
-ydb==3.26.5
+ydb==3.26.6
 zeep==4.3.2
 zenpy==2.0.57
 zipp==3.23.0
