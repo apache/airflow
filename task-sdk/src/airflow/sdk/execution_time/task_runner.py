@@ -1827,7 +1827,9 @@ def flush_spans():
     try:
         yield
     finally:
-        trace.get_tracer_provider().force_flush(timeout_millis=30000)
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "force_flush"):
+            provider.force_flush(timeout_millis=30000)
 
 
 @flush_spans()
