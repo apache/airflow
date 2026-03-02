@@ -221,6 +221,30 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.scheduler.securityContext }}
+
+ DEPRECATION WARNING:
+    `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.webserver.securityContext }}
+
+ DEPRECATION WARNING:
+    `webserver.securityContext` has been renamed to `webserver.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.statsd.securityContext }}
+
+ DEPRECATION WARNING:
+    `statsd.securityContext` has been renamed to `statsd.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if ne (int .Values.workers.replicas) 1 }}
 
  DEPRECATION WARNING:
