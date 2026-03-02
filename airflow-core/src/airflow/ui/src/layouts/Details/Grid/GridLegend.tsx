@@ -26,7 +26,7 @@ import { Tooltip } from "src/components/ui";
 
 const runTypes: Array<DAGRunResponse["run_type"]> = ["scheduled", "manual", "backfill", "asset_triggered"];
 
-export const RunTypeLegend = () => {
+export const GridLegend = () => {
   const { t: translate } = useTranslation("common");
 
   return (
