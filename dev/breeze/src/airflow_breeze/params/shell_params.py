@@ -168,6 +168,7 @@ class ShellParams:
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
+    custom_db_url: str = ""
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
@@ -347,7 +348,7 @@ class ShellParams:
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-no-volume.yml"
         else:
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
-        if backend in ("sqlite", "none") or not self.forward_ports:
+        if backend in ("sqlite", "none", "custom") or not self.forward_ports:
             return [backend_docker_compose_file]
         if self.project_name == "prek":
             # do not forward ports for prek - to not clash with running containers from breeze
@@ -625,6 +626,8 @@ services:
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
+        if self.backend == "custom":
+            _set_var(_env, "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", self.custom_db_url or None)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")

@@ -53,6 +53,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Database",
             "options": [
                 "--backend",
+                "--custom-db-url",
                 "--postgres-version",
                 "--mysql-version",
                 "--db-reset",
@@ -109,6 +110,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Database",
             "options": [
                 "--backend",
+                "--custom-db-url",
                 "--postgres-version",
                 "--mysql-version",
                 "--db-reset",
@@ -217,6 +219,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Database",
             "options": [
                 "--backend",
+                "--custom-db-url",
                 "--postgres-version",
                 "--mysql-version",
                 "--db-reset",
@@ -291,6 +294,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--backend",
+                "--custom-db-url",
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-ports",

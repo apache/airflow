@@ -1160,6 +1160,11 @@ function environment_initialization() {
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
     elif [[ ${BACKEND=} == "sqlite" ]]; then
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Sqlite"
+    elif [[ ${BACKEND=} == "custom" ]]; then
+        local _conn_url="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-}"
+        local _masked_url
+        _masked_url=$(echo "${_conn_url}" | sed -E 's|://([^:]+):([^@]+)@|://\1:***@|')
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Custom (${_masked_url})"
     fi
     echo
 

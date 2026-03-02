@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_browser,
     option_clean_airflow_installation,
     option_core_integration,
+    option_custom_db_url,
     option_db_reset,
     option_debug_e2e,
     option_debug_resources,
@@ -634,6 +635,7 @@ option_total_test_timeout = click.option(
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -696,6 +698,7 @@ def core_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -985,6 +988,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1006,6 +1010,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
 def core_integration_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1026,6 +1031,7 @@ def core_integration_tests(
         test_group=GroupOfTests.INTEGRATION_CORE,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1066,6 +1072,7 @@ def core_integration_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1087,6 +1094,7 @@ def core_integration_tests(
 def integration_providers_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1107,6 +1115,7 @@ def integration_providers_tests(
         test_group=GroupOfTests.INTEGRATION_PROVIDERS,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1147,6 +1156,7 @@ def integration_providers_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1175,6 +1185,7 @@ def integration_providers_tests(
 def system_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1202,6 +1213,7 @@ def system_tests(
         test_group=GroupOfTests.SYSTEM,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=True,
@@ -1311,6 +1323,7 @@ def helm_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_no_db_cleanup
@@ -1330,6 +1343,7 @@ def helm_tests(
 def python_api_client_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     no_db_cleanup: bool,
     enable_coverage: bool,
@@ -1348,6 +1362,7 @@ def python_api_client_tests(
         test_group=GroupOfTests.PYTHON_API_CLIENT,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1716,6 +1731,7 @@ def _run_test_command(
     allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None = None,
     clean_airflow_installation: bool,
     db_reset: bool,
     debug_resources: bool,
@@ -1770,6 +1786,7 @@ def _run_test_command(
         allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         clean_airflow_installation=clean_airflow_installation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
