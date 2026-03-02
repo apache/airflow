@@ -27,7 +27,7 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
@@ -61,6 +61,7 @@ def create_app(enable_plugins: bool):
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    flask_app.config["SESSION_COOKIE_PATH"] = get_cookie_path()
     if conf.has_option("fab", "COOKIE_SECURE"):
         flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("fab", "COOKIE_SECURE")
     if conf.has_option("fab", "COOKIE_SAMESITE"):

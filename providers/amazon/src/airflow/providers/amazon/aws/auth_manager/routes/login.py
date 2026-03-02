@@ -28,6 +28,7 @@ from fastapi.responses import RedirectResponse
 from airflow.api_fastapi.app import (
     AUTH_MANAGER_FASTAPI_APP_PREFIX,
     get_auth_manager,
+    get_cookie_path,
 )
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -104,10 +105,11 @@ def login_callback(request: Request):
         secure = bool(conf.get("api", "ssl_cert", fallback=""))
         # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
         # See https://github.com/apache/airflow/pull/55506
+        cookie_path = get_cookie_path()
         if AIRFLOW_V_3_1_1_PLUS:
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, httponly=True)
         else:
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure)
         return response
     if relay_state == "login-token":
         return LoginResponse(access_token=token)
