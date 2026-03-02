@@ -45,11 +45,12 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.trace import Trace
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -545,18 +546,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with DebugTrace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
-                self.load_triggers()
+            self.load_triggers()
 
-                # Wait for up to 1 second for activity
-                self._service_subprocess(1)
+            # Wait for up to 1 second for activity
+            self._service_subprocess(1)
 
-                self.handle_events()
-                self.handle_failed_triggers()
-                self.clean_unused()
-                self.heartbeat()
+            self.handle_events()
+            self.handle_failed_triggers()
+            self.clean_unused()
+            self.heartbeat()
 
-                self.emit_metrics()
+            self.emit_metrics()
 
     def heartbeat(self):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
@@ -564,7 +564,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def heartbeat_callback(self, session: Session | None = None) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
 
-    @add_debug_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(
@@ -576,7 +575,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
         self.update_triggers(set(ids))
 
-    @add_debug_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
@@ -587,12 +585,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    @add_debug_span
     def clean_unused(self):
         """Clean out unused or finished triggers."""
         Trigger.clean_unused()
 
-    @add_debug_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -692,9 +688,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         ti_id=new_trigger_orm.task_instance.id,
                     )
                     continue
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
+                ser_ti = TaskInstanceDTO.model_validate(new_trigger_orm.task_instance, from_attributes=True)
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
                 self.logger_cache[new_id] = TriggerLoggingFactory(
                     log_path=f"{log_path}.trigger.{self.job.id}.log",

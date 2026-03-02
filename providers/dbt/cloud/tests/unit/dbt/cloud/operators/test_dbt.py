@@ -376,7 +376,7 @@ class TestDbtCloudRunJobOperator:
                 assert mock_run_job.return_value.data["id"] == RUN_ID
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
-                error_message = r"has failed or has been cancelled\.$"
+                error_message = r"reached terminal status (ERROR|CANCELLED)"
                 with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
             else:
