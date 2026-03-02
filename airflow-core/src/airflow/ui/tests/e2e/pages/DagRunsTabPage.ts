@@ -21,55 +21,16 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagRunsTabPage extends BasePage {
   public readonly markRunAsButton: Locator;
-  public readonly nextPageButton: Locator;
-  public readonly prevPageButton: Locator;
   public readonly runsTable: Locator;
   public readonly tableRows: Locator;
   public readonly triggerButton: Locator;
 
-  private currentDagId?: string;
-  private currentLimit?: number;
-
   public constructor(page: Page) {
     super(page);
     this.markRunAsButton = page.locator('[data-testid="mark-run-as-button"]').first();
-    this.nextPageButton = page.locator('[data-testid="next"]');
-    this.prevPageButton = page.locator('[data-testid="prev"]');
     this.runsTable = page.locator('[data-testid="table-list"]');
     this.tableRows = this.runsTable.locator("tbody tr");
     this.triggerButton = page.locator('[data-testid="trigger-dag-button"]');
-  }
-
-  public async clickNextPage(): Promise<void> {
-    await this.waitForRunsTableToLoad();
-    const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
-
-    await expect(firstRunLink).toBeVisible();
-    const firstRunId = await firstRunLink.textContent();
-
-    if (firstRunId === null || firstRunId === "") {
-      throw new Error("Could not get first run ID before pagination");
-    }
-
-    await this.nextPageButton.click();
-    await expect(this.tableRows.first()).not.toContainText(firstRunId, { timeout: 10_000 });
-    await this.ensureUrlParams();
-  }
-
-  public async clickPrevPage(): Promise<void> {
-    await this.waitForRunsTableToLoad();
-    const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
-
-    await expect(firstRunLink).toBeVisible();
-    const firstRunId = await firstRunLink.textContent();
-
-    if (firstRunId === null || firstRunId === "") {
-      throw new Error("Could not get first run ID before pagination");
-    }
-
-    await this.prevPageButton.click();
-    await expect(this.tableRows.first()).not.toContainText(firstRunId, { timeout: 10_000 });
-    await this.ensureUrlParams();
   }
 
   public async clickRunAndVerifyDetails(): Promise<void> {
@@ -90,17 +51,6 @@ export class DagRunsTabPage extends BasePage {
     await this.waitForRunsTableToLoad();
   }
 
-  public async clickRunsTabWithPageSize(dagId: string, pageSize: number): Promise<void> {
-    this.currentDagId = dagId;
-    this.currentLimit = pageSize;
-
-    await this.navigateTo(`/dags/${dagId}/runs?offset=0&limit=${pageSize}`);
-    await this.page.waitForURL(/.*\/dags\/[^/]+\/runs.*offset=0&limit=/, {
-      timeout: 15_000,
-    });
-    await this.waitForRunsTableToLoad();
-  }
-
   public async filterByState(state: string): Promise<void> {
     const currentUrl = new URL(this.page.url());
 
@@ -108,12 +58,6 @@ export class DagRunsTabPage extends BasePage {
     await this.navigateTo(currentUrl.pathname + currentUrl.search);
     await this.page.waitForURL(/.*state=.*/, { timeout: 15_000 });
     await this.waitForRunsTableToLoad();
-  }
-
-  public async getRowCount(): Promise<number> {
-    await this.waitForRunsTableToLoad();
-
-    return this.tableRows.count();
   }
 
   public async markRunAs(state: "failed" | "success"): Promise<void> {
@@ -268,27 +212,5 @@ export class DagRunsTabPage extends BasePage {
     const noDataMessage = this.page.getByText(/no.*dag.*runs.*found/i);
 
     await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
-  }
-
-  private async ensureUrlParams(): Promise<void> {
-    if (this.currentLimit === undefined || this.currentDagId === undefined) {
-      return;
-    }
-
-    const currentUrl = this.page.url();
-    const url = new URL(currentUrl);
-    const hasLimit = url.searchParams.has("limit");
-    const hasOffset = url.searchParams.has("offset");
-
-    if (hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      await this.navigateTo(url.pathname + url.search);
-      await this.waitForRunsTableToLoad();
-    } else if (!hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("limit", String(this.currentLimit));
-      await this.navigateTo(url.pathname + url.search);
-      await this.waitForRunsTableToLoad();
-    }
   }
 }
