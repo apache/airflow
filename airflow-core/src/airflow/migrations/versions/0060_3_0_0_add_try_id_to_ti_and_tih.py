@@ -127,34 +127,14 @@ def upgrade():
 
 def downgrade():
     """Unapply Add try_id to TI and TIH."""
-    dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
-        batch_op.add_column(sa.Column("id", sa.INTEGER, nullable=True))
+        match batch_op.get_bind().dialect:
+            case "mysql":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id INTEGER PRIMARY KEY AUTO_INCREMENT;")
+            case "postgresql":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id SERIAL PRIMARY KEY;")
+            case "sqlite":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id INTEGER PRIMARY KEY AUTOINCREMENT;")
         batch_op.drop_column("task_instance_id")
-    if dialect_name == "postgresql":
-        op.execute(
-            """
-            ALTER TABLE task_instance_history ADD COLUMN row_num SERIAL;
-            UPDATE task_instance_history SET id = row_num;
-            ALTER TABLE task_instance_history DROP COLUMN row_num;
-        """
-        )
-    elif dialect_name == "mysql":
-        op.execute(
-            """
-            SET @row_number = 0;
-            UPDATE task_instance_history
-            SET id = (@row_number := @row_number + 1)
-            ORDER BY try_id;
-            """
-        )
-    else:
-        op.execute("""
-            UPDATE task_instance_history
-            SET id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
-        """)
-    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
-        batch_op.create_primary_key("task_instance_history_pkey", ["id"])
