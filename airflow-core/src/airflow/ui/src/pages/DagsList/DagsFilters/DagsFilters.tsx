@@ -18,10 +18,12 @@
  */
 import { HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DAGS_TAG_FILTER_KEY, DAGS_TAG_MATCH_MODE_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
@@ -59,6 +61,9 @@ const toBooleanFilterValue = (
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(DAGS_TAG_FILTER_KEY, []);
+  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<string>(DAGS_TAG_MATCH_MODE_KEY, "any");
+  const restoredRef = useRef(false);
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
@@ -66,6 +71,33 @@ export const DagsFilters = () => {
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
+
+  // Sync tag selections between URL and localStorage on mount.
+  // If the URL has no tags, restore from localStorage.
+  // If the URL has tags (e.g. navigated via a tag link), save them to localStorage.
+  useEffect(() => {
+    if (!restoredRef.current) {
+      restoredRef.current = true;
+      if (selectedTags.length === 0 && savedTags.length > 0) {
+        savedTags.forEach((tag) => {
+          searchParams.append(TAGS_PARAM, tag);
+        });
+        if (savedTags.length >= 2 && savedTagMatchMode !== "any") {
+          searchParams.set(TAGS_MATCH_MODE_PARAM, savedTagMatchMode);
+        }
+        setSearchParams(searchParams, { replace: true });
+      } else if (selectedTags.length > 0) {
+        setSavedTags(selectedTags);
+        const mode = searchParams.get(TAGS_MATCH_MODE_PARAM);
+
+        if (mode !== null && mode !== "") {
+          setSavedTagMatchMode(mode);
+        }
+      }
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [pattern, setPattern] = useState("");
 
@@ -135,15 +167,19 @@ export const DagsFilters = () => {
       value: string;
     }>,
   ) => {
+    const tagValues = tags.map(({ value }) => value);
+
     searchParams.delete(TAGS_PARAM);
-    tags.forEach(({ value }) => {
+    tagValues.forEach((value) => {
       searchParams.append(TAGS_PARAM, value);
     });
     if (tags.length < 2) {
       searchParams.delete(TAGS_MATCH_MODE_PARAM);
+      setSavedTagMatchMode("any");
     }
     searchParams.delete(OFFSET_PARAM);
     setSearchParams(searchParams);
+    setSavedTags(tagValues);
   };
 
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
@@ -151,6 +187,7 @@ export const DagsFilters = () => {
 
     searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
     setSearchParams(searchParams);
+    setSavedTagMatchMode(mode);
   };
 
   const stateValue = toStateValue(state);
