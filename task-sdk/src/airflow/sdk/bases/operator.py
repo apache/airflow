@@ -96,7 +96,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
     TaskPreExecuteHook = Callable[[Context], None]
@@ -298,7 +298,7 @@ if TYPE_CHECKING:
         retry_delay: timedelta | float = ...,
         retry_exponential_backoff: float = ...,
         priority_weight: int = ...,
-        weight_rule: str | PriorityWeightStrategy = ...,
+        weight_rule: WeightRuleParam = ...,
         sla: timedelta | None = ...,
         map_index_template: str | None = ...,
         max_active_tis_per_dag: int | None = ...,
@@ -868,7 +868,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
+    weight_rule: WeightRuleParam = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -1024,7 +1024,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping[str, Any] | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str | PriorityWeightStrategy = DEFAULT_WEIGHT_RULE,
+        weight_rule: WeightRuleParam = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,

@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
@@ -555,11 +555,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> PriorityWeightStrategy:
+    def weight_rule(self) -> WeightRuleParam:
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
-    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+    def weight_rule(self, value: WeightRuleParam) -> None:
         self.partial_kwargs["weight_rule"] = value
 
     @property
