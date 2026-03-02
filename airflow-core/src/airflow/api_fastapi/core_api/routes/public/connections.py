@@ -243,6 +243,7 @@ def patch_connection_and_test(
     patch_body: ConnectionBody,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
+    queue: str | None = Query(None, description="Executor queue to route the connection test to"),
 ) -> ConnectionSaveAndTestResponse:
     """
     Update a connection and queue an async test with revert-on-failure.
@@ -277,7 +278,7 @@ def patch_connection_and_test(
 
     post_snapshot = snapshot_connection(connection)
 
-    connection_test = ConnectionTest(connection_id=connection_id)
+    connection_test = ConnectionTest(connection_id=connection_id, queue=queue)
     connection_test.connection_snapshot = {"pre": pre_snapshot, "post": post_snapshot}
     session.add(connection_test)
     session.flush()

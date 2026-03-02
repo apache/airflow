@@ -1665,6 +1665,16 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: queue
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Executor queue to route the connection test to
+          title: Queue
+        description: Executor queue to route the connection test to
       requestBody:
         required: true
         content:
