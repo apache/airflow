@@ -16,10 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+import structlog
+
 from airflow._shared.timezones import timezone
-from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
+from airflow.partition_mappers.identity import IdentityMapper
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetBase,
+    SerializedAssetNameRef,
+    SerializedAssetUriRef,
+)
+from airflow.serialization.encoders import encode_asset_like, encode_partition_mapper
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 try:
@@ -32,12 +44,14 @@ except ModuleNotFoundError:
         return o
 
 
+log = structlog.get_logger()
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
     from pendulum import DateTime
 
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -201,8 +215,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_asset_like
-
         return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     def generate_run_id(
@@ -235,6 +247,9 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return None
 
 
+DEFAULT_PARTITION_MAPPER = IdentityMapper()
+
+
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
@@ -242,24 +257,74 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
+    def __init__(
+        self,
+        *,
+        assets: SerializedAssetBase,
+        partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] | None = None,
+        default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER,
+    ) -> None:
         super().__init__(assets=assets)
-        self.partition_mapper = partition_mapper
+        self.partition_mapper_config = partition_mapper_config or {}
+        self.default_partition_mapper = default_partition_mapper
+
+        self._name_to_partition_mapper: dict[str, PartitionMapper] = {}
+        self._uri_to_partition_mapper: dict[str, PartitionMapper] = {}
+        self._build_name_uri_mapping()
+
+    def _build_name_uri_mapping(self) -> None:
+        for base_asset, partition_mapper in self.partition_mapper_config.items():
+            for unique_key, _ in base_asset.iter_assets():
+                self._name_to_partition_mapper[unique_key.name] = partition_mapper
+                self._uri_to_partition_mapper[unique_key.uri] = partition_mapper
+
+            for s_asset_ref in base_asset.iter_asset_refs():
+                if isinstance(s_asset_ref, SerializedAssetNameRef):
+                    self._name_to_partition_mapper[s_asset_ref.name] = partition_mapper
+                elif isinstance(s_asset_ref, SerializedAssetUriRef):
+                    self._uri_to_partition_mapper[s_asset_ref.uri] = partition_mapper
+                else:
+                    raise ValueError(f"{type(s_asset_ref)} is not supported")
+
+            if isinstance(base_asset, SerializedAssetAlias):
+                log.warning("Partitioned Asset Alias is not supported.")
+
+    def get_partition_mapper(self, *, name: str = "", uri: str = "") -> PartitionMapper:
+        with suppress(KeyError):
+            if name:
+                return self._name_to_partition_mapper[name]
+
+            if uri:
+                return self._uri_to_partition_mapper[uri]
+
+        return self.default_partition_mapper
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
 
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
-            "partition_mapper": self.partition_mapper.serialize(),
+            "partition_mapper_config": [
+                (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
+                for asset, partition_mapper in self.partition_mapper_config.items()
+            ],
+            "default_partition_mapper": encode_partition_mapper(self.default_partition_mapper),
         }
 
     @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+    def deserialize(cls, data: dict[str, Any]) -> PartitionedAssetTimetable:
         from airflow.serialization.decoders import decode_partition_mapper
         from airflow.serialization.serialized_objects import decode_asset_like
 
-        return cls(
+        default_partition_mapper_data = data["default_partition_mapper"]
+        partition_mapper_mappping_data = data["partition_mapper_config"]
+
+        timetable = cls(
             assets=decode_asset_like(data["asset_condition"]),
-            partition_mapper=decode_partition_mapper(data["partition_mapper"]),
+            default_partition_mapper=decode_partition_mapper(default_partition_mapper_data),
+            partition_mapper_config={
+                decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)
+                for ser_asest, ser_partition_mapper in partition_mapper_mappping_data
+            },
         )
+        return timetable

@@ -200,6 +200,7 @@ class TestTIRunState:
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
                 "partition_key": None,
+                "note": None,
             },
             "task_reschedule_count": 0,
             "max_tries": max_tries,

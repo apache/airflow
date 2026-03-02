@@ -65,6 +65,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, _create_backfill
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -80,7 +81,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
-from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -92,7 +93,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -555,6 +556,48 @@ class TestSchedulerJob:
             ],
             any_order=True,
         )
+
+    def test_enqueue_executor_callbacks_only_selects_pending_state(self, dag_maker, session):
+        def test_callback():
+            pass
+
+        def create_callback_in_state(state: CallbackState):
+            callback = Deadline(
+                deadline_time=timezone.utcnow(),
+                callback=SyncCallback(test_callback),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            ).callback
+            callback.state = state
+            callback.data["dag_run_id"] = dag_run.id
+            callback.data["dag_id"] = dag_run.dag_id
+            return callback
+
+        with dag_maker(dag_id="test_callback_states"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        scheduled_callback = create_callback_in_state(CallbackState.SCHEDULED)
+        pending_callback = create_callback_in_state(CallbackState.PENDING)
+        queued_callback = create_callback_in_state(CallbackState.QUEUED)
+        running_callback = create_callback_in_state(CallbackState.RUNNING)
+        session.add_all([scheduled_callback, pending_callback, queued_callback, running_callback])
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Verify initial state before calling _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.PENDING
+
+        self.job_runner._enqueue_executor_callbacks(session)
+        # PENDING should progress to QUEUED after _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.QUEUED
+
+        # Other callbacks should remain in their original states
+        assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
+        assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
+        assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
@@ -1311,7 +1354,7 @@ class TestSchedulerJob:
         assert len(res) == 5
 
         # Verify that each task is routed to the correct executor
-        executor_to_tis = self.job_runner._executor_to_tis(res, session)
+        executor_to_tis = self.job_runner._executor_to_workloads(res, session)
 
         # Team pi tasks should go to mock_executors[0] (configured for team_pi)
         a_tis_in_executor = [ti for ti in executor_to_tis.get(mock_executors[0], []) if ti.dag_id == "dag_a"]
@@ -7909,7 +7952,7 @@ class TestSchedulerJob:
         assert result == {}
         mock_log.exception.assert_called_once()
 
-    def test_multi_team_get_task_team_name_success(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_success(self, dag_maker, session):
         """Test successful team name resolution for a single task."""
         clear_db_teams()
         clear_db_dag_bundles()
@@ -7932,10 +7975,10 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        result = self.job_runner._get_task_team_name(ti, session)
+        result = self.job_runner._get_workload_team_name(ti, session)
         assert result == "team_a"
 
-    def test_multi_team_get_task_team_name_no_team(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_no_team(self, dag_maker, session):
         """Test team resolution when no team is associated with the DAG."""
         with dag_maker(dag_id="dag_no_team", session=session):
             task = EmptyOperator(task_id="task_no_team")
@@ -7946,10 +7989,10 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        result = self.job_runner._get_task_team_name(ti, session)
+        result = self.job_runner._get_workload_team_name(ti, session)
         assert result is None
 
-    def test_multi_team_get_task_team_name_database_error(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_database_error(self, dag_maker, session):
         """Test graceful error handling when individual task team resolution fails. This code should _not_ fail the scheduler."""
         with dag_maker(dag_id="dag_test", session=session):
             task = EmptyOperator(task_id="task_test")
@@ -7962,7 +8005,7 @@ class TestSchedulerJob:
 
         # Mock _get_team_names_for_dag_ids to return empty dict (simulates database error handling in that function)
         with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids", return_value={}) as mock_batch:
-            result = self.job_runner._get_task_team_name(ti, session)
+            result = self.job_runner._get_workload_team_name(ti, session)
             mock_batch.assert_called_once_with([ti.dag_id], session)
 
         # Should return None when batch function returns empty dict
@@ -7980,7 +8023,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result = self.job_runner._try_to_load_executor(ti, session)
             # Should not call team resolution when multi_team is disabled
             mock_team_resolve.assert_not_called()
@@ -8177,7 +8220,8 @@ class TestSchedulerJob:
 
             # Should log a warning when no executor is found
             mock_log.warning.assert_called_once_with(
-                "Executor, %s, was not found but a Task was configured to use it", "secondary_exec"
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                "secondary_exec",
             )
 
         # Should return None since we failed to resolve an executor due to the mismatch. In practice, this
@@ -8229,7 +8273,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         # Call with pre-resolved team name (as done in the scheduling loop)
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result = self.job_runner._try_to_load_executor(ti, session, team_name="team_a")
             mock_team_resolve.assert_not_called()  # We don't query for the team if it is pre-resolved
 
@@ -8320,13 +8364,13 @@ class TestSchedulerJob:
 
         with (
             assert_queries_count(1, session=session),
-            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+            mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_single,
         ):
-            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+            executor_to_workloads = self.job_runner._executor_to_workloads([ti1, ti2], session)
 
             mock_single.assert_not_called()
-            assert executor_to_tis[mock_executors[0]] == [ti1]
-            assert executor_to_tis[mock_executors[1]] == [ti2]
+            assert executor_to_workloads[mock_executors[0]] == [ti1]
+            assert executor_to_workloads[mock_executors[1]] == [ti2]
 
     @conf_vars({("core", "multi_team"): "false"})
     def test_multi_team_config_disabled_uses_legacy_behavior(self, dag_maker, mock_executors, session):
@@ -8342,7 +8386,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result1 = self.job_runner._try_to_load_executor(ti1, session)
             result2 = self.job_runner._try_to_load_executor(ti2, session)
 
@@ -8751,6 +8795,7 @@ def _produce_and_register_asset_event(
     session.commit()
 
     serialized_outlets = dag.get_task("hi").outlets
+
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
         task_outlets=[o.asprofile() for o in serialized_outlets],
@@ -8798,9 +8843,12 @@ def test_partitioned_dag_run_with_customized_mapper(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
                 assets=asset_1,
-                # TODO: (GH-57694) this partition mapper interface will be moved into asset as per-asset mapper
-                # and the type mismatch will be handled there
-                partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
+                # Most users should use the partition mapper provided by the task-SDK.
+                # Advanced users can import from core and register their own partition mapper
+                # via an Airflow plugin.
+                # We intentionally exclude core mappers from the public typing
+                # so standard users don't accidentally rely on internal implementations.
+                default_partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
             ),
             session=session,
         ):
@@ -8810,46 +8858,15 @@ def test_partitioned_dag_run_with_customized_mapper(
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
-
-    with dag_maker(dag_id="asset-event-producer", schedule=None, session=session) as dag:
-        EmptyOperator(task_id="hi", outlets=[asset_1])
-
-    dr = dag_maker.create_dagrun(partition_key="this-is-not-key-1-before-mapped", session=session)
-    [ti] = dr.get_task_instances(session=session)
-    session.commit()
-
-    serialized_outlets = dag.get_task("hi").outlets
     with custom_partition_mapper_patch():
-        TaskInstance.register_asset_changes_in_db(
-            ti=ti,
-            task_outlets=[o.asprofile() for o in serialized_outlets],
-            outlet_events=[],
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer",
+            asset=asset_1,
+            partition_key="this-is-not-key-1-before-mapped",
             session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
         )
-    session.commit()
-
-    event = session.scalar(
-        select(AssetEvent).where(
-            AssetEvent.source_dag_id == dag.dag_id,
-            AssetEvent.source_run_id == dr.run_id,
-        )
-    )
-    assert event is not None
-    assert event.partition_key == "this-is-not-key-1-before-mapped"
-
-    apdr = session.scalar(
-        select(AssetPartitionDagRun)
-        .join(
-            PartitionedAssetKeyLog,
-            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
-        )
-        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
-    )
-    assert apdr is not None
-    assert apdr.created_dag_run_id is None
-    assert apdr.partition_key == "key-1"
-
-    with custom_partition_mapper_patch():
         partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
     session.refresh(apdr)
     # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
@@ -8857,6 +8874,13 @@ def test_partitioned_dag_run_with_customized_mapper(
     assert apdr.created_dag_run_id is not None
     assert len(partition_dags) == 1
     assert partition_dags == {"asset-event-consumer"}
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    asset_event = dag_run.consumed_asset_events[0]
+    assert asset_event.source_task_id == "hi"
+    assert asset_event.source_dag_id == "asset-event-producer"
+    assert asset_event.source_run_id == "test"
 
 
 @pytest.mark.need_serialized_dag
@@ -8872,8 +8896,8 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
     with dag_maker(
         dag_id="asset-event-consumer",
         schedule=PartitionedAssetTimetable(
-            assets=asset_1 & asset_2,
-            partition_mapper=IdentityMapper(),
+            assets=(Asset.ref(uri="asset-1") & Asset.ref(name="asset-2")),
+            default_partition_mapper=IdentityMapper(),
         ),
         session=session,
     ):
@@ -8931,6 +8955,13 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
     assert len(partition_dags) == 1
     assert partition_dags == {"asset-event-consumer"}
 
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    for asset_event in dag_run.consumed_asset_events:
+        assert asset_event.source_task_id == "hi"
+        assert "asset-event-producer-" in asset_event.source_dag_id
+        assert asset_event.source_run_id == "test"
+
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
@@ -8948,9 +8979,15 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
                 assets=asset_1 & asset_2,
-                # TODO: (GH-57694) this partition mapper interface will be moved into asset as per-asset mapper
-                # and the type mismatch will be handled there
-                partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
+                # Most users should use the partition mapper provided by the task-SDK.
+                # Advanced users can import from core and register their own partition mapper
+                # via an Airflow plugin.
+                # We intentionally exclude core mappers from the public typing
+                # so standard users don't accidentally rely on internal implementations.
+                partition_mapper_config={
+                    Asset(name="asset-1"): Key1Mapper(),  # type: ignore[dict-item]
+                    Asset(name="asset-2"): Key1Mapper(),  # type: ignore[dict-item]
+                },
             ),
             session=session,
         ):
@@ -8995,3 +9032,10 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
     assert apdr.created_dag_run_id is not None
     assert len(partition_dags) == 1
     assert partition_dags == {"asset-event-consumer"}
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    for asset_event in dag_run.consumed_asset_events:
+        assert asset_event.source_task_id == "hi"
+        assert "asset-event-producer-" in asset_event.source_dag_id
+        assert asset_event.source_run_id == "test"

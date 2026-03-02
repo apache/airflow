@@ -24,6 +24,7 @@ description: |
     `InfluxDB <https://www.influxdata.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335187
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -79,3 +80,25 @@ operators:
 connection-types:
   - hook-class-name: airflow.providers.influxdb.hooks.influxdb.InfluxDBHook
     connection-type: influxdb
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - password
+      relabeling: {}
+      placeholders: {}
+    conn-fields:
+      token:
+        label: Token
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+          default: ''
+      org:
+        label: Organization Name
+        schema:
+          type:
+            - string
+            - 'null'
+          default: ''

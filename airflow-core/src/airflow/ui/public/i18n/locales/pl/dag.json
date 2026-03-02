@@ -137,6 +137,7 @@
       "direction": "Kierunek",
       "label": "Filtr",
       "mode": "Tryb",
+      "modeTooltip": "Tryb statyczny zachowuje bieżący widok podczas nawigacji między zadaniami, podczas gdy tryb przechodzenia automatycznie aktualizuje aktywny filtr do klikniętego zadania, ułatwiając przechodzenie przez Dag.",
       "modes": {
         "static": "Statyczny",
         "traverse": "Przechodzenia"

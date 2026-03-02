@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
+from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
@@ -929,6 +930,7 @@ class TestFabAuthManager:
 @conf_vars(
     {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
 )
+@mock.patch("airflow.providers_manager.ProvidersManager")
 @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
 @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
 @mock.patch("airflow.utils.db.drop_airflow_models")
@@ -941,8 +943,10 @@ def test_resetdb(
     mock_drop_moved,
     mock_drop_airflow,
     mock_fabdb_manager,
+    mock_pm,
     skip_init,
 ):
+    mock_pm.return_value.db_managers = []
     # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
     mock_engine.dialect.name = "postgresql"
     mock_connect = mock_engine.connect.return_value
@@ -957,6 +961,67 @@ def test_resetdb(
         mock_init.assert_not_called()
     else:
         mock_init.assert_called_once()
+
+
+@pytest.mark.db_test
+class TestDeserializeUserSessionCleanup:
+    """Test that deserialize_user cleans up the FAB scoped session on database errors.
+
+    Problem:
+    When the database connection drops (e.g., PostgreSQL's
+    ``idle_in_transaction_session_timeout`` fires), the underlying connection
+    becomes invalid. SQLAlchemy raises ``OperationalError`` on the first request
+    that hits the dead connection.  The scoped session then enters an invalid
+    state.  Any subsequent request that reuses the same thread-local session
+    raises ``PendingRollbackError`` — permanently breaking the API server until
+    it is restarted.
+    """
+
+    @staticmethod
+    def _patched_session(auth_manager, mock_session):
+        """Replace the ``session`` property on *auth_manager* with *mock_session*."""
+        return mock.patch.object(
+            type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
+        )
+
+    @pytest.mark.parametrize(
+        "raised_exc",
+        [
+            OperationalError("server closed the connection unexpectedly", None, Exception()),
+            PendingRollbackError(
+                "Can't reconnect until invalid transaction is rolled back. "
+                "Please rollback() fully before proceeding"
+            ),
+        ],
+        ids=["operational_error", "pending_rollback_error"],
+    )
+    def test_db_error_calls_session_remove(self, auth_manager_with_appbuilder, raised_exc):
+        """session.remove() is called on SQLAlchemy errors so the next request recovers."""
+        mock_session = MagicMock(spec=["scalars", "remove"])
+        mock_session.scalars.side_effect = raised_exc
+        auth_manager_with_appbuilder.cache.pop(99997, None)
+
+        with self._patched_session(auth_manager_with_appbuilder, mock_session):
+            with pytest.raises(type(raised_exc)):
+                auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
+
+        mock_session.remove.assert_called_once()
+
+    def test_db_error_propagates_when_session_remove_raises(self, auth_manager_with_appbuilder):
+        """The original SQLAlchemyError propagates even if session.remove() itself raises."""
+        # Arrange — session.scalars raises the original DB error;
+        # session.remove raises a secondary error that must be suppressed.
+        original_exc = OperationalError("connection dropped", None, Exception())
+        mock_session = MagicMock(spec=["scalars", "remove"])
+        mock_session.scalars.side_effect = original_exc
+        mock_session.remove.side_effect = AttributeError("appbuilder gone")
+        auth_manager_with_appbuilder.cache.pop(99997, None)
+
+        with self._patched_session(auth_manager_with_appbuilder, mock_session):
+            with pytest.raises(OperationalError):
+                auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
+
+        mock_session.remove.assert_called_once()
 
 
 class TestFabAuthManagerSessionCleanup:
@@ -1039,3 +1104,84 @@ class TestFabAuthManagerSessionCleanup:
 
             # Verify Session.remove() was called
             mock_session.remove.assert_called()
+
+
+class TestFabAuthManagerSessionCleanupErrorHandling:
+    """Test that cleanup_session_middleware handles Session.remove() failures gracefully.
+
+    When the underlying database connection is dead (e.g., MySQL 'Server has gone away',
+    PostgreSQL connection timeout), Session.remove() internally attempts a ROLLBACK which
+    raises an OperationalError. The middleware should catch and log this error instead of
+    propagating it as a 500 Internal Server Error to the client.
+
+    See: https://github.com/apache/airflow/issues/XXXXX
+    """
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_app")
+    def test_session_remove_db_error_does_not_propagate(self, mock_create_app):
+        """When Session.remove() raises OperationalError, request should still succeed.
+
+        Simulates MySQL 'Server has gone away' or similar DB errors during session
+        cleanup. The middleware should catch the exception and log a warning.
+        """
+        from unittest.mock import patch
+
+        from fastapi.testclient import TestClient
+        from sqlalchemy.exc import OperationalError
+
+        mock_flask_app = MagicMock()
+        mock_create_app.return_value = mock_flask_app
+
+        auth_manager = FabAuthManager()
+        fastapi_app = auth_manager.get_fastapi_app()
+
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+
+        with (
+            patch("airflow.settings.Session") as mock_session,
+            patch("airflow.providers.fab.auth_manager.fab_auth_manager.log") as mock_log,
+        ):
+            # Simulate MySQL 'Server has gone away' error on Session.remove()
+            mock_session.remove.side_effect = OperationalError(
+                "ROLLBACK", {}, Exception("(2006, 'Server has gone away')")
+            )
+
+            response = client.get("/users/list/")
+
+            # The request should NOT get a 500 from the middleware error
+            # (it may get other status codes from the mock Flask app, but not
+            # an unhandled exception from cleanup_session_middleware)
+            mock_session.remove.assert_called()
+            mock_log.warning.assert_called()
+            assert response is not None
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_app")
+    def test_session_remove_generic_error_does_not_propagate(self, mock_create_app):
+        """Any exception from Session.remove() should be caught during cleanup.
+
+        This covers edge cases beyond OperationalError, such as AttributeError
+        when the session registry is in an unexpected state.
+        """
+        from unittest.mock import patch
+
+        from fastapi.testclient import TestClient
+
+        mock_flask_app = MagicMock()
+        mock_create_app.return_value = mock_flask_app
+
+        auth_manager = FabAuthManager()
+        fastapi_app = auth_manager.get_fastapi_app()
+
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+
+        with (
+            patch("airflow.settings.Session") as mock_session,
+            patch("airflow.providers.fab.auth_manager.fab_auth_manager.log") as mock_log,
+        ):
+            mock_session.remove.side_effect = RuntimeError("unexpected session error")
+
+            # Should not raise - the middleware catches all exceptions from Session.remove()
+            response = client.get("/users/list/")
+            mock_session.remove.assert_called()
+            mock_log.warning.assert_called()
+            assert response is not None

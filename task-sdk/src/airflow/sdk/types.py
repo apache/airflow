@@ -80,7 +80,7 @@ class DagRunProtocol(Protocol):
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None
     data_interval_end: AwareDatetime | None
-    start_date: AwareDatetime
+    start_date: AwareDatetime | None
     end_date: AwareDatetime | None
     run_type: Any
     run_after: AwareDatetime

@@ -50,6 +50,47 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.smtp.hooks.smtp.SmtpHook",
                 "connection-type": "smtp",
+                "conn-fields": {
+                    "from_email": {"label": "From email", "schema": {"type": ["string", "null"]}},
+                    "timeout": {
+                        "label": "Connection timeout",
+                        "schema": {"type": ["integer", "null"], "default": 30},
+                    },
+                    "retry_limit": {
+                        "label": "Number of Retries",
+                        "schema": {"type": ["integer", "null"], "default": 5},
+                    },
+                    "disable_tls": {
+                        "label": "Disable TLS",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "disable_ssl": {
+                        "label": "Disable SSL",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "subject_template": {
+                        "label": "Path to the subject template",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "html_content_template": {
+                        "label": "Path to the html content template",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "auth_type": {
+                        "label": "Auth Type",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "default": "basic",
+                            "enum": ["basic", "oauth2"],
+                        },
+                        "description": "basic or oauth2",
+                    },
+                    "access_token": {"label": "Access Token", "schema": {"type": ["string", "null"]}},
+                    "client_id": {"label": "Client ID", "schema": {"type": ["string", "null"]}},
+                    "client_secret": {"label": "Client Secret", "schema": {"type": ["string", "null"]}},
+                    "tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "scope": {"label": "Scope", "schema": {"type": ["string", "null"]}},
+                },
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "extra"],
                     "relabeling": {},

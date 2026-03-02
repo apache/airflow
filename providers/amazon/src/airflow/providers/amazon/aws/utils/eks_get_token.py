@@ -58,12 +58,20 @@ def fetch_access_token_for_cluster(eks_cluster_name: str, sts_url: str, region_n
     # the endpoint is regional.
     os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
 
+    credentials = session.get_credentials()
+    if credentials is None:
+        raise ValueError(
+            "No AWS credentials found. Credentials may have expired or not been properly configured. "
+            "Please ensure AWS credentials are available through environment variables, "
+            "AWS config files, or IAM roles."
+        )
+
     signer = RequestSigner(
         service_id=eks_client.meta.service_model.service_id,
         region_name=session.region_name,
         signing_name="sts",
         signature_version="v4",
-        credentials=session.get_credentials(),
+        credentials=credentials,
         event_emitter=session.events,
     )
 
