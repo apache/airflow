@@ -44,7 +44,7 @@ Possible containers where resources can be configured include:
    * ``triggerer.resources``
    * ``triggerer.logGroomerSidecar.resources``
 
-* Containers used for Airflow kubernetes jobs or cron jobs. You can add the resources for these containers through the following parameters:
+* Containers used for Airflow Kubernetes jobs or cron jobs. You can add the resources for these containers through the following parameters:
 
    * ``cleanup.resources``
    * ``createUserJob.resources``
