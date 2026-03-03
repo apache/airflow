@@ -46,6 +46,7 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
+import { SingleDatePicker } from "src/components/SingleDatePicker";
 import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
@@ -66,10 +67,12 @@ type Props = {
   readonly dagView: "graph" | "grid";
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
+  readonly runAfterLte: string | undefined;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setRunAfterLte: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
@@ -117,10 +120,12 @@ export const PanelButtons = ({
   dagView,
   limit,
   panelGroupRef,
+  runAfterLte,
   runTypeFilter,
   setDagRunStateFilter,
   setDagView,
   setLimit,
+  setRunAfterLte,
   setRunTypeFilter,
   setShowGantt,
   setShowVersionIndicatorMode,
@@ -469,6 +474,12 @@ export const PanelButtons = ({
                             onChange={handleTriggeringUserChange}
                             placeholder={translate("common:dagRun.triggeringUser")}
                           />
+                        </VStack>
+                        <VStack alignItems="flex-start">
+                          <Text fontSize="xs" mb={1}>
+                            {translate("common:dagRun.runAfter")}
+                          </Text>
+                          <SingleDatePicker onChange={setRunAfterLte} value={runAfterLte} />
                         </VStack>
                         {shouldShowToggleButtons ? (
                           <VStack alignItems="flex-start" px={1}>

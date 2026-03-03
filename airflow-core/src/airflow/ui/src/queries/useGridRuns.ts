@@ -25,11 +25,13 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 export const useGridRuns = ({
   dagRunState,
   limit,
+  runAfterLte,
   runType,
   triggeringUser,
 }: {
   dagRunState?: DagRunState | undefined;
   limit: number;
+  runAfterLte?: string;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
@@ -42,6 +44,7 @@ export const useGridRuns = ({
       dagId,
       limit,
       orderBy: ["-run_after"],
+      runAfterLte: runAfterLte ?? undefined,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
       triggeringUser: triggeringUser ?? undefined,

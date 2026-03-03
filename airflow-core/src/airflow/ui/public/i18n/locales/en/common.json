@@ -74,6 +74,7 @@
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
+  "date": "Date",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
   "delete": "Delete",
@@ -273,6 +274,7 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "time": "Time",
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
