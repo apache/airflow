@@ -55,15 +55,33 @@ runs:
         df -H
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      id: restore-image
       with:
         key: ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"
         only-current-branch: 'true'
+    - name: "Verify ${{ inputs.image-type }} image file exists"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        IMAGE_TYPE: ${{ inputs.image-type }}
+      run: |
+        PLATFORM_ESC="${PLATFORM//\//_}"
+        if [ "${IMAGE_TYPE}" = "ci" ]; then
+          IMAGE_FILE="/mnt/ci-image-save-v3-${PLATFORM_ESC}-${PYTHON}.tar"
+        else
+          IMAGE_FILE="/mnt/prod-image-save-${PLATFORM_ESC}-${PYTHON}.tar"
+        fi
+        if [ ! -f "$IMAGE_FILE" ]; then
+          echo "::error::Image file not found: $IMAGE_FILE"
+          echo "Stash download may have failed (e.g. HTTP 502). Re-run the job to retry."
+          exit 1
+        fi
+      shell: bash
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
         IMAGE_TYPE: ${{ inputs.image-type }}
-      run: >
-        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
+      run: breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash

@@ -42,6 +42,19 @@ runs:
         path: "/mnt/"
         only-current-branch: 'true'
       if: contains(inputs.python-versions-list-as-string, inputs.python)
+    - name: "Verify CI image file exists ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: |
+        IMAGE_FILE="/mnt/ci-image-save-v3-${PLATFORM//\//_}-${PYTHON}.tar"
+        if [ ! -f "$IMAGE_FILE" ]; then
+          echo "::error::Image file not found: $IMAGE_FILE"
+          echo "Stash download may have failed (e.g. HTTP 502). Re-run the job to retry."
+          exit 1
+        fi
+      shell: bash
+      if: contains(inputs.python-versions-list-as-string, inputs.python)
     - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
