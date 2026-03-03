@@ -201,3 +201,22 @@ class TestDeadlineAlert:
         )
 
         inner_ref._evaluate_with.assert_called_once_with(session=None, dag_id="test_dag", run_id="test_run")
+
+        # try calling with missing required parameters
+        with pytest.raises(ValueError, match="missing required parameters: run_id"):
+            wrapper.evaluate_with(
+                session=None,
+                interval=timedelta(hours=1),
+                dag_id="test_dag",
+            )
+
+    def test_core_deadline_reference_treated_as_builtins(self):
+        """Test that refs from airflow.models.deadline are still treated as builtins."""
+        from airflow.models.deadline import ReferenceModels
+        from airflow.serialization.encoders import encode_deadline_reference
+
+        ref = ReferenceModels.DagRunLogicalDateDeadline()
+        serialized = encode_deadline_reference(ref)
+
+        assert "__class_path" not in serialized
+        assert serialized["reference_type"] == "DagRunLogicalDateDeadline"

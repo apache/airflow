@@ -209,6 +209,10 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
 _BUILTIN_DEADLINE_MODULES = (
     "airflow.sdk.definitions.deadline",
     "airflow.serialization.definitions.deadline",
+    # Include airflow.models.deadline to treat core's deadline references as builtins.
+    # This is to maintain backcompat with 3.1.x custom refs that inherit from
+    # airflow.models.deadline.ReferenceModels.BaseDeadlineReference.
+    "airflow.models.deadline",
 )
 
 
