@@ -106,7 +106,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.28.0
+    tag: v0.29.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -703,14 +703,19 @@ workers:
   # to separate value between Celery workers and pod-template-file.
   containerLifecycleHooks: {}
 
-  # Worker pod disruption budget
+  # Airflow Celery workers pod disruption budget
+  # (deprecated, use `workers.celery.podDisruptionBudget` instead)
   podDisruptionBudget:
+    # (deprecated, use `workers.celery.podDisruptionBudget.enabled` instead)
     enabled: false
 
     # PDB configuration
+    # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
     config:
       # minAvailable and maxUnavailable are mutually exclusive
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
       maxUnavailable: 1
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
       # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
@@ -728,24 +733,33 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
+  # (deprecated, use `workers.celery.keda` instead)
   keda:
+    # (deprecated, use `workers.celery.keda.enabled` instead)
     enabled: false
+
+    # (deprecated, use `workers.celery.keda.namespaceLabels` instead)
     namespaceLabels: {}
 
     # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # (deprecated, use `workers.celery.keda.pollingInterval` instead)
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
+    # (deprecated, use `workers.celery.keda.cooldownPeriod` instead)
     cooldownPeriod: 30
 
     # Minimum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.maxReplicaCount` instead)
     maxReplicaCount: 10
 
     # Specify HPA related options
+    # (deprecated, use `workers.celery.keda.advanced` instead)
     advanced: {}
     # horizontalPodAutoscalerConfig:
     #   behavior:
@@ -757,6 +771,7 @@ workers:
     #           periodSeconds: 15
 
     # Query to use for KEDA autoscaling. Must return a single integer.
+    # (deprecated, use `workers.celery.keda.query` instead)
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
@@ -776,6 +791,7 @@ workers:
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
+    # (deprecated, use `workers.celery.keda.usePgbouncer` instead)
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
@@ -1109,6 +1125,53 @@ workers:
 
     # Container level Lifecycle Hooks definition for Airflow Celery workers
     containerLifecycleHooks: {}
+
+    # Airflow Celery workers pod disruption budget
+    podDisruptionBudget:
+      enabled: ~
+
+      # PDB configuration
+      config:
+        # minAvailable and maxUnavailable are mutually exclusive
+        maxUnavailable: ~
+        # minAvailable: ~
+
+    # Allow KEDA autoscaling for Airflow Celery workers
+    keda:
+      enabled: ~
+
+      namespaceLabels: {}
+
+      # How often KEDA polls the airflow DB to report new scale requests to the HPA
+      pollingInterval: ~
+
+      # How many seconds KEDA will wait before scaling to zero.
+      # Note that HPA has a separate cooldown period for scale-downs
+      cooldownPeriod: ~
+
+      # Minimum number of Airflow Celery workers created by keda
+      minReplicaCount: ~
+
+      # Maximum number of Airflow Celery workers created by keda
+      maxReplicaCount: ~
+
+      # Specify HPA related options
+      advanced: {}
+      # horizontalPodAutoscalerConfig:
+      #   behavior:
+      #     scaleDown:
+      #       stabilizationWindowSeconds: 300
+      #       policies:
+      #         - type: Percent
+      #           value: 100
+      #           periodSeconds: 15
+
+      # Query to use for KEDA autoscaling. Must return a single integer
+      query: ~
+
+      # Weather to use PGBouncer to connect to the database or not when it is enabled
+      # This configuration will be ignored if PGBouncer is not enabled
+      usePgbouncer: ~
 
     # Persistence volume configuration for Airflow Celery workers
     persistence:

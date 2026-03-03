@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,8 +14,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Workload schemas for executor communication."""
+
 from __future__ import annotations
 
-from airflow.providers.standard.utils.skipmixin import SkipMixin
+from typing import Annotated
 
-__all__ = ["SkipMixin"]
+from pydantic import Field
+
+from airflow.executors.workloads.base import BaseWorkload, BundleInfo
+from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
+from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
+from airflow.executors.workloads.trigger import RunTrigger
+
+All = Annotated[
+    ExecuteTask | ExecuteCallback | RunTrigger,
+    Field(discriminator="type"),
+]
+
+TaskInstance = TaskInstanceDTO
+
+__all__ = [
+    "All",
+    "BaseWorkload",
+    "BundleInfo",
+    "CallbackFetchMethod",
+    "ExecuteCallback",
+    "ExecuteTask",
+    "TaskInstance",
+    "TaskInstanceDTO",
+]
