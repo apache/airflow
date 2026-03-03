@@ -81,6 +81,8 @@ Bases
 -----
 .. autoapiclass:: airflow.sdk.BaseAsyncOperator
 
+.. autoapiclass:: airflow.sdk.BaseBranchOperator
+
 .. autoapiclass:: airflow.sdk.BaseOperator
 
 .. autoapiclass:: airflow.sdk.BaseSensorOperator
@@ -91,7 +93,11 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.BranchMixIn
+
 .. autoapiclass:: airflow.sdk.PokeReturnValue
+
+.. autoapiclass:: airflow.sdk.SkipMixin
 
 .. autoapiclass:: airflow.sdk.BaseHook
 

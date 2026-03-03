@@ -139,7 +139,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
@@ -427,7 +427,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Set up Airflow home directory"

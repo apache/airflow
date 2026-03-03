@@ -39,7 +39,7 @@ runs:
   steps:
     - name: "Install uv"
       shell: bash
-      run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      run: pip install "uv==${UV_VERSION}"
       env:
         UV_VERSION: ${{ inputs.uv-version }}
     - name: Install prek
