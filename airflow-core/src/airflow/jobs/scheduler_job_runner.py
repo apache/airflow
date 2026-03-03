@@ -229,6 +229,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
+    :param only_idle: When True, only count runs where the scheduler was
+        idle (no tasks queued or finished). The count resets to zero whenever
+        a task is processed. Requires num_runs > 0.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
     :param log: override the default Logger
@@ -248,12 +251,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
+        only_idle: bool = conf.getboolean("scheduler", "only_idle", fallback=False),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: Logger | None = None,
         executors: list[BaseExecutor] | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
+        self.only_idle = only_idle
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
@@ -1754,6 +1759,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
+        idle_count = 0
+
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
@@ -1810,16 +1817,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
 
-            if not is_unit_test and not num_queued_tis and not num_finished_events:
+            idle_in_this_run = not num_queued_tis and not num_finished_events
+            if not is_unit_test and idle_in_this_run:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
                 time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
-            if loop_count >= self.num_runs > 0:
+            if idle_in_this_run:
+                idle_count += 1
+            else:
+                idle_count = 0
+
+            run_count = idle_count if self.only_idle else loop_count
+            if run_count >= self.num_runs > 0:
                 self.log.info(
-                    "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
+                    "Exiting scheduler loop as requested number of runs (%d) has been reached (%d idle, %d total)",
                     self.num_runs,
+                    idle_count,
                     loop_count,
                 )
                 break
