@@ -15,11 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
+from common_prek_utils import console
 
 DATAMODELS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels/"
 VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
@@ -31,12 +41,12 @@ def get_changed_files_ci() -> list[str]:
     fetch_result = subprocess.run(
         ["git", "fetch", "origin", target_branch],
         capture_output=True,
+        check=True,
         text=True,
     )
     if fetch_result.returncode != 0:
-        print(
-            f"WARNING: Failed to fetch origin/{target_branch}: {fetch_result.stderr.strip()}",
-            file=sys.stderr,
+        console.print(
+            f"[yellow]WARNING: Failed to fetch origin/{target_branch}: {fetch_result.stderr.strip()}[/]"
         )
     result = subprocess.run(
         ["git", "diff", "--name-only", f"origin/{target_branch}...HEAD"],
@@ -69,19 +79,20 @@ def main() -> int:
     version_files = [f for f in changed_files if f.startswith(VERSIONS_PREFIX)]
 
     if datamodel_files and not version_files:
-        print("ERROR: Changes to execution API datamodels require corresponding changes in versions.", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("The following datamodel files were changed:", file=sys.stderr)
+        console.print(
+            "[bold red]ERROR:[/] Changes to execution API datamodels require corresponding changes in versions."
+        )
+        console.print("")
+        console.print("The following datamodel files were changed:")
         for f in datamodel_files:
-            print(f"  - {f}", file=sys.stderr)
-        print("", file=sys.stderr)
-        print(
+            console.print(f"  - [magenta]{f}[/]")
+        console.print("")
+        console.print(
             "But no files were changed under:\n"
-            f"  {VERSIONS_PREFIX}\n"
+            f"  [cyan]{VERSIONS_PREFIX}[/]\n"
             "\n"
             "Please add or update a version file to reflect the datamodel changes.\n"
-            "See contributing-docs/19_execution_api_versioning.rst for details.",
-            file=sys.stderr,
+            "See [cyan]contributing-docs/19_execution_api_versioning.rst[/] for details."
         )
         return 1
 
