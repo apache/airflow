@@ -30,6 +30,7 @@ from tests_common.test_utils.db import clear_db_revoked_tokens
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 AUTH_MANAGER_LOGOUT_URL = "http://some_logout_url"
+SUBPATH = "/team-a/"
 
 pytestmark = pytest.mark.db_test
 
@@ -120,6 +121,18 @@ class TestLogout(TestAuthEndpoint):
         response = test_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
+
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.get_cookie_path", return_value=SUBPATH)
+    def test_logout_cookie_uses_subpath(self, mock_cookie_path, test_client):
+        """Cookies must use the subpath so they are scoped to the correct instance."""
+        test_client.app.state.auth_manager.get_url_logout.return_value = None
+
+        response = test_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        assert f"Path={SUBPATH}" in token_cookie
 
 
 class TestLogoutTokenRevocation:

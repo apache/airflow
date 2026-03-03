@@ -27,7 +27,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 try:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
@@ -90,14 +95,17 @@ def login_callback(request: Request):
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
     # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
     # See https://github.com/apache/airflow/pull/55506
+    cookie_path = get_cookie_path()
     if AIRFLOW_V_3_1_1_PLUS:
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, httponly=True)
     else:
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure)
 
     # Save id token as separate cookie.
     # Cookies have a size limit (usually 4k), saving all the tokens in a same cookie goes beyond this limit
-    response.set_cookie(COOKIE_NAME_ID_TOKEN, tokens["id_token"], secure=secure, httponly=True)
+    response.set_cookie(
+        COOKIE_NAME_ID_TOKEN, tokens["id_token"], path=cookie_path, secure=secure, httponly=True
+    )
 
     return response
 
@@ -133,14 +141,17 @@ def logout_callback(request: Request):
     """
     login_url = get_auth_manager().get_url_login()
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    cookie_path = get_cookie_path()
     response = RedirectResponse(login_url)
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
+        path=cookie_path,
         secure=secure,
         httponly=True,
     )
     response.delete_cookie(
         key=COOKIE_NAME_ID_TOKEN,
+        path=cookie_path,
         secure=secure,
         httponly=True,
     )
