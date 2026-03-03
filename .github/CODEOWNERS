@@ -102,6 +102,9 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/snowflake/ @potiuk
 
 
+# Generated metadata
+/generated/provider_metadata.json @potiuk @eladkal @shahar1 @vincbeck @jscheffl
+
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 /dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496 @jedcunningham @ephraimbuddy
