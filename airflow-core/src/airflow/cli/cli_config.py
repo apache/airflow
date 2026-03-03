@@ -276,11 +276,30 @@ ARG_JOB_STATE = Arg(
 )
 
 # next_execution
+ARG_TABLE = Arg(
+    ("--table",),
+    action="store_true",
+    default=False,
+    help="Show a table expected of attributes of next executions",
+)
+ARG_FIELD = Arg(
+    ("--field",),
+    choices=(
+        "logical_date",
+        "data_interval.start",
+        "data_interval.end",
+        "partition_key",
+        "partition_date",
+        "run_after",
+    ),
+    default=None,
+    help="Show given attribute of next executions",
+)
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next logical date times to show",
+    help="The number of next executions to show",
 )
 
 # misc
@@ -1097,7 +1116,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TABLE, ARG_FIELD, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",

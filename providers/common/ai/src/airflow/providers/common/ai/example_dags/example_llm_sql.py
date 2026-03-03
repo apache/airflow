@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.sql.config import DataSourceConfig
 
 
 # [START howto_operator_llm_sql_basic]
@@ -100,3 +101,26 @@ def example_llm_sql_expand():
 # [END howto_operator_llm_sql_expand]
 
 example_llm_sql_expand()
+
+
+# [START howto_operator_llm_sql_with_object_storage]
+@dag
+def example_llm_sql_with_object_storage():
+    datasource_config = DataSourceConfig(
+        conn_id="aws_default",
+        table_name="sales_data",
+        uri="s3://my-bucket/data/sales/",
+        format="parquet",
+    )
+
+    LLMSQLQueryOperator(
+        task_id="generate_sql",
+        prompt="Find the top 5 products by total sales amount",
+        llm_conn_id="pydantic_ai_default",
+        datasource_config=datasource_config,
+    )
+
+
+# [END howto_operator_llm_sql_with_object_storage]
+
+example_llm_sql_with_object_storage()

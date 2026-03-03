@@ -44,7 +44,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_DAG_RUN_ID = "test1"
