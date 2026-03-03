@@ -42,7 +42,7 @@ from sqlalchemy import select
 
 from airflow.configuration import AirflowConfigParser, conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -52,6 +52,9 @@ try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.workloads.callback import execute_callback_workload
 
 log = logging.getLogger(__name__)
 
@@ -67,15 +70,20 @@ if TYPE_CHECKING:
 
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstanceKey
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, workloads.All | CommandType, str | None, str | None
+    WorkloadInCelery: TypeAlias = tuple[WorkloadKey, workloads.All | CommandType, str | None, str | None]
+    WorkloadInCeleryResult: TypeAlias = tuple[
+        WorkloadKey, CommandType, AsyncResult | "ExceptionWithTraceback"
     ]
+
+    # Deprecated alias for backward compatibility
+    TaskInstanceInCelery: TypeAlias = WorkloadInCelery
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
@@ -182,9 +190,6 @@ def execute_workload(input: str) -> None:
 
     celery_task_id = app.current_task.request.id
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
-
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
@@ -193,15 +198,22 @@ def execute_workload(input: str) -> None:
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    if isinstance(workload, workloads.ExecuteTask):
+        supervise(
+            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            dag_rel_path=workload.dag_rel_path,
+            bundle_info=workload.bundle_info,
+            token=workload.token,
+            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+            log_path=workload.log_path,
+        )
+    elif isinstance(workload, workloads.ExecuteCallback):
+        success, error_msg = execute_callback_workload(workload.callback, log)
+        if not success:
+            raise RuntimeError(error_msg or "Callback execution failed")
+    else:
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
 
 if not AIRFLOW_V_3_0_PLUS:
@@ -303,30 +315,29 @@ class ExceptionWithTraceback:
         self.traceback = exception_traceback
 
 
-def send_task_to_executor(
-    task_tuple: TaskInstanceInCelery,
-) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
+def send_workload_to_executor(
+    workload_tuple: WorkloadInCelery,
+) -> WorkloadInCeleryResult:
     """
-    Send task to executor.
+    Send workload to executor.
 
     This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
     team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
     """
-    key, args, queue, team_name = task_tuple
+    key, args, queue, team_name = workload_tuple
 
     # Reconstruct the Celery app from configuration, which may or may not be team-specific.
     # ExecutorConf wraps config access to automatically use team-specific config where present.
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
     # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
-    if AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
         _conf = ExecutorConf(team_name)
     else:
         # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf
         _conf = conf
-
     # Create the Celery app with the correct configuration
     celery_app = create_celery_app(_conf)
 
@@ -340,6 +351,16 @@ def send_task_to_executor(
         # Get the task from the app
         task_to_run = celery_app.tasks["execute_command"]
         args = [args]  # type: ignore[list-item]
+
+    # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
+    # If timeout fires during import, redis module gets partially cached in sys.modules
+    # without the 'client' submodule bound, causing AttributeError on subsequent access.
+    # See: https://github.com/apache/airflow/issues/41359
+    try:
+        import redis.client  # noqa: F401
+    except ImportError:
+        pass  # Redis not installed or not using Redis backend
+
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)
@@ -350,6 +371,10 @@ def send_task_to_executor(
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
     return key, args, result
+
+
+# Backward compatibility alias
+send_task_to_executor = send_workload_to_executor
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
@@ -363,6 +388,13 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
     :return: a tuple of the Celery task key and the Celery state and the celery info
         of the task
     """
+    # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
+    # See: https://github.com/apache/airflow/issues/41359
+    try:
+        import redis.client  # noqa: F401
+    except ImportError:
+        pass  # Redis not installed or not using Redis backend
+
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request

@@ -206,6 +206,7 @@ export const TaskLogHeader = ({
             <Menu.Trigger asChild>
               <IconButton
                 aria-label={translate("dag:logs.settings")}
+                data-testid="log-settings-button"
                 size="md"
                 title={translate("dag:logs.settings")}
                 variant="ghost"
@@ -214,15 +215,15 @@ export const TaskLogHeader = ({
               </IconButton>
             </Menu.Trigger>
             <Menu.Content zIndex={zIndex}>
-              <Menu.Item onClick={toggleWrap} value="wrap">
+              <Menu.Item data-testid="log-settings-wrap" onClick={toggleWrap} value="wrap">
                 <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
                 <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleTimestamp} value="timestamp">
+              <Menu.Item data-testid="log-settings-timestamp" onClick={toggleTimestamp} value="timestamp">
                 <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleExpanded} value="expand">
+              <Menu.Item data-testid="log-settings-expand" onClick={toggleExpanded} value="expand">
                 {expanded ? (
                   <>
                     <MdCompress /> {translate("expand.collapse")}
@@ -234,7 +235,7 @@ export const TaskLogHeader = ({
                 )}
                 <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleSource} value="source">
+              <Menu.Item data-testid="log-settings-source" onClick={toggleSource} value="source">
                 <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
                 <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
@@ -262,6 +263,7 @@ export const TaskLogHeader = ({
 
           <IconButton
             aria-label={translate("download.download")}
+            data-testid="download-logs-button"
             onClick={downloadLogs}
             size="md"
             title={translate("download.tooltip", { hotkey: "d" })}

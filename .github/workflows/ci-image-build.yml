@@ -121,6 +121,9 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Make /mnt writeable"
         run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"

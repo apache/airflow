@@ -50,12 +50,15 @@ import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
+import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
@@ -68,8 +71,10 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
+  readonly showVersionIndicatorMode: VersionIndicatorOptions;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -117,8 +122,10 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
+  setShowVersionIndicatorMode,
   setTriggeringUserFilter,
   showGantt,
+  showVersionIndicatorMode,
   triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
@@ -126,10 +133,10 @@ export const PanelButtons = ({
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
-    `dependencies-${dagId}`,
+    dependenciesKey(dagId),
     "tasks",
   );
-  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [direction, setDirection] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -469,6 +476,12 @@ export const PanelButtons = ({
                             </Checkbox>
                           </VStack>
                         ) : undefined}
+                        <VStack alignItems="flex-start" px={1}>
+                          <VersionIndicatorSelect
+                            onChange={setShowVersionIndicatorMode}
+                            value={showVersionIndicatorMode}
+                          />
+                        </VStack>
                       </>
                     )}
                   </Popover.Body>

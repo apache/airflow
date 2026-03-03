@@ -48,12 +48,15 @@ const {
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
-  END_DATE: END_DATE_PARAM,
+  END_DATE_GTE: END_DATE_GTE_PARAM,
+  END_DATE_LTE: END_DATE_LTE_PARAM,
+  PARTITION_KEY_PATTERN: PARTITION_KEY_PATTERN_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
-  START_DATE: START_DATE_PARAM,
+  START_DATE_GTE: START_DATE_GTE_PARAM,
+  START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -152,6 +155,12 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     header: translate("dagRun.dagVersions"),
   },
   {
+    accessorKey: "partition_key",
+    cell: ({ row: { original } }) => <Text>{original.partition_key ?? ""}</Text>,
+    enableSorting: false,
+    header: translate("dagRun.partitionKey"),
+  },
+  {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
@@ -186,6 +195,7 @@ export const DagRuns = () => {
       conf: false,
       dag_version: false,
       end_date: false,
+      partition_key: false,
     },
   });
   const { pagination, sorting } = tableURLState;
@@ -199,13 +209,16 @@ export const DagRuns = () => {
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
-  const startDate = searchParams.get(START_DATE_PARAM);
-  const endDate = searchParams.get(END_DATE_PARAM);
+  const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
+  const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
+  const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
+  const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
   const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
+  const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -218,15 +231,18 @@ export const DagRuns = () => {
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
-      endDateLte: endDate ?? undefined,
+      endDateGte: endDateGte ?? undefined,
+      endDateLte: endDateLte ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      partitionKeyPattern: partitionKeyPattern ?? undefined,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
-      startDateGte: startDate ?? undefined,
+      startDateGte: startDateGte ?? undefined,
+      startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
       triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
     },

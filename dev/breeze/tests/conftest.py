@@ -29,7 +29,7 @@ def pytest_configure(config):
     # Register custom marker for integration tests
     config.addinivalue_line(
         "markers",
-        "integration: mark test as integration test requiring external resources (SVN, network)",
+        "integration_tests: mark test as integration test requiring external resources (SVN, network)",
     )
 
 
@@ -42,11 +42,13 @@ def pytest_collection_modifyitems(config, items):
     """
     # Check if user explicitly requested integration tests via -m
     markexpr = config.getoption("-m", default="")
-    if markexpr and "integration" in markexpr:
+    if markexpr and "integration_tests" in markexpr:
         # User explicitly requested integration tests, don't skip
         return
 
-    skip_integration = pytest.mark.skip(reason="Integration test - run with: pytest -m integration")
+    skip_integration = pytest.mark.skip(
+        reason="Did not run. This is tntegration test. Please run with: pytest -m integration_tests"
+    )
 
     for item in items:
         if "integration" in item.keywords:
