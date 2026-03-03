@@ -324,7 +324,7 @@ or to time but not send a metric:
     with Stats.timer() as timer:
         ...
 
-    log.info("Code took %.3f seconds", timer.duration)
+    log.info("Code took %.3f ms", timer.duration)
 
 For full docs on ``timer()`` check out `airflow/stats.py`_.
 
