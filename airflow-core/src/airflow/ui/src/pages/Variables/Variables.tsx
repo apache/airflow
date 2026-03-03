@@ -218,20 +218,18 @@ export const Variables = () => {
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
-      <Box overflow="auto">
-        <DataTable
-          columns={columns}
-          data={data?.variables ?? []}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isFetching={isFetching}
-          isLoading={isLoading}
-          modelName="admin:variables.variable"
-          noRowsMessage={translate("variables.noRowsMessage")}
-          onStateChange={setTableURLState}
-          total={data?.total_entries ?? 0}
-        />
-      </Box>
+      <DataTable
+        columns={columns}
+        data={data?.variables ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="admin:variables.variable"
+        noRowsMessage={translate("variables.noRowsMessage")}
+        onStateChange={setTableURLState}
+        total={data?.total_entries ?? 0}
+      />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
