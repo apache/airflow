@@ -145,6 +145,24 @@ class TestIcebergHookCatalogConfig:
             call_kwargs = mock_load.call_args[1]
             assert call_kwargs["uri"] == "https://correct-host.example.com"
 
+    def test_extra_cannot_override_uri_when_empty(self, create_connection_without_db):
+        """Connection host should not override if it's empty"""
+        create_connection_without_db(
+            Connection(
+                conn_id="iceberg_default",
+                conn_type="iceberg",
+                host="",
+                extra='{"uri": "https://wrong-host.example.com"}',
+            )
+        )
+        hook = IcebergHook()
+        with patch(LOAD_CATALOG) as mock_load:
+            mock_load.return_value = MagicMock()
+            hook.get_conn()
+
+            call_kwargs = mock_load.call_args[1]
+            assert call_kwargs["uri"] == "https://wrong-host.example.com"
+
     def test_extra_can_override_catalog_type(self, create_connection_without_db):
         """Extra can set catalog type to non-REST (e.g., glue)."""
         create_connection_without_db(
