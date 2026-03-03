@@ -53,8 +53,8 @@ class PydanticAIHook(BaseHook):
     """
 
     conn_name_attr = "llm_conn_id"
-    default_conn_name = "pydantic_ai_default"
-    conn_type = "pydantic_ai"
+    default_conn_name = "pydanticai_default"
+    conn_type = "pydanticai"
     hook_name = "Pydantic AI"
 
     def __init__(

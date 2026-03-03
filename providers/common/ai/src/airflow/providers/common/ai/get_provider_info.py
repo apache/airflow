@@ -52,7 +52,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
-                "connection-type": "pydantic_ai",
+                "connection-type": "pydanticai",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
