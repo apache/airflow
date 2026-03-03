@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
@@ -60,10 +61,27 @@ class TestGetLogin(TestAuthEndpoint):
 
         assert response.status_code == 307
         assert (
-            response.headers["location"] == f"{AUTH_MANAGER_LOGIN_URL}?next={params.get('next')}"
+            response.headers["location"]
+            == f"{AUTH_MANAGER_LOGIN_URL}?{urlencode({'next': params.get('next')})}"
             if params.get("next")
             else AUTH_MANAGER_LOGIN_URL
         )
+
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_next_url_correctly_encoded(self, mock_is_safe_url, test_client):
+        """Test that special characters in the next URL are correctly url encoded."""
+        next_url = "http://localhost:8080/dags/my_dag/runs/manual__2026-03-02T12:45:13.113989+00:00/tasks/t"
+        response = test_client.get("/auth/login", follow_redirects=False, params={"next": next_url})
+
+        assert response.status_code == 307
+        location = response.headers["location"]
+        query_string = location.split("?", 1)[1]
+        # Literals that have special meaning in query strings must be url encoded.
+        assert "+" not in query_string
+        assert ":" not in query_string
+        assert "/" not in query_string
+        # Decoding the query string must recover the original URL unchanged.
+        assert parse_qs(query_string)["next"][0] == next_url
 
     @pytest.mark.parametrize(
         "params",
