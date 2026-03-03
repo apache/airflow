@@ -77,7 +77,9 @@ class IcebergHook(BaseHook):
         # Start with extra so connection fields take precedence
         extra = conn.extra_dejson or {}
         catalog_properties: dict[str, str] = {**extra}
-        catalog_properties["uri"] = conn.host.rstrip("/") if conn.host else ""
+        if "uri" not in catalog_properties:
+            catalog_properties["uri"] = conn.host.rstrip("/") if conn.host else ""
+
         if "type" not in catalog_properties:
             catalog_properties["type"] = "rest"
 
@@ -92,7 +94,7 @@ class IcebergHook(BaseHook):
                     "Both are required for OAuth2 credential authentication."
                 )
 
-        return load_catalog(self.conn_id, **catalog_properties)
+        return load_catalog(**catalog_properties)
 
     def get_conn(self) -> Catalog:
         """Return the pyiceberg Catalog."""
