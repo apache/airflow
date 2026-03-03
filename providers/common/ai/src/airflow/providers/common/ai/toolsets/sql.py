@@ -210,6 +210,7 @@ class SQLToolset(AbstractToolset[Any]):
         if hook.last_description:
             col_names = [desc[0] for desc in hook.last_description]
 
+        result: list[dict[str, Any]] | list[list[Any]]
         if rows and col_names:
             result = [dict(zip(col_names, row)) for row in rows[: self._max_rows]]
         else:
