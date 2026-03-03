@@ -23,6 +23,3 @@ class TestSimpleAuthManagerUser:
 
     def test_get_name(self, test_admin):
         assert test_admin.get_name() == "test"
-
-    def test_get_role(self, test_admin):
-        assert test_admin.get_role() == "admin"

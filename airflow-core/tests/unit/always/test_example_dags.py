@@ -36,6 +36,7 @@ from airflow.utils import yaml
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH
+from tests_common.test_utils.providers import get_suspended_providers_folders
 
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 PROVIDERS_PREFIXES = ["providers/"]
@@ -62,6 +63,23 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
 
+IGNORE_EXAMPLE_DAGS: tuple[str, ...] = (
+    # These example dags require suspended providers, eg: google dataflow dependent on the Apache Beam provider,
+    # but it's in the suspended list, we can't import the dag
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_go.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_java_streaming.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_java.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_python.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_python_async.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_pipeline.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_pipeline_streaming.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_sensors_deferrable.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_streaming_python.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_template.py",
+    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_yaml.py",
+    "providers/google/tests/system/google/cloud/gcs/example_firestore.py",
+)
+
 LONGER_IMPORT_TIMEOUTS: dict[str, float] = {
     "providers/google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py": 60
 }
@@ -77,19 +95,6 @@ def match_optional_dependencies(distribution_name: str, specifier: str | None) -
         return False, f"{distribution_name!r} required {specifier}, but installed {package_version}."
 
     return True, ""
-
-
-def get_suspended_providers_folders() -> list[str]:
-    """
-    Returns a list of suspended providers folders that should be
-    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
-    """
-    suspended_providers = []
-    for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
-        provider_yaml = yaml.safe_load(provider_path.read_text())
-        if provider_yaml["state"] == "suspended":
-            suspended_providers.append(provider_path.parent.resolve().as_posix())
-    return suspended_providers
 
 
 def get_python_excluded_providers_folders() -> list[str]:
@@ -126,6 +131,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
 
             if candidate.startswith(tuple(suspended_providers_folders)):
                 param_marks.append(pytest.mark.skip(reason="Suspended provider"))
+
+            if candidate.endswith(IGNORE_EXAMPLE_DAGS):
+                param_marks.append(
+                    pytest.mark.skip(
+                        reason="Excluded from imports, these examples require suspended providers"
+                    )
+                )
 
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
                 param_marks.append(

@@ -27,6 +27,65 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce EdgeDBManager: Independent Provider Specific Database Schema Management (#61155)``
+* ``Add Filtering to Edge UI Plugin Jobs Page (#61934)``
+* ``Route providers to consume Stats from common compat provider (#61812)``
+
+Misc
+~~~~
+
+* ``Bump minimum prek version to 0.3.2 in edge3 provider (#62194)``
+* ``Auto-discover DB managers from provider.yaml (#62308)``
+* ``Upgrade dependency to minimatch (#62303)``
+* ``Warn when EdgeDBManager is missing from external_db_managers in config (#62204)``
+* ``Replace Base.metadata.remove() hack with dedicated Edge3 declarative base (#62202)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#62040)``
+* ``Enable dynamic generation of assets for Edge UI Plugin (#56456)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add external_db_managers configuration requirement (#62203)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove comments for missing features (#61922)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Fix version check for RC versions (#61318)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+Misc
+~~~~
+
+* ``Bump axios from 1.13.4 to 1.13.5 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#61695)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#61406)``
+* ``Bump Edge Dependencies after Dependabot (#61298)``
+* ``Bump happy-dom from 20.3.7 to 20.3.9 in /providers/edge3/src/airflow/providers/edge3/plugins/www in the edge-ui-package-updates group across 1 directory (#61265)``
+* ``Bump axios from 1.13.2 to 1.13.3 in /providers/edge3/src/airflow/providers/edge3/plugins/www in the edge-ui-package-updates group across 1 directory (#61220)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 5 updates (#61146)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarification on Edge UI Plugin roles and permissions (#61509)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.1
 .....
 

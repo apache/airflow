@@ -40,6 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  UV_VERSION: "0.10.7"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -248,7 +249,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
       - name: "Verify release calendar"
         run: uv run dev/verify_release_calendar.py
 

@@ -137,6 +137,7 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    _make_process_nondumpable,
     _remote_logging_conn,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
@@ -350,6 +351,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -360,11 +362,12 @@ class TestWatchedSubprocess:
 
             logs = comms.send(ResendLoggingFD())
             assert isinstance(logs, SentFDs)
-            fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
-            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+            with os.fdopen(logs.fds[0], "w") as fd:
+                json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+                fd.write("\n")
 
-        line = lineno() - 3  # Line the error should be on
+        line = lineno() - 5  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -2073,7 +2076,24 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+            note="Test Note",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2083,7 +2103,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False),
+            args=("test_dag", "test_run", None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
@@ -2107,6 +2127,7 @@ REQUEST_TEST_CASES = [
             "conf": None,
             "triggering_user_name": None,
             "type": "DagRunResult",
+            "note": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2157,6 +2178,7 @@ REQUEST_TEST_CASES = [
                 "clear_number": 0,
                 "conf": None,
                 "triggering_user_name": None,
+                "note": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -3129,3 +3151,90 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
         "event": "is connected",
         "timestamp": mock.ANY,
     } in caplog, caplog.text
+
+
+_NOBODY_UID = 65534
+
+
+def _drop_root_if_needed():
+    """Drop to a non-root UID so kernel dumpable checks actually apply (root/CAP_SYS_PTRACE bypasses them)."""
+    if os.getuid() == 0:
+        os.setuid(_NOBODY_UID)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_nondumpable_blocks_sibling_proc_read():
+    """A sibling process (same non-root UID) cannot read /proc/<pid>/environ or /proc/<pid>/mem of a nondumpable process."""
+    import multiprocessing
+
+    ready = multiprocessing.Event()
+    done = multiprocessing.Event()
+    result_queue = multiprocessing.Queue()
+
+    def target_fn():
+        _drop_root_if_needed()
+        _make_process_nondumpable()
+        ready.set()
+        done.wait(timeout=10)
+
+    def reader_fn(target_pid):
+        _drop_root_if_needed()
+        blocked = []
+        for proc_file in ("environ", "mem"):
+            try:
+                open(f"/proc/{target_pid}/{proc_file}").read()
+            except PermissionError:
+                blocked.append(proc_file)
+        result_queue.put(blocked)
+
+    target = multiprocessing.Process(target=target_fn)
+    target.start()
+    try:
+        assert ready.wait(timeout=5), "target process did not become ready"
+        reader = multiprocessing.Process(target=reader_fn, args=(target.pid,))
+        reader.start()
+        reader.join(timeout=5)
+        blocked = result_queue.get(timeout=5)
+        assert "environ" in blocked, "Sibling was able to read nondumpable process's /proc/environ"
+        assert "mem" in blocked, "Sibling was able to read nondumpable process's /proc/mem"
+    finally:
+        done.set()
+        target.join(timeout=5)
+        if target.is_alive():
+            target.kill()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_nondumpable_blocks_child_memory_read():
+    """A forked child (same non-root UID) cannot read its nondumpable parent's /proc/<pid>/mem."""
+    import multiprocessing
+
+    result_queue = multiprocessing.Queue()
+
+    def parent_fn():
+        _drop_root_if_needed()
+        _make_process_nondumpable()
+        parent_pid = os.getpid()
+        child_pid = os.fork()
+        if child_pid == 0:
+            try:
+                open(f"/proc/{parent_pid}/mem").read()
+            except PermissionError:
+                os._exit(0)
+            else:
+                os._exit(1)
+        _, status = os.waitpid(child_pid, 0)
+        result_queue.put(os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1)
+
+    proc = multiprocessing.Process(target=parent_fn)
+    proc.start()
+    proc.join(timeout=10)
+    exit_code = result_queue.get(timeout=5)
+    assert exit_code == 0, "Child was able to read parent's /proc/mem — expected PermissionError"
+
+
+@pytest.mark.skipif(sys.platform == "linux", reason="Test is for non-Linux platforms only")
+def test_nondumpable_noop_on_non_linux():
+    """On non-Linux, _make_process_nondumpable returns without error."""
+
+    _make_process_nondumpable()

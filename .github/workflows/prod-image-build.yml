@@ -138,6 +138,13 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.upload-package-artifact == 'true'
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: inputs.upload-package-artifact == 'true'
