@@ -28,11 +28,13 @@ __all__ = [
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
+    "BaseBranchOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BranchMixIn",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -60,6 +62,7 @@ __all__ = [
     "PartitionMapper",
     "PokeReturnValue",
     "QuarterlyMapper",
+    "SkipMixin",
     "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
@@ -90,6 +93,7 @@ __version__ = "1.2.0"
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
+    from airflow.sdk.bases.branch import BaseBranchOperator, BranchMixIn
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import (
@@ -101,6 +105,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
@@ -158,11 +163,13 @@ __lazy_imports: dict[str, str] = {
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
+    "BaseBranchOperator": ".bases.branch",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "BranchMixIn": ".bases.branch",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -191,6 +198,7 @@ __lazy_imports: dict[str, str] = {
     "PokeReturnValue": ".bases.sensor",
     "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
+    "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",

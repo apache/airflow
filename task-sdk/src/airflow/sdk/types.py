@@ -21,6 +21,7 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
+from airflow.sdk.api.datamodels._generated import WeightRule
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 
     from pydantic import AwareDatetime, JsonValue
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk._shared.logging.types import Logger as Logger
     from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
@@ -37,6 +39,21 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class WeightRuleProtocol(Protocol):
+    """
+    Protocol for custom weight strategy instances.
+
+    Matches objects that implement get_weight(ti).
+    """
+
+    def get_weight(self, ti: SchedulerTaskInstance) -> int:
+        """Return the priority weight for the task instance."""
+        ...
+
+
+WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
 
 
 class TaskInstanceKey(NamedTuple):
