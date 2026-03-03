@@ -202,7 +202,7 @@ class TestLLMSchemaCompareOperator:
 
         result = op._build_schema_context()
 
-        assert "Source: test_dialect" in result
+        assert "Source: db_conn (test_dialect)" in result
         assert "Table: db_table" in result
         assert "db_schema" in result
         assert "ds_schema" in result
@@ -308,7 +308,7 @@ class TestLLMSchemaCompareOperator:
             db_hook.get_table_schema.assert_called_once_with("orders")
             mock_df_introspect.assert_called_once_with(s3_source)
 
-            assert "Source: postgresql" in schema_context
+            assert "Source: postgres_default (postgresql)" in schema_context
             assert "Table: orders" in schema_context
             assert "customer_id" in schema_context
             assert "Primary Key: id" in schema_context
@@ -384,7 +384,7 @@ class TestLLMSchemaCompareOperator:
 
         schema_context = op._build_schema_context()
 
-        assert "Source: postgresql" in schema_context
+        assert "Source: postgres_default (postgresql)" in schema_context
         assert "Source: snowflake" in schema_context
         assert "VARCHAR(255)" in schema_context
         assert "STRING" in schema_context

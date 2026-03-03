@@ -53,7 +53,6 @@ def example_llm_schema_compare_full_context():
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers", "orders"],
         context_strategy="full",
-        reasoning_mode=True,
     )
 
 
@@ -113,7 +112,6 @@ def example_llm_schema_compare_conditional():
         llm_conn_id="pydantic_ai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers"],
-        reasoning_mode=True,
         context_strategy="full",
     )
     def check_before_etl():

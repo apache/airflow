@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.compat.sdk import BaseHook
-from airflow.sdk.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
@@ -57,6 +56,24 @@ class SchemaCompareResult(BaseModel):
     summary: str = Field(description="High-level summary of the comparison")
 
 
+DEFAULT_SYSTEM_PROMPT = (
+    "Consider cross-system type equivalences:\n"
+    "- varchar(n) / text / string / TEXT may be compatible\n"
+    "- int / integer / int4 / INT32 are equivalent\n"
+    "- bigint / int8 / int64 / BIGINT are equivalent\n"
+    "- timestamp / timestamptz / TIMESTAMP_NTZ / datetime may differ in timezone handling\n"
+    "- numeric(p,s) / decimal(p,s) / NUMBER — check precision and scale\n"
+    "- boolean / bool / BOOLEAN / tinyint(1) — check semantic equivalence\n\n"
+    "Severity levels:\n"
+    "- critical: Will cause data loading failures or data loss "
+    "(e.g., column missing in target, incompatible types)\n"
+    "- warning: May cause data quality issues "
+    "(e.g., precision loss, timezone mismatch)\n"
+    "- info: Cosmetic differences that won't affect data loading "
+    "(e.g., varchar length differences within safe range)\n\n"
+)
+
+
 class LLMSchemaCompareOperator(LLMOperator):
     """
     Compare schemas across different database systems and detect drift using LLM reasoning.
@@ -77,8 +94,9 @@ class LLMSchemaCompareOperator(LLMOperator):
     :param prompt: Instructions for the LLM on what to compare and flag.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
-    :param system_prompt: Additional instructions appended to the built-in
-        schema comparison prompt.
+    :param system_prompt: Instructions included in the LLM system prompt. Defaults to
+        ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
+        severity definitions. Passing a value **replaces** the default system prompt
     :param agent_params: Extra keyword arguments for the pydantic-ai ``Agent``.
     :param data_sources: List of DataSourceConfig objects, one per system.
     :param db_conn_ids: Connection IDs for databases to compare (used with
@@ -87,14 +105,14 @@ class LLMSchemaCompareOperator(LLMOperator):
     :param context_strategy: ``"basic"`` for column names and types only;
         ``"full"`` to include primary keys, foreign keys, and indexes.
         Default ``"full"``.
-    :param reasoning_mode: Strongly recommended — cross-system type mapping
-    benefits from step-by-step analysis.
     """
 
     template_fields: Sequence[str] = (
         *LLMOperator.template_fields,
+        "data_sources",
         "db_conn_ids",
         "table_names",
+        "context_strategy",
     )
 
     def __init__(
@@ -104,6 +122,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         db_conn_ids: list[str] | None = None,
         table_names: list[str] | None = None,
         context_strategy: Literal["basic", "full"] = "full",
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
@@ -112,6 +131,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         self.db_conn_ids = db_conn_ids or []
         self.table_names = table_names or []
         self.context_strategy = context_strategy
+        self.system_prompt = system_prompt
 
         if not self.data_sources and not self.db_conn_ids:
             raise ValueError("Provide at least one of 'data_sources' or 'db_conn_ids'.")
@@ -167,9 +187,11 @@ class LLMSchemaCompareOperator(LLMOperator):
                 if pks:
                     parts.append(f"Primary Key: {', '.join(pks)}")
             except NotImplementedError:
-                self.log.warning("primary key introspection not implemented for dialect", hook.dialect_name)
+                self.log.warning(
+                    "primary key introspection not implemented for dialect %s", hook.dialect_name
+                )
             except Exception as ex:
-                self.log.warning("Could not retrieve PK", ex)
+                self.log.warning("Could not retrieve PK for %r: %s", table_name, ex)
 
             try:
                 fks = hook.inspector.get_foreign_keys(table_name)
@@ -179,9 +201,11 @@ class LLMSchemaCompareOperator(LLMOperator):
                     ref_cols = ", ".join(fk.get("referred_columns", []))
                     parts.append(f"Foreign Key: ({cols}) -> {ref}({ref_cols})")
             except NotImplementedError:
-                self.log.warning("foreign key introspection not implemented for dialect", hook.dialect_name)
+                self.log.warning(
+                    "foreign key introspection not implemented for dialect %s", hook.dialect_name
+                )
             except Exception as ex:
-                self.log.warning("Could not retrieve FK", ex)
+                self.log.warning("Could not retrieve FK for %r: %s", table_name, ex)
 
             try:
                 indexes = hook.inspector.get_indexes(table_name)
@@ -191,9 +215,9 @@ class LLMSchemaCompareOperator(LLMOperator):
                     unique = " UNIQUE" if idx.get("unique") else ""
                     parts.append(f"Index{unique}: {idx.get('name', '?')} ({idx_cols})")
             except NotImplementedError:
-                self.log.warning("index introspection not implemented for dialect", hook.dialect_name)
+                self.log.warning("index introspection not implemented for dialect %s", hook.dialect_name)
             except Exception as ex:
-                self.log.warning("Could not retrieve index", ex)
+                self.log.warning("Could not retrieve index for %r: %s", table_name, ex)
 
             return "\n".join(parts)
 
@@ -241,7 +265,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             for table in self.table_names:
                 schema_text = self._introspect_db_schema(hook, table)
                 if schema_text:
-                    sections.append(f"Source: {dialect_name}\nTable: {table}\n{schema_text}")
+                    sections.append(f"Source: {conn_id} ({dialect_name})\nTable: {table}\n{schema_text}")
 
         for ds_config in self.data_sources:
             sections.append(self._introspect_datasource_schema(ds_config))
@@ -261,12 +285,13 @@ class LLMSchemaCompareOperator(LLMOperator):
             "You understand type systems across PostgreSQL, MySQL, Snowflake, BigQuery, "
             "Redshift, S3 Parquet/CSV, Iceberg, and other data systems.\n\n"
             "Analyze the schemas from the following data sources and identify mismatches "
-            "that could break data loading, cause data loss, or produce unexpected behavior.\n\n",
-            f"Schemas to compare:\n\n{schema_context}\n",
+            "that could break data loading, cause data loss, or produce unexpected behavior.\n\n"
         ]
 
         if self.system_prompt:
             parts.append(f"Additional instructions:\n{self.system_prompt}\n")
+
+        parts.append(f"Schemas to compare:\n\n{schema_context}\n")
 
         return "".join(parts)
 

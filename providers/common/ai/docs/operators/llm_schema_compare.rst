@@ -50,9 +50,7 @@ Full Context Strategy
 ---------------------
 
 Set ``context_strategy="full"`` to include primary keys, foreign keys, and indexes
-in the schema context sent to the LLM. Combined with ``reasoning_mode=True``, this
-enables the most thorough analysis — the LLM walks through each column comparison
-step by step:
+in the schema context sent to the LLM.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
@@ -71,6 +69,34 @@ These can be freely combined with ``db_conn_ids``:
     :language: python
     :start-after: [START howto_operator_llm_schema_compare_datasource]
     :end-before: [END howto_operator_llm_schema_compare_datasource]
+
+Customizing the System Prompt
+-----------------------------
+
+The operator ships with a ``DEFAULT_SYSTEM_PROMPT`` that teaches the LLM about
+cross-system type equivalences (e.g., ``varchar`` vs ``string``, ``bigint`` vs
+``int64``) and severity-level definitions (``critical``, ``warning``, ``info``).
+
+When you pass a custom ``system_prompt``, it **replaces** the default entirely.
+If you want to **keep** the built-in rules and add any specific instructions
+on top, concatenate them:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.llm_schema_compare import (
+        DEFAULT_SYSTEM_PROMPT,
+        LLMSchemaCompareOperator,
+    )
+
+    LLMSchemaCompareOperator(
+        task_id="compare_with_custom_rules",
+        prompt="Compare schemas and flag breaking changes",
+        llm_conn_id="pydantic_ai_default",
+        db_conn_ids=["postgres_source", "snowflake_target"],
+        table_names=["customers"],
+        system_prompt=DEFAULT_SYSTEM_PROMPT
+        + ("Project-specific rules:\n" "- Snowflake VARIANT columns are compatible with PostgreSQL jsonb.\n"),
+    )
 
 TaskFlow Decorator
 ------------------
@@ -122,8 +148,11 @@ Parameters
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
 - ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
   connection's extra field.
-- ``system_prompt``: Additional instructions appended to the built-in comparison
-  prompt.
+- ``system_prompt``: Instructions included in the LLM system prompt. Defaults to
+  ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
+  severity definitions. Passing a value **replaces** the default — concatenate
+  with ``DEFAULT_SYSTEM_PROMPT`` to extend it (see
+  :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor.
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
