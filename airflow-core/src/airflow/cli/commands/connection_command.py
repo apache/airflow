@@ -31,10 +31,21 @@ from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import SENSITIVE_PLACEHOLDER, is_stdout, print_export_output
+from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
+from airflow.models import Connection
+from airflow.providers_manager import ProvidersManager
+from airflow.secrets.local_filesystem import load_connections_dict
+from airflow.utils import cli as cli_utils, helpers, yaml
+from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.db import create_default_connections as db_create_default_connections
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.session import create_session
 
 
 def _mask_uri_credentials(uri: str) -> str:
-    """Mask credentials in URI while preserving structure.
+    """
+    Mask credentials in URI while preserving structure.
 
     Examples:
         postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
@@ -51,37 +62,20 @@ def _mask_uri_credentials(uri: str) -> str:
             return SENSITIVE_PLACEHOLDER
 
         # Check if there's a netloc with credentials (user:pass@host:port format)
-        if '@' in parsed.netloc:
+        if "@" in parsed.netloc:
             # Split netloc into credentials and host parts
-            creds, host_port = parsed.netloc.split('@', 1)
+            creds, host_port = parsed.netloc.split("@", 1)
             # Replace credentials with placeholder
-            masked_creds = SENSITIVE_PLACEHOLDER + ':' + SENSITIVE_PLACEHOLDER
+            masked_creds = SENSITIVE_PLACEHOLDER + ":" + SENSITIVE_PLACEHOLDER
             # Reconstruct netloc
-            masked_netloc = masked_creds + '@' + host_port
+            masked_netloc = masked_creds + "@" + host_port
             # Reconstruct full URI
-            return urlunsplit((
-                parsed.scheme,
-                masked_netloc,
-                parsed.path,
-                parsed.query,
-                parsed.fragment
-            ))
-        else:
-            # No credentials in URI, return as-is
-            return uri
+            return urlunsplit((parsed.scheme, masked_netloc, parsed.path, parsed.query, parsed.fragment))
+        # No credentials in URI, return as-is
+        return uri
     except Exception:
         # If URI parsing fails, mask entire URI for safety
         return SENSITIVE_PLACEHOLDER
-from airflow.configuration import conf
-from airflow.exceptions import AirflowNotFoundException
-from airflow.models import Connection
-from airflow.providers_manager import ProvidersManager
-from airflow.secrets.local_filesystem import load_connections_dict
-from airflow.utils import cli as cli_utils, helpers, yaml
-from airflow.utils.cli import suppress_logs_and_warning
-from airflow.utils.db import create_default_connections as db_create_default_connections
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.session import create_session
 
 
 class ConnectionDisplayMapper:
@@ -116,7 +110,8 @@ class ConnectionDisplayMapper:
 
     @staticmethod
     def masked_sensitive(conn: Connection) -> dict[str, Any]:
-        """Return full connection structure with sensitive values masked.
+        """
+        Return full connection structure with sensitive values masked.
 
         Masks the following fields as they commonly contain sensitive information:
         - password: Always masked when present
@@ -173,7 +168,8 @@ def connections_get(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_list(args):
-    """List all connections at the command line.
+    """
+    List all connections at the command line.
 
     By default only connection IDs and types are shown. Use --show-values to display
     full connection details; use --hide-sensitive to mask passwords and URIs.

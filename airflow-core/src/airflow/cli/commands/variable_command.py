@@ -26,23 +26,6 @@ from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
-
-
-class VariableDisplayMapper:
-    """Mapper class for formatting variable data for CLI display."""
-
-    @staticmethod
-    def keys_only(var) -> dict[str, str]:
-        """Return only variable keys."""
-        return {"key": var.key}
-
-    @staticmethod
-    def with_values(var, hide_sensitive: bool = False) -> dict[str, str]:
-        """Return variable with value, optionally masked."""
-        row = {"key": var.key}
-        val = SENSITIVE_PLACEHOLDER if hide_sensitive else (var.val if var.val is not None else "")
-        row["val"] = val
-        return row
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
@@ -56,10 +39,34 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
+class VariableDisplayMapper:
+    """Mapper class for formatting variable data for CLI display."""
+
+    @staticmethod
+    def keys_only(var) -> dict[str, str]:
+        """Return only variable keys. Accepts Variable model or dict with 'key'."""
+        key = var.key if hasattr(var, "key") else var["key"]
+        return {"key": key}
+
+    @staticmethod
+    def with_values(var, hide_sensitive: bool = False) -> dict[str, str]:
+        """Return variable with value, optionally masked. Accepts Variable model or dict with 'key' and 'val'."""
+        key = var.key if hasattr(var, "key") else var["key"]
+        raw = var.val if hasattr(var, "val") else var.get("val", var.get("_val"))
+        if raw is None:
+            raw = ""
+        raw = str(raw)
+        if raw in ("None", "null"):
+            raw = ""
+        val = SENSITIVE_PLACEHOLDER if hide_sensitive else raw
+        return {"key": key, "val": val}
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
-    """Display all the variables.
+    """
+    Display all the variables.
 
     By default only variable keys are shown. Use --show-values to display
     values; use --hide-sensitive to mask all variable values (since individual
@@ -71,22 +78,17 @@ def variables_list(args):
     if hide_sensitive and not show_values:
         raise SystemExit("--hide-sensitive can only be used with --show-values")
 
-    def mapper(var):
-        if show_values:
-            return VariableDisplayMapper.with_values(var, hide_sensitive)
-        else:
-            return VariableDisplayMapper.keys_only(var)
-
     with create_session() as session:
-        if show_values and not hide_sensitive:
-            # Load full variables only when we need to show actual values
+        if show_values:
+            # Load full variables when we need to show or mask values
             variables = session.scalars(select(Variable)).all()
+            mapper = lambda var: VariableDisplayMapper.with_values(var, hide_sensitive)
+            AirflowConsole().print_as(data=variables, output=args.output, mapper=mapper)
         else:
-            # Load only keys for performance when values are hidden or not shown
-            variables = session.scalars(select(Variable.key).distinct()).all()
-            # Convert to simple objects with only key
-            variables = [{"key": key} for key in variables]
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=mapper)
+            # Load only keys for performance when values are not shown; include "val" for consistent JSON shape
+            keys = session.scalars(select(Variable.key).distinct()).all()
+            variables = [{"key": key, "val": ""} for key in keys]
+            AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
 
 
 @suppress_logs_and_warning

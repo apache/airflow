@@ -145,8 +145,9 @@ class TestCliListConnections:
 
     def test_cli_connections_list_hide_sensitive_without_show_values_fails(self):
         """--hide-sensitive without --show-values should fail."""
+        args = self.parser.parse_args(["connections", "list", "--hide-sensitive"])
         with pytest.raises(SystemExit, match="--hide-sensitive can only be used with --show-values"):
-            self.parser.parse_args(["connections", "list", "--hide-sensitive"])
+            connection_command.connections_list(args)
 
 
 class TestUriMasking:
