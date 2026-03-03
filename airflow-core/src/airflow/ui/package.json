@@ -111,6 +111,9 @@
       "@swc/core",
       "esbuild",
       "msw"
-    ]
+    ],
+    "overrides": {
+      "tar": ">=7.5.7"
+    }
   }
 }
