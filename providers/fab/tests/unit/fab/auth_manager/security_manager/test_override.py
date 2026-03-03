@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 from flask_appbuilder import const
@@ -48,9 +48,9 @@ class TestFabAirflowSecurityManagerOverride:
         with mock.patch.object(EmptySecurityManager, "session", mock_session):
             sm.add_permission_to_role(role, permission)
 
-        mock_session.rollback.assert_called_once_with()
-        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
-        mock_log.error.assert_not_called()
+        assert mock_session.rollback.mock_calls == [call()]
+        assert sm._is_permission_assigned_to_role.mock_calls == [call(role_id=1, permission_view_id=2)]
+        assert mock_log.error.mock_calls == []
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
