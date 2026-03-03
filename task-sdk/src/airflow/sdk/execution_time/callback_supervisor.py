@@ -264,6 +264,8 @@ def supervise_callback(
             exit_code=exit_code,
             duration=end - start,
         )
+        if exit_code != 0:
+            raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
         return exit_code
     finally:
         if log_path and log_file_descriptor:

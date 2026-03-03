@@ -142,14 +142,12 @@ def _execute_workload(log: Logger, workload: ExecutorWorkload, team_conf) -> Non
     elif isinstance(workload, workloads.ExecuteCallback):
         from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
-        exit_code = supervise_callback(
+        supervise_callback(
             id=workload.callback.id,
             callback_path=workload.callback.data.get("path", ""),
             callback_kwargs=workload.callback.data.get("kwargs", {}),
             log_path=workload.log_path,
         )
-        if exit_code != 0:
-            raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
     else:
         raise ValueError(f"LocalExecutor does not know how to execute {type(workload).__name__!r}")
 
