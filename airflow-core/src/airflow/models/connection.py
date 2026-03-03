@@ -509,7 +509,10 @@ class Connection(Base, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if (
+            getattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS", None)
+            is not None
+        ):
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -598,7 +601,10 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if (
+            getattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS", None)
+            is not None
+        ):
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(
