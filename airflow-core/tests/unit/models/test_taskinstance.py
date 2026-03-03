@@ -2923,48 +2923,29 @@ class TestMappedTaskInstanceReceiveValue:
         Test that xcom_pull returns LazyXComSelectSequence when XComs are mapped (map_index >= 0)
         and map_indexes is not specified.
         """
-        from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence
+        from airflow.models.xcom import LazyXComSelectSequence
 
         with dag_maker(dag_id="test_xcom_mapped_values", session=session):
-            upstream = EmptyOperator(task_id="upstream")
-            downstream = EmptyOperator(task_id="downstream")
+
+            @task
+            def push_values(val):
+                return val
+
+            upstream = push_values.expand(val=[2, 4])
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
             upstream >> downstream
 
         dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-
-        base_ti = dag_run.get_task_instance("upstream", session=session)
-        base_task = dag_maker.dag.get_task("upstream")
-        for map_index in (0, 1):
-            ti = TaskInstance(
-                base_task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=base_ti.dag_version_id
-            )
-            session.add(ti)
-            ti.dag_run = dag_run
-        session.flush()
-
-        XComModel.set(
-            key=XCOM_RETURN_KEY,
-            value=2,
-            dag_id=dag_run.dag_id,
-            task_id="upstream",
-            run_id=dag_run.run_id,
-            map_index=0,
-            session=session,
-        )
-        XComModel.set(
-            key=XCOM_RETURN_KEY,
-            value=4,
-            dag_id=dag_run.dag_id,
-            task_id="upstream",
-            run_id=dag_run.run_id,
-            map_index=1,
-            session=session,
-        )
+        dag_maker.run_ti(upstream.operator.task_id, map_index=0, dag_run=dag_run, session=session)
+        dag_maker.run_ti(upstream.operator.task_id, map_index=1, dag_run=dag_run, session=session)
 
         ti_downstream = dag_run.get_task_instance("downstream", session=session)
         ti_downstream.task = dag_maker.dag.task_dict["downstream"]
 
-        result = ti_downstream.xcom_pull(task_ids="upstream", session=session)
+        result = ti_downstream.xcom_pull(task_ids=upstream.operator.task_id, session=session)
         assert isinstance(result, LazyXComSelectSequence), (
             f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
         )

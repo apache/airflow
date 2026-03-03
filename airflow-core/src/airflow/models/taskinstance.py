@@ -1721,7 +1721,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
             return LazyXComSelectSequence.from_select(
                 query.with_only_columns(XComModel.value).order_by(None),
-                order_by=[XComModel.map_index.asc()],
+                order_by=[XComModel.map_index.expression],
                 session=session,
             )
 
