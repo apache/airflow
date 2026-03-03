@@ -27,7 +27,7 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOp
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

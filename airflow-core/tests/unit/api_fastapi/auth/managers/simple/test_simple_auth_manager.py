@@ -354,3 +354,16 @@ class TestSimpleAuthManager:
             user = SimpleAuthManagerUser(username=user_id, role="user")
             result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
             assert result == expected
+
+    @conf_vars(
+        {
+            ("core", "multi_team"): "true",
+            (
+                "core",
+                "simple_auth_manager_users",
+            ): "test1:viewer,test2:viewer:test,test3:viewer:test|marketing",
+        }
+    )
+    def test_get_teams(self, auth_manager):
+        teams = auth_manager._get_teams()
+        assert teams == {"test", "marketing"}
