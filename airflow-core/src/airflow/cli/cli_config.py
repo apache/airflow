@@ -729,6 +729,13 @@ ARG_NUM_RUNS = Arg(
     help="Set the number of runs to execute before exiting",
 )
 
+ARG_ONLY_IDLE = Arg(
+    ("-i", "--only-idle"),
+    default=conf.getboolean("scheduler", "only_idle", fallback=False),
+    help="Only count runs after the scheduler becomes idle.",
+    action="store_true",
+)
+
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
@@ -1989,6 +1996,7 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
         args=(
             ARG_NUM_RUNS,
+            ARG_ONLY_IDLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
