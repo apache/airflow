@@ -244,12 +244,12 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
             ConnectionTestState.FAILED,
             f"Connection test timed out after {workload.timeout}s",
         )
-    except Exception:
+    except Exception as e:
         log.exception("Connection test failed unexpectedly", connection_id=workload.connection_id)
         client.connection_tests.update_state(
             workload.connection_test_id,
             ConnectionTestState.FAILED,
-            "Connection test failed unexpectedly",
+            f"Connection test failed unexpectedly: {e}"[:500],
         )
     finally:
         signal.alarm(0)
