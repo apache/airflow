@@ -101,6 +101,9 @@ class DagFileParseRequest(BaseModel):
     bundle_name: str
     """Bundle name for team-specific executor validation."""
 
+    known_pools: set[str] | None = None
+    """List of known pools to identify invalid pool references in DAGs."""
+
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
@@ -206,8 +209,6 @@ def _parse_file_entrypoint():
 
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
-    # TODO: Set known_pool names on DagBag!
-
     stability_check_result = check_dag_file_stability(os.fspath(msg.file))
 
     if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
@@ -223,6 +224,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
         load_op_links=False,
+        known_pools=msg.known_pools,
     )
 
     if msg.callback_requests:
@@ -523,6 +525,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
+        known_pools: set[str] | None = None,
         **kwargs,
     ) -> Self:
         logger = kwargs["logger"]
@@ -531,7 +534,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name, known_pools)
         return proc
 
     def _on_child_started(
@@ -540,12 +543,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        known_pools: set[str] | None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
             callback_requests=callbacks,
+            known_pools=known_pools,
         )
         self.send_msg(msg, request_id=0)
 
