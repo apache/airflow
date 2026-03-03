@@ -22,10 +22,3 @@ from __future__ import annotations
 
 class InvalidStatsNameException(Exception):
     """Raise when name of the stats is invalid."""
-
-
-class RemovedInAirflow4Warning(DeprecationWarning):
-    """Issued for usage of deprecated features that will be removed in Airflow4."""
-
-    deprecated_since: str | None = None
-    "Indicates the airflow version that started raising this deprecation warning"

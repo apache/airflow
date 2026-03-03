@@ -17,29 +17,33 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from typing import TYPE_CHECKING
 
-from opentelemetry import trace
+from airflow._shared.observability.traces import otel_tracer
+from airflow.configuration import conf
 
-from airflow._shared.observability.traces.otel_tracer import OtelTrace
-from airflow.exceptions import RemovedInAirflow4Warning
-
-tracer = trace.get_tracer(__name__)
+if TYPE_CHECKING:
+    from airflow._shared.observability.traces.otel_tracer import OtelTrace
 
 
-def get_otel_tracer(cls=None, use_simple_processor: bool = False):
-    warnings.warn(
-        "`get_otel_tracer` is deprecated. Use opentelemetry.trace.get_tracer() instead.",
-        category=RemovedInAirflow4Warning,
-        stacklevel=1,
+def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
+    # The config values have been deprecated and therefore,
+    # if the user hasn't added them to the config, the default values won't be used.
+    # A fallback is needed to avoid an exception.
+    port = None
+    if conf.has_option("traces", "otel_port"):
+        port = conf.getint("traces", "otel_port")
+
+    return otel_tracer.get_otel_tracer(
+        cls,
+        use_simple_processor,
+        host=conf.get("traces", "otel_host", fallback=None),
+        port=port,
+        ssl_active=conf.getboolean("traces", "otel_ssl_active", fallback=False),
+        otel_service=conf.get("traces", "otel_service", fallback=None),
+        debug=conf.getboolean("traces", "otel_debugging_on", fallback=False),
     )
-    return OtelTrace()
 
 
-def get_otel_tracer_for_task(cls=None) -> OtelTrace:
-    warnings.warn(
-        "`get_otel_tracer_for_task` is deprecated. Use opentelemetry.trace.get_tracer() instead.",
-        category=RemovedInAirflow4Warning,
-        stacklevel=1,
-    )
-    return OtelTrace()
+def get_otel_tracer_for_task(cls) -> OtelTrace:
+    return get_otel_tracer(cls, use_simple_processor=True)

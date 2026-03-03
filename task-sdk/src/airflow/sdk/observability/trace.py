@@ -17,46 +17,70 @@
 from __future__ import annotations
 
 import logging
-import warnings
-from functools import wraps
+from collections.abc import Callable
+from socket import socket
+from typing import TYPE_CHECKING
 
-from opentelemetry import trace
-
-from airflow.sdk.exceptions import RemovedInAirflow4Warning
+from airflow.sdk._shared.observability.traces.base_tracer import EmptyTrace, Tracer
+from airflow.sdk.configuration import conf
 
 log = logging.getLogger(__name__)
 
-tracer = trace.get_tracer(__name__)
+
+class _TraceMeta(type):
+    factory: Callable[[], Tracer] | None = None
+    instance: Tracer | EmptyTrace | None = None
+
+    def __new__(cls, name, bases, attrs):
+        return super().__new__(cls, name, bases, attrs)
+
+    def __getattr__(cls, name: str):
+        if not cls.factory:
+            # Lazy initialization of the factory
+            cls.configure_factory()
+        if not cls.instance:
+            cls._initialize_instance()
+        return getattr(cls.instance, name)
+
+    def _initialize_instance(cls):
+        """Initialize the trace instance."""
+        try:
+            cls.instance = cls.factory()
+        except (socket.gaierror, ImportError) as e:
+            log.error("Could not configure Trace: %s. Using EmptyTrace instead.", e)
+            cls.instance = EmptyTrace()
+
+    def __call__(cls, *args, **kwargs):
+        """Ensure the class behaves as a singleton."""
+        if not cls.instance:
+            cls._initialize_instance()
+        return cls.instance
+
+    def configure_factory(cls):
+        """Configure the trace factory based on settings."""
+        otel_on = conf.getboolean("traces", "otel_on")
+
+        if otel_on:
+            from airflow.sdk.observability.traces import otel_tracer
+
+            cls.factory = staticmethod(
+                lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)
+            )
+        else:
+            # EmptyTrace is a class and not inherently callable.
+            # Using a lambda ensures it can be invoked as a callable factory.
+            # staticmethod ensures the lambda is treated as a standalone function
+            # and avoids passing `cls` as an implicit argument.
+            cls.factory = staticmethod(lambda: EmptyTrace())
+
+    def get_constant_tags(cls) -> str | None:
+        """Get constant tags to add to all traces."""
+        return conf.get("traces", "tags", fallback=None)
 
 
-def add_debug_span(func):
-    """Decorate a function with span."""
-    warnings.warn(
-        "The `add_debug_span` class is deprecated.  Do not use it.",
-        category=RemovedInAirflow4Warning,
-        stacklevel=1,
-    )
+if TYPE_CHECKING:
+    Trace: EmptyTrace
+else:
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with tracer.start_as_current_span(func.__name__):
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
-def __getattr__(name: str):
-    if name == "add_debug_span":
-        return add_debug_span
-    if name in ("Trace", "DebugTrace"):
-        from airflow.sdk._shared.observability.traces.otel_tracer import OtelTrace
-
-        warnings.warn(
-            "You are trying to import Trace or DebugTrace from airflow.sdk.observability.trace."
-            "These classes are deprecated. Do not use them! Instead, create traces traces with "
-            "`from airflow.sdk.opentelemetry import trace; tracer = trace.get_tracer(__name__)`.",
-            category=RemovedInAirflow4Warning,
-            stacklevel=1,
-        )
-        return OtelTrace()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    class Trace(metaclass=_TraceMeta):
+        """Empty class for Trace - we use metaclass to inject the right one."""
