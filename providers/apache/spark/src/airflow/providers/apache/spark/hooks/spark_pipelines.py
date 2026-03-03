@@ -24,6 +24,10 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.providers.common.compat.sdk import AirflowException
 
 
+class SparkPipelinesException(AirflowException):
+    """Exception raised when spark-pipelines command fails."""
+
+
 class SparkPipelinesHook(SparkSubmitHook):
     """
     Hook for interacting with Spark Declarative Pipelines via the spark-pipelines CLI.
@@ -95,11 +99,12 @@ class SparkPipelinesHook(SparkSubmitHook):
             **kwargs,
         )
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout))
+        if self._submit_sp.stdout:
+            self._process_spark_submit_log(iter(self._submit_sp.stdout))
         returncode = self._submit_sp.wait()
 
         if returncode:
-            raise AirflowException(
+            raise SparkPipelinesException(
                 f"Cannot execute: {self._mask_cmd(pipelines_cmd)}. Error code is: {returncode}."
             )
 

@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from airflow.providers.apache.spark.operators.spark_pipelines import SparkPipelinesOperator
 
 

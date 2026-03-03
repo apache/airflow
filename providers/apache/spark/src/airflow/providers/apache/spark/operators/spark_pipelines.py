@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.spark.hooks.spark_pipelines import SparkPipelinesHook
@@ -108,7 +109,6 @@ class SparkPipelinesOperator(BaseOperator):
         self.yarn_queue = yarn_queue
         self.keytab = keytab
         self.principal = principal
-        self._hook: SparkPipelinesHook | None = None
         self._conn_id = conn_id
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
@@ -123,16 +123,13 @@ class SparkPipelinesOperator(BaseOperator):
             self.log.debug("Injecting OpenLineage transport information into Spark properties.")
             self.conf = inject_transport_information_into_spark_properties(self.conf, context)
 
-        if self._hook is None:
-            self._hook = self._get_hook()
-        self._hook.submit_pipeline()
+        self.hook.submit_pipeline()
 
     def on_kill(self) -> None:
-        if self._hook is None:
-            self._hook = self._get_hook()
-        self._hook.on_kill()
+        self.hook.on_kill()
 
-    def _get_hook(self) -> SparkPipelinesHook:
+    @cached_property
+    def hook(self) -> SparkPipelinesHook:
         return SparkPipelinesHook(
             pipeline_spec=self.pipeline_spec,
             pipeline_command=self.pipeline_command,
