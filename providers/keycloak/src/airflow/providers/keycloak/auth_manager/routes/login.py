@@ -25,9 +25,14 @@ from urllib.parse import quote
 from fastapi import Request  # noqa: TC002
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 try:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException

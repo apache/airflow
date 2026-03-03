@@ -28,15 +28,19 @@ from fastapi.responses import RedirectResponse
 from airflow.api_fastapi.app import (
     AUTH_MANAGER_FASTAPI_APP_PREFIX,
     get_auth_manager,
-    get_cookie_path,
 )
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
 from airflow.providers.amazon.aws.auth_manager.datamodels.login import LoginResponse
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_1_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
 from airflow.providers.common.compat.sdk import conf
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 try:
     from onelogin.saml2.auth import OneLogin_Saml2_Auth

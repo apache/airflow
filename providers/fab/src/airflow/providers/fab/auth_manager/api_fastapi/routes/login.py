@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import Body, Request, status
 from fastapi.responses import RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
@@ -29,6 +29,12 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import Logi
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import auth_router
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 
 @auth_router.post(
