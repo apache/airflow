@@ -17,6 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.standard.utils.skipmixin import SkipMixin
+from airflow.executors import workloads
+from airflow.executors.workloads import TaskInstance, TaskInstanceDTO
 
-__all__ = ["SkipMixin"]
+
+def test_task_instance_alias_keeps_backwards_compat():
+    assert TaskInstance is TaskInstanceDTO
+    assert workloads.TaskInstance is TaskInstanceDTO
+    assert workloads.TaskInstanceDTO is TaskInstanceDTO
