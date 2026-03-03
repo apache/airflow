@@ -86,18 +86,17 @@ class ConnectionTest(Base):
         return f"<ConnectionTest id={self.id!r} connection_id={self.connection_id!r} state={self.state}>"
 
 
-def run_connection_test(*, connection_id: str) -> tuple[bool, str]:
+def run_connection_test(*, conn: Connection) -> tuple[bool, str]:
     """
-    Worker-side pure function to execute a connection test.
+    Worker-side function to execute a connection test.
 
     Returns a (success, message) tuple. The caller is responsible for
     reporting the result back via the Execution API.
     """
     try:
-        conn = Connection.get_connection_from_secrets(connection_id)
         return conn.test_connection()
     except Exception as e:
-        log.exception("Connection test failed", connection_id=connection_id)
+        log.exception("Connection test failed", connection_id=conn.conn_id)
         return False, str(e)
 
 

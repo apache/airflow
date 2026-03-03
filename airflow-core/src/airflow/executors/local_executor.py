@@ -39,6 +39,7 @@ import structlog
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads.callback import execute_callback_workload
+from airflow.models.connection import Connection
 from airflow.models.connection_test import ConnectionTestState, run_connection_test
 from airflow.utils.state import CallbackState, TaskInstanceState
 
@@ -180,11 +181,18 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     """
     Execute a connection test workload.
 
+    Constructs an SDK ``Client``, fetches the connection via the Execution API,
+    enforces a timeout via ``signal.alarm``, and reports all outcomes back
+    through the Execution API.
+
     :param log: Logger instance
     :param workload: The TestConnection workload to execute
     :param team_conf: Team-specific executor configuration
     """
+    # Lazy import: SDK modules must not be loaded at module level to avoid
+    # coupling core (scheduler-loaded) code to the SDK.
     from airflow.sdk.api.client import Client
+    from airflow.sdk.execution_time.comms import ErrorResponse
 
     setproctitle(
         f"{_get_executor_process_title_prefix(team_conf.team_name)} connection-test {workload.connection_id}",
@@ -197,7 +205,7 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
     server = team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
 
-    client: Client = Client(base_url=server, token=workload.token)
+    client = Client(base_url=server, token=workload.token)
 
     def _handle_timeout(signum, frame):
         raise TimeoutError(f"Connection test timed out after {workload.timeout}s")
@@ -206,7 +214,22 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     signal.alarm(workload.timeout)
     try:
         client.connection_tests.update_state(workload.connection_test_id, ConnectionTestState.RUNNING)
-        success, message = run_connection_test(connection_id=workload.connection_id)
+
+        conn_response = client.connections.get(workload.connection_id)
+        if isinstance(conn_response, ErrorResponse):
+            raise RuntimeError(f"Connection '{workload.connection_id}' not found via Execution API")
+
+        conn = Connection(
+            conn_id=conn_response.conn_id,
+            conn_type=conn_response.conn_type,
+            host=conn_response.host,
+            login=conn_response.login,
+            password=conn_response.password,
+            schema=conn_response.schema_,
+            port=conn_response.port,
+            extra=conn_response.extra,
+        )
+        success, message = run_connection_test(conn=conn)
 
         state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
         client.connection_tests.update_state(workload.connection_test_id, state, message)
