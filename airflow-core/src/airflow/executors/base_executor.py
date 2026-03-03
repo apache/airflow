@@ -235,7 +235,11 @@ class BaseExecutor(LoggingMixin):
             self.queued_callbacks[workload.callback.id] = workload
         elif isinstance(workload, workloads.TestConnection):
             if not self.supports_connection_test:
-                raise ValueError(f"Executor {type(self).__name__} does not support connection testing")
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support TestConnection workloads. "
+                    f"Set supports_connection_test = True and implement connection test handling "
+                    f"in _process_workloads(). See LocalExecutor for reference implementation."
+                )
             self.queued_connection_tests[str(workload.connection_test_id)] = workload
         else:
             raise ValueError(

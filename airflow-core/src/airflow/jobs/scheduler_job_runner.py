@@ -1586,15 +1586,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
-        if any(x.supports_connection_test for x in self.executors):
-            timers.call_regular_interval(
-                delay=conf.getfloat("scheduler", "connection_test_dispatch_interval", fallback=2.0),
-                action=self._dispatch_connection_tests,
-            )
-            timers.call_regular_interval(
-                delay=conf.getfloat("scheduler", "connection_test_reaper_interval", fallback=30.0),
-                action=self._reap_stale_connection_tests,
-            )
+        timers.call_regular_interval(
+            delay=conf.getfloat("scheduler", "connection_test_dispatch_interval", fallback=2.0),
+            action=self._dispatch_connection_tests,
+        )
+        timers.call_regular_interval(
+            delay=conf.getfloat("scheduler", "connection_test_reaper_interval", fallback=30.0),
+            action=self._reap_stale_connection_tests,
+        )
 
         idle_count = 0
 

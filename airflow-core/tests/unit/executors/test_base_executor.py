@@ -419,7 +419,7 @@ def test_queue_connection_test_workload_rejected_by_default():
         connection_test_id=uuid4(),
         connection_id="test_conn",
     )
-    with pytest.raises(ValueError, match="does not support connection testing"):
+    with pytest.raises(NotImplementedError, match="does not support TestConnection workloads"):
         executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
 
 
