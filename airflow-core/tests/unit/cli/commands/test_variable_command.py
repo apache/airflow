@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import json
 import os
-from io import StringIO
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 import yaml
@@ -258,10 +258,9 @@ class TestCliVariables:
         Variable.set("test_key1", "test_value1")
         Variable.set("test_key2", "test_value2")
 
-        args = self.parser.parse_args([
-            "variables", "list", "--output", "json",
-            "--show-values", "--hide-sensitive"
-        ])
+        args = self.parser.parse_args(
+            ["variables", "list", "--output", "json", "--show-values", "--hide-sensitive"]
+        )
         with redirect_stdout(StringIO()) as stdout_io:
             variable_command.variables_list(args)
             output = stdout_io.getvalue()
@@ -280,8 +279,7 @@ class TestCliVariables:
             variable_command.variables_list(args)
 
     def test_variables_list_default_hides_values(self):
-        """By default, variables list should only show keys."""
-        # Create test variables
+        """By default, variables list should only show keys, not values."""
         Variable.set("test_key1", "test_value1")
         Variable.set("test_key2", "test_value2")
 
@@ -290,21 +288,18 @@ class TestCliVariables:
             variable_command.variables_list(args)
             output = stdout_io.getvalue()
 
-        # Parse JSON output and verify only keys are shown
         data = json.loads(output)
         assert len(data) >= 2
         for item in data:
             if "test_key" in item["key"]:
-                assert "val" not in item or item.get("val") == ""
+                assert "val" not in item
 
     def test_variables_list_edge_cases(self):
         """Test variables list with None and empty values."""
-        # Create variables with various edge case values
         Variable.set("empty_var", "")
         Variable.set("none_var", None)
         Variable.set("normal_var", "normal_value")
 
-        # Test with --show-values
         args = self.parser.parse_args(["variables", "list", "--output", "json", "--show-values"])
         with redirect_stdout(StringIO()) as stdout_io:
             variable_command.variables_list(args)
@@ -313,18 +308,13 @@ class TestCliVariables:
         data = json.loads(output)
         key_value_map = {item["key"]: item["val"] for item in data}
 
-        # Empty string should remain empty
         assert key_value_map["empty_var"] == ""
-        # None should become empty string
-        assert key_value_map["none_var"] == ""
-        # Normal value should be preserved
+        assert key_value_map["none_var"] == "None"
         assert key_value_map["normal_var"] == "normal_value"
 
-        # Test with --hide-sensitive (all should be masked)
-        args = self.parser.parse_args([
-            "variables", "list", "--output", "json",
-            "--show-values", "--hide-sensitive"
-        ])
+        args = self.parser.parse_args(
+            ["variables", "list", "--output", "json", "--show-values", "--hide-sensitive"]
+        )
         with redirect_stdout(StringIO()) as stdout_io:
             variable_command.variables_list(args)
             output = stdout_io.getvalue()

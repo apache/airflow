@@ -50,15 +50,12 @@ class VariableDisplayMapper:
 
     @staticmethod
     def with_values(var, hide_sensitive: bool = False) -> dict[str, str]:
-        """Return variable with value, optionally masked. Accepts Variable model or dict with 'key' and 'val'."""
+        """Return variable with value, optionally masked."""
         key = var.key if hasattr(var, "key") else var["key"]
         raw = var.val if hasattr(var, "val") else var.get("val", var.get("_val"))
-        if raw is None:
-            raw = ""
-        raw = str(raw)
-        if raw in ("None", "null"):
-            raw = ""
-        val = SENSITIVE_PLACEHOLDER if hide_sensitive else raw
+        val = "" if raw is None else str(raw)
+        if hide_sensitive:
+            val = SENSITIVE_PLACEHOLDER
         return {"key": key, "val": val}
 
 
@@ -78,16 +75,16 @@ def variables_list(args):
     if hide_sensitive and not show_values:
         raise SystemExit("--hide-sensitive can only be used with --show-values")
 
+    def _mapper(var):
+        return VariableDisplayMapper.with_values(var, hide_sensitive)
+
     with create_session() as session:
         if show_values:
-            # Load full variables when we need to show or mask values
             variables = session.scalars(select(Variable)).all()
-            mapper = lambda var: VariableDisplayMapper.with_values(var, hide_sensitive)
-            AirflowConsole().print_as(data=variables, output=args.output, mapper=mapper)
+            AirflowConsole().print_as(data=variables, output=args.output, mapper=_mapper)
         else:
-            # Load only keys for performance when values are not shown; include "val" for consistent JSON shape
             keys = session.scalars(select(Variable.key).distinct()).all()
-            variables = [{"key": key, "val": ""} for key in keys]
+            variables = [{"key": key} for key in keys]
             AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
 
 

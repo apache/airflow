@@ -45,36 +45,27 @@ from airflow.utils.session import create_session
 
 def _mask_uri_credentials(uri: str) -> str:
     """
-    Mask credentials in URI while preserving structure.
+    Mask credentials in a URI while preserving structure.
 
-    Examples:
+    Examples::
+
         postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
-        mysql://host/db -> mysql://host/db (no credentials to mask)
+        mysql://host/db -> mysql://host/db  (no credentials to mask)
     """
     if not uri:
         return uri
 
     try:
         parsed = urlsplit(uri)
-        # Check if this is actually a valid URI with a scheme
         if not parsed.scheme:
-            # Not a valid URI scheme, mask entirely for safety
             return SENSITIVE_PLACEHOLDER
 
-        # Check if there's a netloc with credentials (user:pass@host:port format)
         if "@" in parsed.netloc:
-            # Split netloc into credentials and host parts
-            creds, host_port = parsed.netloc.split("@", 1)
-            # Replace credentials with placeholder
-            masked_creds = SENSITIVE_PLACEHOLDER + ":" + SENSITIVE_PLACEHOLDER
-            # Reconstruct netloc
-            masked_netloc = masked_creds + "@" + host_port
-            # Reconstruct full URI
+            _creds, host_port = parsed.netloc.split("@", 1)
+            masked_netloc = f"{SENSITIVE_PLACEHOLDER}:{SENSITIVE_PLACEHOLDER}@{host_port}"
             return urlunsplit((parsed.scheme, masked_netloc, parsed.path, parsed.query, parsed.fragment))
-        # No credentials in URI, return as-is
         return uri
     except Exception:
-        # If URI parsing fails, mask entire URI for safety
         return SENSITIVE_PLACEHOLDER
 
 
@@ -110,14 +101,7 @@ class ConnectionDisplayMapper:
 
     @staticmethod
     def masked_sensitive(conn: Connection) -> dict[str, Any]:
-        """
-        Return full connection structure with sensitive values masked.
-
-        Masks the following fields as they commonly contain sensitive information:
-        - password: Always masked when present
-        - extra_dejson: Masked when present (may contain API keys, tokens, etc.)
-        - get_uri: Selectively masks credentials in URI while preserving structure
-        """
+        """Return full connection structure with password, extra, and URI credentials masked."""
         return {
             "id": conn.id,
             "conn_id": conn.conn_id,
@@ -135,17 +119,8 @@ class ConnectionDisplayMapper:
         }
 
 
-# Backward compatibility - keep old function names as aliases
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
     return ConnectionDisplayMapper.full_details(conn)
-
-
-def _connection_mapper_ids_only(conn: Connection) -> dict[str, Any]:
-    return ConnectionDisplayMapper.ids_only(conn)
-
-
-def _connection_mapper_masked(conn: Connection) -> dict[str, Any]:
-    return ConnectionDisplayMapper.masked_sensitive(conn)
 
 
 @suppress_logs_and_warning
