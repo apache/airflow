@@ -44,7 +44,6 @@ from airflow._shared.configuration.parser import (
     ValueNotFound,
     configure_parser_from_configuration_description,
 )
-from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
@@ -875,13 +874,13 @@ def initialize_secrets_backends(
         custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
-    for class_name in default_backends:
-        from airflow.models import Connection
-
-        secrets_backend_cls = import_string(class_name)
-        backend = secrets_backend_cls()
-        backend._set_connection_class(Connection)
-        backend_list.append(backend)
+    # for class_name in default_backends:
+    #     from airflow.models import Connection
+    #
+    #     secrets_backend_cls = import_string(class_name)
+    #     backend = secrets_backend_cls()
+    #     backend._set_connection_class(Connection)
+    #     backend_list.append(backend)
 
     return backend_list
 
