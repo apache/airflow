@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime
-import getpass
 import inspect
 import os
 from argparse import Namespace
@@ -190,15 +189,6 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
-class Password(argparse.Action):
-    """Custom action to prompt for password input."""
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values is None:
-            values = getpass.getpass()
-        setattr(namespace, self.dest, values)
-
-
 # Common Positional Arguments
 ARG_FILE = Arg(
     flags=("file",),
@@ -255,8 +245,6 @@ ARG_AUTH_PASSWORD = Arg(
     type=str,
     dest="password",
     help="The password to use for authentication",
-    action=Password,
-    nargs="?",
 )
 
 # Dag Commands Args
