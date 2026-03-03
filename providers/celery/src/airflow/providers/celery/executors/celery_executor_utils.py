@@ -219,14 +219,12 @@ def execute_workload(input: str) -> None:
             log_path=workload.log_path,
         )
     elif isinstance(workload, workloads.ExecuteCallback):
-        exit_code = supervise_callback(
+        supervise_callback(
             id=workload.callback.id,
             callback_path=workload.callback.data.get("path", ""),
             callback_kwargs=workload.callback.data.get("kwargs", {}),
             log_path=workload.log_path,
         )
-        if exit_code != 0:
-            raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
     else:
         raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
