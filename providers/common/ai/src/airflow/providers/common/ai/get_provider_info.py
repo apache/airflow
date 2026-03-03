@@ -32,6 +32,7 @@ def get_provider_info():
                 "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
                 ],
                 "tags": ["ai"],
@@ -67,12 +68,17 @@ def get_provider_info():
                 "integration-name": "Common AI",
                 "python-modules": [
                     "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
                 ],
             }
         ],
         "task-decorators": [
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_branch.llm_branch_task",
+                "name": "llm_branch",
+            },
             {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"},
         ],
     }
