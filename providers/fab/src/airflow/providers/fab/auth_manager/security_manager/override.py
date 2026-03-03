@@ -63,7 +63,7 @@ from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
-from sqlalchemy import delete, func, inspect, or_, select
+from sqlalchemy import delete, exists, func, inspect, or_, select
 from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -1758,12 +1758,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         return bool(
             self.session.scalar(
-                select(select(1))
-                .where(
-                    assoc_permission_role.c.role_id == role_id,
-                    assoc_permission_role.c.permission_view_id == permission_view_id,
+                select(
+                    exists().where(
+                        assoc_permission_role.c.role_id == role_id,
+                        assoc_permission_role.c.permission_view_id == permission_view_id,
+                    )
                 )
-                .exists()
             )
         )
 
