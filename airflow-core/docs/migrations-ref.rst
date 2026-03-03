@@ -42,7 +42,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | ``b8f3e5d1a9c2`` (head) | ``a7e6d4c3b2f1`` | ``3.2.0``         | Add connection_snapshot and reverted columns to              |
 |                         |                  |                   | connection_test.                                             |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``a7e6d4c3b2f1``        | ``1d6611b6ab7c`` | ``3.2.0``         | Add connection_test table.                                   |
+| ``a7e6d4c3b2f1``        | ``1d6611b6ab7c`` | ``3.2.0``         | Add connection_test table for async connection testing.      |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``1d6611b6ab7c``        | ``888b59e02a5b`` | ``3.2.0``         | Add bundle_name to callback table.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

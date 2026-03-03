@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add connection_test table.
+Add connection_test table for async connection testing.
 
 Revision ID: a7e6d4c3b2f1
 Revises: 888b59e02a5b
