@@ -502,6 +502,7 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        partition_date: datetime.datetime | None = None,
         note: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
@@ -585,6 +586,7 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            partition_date=partition_date,
             note=note,
             session=session,
         )
@@ -1114,6 +1116,7 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    partition_date: datetime.datetime | None = None,
     note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
@@ -1142,6 +1145,7 @@ def _create_orm_dagrun(
         backfill_id=backfill_id,
         bundle_version=bundle_version,
         partition_key=partition_key,
+        partition_date=partition_date,
         note=note,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached

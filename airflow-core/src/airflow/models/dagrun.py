@@ -227,6 +227,7 @@ class DagRun(Base, LoggingMixin):
     """
 
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -330,6 +331,7 @@ class DagRun(Base, LoggingMixin):
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
         note: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
@@ -372,6 +374,7 @@ class DagRun(Base, LoggingMixin):
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
             )
         self.partition_key = partition_key
+        self.partition_date = partition_date
         super().__init__()
 
     def __repr__(self):

@@ -253,6 +253,8 @@ DEFAULT_PARTITION_MAPPER = IdentityMapper()
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
+    partitioned = True
+
     @property
     def summary(self) -> str:
         return "Partitioned Asset"
