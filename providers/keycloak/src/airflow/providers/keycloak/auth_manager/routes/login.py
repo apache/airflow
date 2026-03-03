@@ -121,7 +121,8 @@ def logout(request: Request):
     base_url = conf.get("api", "base_url", fallback="/")
     post_logout_redirect_uri = urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout_callback")
 
-    if id_token:
+    # Validate id_token format before using in redirect (JWT tokens have 3 parts separated by dots)
+    if id_token and id_token.count(".") == 2 and all(c.isalnum() or c in ".-_" for c in id_token):
         encoded_id_token = quote(id_token, safe="")
         logout_url = (
             f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
