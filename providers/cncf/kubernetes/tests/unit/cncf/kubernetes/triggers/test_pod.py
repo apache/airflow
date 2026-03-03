@@ -630,7 +630,8 @@ class TestKubernetesPodTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True)
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_cleanup_does_not_delete_when_on_finish_action_keep_pod(self, mock_hook, mock_safe):
+    async def test_cleanup_deletes_pod_even_when_on_finish_action_keep_pod(self, mock_hook, mock_safe):
+        """on_finish_action is not consulted during kill -- cancel_on_kill is the sole control."""
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
@@ -640,8 +641,13 @@ class TestKubernetesPodTrigger:
             cancel_on_kill=True,
             on_finish_action="keep_pod",
         )
+        mock_hook.delete_pod = mock.AsyncMock()
         await trigger.cleanup()
-        mock_hook.delete_pod.assert_not_called()
+        mock_hook.delete_pod.assert_called_once_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            grace_period_seconds=None,
+        )
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.get_task_state", new_callable=mock.AsyncMock)

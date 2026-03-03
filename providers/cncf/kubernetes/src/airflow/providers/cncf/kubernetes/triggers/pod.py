@@ -405,7 +405,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     self.task_instance.map_index,
                 )
         else:
-            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
             return task_instance.state
 
     async def safe_to_cancel(self) -> bool:
@@ -444,16 +444,7 @@ class KubernetesPodTrigger(BaseTrigger):
             )
             return
 
-        if self.on_finish_action == OnFinishAction.KEEP_POD:
-            self.log.debug("Skipping cleanup since on_finish_action is set to keep_pod.")
-            return
-
-        self.log.info(
-            "Deleting pod %s in namespace %s (on_finish_action=%s).",
-            self.pod_name,
-            self.pod_namespace,
-            self.on_finish_action.value,
-        )
+        self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
         try:
             await self.hook.delete_pod(
                 name=self.pod_name,

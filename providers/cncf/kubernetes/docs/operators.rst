@@ -165,11 +165,9 @@ In **sync mode**, ``cancel_on_kill`` gates the ``on_kill`` callback: when ``True
 default), killing the task deletes the pod; when ``False``, the pod is left running.
 
 In **deferrable mode**, ``cancel_on_kill`` is forwarded to the trigger. When the trigger
-is cancelled it will clean up the pod according to the ``on_finish_action`` setting:
-
-- ``on_finish_action="delete_pod"`` (default): the pod is deleted
-- ``on_finish_action="keep_pod"``: the pod is left running
-- ``on_finish_action="delete_succeeded_pod"``: the pod is left running
+is cancelled (e.g. the deferred task is manually marked as success or failed), the pod is
+deleted. The ``on_finish_action`` parameter is **not** consulted during a kill -- it only
+governs cleanup after normal task completion.
 
 If you want to prevent the pod from being deleted when a task is killed (for example,
 for debugging), set ``cancel_on_kill=False``:
