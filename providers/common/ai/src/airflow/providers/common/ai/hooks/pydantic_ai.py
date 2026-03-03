@@ -39,9 +39,9 @@ class PydanticAIHook(BaseHook):
     Bedrock, Ollama, vLLM, etc.).
 
     Connection fields:
+        - **Model** (conn-field): Model in ``provider:model`` format (e.g. ``"anthropic:claude-sonnet-4-20250514"``)
         - **password**: API key (OpenAI, Anthropic, Groq, Mistral, etc.)
         - **host**: Base URL (optional — for custom endpoints like Ollama, vLLM, Azure)
-        - **extra** JSON: ``{"model": "openai:gpt-5.3"}``
 
     Cloud providers (Bedrock, Vertex) that use native auth chains should leave
     password empty and configure environment-based auth (``AWS_PROFILE``,
@@ -76,7 +76,6 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints)",
-                "extra": '{"model": "openai:gpt-5.3"}',
             },
         }
 
@@ -84,8 +83,12 @@ class PydanticAIHook(BaseHook):
         """
         Return a configured pydantic-ai Model.
 
-        Reads API key from connection password, model from connection extra
-        or ``model_id`` parameter, and base_url from connection host.
+        Reads API key from connection password, base_url from connection host,
+        and model from (in priority order):
+
+        1. ``model_id`` parameter on the hook
+        2. ``extra["model"]`` on the connection (set by the "Model" conn-field in the UI)
+
         The result is cached for the lifetime of this hook instance.
         """
         if self._model is not None:
@@ -95,7 +98,7 @@ class PydanticAIHook(BaseHook):
         model_name: str | KnownModelName = self.model_id or conn.extra_dejson.get("model", "")
         if not model_name:
             raise ValueError(
-                "No model specified. Set model_id on the hook or 'model' in the connection's extra JSON."
+                "No model specified. Set model_id on the hook or the Model field on the connection."
             )
         api_key = conn.password
         base_url = conn.host or None

@@ -57,7 +57,14 @@ connection-types:
         password: API Key
       placeholders:
         host: "https://api.openai.com/v1 (optional, for custom endpoints)"
-        extra: '{"model": "openai:gpt-5"}'
+    conn-fields:
+      model:
+        label: Model
+        description: "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)"
+        schema:
+          type:
+            - string
+            - 'null'
 
 operators:
   - integration-name: Common AI

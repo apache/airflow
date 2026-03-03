@@ -33,6 +33,17 @@ The ``PydanticAIHook`` uses ``pydanticai_default`` by default.
 Configuring the Connection
 --------------------------
 
+Model
+    The model identifier in ``provider:model`` format. This field appears as a
+    dedicated input in the connection form (via ``conn-fields``) and stores its
+    value in ``extra["model"]``.
+
+    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-4-20250514``,
+    ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+
+    The model can also be overridden at the hook/operator level via the
+    ``model_id`` parameter.
+
 API Key (Password field)
     The API key for your LLM provider. Required for API-key-based providers
     (OpenAI, Anthropic, Groq, Mistral). Leave empty for providers using
@@ -48,15 +59,15 @@ Host (optional)
     - Any OpenAI-compatible API: the base URL of that service
 
 Extra (JSON, optional)
-    A JSON object with additional configuration. The ``model`` key specifies
-    the default model in ``provider:model`` format:
+    A JSON object with additional configuration. Programmatic users can set the
+    model directly in extra:
 
     .. code-block:: json
 
         {"model": "openai:gpt-5.3"}
 
-    The model can also be overridden at the hook/operator level via the
-    ``model_id`` parameter.
+    When using the UI, the "Model" field above writes to this same location
+    automatically.
 
 Examples
 --------
@@ -112,3 +123,11 @@ Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the env
         "conn_type": "pydanticai",
         "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
     }
+
+Model Resolution Order
+----------------------
+
+The hook reads the model from these sources in priority order:
+
+1. ``model_id`` parameter on the hook/operator
+2. ``model`` in the connection's extra JSON (set by the "Model" conn-field in the UI)
