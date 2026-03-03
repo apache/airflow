@@ -236,6 +236,7 @@ const ConnectionForm = ({
                       <JsonEditor
                         onBlur={() => {
                           field.onChange(validateAndPrettifyJson(field.value));
+                          field.onBlur();
                         }}
                         onChange={field.onChange}
                         value={field.value}
