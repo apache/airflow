@@ -33,7 +33,6 @@ Features
 ~~~~~~~~
 
 * ``Support custom KMS keys in S3CopyObjectOperator (#60597)``
-* ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
 * ``Add best-effort cleanup to EmrCreateJobFlowOperator on post-creation failure (#61010)``
 * ``Add best-effort cleanup to EksCreateNodegroupOperator on post-create failure (#61145)``
 * ``Add best-effort cleanup to EcsRunTaskOperator on post-start failure (#61051)``
@@ -43,6 +42,7 @@ Features
 * ``AwsLambdaExecutor: Support multi-team configuration (#61321)``
 * ``Add SageMaker Unified Studio domain_id, project_id, domain_region as new parameters to SageMakerNotebookOperator (#62147)``
 * ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Check teams defined in auth managers exist in DB when spinning up API server (#62527)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -58,6 +58,7 @@ Bug Fixes
 * ``Handle CrawlerRunningException gracefully in GlueCrawlerOperator (#62016)``
 * ``RedshiftCreateClusterOperator could leave clusters running when failures (#61333)``
 * ``Fix EKS operator failures by consolidating API version references into a shared constant (#61891)``
+* ``Remove Connection dependency from shared secrets backend (#61523)``
 
 Misc
 ~~~~
@@ -79,6 +80,10 @@ Misc
    * ``ECS system test occasionally fails with transient timeouts (#61895)``
    * ``Providers wave 2026-02-10 (#61746)``
    * ``Bump black to latest 26.1.0 release (#61612)``
+   * ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
+   * ``Revert "Add resume_glue_job_on_retry to GlueJobOperator (#59392)" (#62730)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
 
 9.21.0
 ......
