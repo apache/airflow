@@ -203,11 +203,33 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
 
 
 # `eyJ` is `{"` in base64 encoding -- and any value that starts like that is very likely a JWT
-# token. Better safe than sorry
+# token. Better safe than sorry. We also redact token-bearing objects (e.g. workload) by dumping
+# and recursively redacting sensitive keys and JWT strings so they never appear in logs.
+_SENSITIVE_KEYS = frozenset({"token"})
+_MAX_REDACT_DEPTH = 5
+
+
+def _redact_value(val: Any, depth: int) -> Any:
+    """Recursively redact JWTs in strings and sensitive key values in dicts; handle Pydantic-like objects."""
+    if depth > _MAX_REDACT_DEPTH:
+        return val
+    if isinstance(val, str):
+        return re.sub(JWT_PATTERN, "eyJ***", val)
+    if isinstance(val, dict):
+        return {k: "***" if k in _SENSITIVE_KEYS else _redact_value(v, depth + 1) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_redact_value(x, depth + 1) for x in val]
+    if hasattr(val, "model_dump"):
+        try:
+            return _redact_value(val.model_dump(), depth)
+        except Exception:
+            return "<redacted>"
+    return val
+
+
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
-        if isinstance(v, str):
-            event_dict[k] = re.sub(JWT_PATTERN, "eyJ***", v)
+        event_dict[k] = _redact_value(v, 0)
     return event_dict
 
 

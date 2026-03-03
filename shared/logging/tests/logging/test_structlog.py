@@ -33,7 +33,10 @@ from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as 
 from structlog.processors import CallsiteParameter
 
 from airflow_shared.logging import structlog as structlog_module
-from airflow_shared.logging.structlog import configure_logging
+from airflow_shared.logging.structlog import (
+    configure_logging,
+    redact_jwt,
+)
 
 # We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
@@ -380,3 +383,44 @@ def test_logger_respects_configured_level(structlog_config):
 
     written = sio.getvalue()
     assert "[my_logger] Debug message\n" in written
+
+
+def test_redact_jwt_redacts_string_with_jwt():
+    """JWT-like strings are redacted to eyJ***."""
+    event_dict = {"event": "Auth", "token_str": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret"}
+    out = redact_jwt(None, "info", event_dict)
+    assert out["token_str"] == "eyJ***"
+
+
+def test_redact_jwt_redacts_token_in_object_with_model_dump():
+    """Values with model_dump() (e.g. Pydantic) have 'token' key and JWT strings redacted."""
+    event_dict = {"event": "Executing workload", "workload": None}
+    logger = None
+    method_name = "info"
+
+    class WorkloadLike:
+        def model_dump(self):
+            return {"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret", "dag_id": "my_dag"}
+
+    event_dict["workload"] = WorkloadLike()
+    out = redact_jwt(logger, method_name, event_dict)
+    assert out["workload"] == {"token": "***", "dag_id": "my_dag"}
+
+
+def test_redact_jwt_replaces_non_dumpable_object_with_redacted():
+    """Objects with model_dump() that raise are replaced with <redacted>."""
+
+    class BadDump:
+        def model_dump(self):
+            raise ValueError("nope")
+
+    event_dict = {"event": "x", "obj": BadDump()}
+    out = redact_jwt(None, "info", event_dict)
+    assert out["obj"] == "<redacted>"
+
+
+def test_redact_jwt_unchanged_when_no_jwt_or_sensitive():
+    """Event dict with plain strings and no workload is unchanged except no JWT to redact."""
+    event_dict = {"event": "Hello", "key1": "value1"}
+    out = redact_jwt(None, "info", event_dict)
+    assert out == event_dict

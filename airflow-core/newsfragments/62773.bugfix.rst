@@ -1,0 +1,1 @@
+Fix JWT tokens appearing in task logs by redacting them in structlog and avoiding logging full workload objects.

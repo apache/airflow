@@ -53,7 +53,13 @@ def execute_workload(workload: ExecuteTask) -> None:
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
 
-    log.info("Executing workload", workload=workload)
+    log.info(
+        "Executing workload",
+        dag_id=workload.ti.dag_id,
+        task_id=workload.ti.task_id,
+        run_id=workload.ti.run_id,
+        log_path=workload.log_path,
+    )
 
     base_url = conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default
