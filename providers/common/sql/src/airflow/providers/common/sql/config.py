@@ -59,8 +59,7 @@ class DataSourceConfig:
     ``storage_type`` automatically.
 
     **Catalog-managed formats** (iceberg, and in the future delta, etc.) do not
-    require ``uri`` or ``storage_type``; they use ``conn_id`` and format-specific
-    keys in ``options`` (e.g. ``catalog_table_name`` for Iceberg).
+    require ``uri`` or ``storage_type``; they use ``conn_id``.
 
     :param conn_id: The connection ID to use for accessing the data source.
     :param uri: The URI of the data source (e.g., file path, S3 bucket, etc.).
@@ -70,8 +69,8 @@ class DataSourceConfig:
     :param db_name: The namespace for table provider eg: iceberg needs to catalog it to look
     :param storage_type: The type of storage (automatically inferred from URI).
         Not used for catalog-managed formats.
-    :param options: Additional options for the data source. e.g. you can set partition columns
-        for any file-based datasource, or ``catalog_table_name`` for Iceberg.
+    :param options: Additional options for the data source. eg: you can set partition columns to any datasource
+        that will be set in while registering the data
     """
 
     conn_id: str

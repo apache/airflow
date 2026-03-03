@@ -94,7 +94,7 @@ class IcebergHook(BaseHook):
                     "Both are required for OAuth2 credential authentication."
                 )
 
-        return load_catalog(**catalog_properties)
+        return load_catalog(self.conn_id, **catalog_properties)
 
     def get_conn(self) -> Catalog:
         """Return the pyiceberg Catalog."""
