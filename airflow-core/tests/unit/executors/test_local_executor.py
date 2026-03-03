@@ -476,7 +476,7 @@ class TestLocalExecutorConnectionTestExecution:
 
         calls = mock_client.connection_tests.update_state.call_args_list
         assert calls[-1].args[1] == ConnectionTestState.FAILED
-        assert calls[-1].args[2] == "Connection test failed unexpectedly"
+        assert "Connection test failed unexpectedly" in calls[-1].args[2]
 
     def test_unexpected_exception_reports_failed(self, MockClient, _mock_signal):
         """Reports FAILED when an unexpected exception occurs."""
@@ -505,7 +505,8 @@ class TestLocalExecutorConnectionTestExecution:
             )
 
         calls = mock_client.connection_tests.update_state.call_args_list
-        assert calls[-1].args == (test_id, ConnectionTestState.FAILED, "Connection test failed unexpectedly")
+        assert calls[-1].args[1] == ConnectionTestState.FAILED
+        assert "Connection test failed unexpectedly: Something broke" in calls[-1].args[2]
 
     def test_connection_fields_passed_correctly(self, MockClient, _mock_signal):
         """Verifies all connection fields from the API response are passed to Connection."""

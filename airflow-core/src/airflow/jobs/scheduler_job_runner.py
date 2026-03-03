@@ -3116,7 +3116,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             existing_warned_dag_ids.add(warning.dag_id)
 
     @provide_session
-    def _dispatch_connection_tests(self, session: Session = NEW_SESSION) -> None:
+    def _dispatch_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
         """Dispatch pending connection tests to executors that support them."""
         max_concurrency = conf.getint("core", "max_connection_test_concurrency", fallback=4)
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
@@ -3167,7 +3167,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.flush()
 
     @provide_session
-    def _reap_stale_connection_tests(self, session: Session = NEW_SESSION) -> None:
+    def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
         """Mark connection tests that have exceeded their timeout as FAILED."""
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
         grace_period = max(30, timeout // 2)
