@@ -66,35 +66,34 @@ class TestConnectionTestModel:
 
 class TestRunConnectionTest:
     def test_successful_connection_test(self):
-        """Pure function returns (True, message) on successful test."""
-        with mock.patch.object(
-            Connection, "get_connection_from_secrets", return_value=mock.MagicMock(spec=Connection)
-        ) as mock_get_conn:
-            mock_get_conn.return_value.test_connection.return_value = (True, "Connection OK")
-            success, message = run_connection_test(connection_id="test_conn")
+        """Returns (True, message) on successful test."""
+        conn = mock.MagicMock(spec=Connection)
+        conn.conn_id = "test_conn"
+        conn.test_connection.return_value = (True, "Connection OK")
+
+        success, message = run_connection_test(conn=conn)
 
         assert success is True
         assert message == "Connection OK"
 
     def test_failed_connection_test(self):
-        """Pure function returns (False, message) when test_connection returns False."""
-        with mock.patch.object(
-            Connection, "get_connection_from_secrets", return_value=mock.MagicMock(spec=Connection)
-        ) as mock_get_conn:
-            mock_get_conn.return_value.test_connection.return_value = (False, "Connection failed")
-            success, message = run_connection_test(connection_id="test_conn")
+        """Returns (False, message) when test_connection returns False."""
+        conn = mock.MagicMock(spec=Connection)
+        conn.conn_id = "test_conn"
+        conn.test_connection.return_value = (False, "Connection failed")
+
+        success, message = run_connection_test(conn=conn)
 
         assert success is False
         assert message == "Connection failed"
 
     def test_exception_during_connection_test(self):
-        """Pure function returns (False, error_str) on exception."""
-        with mock.patch.object(
-            Connection,
-            "get_connection_from_secrets",
-            side_effect=Exception("Could not resolve host: db.example.com"),
-        ):
-            success, message = run_connection_test(connection_id="test_conn")
+        """Returns (False, error_str) on exception."""
+        conn = mock.MagicMock(spec=Connection)
+        conn.conn_id = "test_conn"
+        conn.test_connection.side_effect = Exception("Could not resolve host: db.example.com")
+
+        success, message = run_connection_test(conn=conn)
 
         assert success is False
         assert "Could not resolve host" in message
