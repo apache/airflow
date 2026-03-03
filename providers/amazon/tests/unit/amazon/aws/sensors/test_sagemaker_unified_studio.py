@@ -20,11 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.sagemaker_unified_studio import (
-    SageMakerNotebookSensor,
-)
-from airflow.utils.context import Context
+from airflow.providers.amazon.aws.sensors.sagemaker_unified_studio import SageMakerNotebookSensor
+from airflow.providers.common.compat.sdk import AirflowException, Context
 
 
 class TestSageMakerNotebookSensor:

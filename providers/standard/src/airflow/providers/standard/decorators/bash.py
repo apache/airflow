@@ -25,11 +25,11 @@ from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
     context_merge,
+    determine_kwargs,
     task_decorator_factory,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
-from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -89,8 +89,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
             raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
 
         self._is_inline_cmd = self._is_inline_command(bash_command=self.bash_command)
-        context["ti"].render_templates()  # type: ignore[attr-defined]
-
+        self.render_template_fields(context)
         return super().execute(context)
 
 

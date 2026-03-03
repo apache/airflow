@@ -28,13 +28,13 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import (
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
     run_beam_command,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"

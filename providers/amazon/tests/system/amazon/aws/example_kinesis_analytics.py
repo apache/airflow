@@ -22,6 +22,7 @@ import random
 from datetime import datetime
 
 import boto3
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import Connection
@@ -189,7 +190,7 @@ def copy_jar_to_s3(bucket: str):
         if settings.Session is None:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
-        conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn_to_details = session.scalar(select(Connection).where(Connection.conn_id == conn_id))
         session.delete(conn_to_details)
         session.commit()
 
@@ -244,7 +245,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

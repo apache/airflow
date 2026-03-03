@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.logging_config import RemoteLogIO, RemoteLogStreamIO
+    from airflow.logging.remote import RemoteLogIO, RemoteLogStreamIO
 
 LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 
@@ -220,11 +220,14 @@ if REMOTE_LOGGING:
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
 
+        # Handle both URI format (wasb://logs) and plain path (e.g., wasb-logs)
+        wasb_remote_base = remote_base_log_folder.removeprefix("wasb://")
+
         REMOTE_TASK_LOG = WasbRemoteLogIO(
             **(
                 {
                     "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
+                    "remote_base": wasb_remote_base,
                     "delete_local_copy": delete_local_copy,
                     "wasb_container": wasb_log_container,
                 }

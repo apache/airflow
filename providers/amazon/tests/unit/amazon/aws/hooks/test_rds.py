@@ -24,8 +24,8 @@ from unittest.mock import patch
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 if TYPE_CHECKING:
     from mypy_boto3_rds.type_defs import DBSnapshotTypeDef

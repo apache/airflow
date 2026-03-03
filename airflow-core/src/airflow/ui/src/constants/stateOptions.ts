@@ -52,6 +52,25 @@ export const dagRunStateOptions = createListCollection({
   ],
 });
 
+export const jobStateOptions = createListCollection({
+  items: [
+    { label: "admin:jobs.filters.allStates", value: "all" },
+    { label: "common:states.running", value: "running" },
+    { label: "common:states.success", value: "success" },
+    { label: "common:states.restarting", value: "restarting" },
+    { label: "common:states.failed", value: "failed" },
+  ],
+});
+
+export const jobTypeOptions = createListCollection({
+  items: [
+    { label: "admin:jobs.filters.allTypes", value: "all" },
+    { label: "admin:jobs.filters.schedulerJob", value: "SchedulerJob" },
+    { label: "admin:jobs.filters.triggererJob", value: "TriggererJob" },
+    { label: "admin:jobs.filters.dagProcessorJob", value: "DagProcessorJob" },
+  ],
+});
+
 export const dagRunTypeOptions = createListCollection({
   items: [
     { label: "dags:filters.allRunTypes", value: "all" },

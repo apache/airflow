@@ -54,7 +54,7 @@ Documentation in separate distributions:
 
 Documentation for a general overview and summaries not connected with any specific distribution:
 
-* `docker-stack-docs` - documentation for Docker Stack'
+* `docker-stack-docs` - documentation for Docker Stack
 * `providers-summary-docs` - documentation for the provider summary page
 
 # Architecture of documentation for Airflow
@@ -134,7 +134,7 @@ This workflow is used twice:
   bucket and the `live` website should be built and published.
 
 When the release manager publishes the documentation, they choose `auto` destination by default - depending on the
-tag they use - `staging` will be used to publish from pre-release tag and `live` will be used ot publish
+tag they use - `staging` will be used to publish from pre-release tag and `live` will be used to publish
 from the release tag.
 
 You can also specify whether `live` or `staging` documentation should be published manually - overriding
@@ -237,6 +237,12 @@ bad links or when we change some of the structure in the documentation. This can
 2. Make the changes to the documentation in `airflow-site-archive` repository. This can be done using any
    text editor, script, etc. Those files are generated as `html` files and are not meant to be regenerated,
    they should be modified as `html` files in-place
+
+> [!IMPORTANT]
+> When you modify a file for latest published version of the documentation you should do it in two
+> places - in the `stable` version and in the `X.Y.Z` version of the documentation, as `stable` is just a
+> copy of the latest version of the documentation.
+
 3. Commit the changes to `airflow-site-archive` repository and push them to `some` branch of the repository.
 4. Create a Pull Request from that branch and merge it to `main`
 5. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified

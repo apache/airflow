@@ -58,11 +58,13 @@ export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => v
   const addVariable = (variableRequestBody: VariableBody) => {
     const parsedDescription =
       variableRequestBody.description === "" ? undefined : variableRequestBody.description;
+    const teamName = variableRequestBody.team_name === "" ? undefined : variableRequestBody.team_name;
 
     mutate({
       requestBody: {
         description: parsedDescription,
         key: variableRequestBody.key,
+        team_name: teamName,
         value: variableRequestBody.value,
       },
     });

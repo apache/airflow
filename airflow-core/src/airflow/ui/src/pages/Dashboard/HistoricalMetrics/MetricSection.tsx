@@ -43,8 +43,9 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
 
+  const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
-    `?${SearchParamsKeys.STATE}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
+    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
   );
   const { t: translate } = useTranslation();
 

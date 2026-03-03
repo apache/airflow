@@ -22,7 +22,7 @@ The Edge provider uses a Plugin to
 
 - Extend the REST API endpoints for connecting workers to the Airflow cluster
 - Provide a web UI for managing the workers and monitoring their status and tasks
-  (Note: Airflow 3.0 does not have support for UI plugins. The UI plugin is only available in Airflow 2.x and in 3.1 and newer.)
+  (Note: Airflow 3.0 does not have support for UI plugins. The UI plugin is only available in Airflow 3.1 and newer.)
 
 REST API endpoints
 ------------------
@@ -35,14 +35,14 @@ The Edge provider adds the following REST API endpoints to the Airflow API:
 - ``/edge_worker/v1/health``: Check that the API endpoint is deployed and active
 
 To see full documentation of the API endpoints open the Airflow web UI and navigate to
-the sub-path ``/edge_worker/docs`` (Airflow 3.0) or ``/edge_worker/v1/ui`` (Airflow 2.x).
+the sub-path ``/edge_worker/docs``.
 
 Web UI Plugin
 -------------
 
 .. note::
 
-    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 2.x and in 3.1 and newer.
+    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 3.1 and newer.
     Alternatively you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
 
 The Edge provider adds a web UI plugin to the Airflow web UI. The plugin is
@@ -58,6 +58,10 @@ Via the UI you can also set the status of the worker to "Maintenance" or "Active
 
 The status and maintenance comments will also be shown in the web UI
 in the "Admin" - "Edge Worker" page.
+
+To be able to use the UI plugin you need to be in role "Admin" or "Op" or have the individual permissions
+"can read on Plugins" and "can read on Jobs" assigned. With these permissions you can view the UI and also
+configure the remote workers.
 
 Note that maintenance mode can also be adjusted via CLI.
 See :ref:`deployment:maintenance` for more details.

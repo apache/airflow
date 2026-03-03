@@ -36,6 +36,7 @@ class BackfillPostBody(StrictBaseModel):
     dag_run_conf: dict = {}
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
+    run_on_latest_version: bool = True
 
 
 class BackfillResponse(BaseModel):
@@ -65,7 +66,9 @@ class BackfillCollectionResponse(BaseModel):
 class DryRunBackfillResponse(BaseModel):
     """Backfill serializer for responses in dry-run mode."""
 
-    logical_date: datetime
+    logical_date: datetime | None
+    partition_key: str | None
+    partition_date: datetime | None
 
 
 class DryRunBackfillCollectionResponse(BaseModel):

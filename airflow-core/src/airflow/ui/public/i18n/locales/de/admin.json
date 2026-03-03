@@ -3,6 +3,7 @@
     "description": "Beschreibung",
     "key": "Name",
     "name": "Name",
+    "team": "Team",
     "value": "Wert"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Verbindungen suchen",
     "test": "Verbindung testen",
     "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten.",
+    "testError": {
+      "title": "Verbindungstest fehlgeschlagen"
+    },
+    "testSuccess": {
+      "title": "Verbindungstest erfolgreich"
+    },
     "typeMeta": {
       "error": "Fehler beim Abrufen der Liste der Verbindungstypen",
       "standardFields": {
@@ -73,6 +80,23 @@
   },
   "formActions": {
     "save": "Speichern"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Klasse",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job-Typ",
+      "latestHeartbeat": "Letztes Lebenszeichen",
+      "unixname": "Unix-Name"
+    },
+    "filters": {
+      "allStates": "Alle Zustände",
+      "allTypes": "Alle Job-Typen",
+      "dagProcessorJob": "Dag-Prozessor-Job",
+      "schedulerJob": "Scheduler-Job",
+      "triggererJob": "Triggerer-Job"
+    }
   },
   "plugins": {
     "columns": {

@@ -91,6 +91,8 @@ BASIC_SPHINX_EXTENSIONS = [
     "redirects",
     "substitution_extensions",
     "sphinx_design",
+    "pagefind_search",
+    "metrics_tables_from_registry",
 ]
 
 SPHINX_REDOC_EXTENSIONS = [

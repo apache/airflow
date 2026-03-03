@@ -29,7 +29,8 @@
   "poolSlots": "풀 슬롯",
   "sortBy": {
     "newestFirst": "최신순",
-    "oldestFirst": "오래된 순"
+    "oldestFirst": "오래된 순",
+    "placeholder": "정렬 기준"
   },
   "source": "소스",
   "stats": {

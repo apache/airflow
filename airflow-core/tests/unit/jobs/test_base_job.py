@@ -26,9 +26,7 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
-from airflow.executors.local_executor import LocalExecutor
-from airflow.jobs.job import Job, most_recent_job, perform_heartbeat, run_job
-from airflow.listeners.listener import get_listener_manager
+from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -68,11 +66,11 @@ class TestJob:
         assert job.state == State.SUCCESS
         assert job.end_date is not None
 
-    def test_base_job_respects_plugin_lifecycle(self, dag_maker):
+    def test_base_job_respects_plugin_lifecycle(self, dag_maker, listener_manager):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
         """
-        get_listener_manager().add_listener(lifecycle_listener)
+        listener_manager(lifecycle_listener)
 
         job = Job()
         job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))
@@ -200,7 +198,7 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob"])
+    @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob", "DagProcessorJob"])
     def test_is_alive_scheduler(self, job_type):
         job = Job(heartrate=10, state=State.RUNNING, job_type=job_type)
         assert job.is_alive() is True
@@ -244,16 +242,11 @@ class TestJob:
             ("scheduler", "max_tis_per_query"): "100",
         }
     )
-    @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
-    @patch("airflow.jobs.job.ExecutorLoader.init_executors")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")
-    def test_essential_attr(self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor):
-        mock_local_executor = LocalExecutor()
+    def test_essential_attr(self, mock_getuser, mock_hostname):
         mock_hostname.return_value = "test_hostname"
         mock_getuser.return_value = "testuser"
-        mock_default_executor.return_value = mock_local_executor
-        mock_init_executors.return_value = [mock_local_executor]
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
@@ -263,8 +256,6 @@ class TestJob:
         assert test_job.max_tis_per_query == 100
         assert test_job.unixname == "testuser"
         assert test_job.state == "running"
-        assert test_job.executor == mock_local_executor
-        assert test_job.executors == [mock_local_executor]
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
@@ -282,3 +273,18 @@ class TestJob:
             hb_callback.reset_mock()
             perform_heartbeat(job=job, heartbeat_callback=hb_callback, only_if_necessary=True)
             assert hb_callback.called is False
+
+    @pytest.mark.parametrize(
+        ("job_type", "config_section", "config_key", "threshold_value"),
+        [
+            ("DagProcessorJob", "dag_processor", "health_check_threshold", 120),
+            ("SchedulerJob", "scheduler", "scheduler_health_check_threshold", 180),
+            ("TriggererJob", "triggerer", "triggerer_health_check_threshold", 90),
+        ],
+    )
+    def test_health_check_threshold(self, job_type, config_section, config_key, threshold_value):
+        with conf_vars({(config_section, config_key): str(threshold_value)}):
+            assert health_check_threshold(job_type, 30) == threshold_value
+
+    def test_health_check_threshold_unknown_job_uses_heartrate_fallback(self):
+        assert health_check_threshold("UnknownJob", 30) == 30 * 2.1

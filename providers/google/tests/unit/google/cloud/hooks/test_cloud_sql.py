@@ -33,7 +33,7 @@ from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
 from yarl import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 

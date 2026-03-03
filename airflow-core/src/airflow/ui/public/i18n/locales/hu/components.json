@@ -82,7 +82,7 @@
     "downloadImage": "Gráf kép letöltése",
     "downloadImageError": "A gráf letöltése sikertelen.",
     "downloadImageErrorTitle": "Sikertelen letöltés",
-    "otherDagRuns": "+További DAG futások",
+    "otherDagRuns": "+További Dag futások",
     "taskCount_one": "{{count}} feladat",
     "taskCount_other": "{{count}} feladat",
     "taskGroup": "Feladatcsoport"
@@ -110,7 +110,7 @@
   "triggerDag": {
     "button": "Indítás",
     "loading": "Dag információk betöltése...",
-    "loadingFailed": "A DAG információk betöltése sikertelen. Kérem, próbálja újra.",
+    "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
     "selectDescription": "Indítsd el ennek a Dag-nek egyetlen futását",
     "selectLabel": "Egyszeri futás",

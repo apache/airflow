@@ -30,9 +30,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf as airflow_conf
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -267,10 +265,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
-            if conn.port:
-                conn_data["master"] = f"{conn.host}:{conn.port}"
-            else:
+
+            # When connection is created from URI, the scheme (spark://, k8s://, etc.)
+            # is stored in conn_type, and conn.host contains only the hostname.
+            # When created from UI, conn_type is typically "spark" and conn.host
+            # may contain the full master URL (e.g., k8s://https://host).
+            if conn.conn_type == "spark" and conn.host and ("://" in conn.host or not conn.port):
+                # UI-based spark connection where host contains the full master URL
                 conn_data["master"] = conn.host
+            else:
+                # Reconstruct URL with conn_type as protocol
+                conn_data["master"] = f"{conn.conn_type}://{conn.host or ''}"
+
+            # Append port if provided
+            conn_data["master"] = f"{conn_data['master']}:{conn.port}" if conn.port else conn_data["master"]
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson

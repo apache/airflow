@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Literal
 from docker import types
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
 

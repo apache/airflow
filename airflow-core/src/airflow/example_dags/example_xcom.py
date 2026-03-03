@@ -21,9 +21,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, task
+from airflow.sdk import DAG, XComArg, task
 
 value_1 = [1, 2, 3]
 value_2 = {"a": "b"}

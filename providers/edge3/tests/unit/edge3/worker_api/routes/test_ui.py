@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
@@ -34,7 +35,7 @@ pytestmark = pytest.mark.db_test
 class TestUiApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
-        session.query(EdgeWorkerModel).delete()
+        session.execute(delete(EdgeWorkerModel))
         session.add(EdgeWorkerModel(worker_name="worker1", queues=["default"], state=EdgeWorkerState.RUNNING))
         session.commit()
 

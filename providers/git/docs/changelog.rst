@@ -19,6 +19,80 @@
 Changelog
 ---------
 
+0.2.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GitDagBundle re-cloning on every task when prune_dotgit_folder is True (#61847)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+0.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix public repository access in GitDagBundle (#61343)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.2.2
+.....
+
+Misc
+~~~~
+
+* ``Git provider should require common-compat >=1.12.0 (#60985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add submodules to GitDagBundle (#59911)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Fix misleading error message when GitHook creation fails (#59084)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Updates to release process of providers (#58316)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.1.0
 .....
 

@@ -62,7 +62,7 @@ with DAG(
     sync_azure_files_with_gcs = AzureFileShareToGCSOperator(
         task_id="sync_azure_files_with_gcs",
         share_name=AZURE_SHARE_NAME,
-        dest_gcs=BUCKET_NAME,
+        dest_gcs=f"gs://{BUCKET_NAME}/",
         directory_path=AZURE_DIRECTORY_PATH,
         replace=False,
         gzip=True,

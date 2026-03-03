@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models import Trigger
 from airflow.models.callback import (
@@ -118,11 +119,11 @@ class TestTriggererCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING.value
+        assert retrieved.state == CallbackState.SCHEDULED.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -130,7 +131,7 @@ class TestTriggererCallback:
 
     def test_queue(self, session):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
-        assert callback.state == CallbackState.PENDING
+        assert callback.state == CallbackState.SCHEDULED
         assert callback.trigger is None
 
         callback.queue()
@@ -188,11 +189,11 @@ class TestExecutorCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING.value
+        assert retrieved.state == CallbackState.SCHEDULED.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -200,7 +201,7 @@ class TestExecutorCallback:
 
     def test_queue(self):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
-        assert callback.state == CallbackState.PENDING
+        assert callback.state == CallbackState.SCHEDULED
 
         callback.queue()
         assert callback.state == CallbackState.QUEUED

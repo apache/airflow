@@ -1,0 +1,43 @@
+Move serialization/deserialization (serde) logic into Task SDK
+
+Airflow now sources serde logic from ``airflow.sdk.serde`` instead of
+``airflow.serialization.serde``. Serializer modules have moved from ``airflow.serialization.serializers.*``
+to ``airflow.sdk.serde.serializers.*``. The old import paths still work but emit ``DeprecatedImportWarning``
+to guide migration. The backward compatibility layer will be removed in Airflow 4.
+
+**What changed:**
+
+- Serialization/deserialization code moved from ``airflow-core`` to ``task-sdk`` package
+- Serializer modules moved from ``airflow.serialization.serializers.*`` to ``airflow.sdk.serde.serializers.*``
+- New serializers should be added to ``airflow.sdk.serde.serializers.*`` namespace
+
+**Code interface changes:**
+
+- Import serializers from ``airflow.sdk.serde.serializers.*`` instead of ``airflow.serialization.serializers.*``
+- Import serialization functions from ``airflow.sdk.serde`` instead of ``airflow.serialization.serde``
+
+**Backward compatibility:**
+
+- Existing serializers importing from ``airflow.serialization.serializers.*`` continue to work with deprecation warnings
+- All existing serializers (builtin, datetime, pandas, numpy, etc.) are available at the new location
+
+**Migration:**
+
+- **For existing custom serializers**: Update imports to use ``airflow.sdk.serde.serializers.*``
+- **For new serializers**: Add them to ``airflow.sdk.serde.serializers.*`` namespace (e.g., create ``task-sdk/src/airflow/sdk/serde/serializers/your_serializer.py``)
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Import serializers from ``airflow.sdk.serde.serializers.*`` instead of ``airflow.serialization.serializers.*``
+  * Add new custom serializers to ``airflow.sdk.serde.serializers.*`` namespace

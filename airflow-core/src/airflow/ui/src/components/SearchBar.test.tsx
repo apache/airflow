@@ -25,13 +25,12 @@ import { SearchBar } from "./SearchBar";
 
 describe("Test SearchBar", () => {
   it("Renders and clear button works", async () => {
-    render(<SearchBar defaultValue="" onChange={vi.fn()} placeHolder="Search Dags" />, {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search Dags" />, {
       wrapper: Wrapper,
     });
 
     const input = screen.getByTestId("search-dags");
 
-    expect(screen.getByText("search.advanced")).toBeDefined();
     expect(screen.queryByTestId("clear-search")).toBeNull();
 
     fireEvent.change(input, { target: { value: "search" } });

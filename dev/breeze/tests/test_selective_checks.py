@@ -395,7 +395,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -439,7 +439,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -467,7 +467,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
                 },
-                id="Selected Providers and docs should run when system tests are modified",
+                id="Selected Providers should run when system tests are modified",
             )
         ),
         (
@@ -651,6 +651,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow-ctl/src/airflowctl/random.py",),
+                {
+                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-api-tests": "false",
+                    "run-helm-tests": "false",
+                    "run-kubernetes-tests": "false",
+                    "run-unit-tests": "true",
+                    "run-airflow-ctl-tests": "true",
+                    "run-airflow-ctl-integration-tests": "true",
+                    "docs-build": "true",
+                    "full-tests-needed": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-providers-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "run-mypy": "true",
+                    "mypy-checks": "['mypy-airflow-ctl']",
+                },
+                id="Airflow CTL source file changed - Airflow CTL tests should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow-ctl-tests/tests/random.py",),
+                {
+                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-api-tests": "false",
+                    "run-helm-tests": "false",
+                    "run-kubernetes-tests": "false",
+                    "run-unit-tests": "false",
+                    "run-airflow-ctl-tests": "false",
+                    "run-airflow-ctl-integration-tests": "true",
+                    "docs-build": "false",
+                    "full-tests-needed": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-providers-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "run-mypy": "false",
+                    "mypy-checks": "[]",
+                },
+                id="Airflow CTL integration tests files changed - "
+                "Airflow CTL integration tests and prod image build should run but no other tests",
+            )
+        ),
+        (
+            pytest.param(
                 (
                     "chart/aaaa.txt",
                     "providers/postgres/tests/unit/postgres/file.py",
@@ -699,7 +754,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http informatica pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -720,31 +775,31 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...apache.livy",
-                                "test_types": "Providers[amazon] Providers[apache.livy]",
+                                "description": "amazon...atlassian.jir",
+                                "test_types": "Providers[amazon] Providers[apache.livy] Providers[atlassian.jira]",
                             },
                             {
-                                "description": "atlassian.jir...common.compat",
-                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
+                                "description": "common.compat...dbt.cloud",
+                                "test_types": "Providers[common.compat] Providers[dbt.cloud]",
                             },
                             {
-                                "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                                "description": "dingding...discord",
+                                "test_types": "Providers[dingding] Providers[discord]",
                             },
                             {
-                                "description": "discord...google",
-                                "test_types": "Providers[discord] Providers[google]",
+                                "description": "google...http",
+                                "test_types": "Providers[google] Providers[http]",
                             },
                             {
-                                "description": "http...pagerduty",
-                                "test_types": "Providers[http] Providers[pagerduty]",
+                                "description": "informatica...pagerduty",
+                                "test_types": "Providers[informatica] Providers[pagerduty]",
                             },
                         ]
                     ),
@@ -809,15 +864,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-helm-tests": "true",
-                    "run-unit-tests": "true",
+                    "run-unit-tests": "false",
                     "docs-build": "true",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "Always", "test_types": "Always"}]
-                    ),
                     "providers-test-types-list-as-strings-in-json": None,
                     "run-mypy": "false",
                     "mypy-checks": "[]",
@@ -866,7 +918,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
-                "docs-build": "true",
+                "docs-build": "false",
                 # no python files changed so flynt should not run
                 "skip-prek-hooks": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
@@ -904,7 +956,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -979,7 +1031,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
@@ -1087,7 +1139,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
+                    "prod-image-build": "true",
                     "docs-build": "false",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS,
@@ -1096,6 +1148,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "[]",
                     "run-helm-tests": "false",
                     "run-ui-tests": "true",
+                    "run-ui-e2e-tests": "true",
                     "run-unit-tests": "false",
                     "run-go-sdk-tests": "false",
                     "run-airflow-ctl-tests": "false",
@@ -1137,7 +1190,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
                 "run-helm-tests": "true",
-                "run-unit-tests": "true",
+                "run-unit-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
@@ -1265,7 +1318,7 @@ def test_excluded_providers():
         {
             "excluded-providers-as-string": json.dumps(
                 {
-                    "3.13": ["apache.beam", "apache.kafka", "fab", "yandex", "ydb"],
+                    "3.13": ["fab"],
                 }
             ),
         },
@@ -1808,12 +1861,26 @@ def test_expected_output_pull_request_v2_7(
         ),
     ],
 )
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
 def test_expected_output_push(
+    mock_get,
     files: tuple[str, ...],
     pr_labels: tuple[str, ...],
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
+    # Mock GitHub API calls for runner_type property (used in PUSH events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -1878,7 +1945,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.sql "
+                "cncf.kubernetes common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1890,7 +1957,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
@@ -1904,7 +1971,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
-                            "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
+                            "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google] "
@@ -1977,10 +2044,7 @@ def test_expected_output_push(
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
-                "docs-build": "true",
-                "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
-                "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage oracle postgres sftp snowflake standard trino",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -2026,7 +2090,20 @@ def test_expected_output_pull_request_target(
         GithubEvents.SCHEDULE,
     ],
 )
-def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
+def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
+    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=(),
         commit_ref="",
@@ -2062,7 +2139,20 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         GithubEvents.SCHEDULE,
     ],
 )
-def test_files_provided_trigger_full_build_for_any_event_type(github_event):
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
+def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
+    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=(
             "airflow-core/src/airflow/ui/src/pages/Run/Details.tsx",
@@ -2149,7 +2239,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp http "
+                "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
             },
@@ -2158,8 +2248,8 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
+                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -2525,6 +2615,7 @@ def test_get_job_label(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
@@ -2554,6 +2645,7 @@ def test_get_job_label_not_found(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests (ubuntu-22.04)", "labels": []},
@@ -2566,6 +2658,57 @@ def test_get_job_label_not_found(mock_get):
     result = selective_checks.get_job_label("push", "main")
 
     assert result is None
+
+
+@pytest.mark.parametrize(
+    ("workflow_status", "jobs_status", "expected_result"),
+    [
+        pytest.param(504, 200, None, id="workflow_api_504_error"),
+        pytest.param(200, 503, None, id="jobs_api_503_error"),
+        pytest.param(200, 200, "ubuntu-22.04", id="both_apis_200_success"),
+    ],
+)
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_api_status_codes(
+    mock_get, workflow_status, jobs_status, expected_result, json_decode_error
+):
+    """Test that get_job_label handles various HTTP status codes correctly."""
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = workflow_status
+    if workflow_status == 200:
+        workflow_response.json.return_value = {
+            "workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]
+        }
+    else:
+        workflow_response.json.side_effect = json_decode_error
+        workflow_response.text = "<html>Gateway Timeout</html>"
+
+    jobs_response = Mock()
+    jobs_response.status_code = jobs_status
+    if jobs_status == 200:
+        jobs_response.json.return_value = {
+            "jobs": [
+                {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+                {"name": "Other job", "labels": ["ubuntu-22.04"]},
+            ]
+        }
+    else:
+        jobs_response.json.side_effect = json_decode_error
+        jobs_response.text = "<html>Service Unavailable</html>"
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == expected_result
 
 
 def test_runner_type_pr():
@@ -2591,6 +2734,7 @@ def test_runner_type_schedule(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
@@ -2777,7 +2921,7 @@ def test_testable_providers_integrations_excludes_disabled():
     ):
         # Test with AMD runner - should exclude mssql (disabled for all CI)
         selective_checks_amd = SelectiveChecks(
-            files=("providers/tests/test_example.py",),
+            files=("providers/amazon/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
         )

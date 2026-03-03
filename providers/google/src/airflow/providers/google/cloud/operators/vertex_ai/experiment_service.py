@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from google.api_core import exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.experiment_service import (
     ExperimentHook,
     ExperimentRunHook,

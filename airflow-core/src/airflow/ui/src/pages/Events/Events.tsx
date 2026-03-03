@@ -19,7 +19,6 @@
 import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -159,7 +158,7 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const Events = () => {
-  const { t: translate } = useTranslation("browse");
+  const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -208,10 +207,7 @@ export const Events = () => {
     undefined,
   );
 
-  const columns = useMemo(
-    () => eventsColumn({ dagId, open, runId, taskId }, translate),
-    [dagId, open, runId, taskId, translate],
-  );
+  const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
 
   return (
     <VStack alignItems="stretch">
@@ -221,8 +217,8 @@ export const Events = () => {
       <Flex alignItems="center" justifyContent="space-between">
         <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
         <ExpandCollapseButtons
-          collapseLabel={translate("auditLog.actions.collapseAllExtra")}
-          expandLabel={translate("auditLog.actions.expandAllExtra")}
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
           onCollapse={onClose}
           onExpand={onOpen}
         />
@@ -236,8 +232,9 @@ export const Events = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("auditLog.columns.event")}
+        modelName="browse:auditLog.columns.event"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

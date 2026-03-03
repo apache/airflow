@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Iterator
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
@@ -33,10 +33,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 @provide_session
@@ -72,14 +70,20 @@ def set_state(
     :param commit: Commit tasks to be altered to the database
     :param session: database session
     :return: list of tasks that have been created and updated
+
+    TODO: "past" and "future" params currently depend on logical date, which is not always populated.
+      we might want to just deprecate these options.  Or alter them to do *something* in that case.
     """
     if not tasks:
         return []
 
-    task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
+    task_dags = {
+        (dag.dag_id if dag else None): dag
+        for dag in (task[0].dag if isinstance(task, tuple) else task.dag for task in tasks)
+    }
     if len(task_dags) > 1:
         raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
-    dag = next(iter(task_dags))
+    dag = next(iter(task_dags.values()))
     if dag is None:
         raise ValueError("Received tasks with no DAG")
     if not run_id:
@@ -181,9 +185,12 @@ def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, sessi
     elif not dag.timetable.periodic:
         run_ids = [run_id]
     else:
-        dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
-        ]
+        dates = {current_logical_date}
+        dates.update(
+            info.logical_date
+            for info in dag.iter_dagrun_infos_between(start_date, end_date)
+            if info.logical_date  # todo: AIP-76 this will not find anything where logical date is null
+        )
         run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, logical_date=dates, session=session)]
     return run_ids
 
@@ -310,11 +317,11 @@ def set_dag_run_state_to_failed(
     # Do not kill teardown tasks
     task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
 
-    def _set_runing_task(task: Operator) -> Operator:
+    def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
         return task
 
-    running_tasks = [_set_runing_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
+    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = list(

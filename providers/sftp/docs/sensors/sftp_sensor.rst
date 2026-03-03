@@ -30,14 +30,26 @@ To get more information about this sensor visit :class:`~airflow.providers.sftp.
 
 We can also use TaskFlow API. It takes the same arguments as the :class:`~airflow.providers.sftp.sensors.sftp.SFTPSensor` along with -
 
-op_args (optional)
-    A list of positional arguments that will get unpacked when
-    calling your callable (templated)
-op_kwargs (optional)
-    A dictionary of keyword arguments that will get unpacked
-    in your function (templated)
+python_callable (optional)
+    A callable that will be executed after files matching the sensor criteria are found.
+    This allows you to process the found files with custom logic. The callable receives:
 
-Whatever returned by the python callable is put into XCom.
+    - Positional arguments from ``op_args``
+    - Keyword arguments from ``op_kwargs``, with ``files_found`` automatically added
+      (if ``op_kwargs`` is provided and not empty) containing the list of files that matched
+      the sensor criteria
+
+    The return value of the callable is stored in XCom along with the ``files_found`` list,
+    accessible via ``{"files_found": [...], "decorator_return_value": <callable_return_value>}``.
+
+op_args (optional)
+    A list of positional arguments that will get unpacked when calling your callable (templated).
+    Only used when ``python_callable`` is provided.
+
+op_kwargs (optional)
+    A dictionary of keyword arguments that will get unpacked in your function (templated).
+    If provided and not empty, the ``files_found`` list is automatically added to this dictionary
+    when the callable is invoked. Only used when ``python_callable`` is provided.
 
 .. exampleinclude:: /../../sftp/tests/system/sftp/example_sftp_sensor.py
     :language: python

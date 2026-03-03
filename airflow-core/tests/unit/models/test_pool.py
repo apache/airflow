@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
-from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -37,6 +37,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     set_default_pool_slots,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -187,9 +188,9 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
         dag_version = DagVersion.get_latest_version(dr.dag_id)
-        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti1 = create_task_instance(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
-        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti2 = create_task_instance(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti2.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
@@ -237,9 +238,9 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
         dag_version = DagVersion.get_latest_version(dr.dag_id)
-        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti3 = TI(task=op3, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti1 = create_task_instance(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti2 = create_task_instance(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti3 = create_task_instance(task=op3, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.refresh_from_db()
@@ -292,7 +293,7 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is True
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self, session):
         self.add_pools()
@@ -303,13 +304,13 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is False
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT
 
     def test_delete_pool(self, session):
         self.add_pools()
         pool = Pool.delete_pool(name=self.pools[-1].pool)
         assert pool.pool == self.pools[-1].pool
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT - 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT - 1
 
     def test_delete_pool_non_existing(self):
         with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
@@ -319,26 +320,39 @@ class TestPool:
         with pytest.raises(AirflowException, match="^default_pool cannot be deleted$"):
             Pool.delete_pool(Pool.DEFAULT_POOL_NAME)
 
-    def test_is_default_pool(self):
-        pool = Pool.create_or_update_pool(
-            name="not_default_pool", slots=1, description="test", include_deferred=False
-        )
-        default_pool = Pool.get_default_pool()
-        assert not Pool.is_default_pool(id=pool.id)
-        assert Pool.is_default_pool(str(default_pool.id))
-
     def test_get_team_name(self, testing_team: Team, session: Session):
-        pool = Pool(pool="test", include_deferred=False, team_id=testing_team.id)
+        pool = Pool(pool="test", include_deferred=False, team_name=testing_team.name)
         session.add(pool)
         session.flush()
 
         assert Pool.get_team_name("test", session=session) == "testing"
 
     def test_get_name_to_team_name_mapping(self, testing_team: Team, session: Session):
-        pool1 = Pool(pool="pool1", include_deferred=False, team_id=testing_team.id)
+        pool1 = Pool(pool="pool1", include_deferred=False, team_name=testing_team.name)
         pool2 = Pool(pool="pool2", include_deferred=False)
         session.add(pool1)
         session.add(pool2)
         session.flush()
 
-        assert Pool.get_name_to_team_name_mapping(["pool1", "pool2"], session=session) == {"pool1": "testing"}
+        assert Pool.get_name_to_team_name_mapping(["pool1", "pool2"], session=session) == {
+            "pool1": "testing",
+            "pool2": None,
+        }
+
+
+@pytest.mark.parametrize(
+    ("input_name", "expected_output"),
+    [
+        ("valid_name", "valid_name"),
+        ("valid.name", "valid.name"),
+        ("VALID-NAME", "VALID-NAME"),
+        ("valid_name_123", "valid_name_123"),
+        ("invalid name", "invalid_name"),
+        ("invalid@name!", "invalid_name_"),
+        ("invalid/name", "invalid_name"),
+    ],
+)
+def test_normalize_pool_name_for_stats(input_name, expected_output, caplog):
+    assert normalize_pool_name_for_stats(input_name) == expected_output
+    if input_name != expected_output:
+        assert f"Pool name '{input_name}' contains invalid characters" in caplog.text

@@ -28,6 +28,7 @@
     "requiredActions": "פעולות נדרשות",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "כווץ תוכן JSON",
   "collapseDetailsPanel": "כווץ לוח פרטים",
   "createdAssetEvent_one": "אירוע נכס שנוצר",
   "createdAssetEvent_other": "אירועי נכס שנוצרו",
@@ -64,6 +65,7 @@
     "dataIntervalEnd": "סיום מקטע נתונים",
     "dataIntervalStart": "תחילת מקטע נתונים",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
+    "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",
     "runAfter": "ריצה לאחר",
     "runType": "סוג ריצה",
@@ -78,6 +80,11 @@
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "delete": "מחק",
+  "diff": "השוואה",
+  "diffCompareWith": "השווה עם",
+  "diffExit": "צא מהשוואה",
+  "diffSelectVersionToCompare": "בחר גרסה להשוואה",
   "direction": "כיוון",
   "docs": {
     "documentation": "תיעוד",
@@ -90,11 +97,13 @@
     "tooltip": "לחץ {{hotkey}} להורדת רישומים"
   },
   "duration": "משך זמן",
+  "edit": "ערוך",
   "endDate": "תאריך סיום",
   "error": {
     "back": "חזור",
     "defaultMessage": "התרחשה שגיאה בלתי צפויה",
     "home": "דף הבית",
+    "invalidUrl": "הדף לא נמצא. בדוק את הכתובת ונסה שוב.",
     "notFound": "הדף לא נמצא",
     "title": "שגיאה"
   },
@@ -104,6 +113,7 @@
     "hotkey": "e",
     "tooltip": "לחץ {{hotkey}} לכיווץ או הרחבה"
   },
+  "expandAllExtra": "הרחב תוכן JSON",
   "expression": {
     "all": "הכל",
     "and": "וגם",
@@ -114,22 +124,27 @@
   "filters": {
     "durationFrom": "משך זמן מ-",
     "durationTo": "משך זמן עד",
+    "endTime": "זמן סיום",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
-    "runAfterTo": "ריצה לאחר (עד תאריך)"
+    "runAfterTo": "ריצה לאחר (עד תאריך)",
+    "selectDateRange": "בחר טווח תאריכים",
+    "startTime": "זמן התחלה"
   },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
   "mapIndex": "אינדקס מיפוי",
   "modal": {
+    "add": "הוסף",
     "cancel": "ביטול",
     "confirm": "אישור",
     "delete": {
       "button": "מחק",
       "confirmation": "האם אתה בטוח שברצונך למחוק את {{resourceName}}? פעולה זו אינה הפיכה"
-    }
+    },
+    "save": "שמור"
   },
   "nav": {
     "admin": "ניהול",
@@ -149,16 +164,6 @@
     "label": "הערה",
     "placeholder": "הוסף הערה...",
     "taskInstance": "הערת משימה"
-  },
-  "pools": {
-    "deferred": "בהשהייה",
-    "open": "פתוח",
-    "pools_one": "מאגר משאבים",
-    "pools_other": "מאגרי משאבים",
-    "pools_two": "מאגרי משאבים",
-    "queued": "בתור",
-    "running": "בריצה",
-    "scheduled": "מתוזמן"
   },
   "reset": "אתחל",
   "runId": "מזהה ריצה",
@@ -184,6 +189,7 @@
   },
   "selectLanguage": "בחר שפה",
   "showDetailsPanel": "הצג לוח פרטים",
+  "signedInAs": "מחובר כ",
   "source": {
     "hide": "הסתר מקור",
     "hotkey": "s",
@@ -199,6 +205,7 @@
     "failed": "נכשלו",
     "no_status": "ללא סטטוס",
     "none": "ללא סטטוס",
+    "open": "פנוי",
     "planned": "בתכנון",
     "queued": "בתור",
     "removed": "הוסרו",

@@ -215,7 +215,7 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
 
     render_k8s_pod_yaml.return_value = {"I'm a": "pod", "secret": "password123"}
 
-    rtif = RTIF(ti=ti)
+    rtif = RTIF(ti=ti, render_templates=False)
 
     assert ti.dag_id == rtif.dag_id
     assert ti.task_id == rtif.task_id

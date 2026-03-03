@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import Table
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.db import initdb
 from airflow.utils.db_manager import RunDBManager
 
@@ -38,7 +38,7 @@ class TestRunDBManagerWithFab:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
         run_db_manager = RunDBManager()
-        assert run_db_manager._managers == [FABDBManager]
+        assert FABDBManager in run_db_manager._managers
 
     @conf_vars(
         {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}

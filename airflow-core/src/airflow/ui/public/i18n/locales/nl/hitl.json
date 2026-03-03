@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Body",
-    "createdAtFrom": "Aangemaakt vanaf",
-    "createdAtTo": "Aangemaakt tot",
+    "createdAt": "Aangemaakt op",
     "response": {
       "all": "Alle",
       "pending": "In afwachting",

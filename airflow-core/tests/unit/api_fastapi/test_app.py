@@ -113,8 +113,30 @@ def test_catch_all_route_last(client):
 )
 def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
     app = FastAPI()
-    with mock.patch.object(plugins_manager, "fastapi_apps", fastapi_apps):
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
         app_module.init_plugins(app)
 
     assert any(expected_message in rec.message for rec in caplog.records)
     assert not any(r.path == invalid_path for r in app.routes)
+
+
+class TestGetCookiePath:
+    def test_default_returns_slash(self):
+        """When no base_url is configured, get_cookie_path() should return '/'."""
+        with mock.patch.object(app_module, "API_ROOT_PATH", "/"):
+            assert app_module.get_cookie_path() == "/"
+
+    def test_empty_returns_slash(self):
+        """When API_ROOT_PATH is empty, get_cookie_path() should return '/'."""
+        with mock.patch.object(app_module, "API_ROOT_PATH", ""):
+            assert app_module.get_cookie_path() == "/"
+
+    def test_subpath(self):
+        """When base_url contains a subpath, get_cookie_path() should return it."""
+        with mock.patch.object(app_module, "API_ROOT_PATH", "/team-a/"):
+            assert app_module.get_cookie_path() == "/team-a/"
+
+    def test_nested_subpath(self):
+        """When base_url contains a nested subpath, get_cookie_path() should return it."""
+        with mock.patch.object(app_module, "API_ROOT_PATH", "/org/team-a/airflow/"):
+            assert app_module.get_cookie_path() == "/org/team-a/airflow/"

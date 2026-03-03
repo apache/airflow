@@ -31,7 +31,6 @@ import pytest
 from moto import mock_aws
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -54,11 +53,13 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -590,6 +591,53 @@ class TestS3CopyObjectOperator:
         )
         validate_template_fields(operator)
 
+    @mock_aws
+    def test_s3_copy_object_with_kms(self, monkeypatch):
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.source_bucket)
+        conn.create_bucket(Bucket=self.dest_bucket)
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=BytesIO(b"input"))
+        kms_key_id = "arn:aws:kms:us-east-1:123456789012:key/abcd1234"
+
+        def fake_copy_object(
+            self_hook,
+            source_bucket_key,
+            dest_bucket_key,
+            source_bucket_name=None,
+            dest_bucket_name=None,
+            source_version_id=None,
+            acl_policy=None,
+            meta_data_directive=None,
+            kms_key_id=None,
+            kms_encryption_type=None,
+            **kwargs,
+        ):
+            copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key}
+            self_hook.get_conn().copy_object(
+                Bucket=dest_bucket_name,
+                Key=dest_bucket_key,
+                CopySource=copy_source,
+                SSEKMSKeyId=kms_key_id,
+                ServerSideEncryption=kms_encryption_type,
+                **kwargs,
+            )
+
+        monkeypatch.setattr(S3Hook, "copy_object", fake_copy_object)
+        op = S3CopyObjectOperator(
+            task_id="test_task_s3_copy_object_kms",
+            source_bucket_key=self.source_key,
+            source_bucket_name=self.source_bucket,
+            dest_bucket_key=self.dest_key,
+            dest_bucket_name=self.dest_bucket,
+            kms_key_id=kms_key_id,
+            kms_encryption_type="aws:kms",
+        )
+        op.execute(None)
+
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
+
 
 @mock_aws
 class TestS3DeleteObjectsOperator:
@@ -672,22 +720,19 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=utcnow(),
             )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-
-        ti.render_templates(context)
-        op.execute(None)
+        rendered = render_template_fields(ti, op)
+        rendered.execute(None)
         assert "Contents" not in conn.list_objects(Bucket=bucket)
 
     def test_s3_delete_from_to_datetime(self):

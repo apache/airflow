@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate common provider to use airflow.sdk.configuration.conf (#59989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
 1.7.0
 .....
 

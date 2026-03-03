@@ -118,6 +118,8 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
+    AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
+    BREEZE_INTEGRATION_TEST_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -153,14 +155,22 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
-            r"^dev/breeze",
-            r"^dev/.*\.py$",
+            r"^dev/breeze/src",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
+            r"^dev/(?!breeze/tests/).*\.py$",
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
+        ],
+        FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES: [
+            r"^dev/breeze/src/.*",
+            r"^dev/breeze/tests/.*_integration\.py",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -200,20 +210,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^docs",
             r"^devel-common/src/docs",
             r"^\.github/SECURITY\.md",
-            r"^airflow-core/src/.*\.py$",
-            r"^airflow-core/docs/",
-            r"^providers/.*/src/",
-            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
+            r"^providers/.*/src/.*\.py$",
+            r"^providers/.*/tests/system/.*\.py$",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
             r"^chart",
             r"^task-sdk/docs/",
-            r"^task-sdk/src/",
-            r"^airflow-ctl/src/",
-            r"^airflow-core/tests/system",
-            r"^airflow-ctl/src",
+            r"^task-sdk/src/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^airflow-core/docs/",
+            r"^airflow-core/src/.*\.py$",
+            r"^airflow-core/tests/system/.*\.py$",
             r"^airflow-ctl/docs",
+            r"^airflow-ctl/src/.*\.py$",
+            r"^airflow-ctl/tests/.*\.py$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -254,14 +265,20 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
-            r"^airflow-core/.*",
-            r"^airflow-ctl/.*",
-            r"^chart/.*",
-            r"^providers/.*",
-            r"^task-sdk/.*",
-            r"^devel-common/.*",
-            r"^kubernetes-tests/.*",
-            r"^docker-tests/.*",
+            r"^airflow-core/src/.*",
+            r"^airflow-core/tests/.*",
+            r"^airflow-ctl/src/.*",
+            r"^airflow-ctl/tests/.*",
+            r"^chart/templates/.*",
+            r"^providers/.*/src/.*",
+            r"^providers/.*/tests/.*",
+            r"^task-sdk/src/.*",
+            r"^task-sdk/tests/.*",
+            r"^devel-common/src/.*",
+            r"^devel-common/tests/.*",
+            r"^helm-tests/tests/.*",
+            r"^kubernetes-tests/tests/.*",
+            r"^docker-tests/tests/.*",
             r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -306,6 +323,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES: [
+            r"^airflow-ctl-tests/.*\.py$",
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
@@ -406,9 +426,25 @@ def _matching_files(
     return matched_files
 
 
-# TODO: In Python 3.12 we will be able to use itertools.batched
 def _split_list(input_list, n) -> list[list[str]]:
-    """Splits input_list into n sub-lists."""
+    """
+    Splits input_list into exactly n sub-lists, distributing items as evenly as possible.
+
+    Note: This cannot be replaced with itertools.batched (Python 3.12+) as it creates
+    batches of a fixed SIZE, whereas this function creates a fixed NUMBER of groups.
+
+    Args:
+        input_list: List to split
+        n: Number of sub-lists to create (output will always have exactly n lists)
+
+    Returns:
+        List containing exactly n sub-lists with items distributed as evenly as possible.
+        Some sub-lists may be empty if n > len(input_list).
+
+    Example:
+        >>> _split_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3)
+        [[1, 2, 3, 4], [5, 6, 7], [8, 9, 10]]
+    """
     it = iter(input_list)
     return [
         list(itertools.islice(it, i))
@@ -865,7 +901,15 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
+    def run_breeze_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES)
+
+    @cached_property
     def run_ui_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
+    def run_ui_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
@@ -894,6 +938,12 @@ class SelectiveChecks:
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
+
+    @cached_property
+    def run_airflow_ctl_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
+            FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
+        )
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -947,6 +997,7 @@ class SelectiveChecks:
             or self.docs_build
             or self.run_kubernetes_tests
             or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
@@ -955,7 +1006,13 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.run_helm_tests or self.run_task_sdk_integration_tests
+        return (
+            self.run_kubernetes_tests
+            or self.run_helm_tests
+            or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
+            or self.run_ui_e2e_tests
+        )
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
@@ -1165,7 +1222,6 @@ class SelectiveChecks:
             return None
         # We are hard-coding the number of lists as reasonable starting point to split the
         # list of test types - and we can modify it in the future
-        # TODO: In Python 3.12 we will be able to use itertools.batched
         if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
             return json.dumps(_get_test_list_as_json([current_test_types]))
         list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
@@ -1400,7 +1456,11 @@ class SelectiveChecks:
 
         response = requests.get(url, headers=headers, params=payload)
         if response.status_code != 200:
-            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            try:
+                error_msg = response.json()
+            except ValueError:
+                error_msg = response.text[:200]  # Truncate long HTML responses
+            get_console().print(f"[red]Error while listing workflow runs error: {error_msg}.\n")
             return None
         runs = response.json().get("workflow_runs", [])
         if not runs:
@@ -1410,6 +1470,13 @@ class SelectiveChecks:
             return None
         jobs_url = runs[0].get("jobs_url")
         jobs_response = requests.get(jobs_url, headers=headers)
+        if jobs_response.status_code != 200:
+            try:
+                error_msg = jobs_response.json()
+            except ValueError:
+                error_msg = jobs_response.text[:200]
+            get_console().print(f"[red]Error while listing jobs error: {error_msg}.\n")
+            return None
         jobs = jobs_response.json().get("jobs", [])
         if not jobs:
             get_console().print("[yellow]No jobs information found for jobs %s.\n", jobs_url)
@@ -1798,7 +1865,7 @@ class SelectiveChecks:
         # Check if dependency line contains both the package and the comment
         for line in result.stdout.splitlines():
             if "apache-airflow-providers-common-compat" in line.lower():
-                return "# use next version" in line.lower()
+                return bool(re.search(r"#\s*use next version", line, re.IGNORECASE))
         return True  # If dependency not found, don't flag as violation
 
     def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:

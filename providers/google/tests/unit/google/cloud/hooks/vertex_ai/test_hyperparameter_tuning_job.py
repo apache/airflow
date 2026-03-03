@@ -32,7 +32,7 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.cloud.aiplatform_v1 import JobState
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobAsyncHook,
     HyperparameterTuningJobHook,

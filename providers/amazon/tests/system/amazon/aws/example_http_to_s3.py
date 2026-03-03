@@ -20,7 +20,12 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
-from airflow.providers.standard.operators.bash import BashOperator
+
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    # Fallback for older Airflow versions
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
 
 from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -78,7 +83,6 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]

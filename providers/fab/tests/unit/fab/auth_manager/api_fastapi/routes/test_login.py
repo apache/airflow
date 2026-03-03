@@ -22,12 +22,14 @@ from unittest.mock import patch
 import pytest
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+
+SUBPATH = "/team-a/"
 
 
 @pytest.mark.db_test
 class TestLogin:
-    dummy_login_body = LoginBody(username="dummy", password="dummy")
+    dummy_login_body = {"username": "dummy", "password": "dummy"}
     dummy_token = LoginResponse(access_token="DUMMY_TOKEN")
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
@@ -36,7 +38,7 @@ class TestLogin:
 
         response = test_client.post(
             "/token",
-            json=self.dummy_login_body.model_dump(),
+            json=self.dummy_login_body,
         )
         assert response.status_code == 201
         assert response.json()["access_token"] == self.dummy_token.access_token
@@ -47,7 +49,7 @@ class TestLogin:
 
         response = test_client.post(
             "/token/cli",
-            json=self.dummy_login_body.model_dump(),
+            json=self.dummy_login_body,
         )
         assert response.status_code == 201
         assert response.json()["access_token"] == self.dummy_token.access_token
@@ -59,3 +61,16 @@ class TestLogin:
         cookies = response.headers.get_list("set-cookie")
         assert any("session=" in c for c in cookies)
         assert any(f"{COOKIE_NAME_JWT_TOKEN}=" in c for c in cookies)
+
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_cookie_path", return_value=SUBPATH
+    )
+    def test_logout_cookie_uses_subpath(self, mock_cookie_path, test_client):
+        """Cookies on logout must be scoped to the configured subpath."""
+        response = test_client.get("/logout", follow_redirects=False)
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        session_cookie = next(c for c in cookies if "session=" in c)
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        assert f"Path={SUBPATH}" in session_cookie
+        assert f"Path={SUBPATH}" in token_cookie

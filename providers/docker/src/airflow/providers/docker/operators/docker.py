@@ -53,17 +53,29 @@ def stringify(line: str | bytes):
     """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
     decode_method = getattr(line, "decode", None)
     if decode_method:
-        return decode_method(encoding="utf-8", errors="surrogateescape")
+        return decode_method(encoding="utf-8", errors="replace")
     return line
 
 
 def fetch_logs(log_stream, log: Logger):
-    log_lines = []
+    log_lines: list[str] = []
+    buffer = ""
+
     for log_chunk_raw in log_stream:
-        log_chunk = stringify(log_chunk_raw).rstrip()
-        log_lines.append(log_chunk)
-        for log_chunk_line in log_chunk.split("\n"):
-            log.info("%s", log_chunk_line)
+        buffer += stringify(log_chunk_raw)
+        lines = buffer.split("\n")
+        buffer = lines.pop()  # Keep incomplete line for next iteration
+
+        for line in lines:
+            stripped_line = line.rstrip()
+            log.info("%s", stripped_line)
+            log_lines.append(stripped_line)
+
+    if buffer:
+        buffer = buffer.rstrip()
+        log.info("%s", buffer)
+        log_lines.append(buffer)
+
     return log_lines
 
 

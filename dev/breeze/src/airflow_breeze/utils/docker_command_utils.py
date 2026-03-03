@@ -21,7 +21,9 @@ from __future__ import annotations
 import copy
 import json
 import os
+import platform
 import re
+import subprocess
 import sys
 from functools import lru_cache
 from subprocess import DEVNULL, CompletedProcess
@@ -173,7 +175,7 @@ def check_docker_is_running():
     response = run_command(
         ["docker", "info"],
         no_output_dump_on_exception=True,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
@@ -181,6 +183,18 @@ def check_docker_is_running():
         get_console().print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
+        if response.stderr:
+            get_console().print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
+        if os.environ.get("CODESPACES", "").lower() == "true":
+            get_console().print(
+                "\n[info]It looks like you are running in a GitHub Codespace.[/]\n"
+                "[info]Try the following troubleshooting steps:[/]\n"
+                "  1. Check if the Docker socket exists: ls -la /var/run/docker.sock\n"
+                "  2. Check Docker socket permissions: groups $USER\n"
+                "  3. Try restarting the Codespace from the GitHub Codespaces dashboard\n"
+                "  4. If the issue persists, rebuild the devcontainer "
+                "(Command Palette -> 'Codespaces: Rebuild Container')\n"
+            )
         sys.exit(1)
 
 
@@ -230,7 +244,7 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
-def check_container_engine(quiet: bool = False):
+def check_container_engine_is_docker(quiet: bool = False) -> bool:
     """Checks if the container engine is Docker or podman."""
     response = run_command(
         ["docker", "version"],
@@ -254,10 +268,12 @@ def check_container_engine(quiet: bool = False):
     )
     if podman_engine_enabled:
         get_console().print(
-            "[error]Podman is not yet supported as a container engine in breeze.[/]\n"
-            "[warning]Please switch to Docker.[/]"
+            "[warning]Podman container engine detected.[/]\n"
+            "[warning]Podman container engine has not become fully supported in breeze yet.[/]"
         )
-        sys.exit(1)
+        return False
+    get_console().print("[success]Docker container engine detected.[/]")
+    return True
 
 
 def check_remote_ghcr_io_commands():
@@ -467,11 +483,11 @@ def construct_docker_push_command(
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
-    for platform in image_params.platforms:
+    for build_platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
-        platform_image_params.platform = platform
+        platform_image_params.platform = build_platform
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
@@ -516,6 +532,51 @@ def prepare_broker_url(params, env_variables):
         env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
+def check_windows_filesystem_mount(quiet: bool = False):
+    """
+    Checks if Airflow sources are on a Windows (NTFS) filesystem mounted via WSL2.
+
+    Airflow only works with POSIX-compliant filesystems. When sources are checked out on Windows
+    and accessed via /mnt/c (or similar) in WSL2, Docker bind mounts inherit the NTFS limitations:
+    broken permissions, missing executable bits, symlink issues, etc.
+
+    This check uses ``stat -f -c %T`` on the host to detect the filesystem type. On WSL2,
+    Windows drives mounted via Plan 9 (9p) protocol report as ``v9fs``, while native Linux
+    filesystems report as ``ext2/ext3``. This detection only works on the host side - inside
+    Docker containers, the 9p layer is abstracted away by Docker Desktop.
+    """
+    if platform.system().lower() != "linux":
+        return
+    try:
+        with open("/proc/version") as f:
+            if "microsoft" not in f.read().lower():
+                return
+    except FileNotFoundError:
+        return
+    result = subprocess.run(
+        ["stat", "-f", "-c", "%T", str(AIRFLOW_ROOT_PATH)],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    fs_type = result.stdout.strip()
+    if fs_type in ("v9fs", "9p"):
+        get_console().print(
+            f"[error]Airflow sources are on a Windows filesystem ({AIRFLOW_ROOT_PATH})![/]\n\n"
+            f"Airflow requires a POSIX-compliant filesystem. Running Breeze with sources on\n"
+            f"Windows (NTFS) mounted via WSL2 will cause permission errors, broken executable\n"
+            f"bits, and other issues with Docker bind mounts.\n\n"
+            f"Clone the repository inside WSL2 on a Linux filesystem instead:\n\n"
+            f"    git clone https://github.com/apache/airflow.git ~/airflow\n"
+            f"    cd ~/airflow\n"
+            f"    breeze\n"
+        )
+        sys.exit(1)
+    if get_verbose() and not quiet:
+        get_console().print(f"[success]Filesystem check passed (type: {fs_type})[/]")
+
+
 def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
@@ -538,10 +599,16 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    check_container_engine(quiet)
-    check_docker_version(quiet)
-    check_docker_compose_version(quiet)
-    check_executable_entrypoint_permissions(quiet)
+    container_engine_is_docker = check_container_engine_is_docker(quiet)
+    if not container_engine_is_docker:
+        get_console().print("[error]Unsupported container engine detected.[/]")
+        get_console().print("[error]Install and enable Docker to continue.[/]")
+        sys.exit(1)
+    else:
+        check_docker_version(quiet)
+        check_docker_compose_version(quiet)
+        check_windows_filesystem_mount(quiet)
+        check_executable_entrypoint_permissions(quiet)
     if not quiet:
         get_console().print(f"[success]Host python version is {sys.version}[/]")
 
@@ -559,7 +626,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     for image_params in image_params_list:
         platforms.add(image_params.platform)
     get_console().print(f"[info]Warming up the builder for platforms: {platforms}")
-    for platform in platforms:
+    for build_platform in platforms:
         docker_context = get_and_use_docker_context(image_params.builder)
         if docker_context == "default":
             return
@@ -567,12 +634,12 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
         get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
         warm_up_image_param = copy.deepcopy(image_params_list[0])
         warm_up_image_param.push = False
-        warm_up_image_param.platform = platform
+        warm_up_image_param.platform = build_platform
         build_command = prepare_base_build_command(image_params=warm_up_image_param)
         warm_up_command = []
         warm_up_command.extend(["docker"])
         warm_up_command.extend(build_command)
-        warm_up_command.extend(["--platform", platform, "-"])
+        warm_up_command.extend(["--platform", build_platform, "-"])
         warm_up_command_result = run_command(
             warm_up_command,
             input=f"""{docker_syntax}
@@ -765,6 +832,7 @@ def execute_command_in_shell(
     output: Output | None = None,
     signal_error: bool = True,
     preserve_backend: bool = False,
+    forward_ports: bool = False,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -774,7 +842,7 @@ def execute_command_in_shell(
     * backend - to force sqlite backend (unless preserve_backend=True)
     * clean_sql_db=True - to clean the sqlite DB
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
-      allow to avoid clashes with other commands and opened breeze shell
+      allow to avoid clashes with other commands and opened breeze shell (unless forward_ports=True is passed)
     * project_name - to avoid name clashes with default "breeze" project name used
     * quiet=True - avoid displaying all "interactive" parts of Breeze: ASCIIART, CHEATSHEET, some diagnostics
     * skip_environment_initialization - to avoid initializing interactive environment
@@ -790,10 +858,12 @@ def execute_command_in_shell(
     :param output: output configuration
     :param signal_error: whether to signal error
     :param preserve_backend: if True, preserve the backend specified in shell_params instead of forcing sqlite
+    :param forward_ports: if True, keep port forwarding enabled (for accessing services from host)
     """
     if not preserve_backend:
         shell_params.backend = "sqlite"
-    shell_params.forward_ports = False
+    if not forward_ports:
+        shell_params.forward_ports = False
     shell_params.project_name = project_name
     shell_params.quiet = True
     shell_params.skip_environment_initialization = True
@@ -803,7 +873,10 @@ def execute_command_in_shell(
             get_console().print("[warning]Sqlite DB is cleaned[/]")
         else:
             get_console().print(f"[info]Using backend: {shell_params.backend}[/]")
-        get_console().print("[warning]Disabled port forwarding[/]")
+        if forward_ports:
+            get_console().print("[info]Port forwarding enabled[/]")
+        else:
+            get_console().print("[warning]Disabled port forwarding[/]")
         get_console().print(f"[warning]Project name set to: {project_name}[/]")
         get_console().print("[warning]Forced quiet mode[/]")
         get_console().print("[warning]Forced skipping environment initialization[/]")
@@ -986,6 +1059,7 @@ def check_docker_buildx_plugin():
         check=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     if result_docker_buildx.returncode != 0:
         get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
@@ -994,7 +1068,7 @@ def check_docker_buildx_plugin():
         sys.exit(1)
     from packaging.version import Version
 
-    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v").split("-")[0]
     packaging_version = Version(version)
     if packaging_version < Version("0.13.0"):
         get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")

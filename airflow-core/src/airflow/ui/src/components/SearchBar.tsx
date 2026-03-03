@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Input, Kbd, type ButtonProps } from "@chakra-ui/react";
+import { CloseButton, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
 import { useState, useRef, type ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -25,28 +25,21 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { getMetaKey } from "src/utils";
 
-import { CloseButton, InputGroup, type InputGroupProps } from "./ui";
-
 const debounceDelay = 200;
 
 type Props = {
-  readonly buttonProps?: ButtonProps;
   readonly defaultValue: string;
-  readonly groupProps?: InputGroupProps;
-  readonly hideAdvanced?: boolean;
   readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;
-  readonly placeHolder: string;
-};
+  readonly placeholder: string;
+} & Omit<InputGroupProps, "children" | "onChange">;
 
 export const SearchBar = ({
-  buttonProps,
   defaultValue,
-  groupProps,
-  hideAdvanced = false,
   hotkeyDisabled = false,
   onChange,
-  placeHolder,
+  placeholder,
+  ...props
 }: Props) => {
   const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -68,8 +61,8 @@ export const SearchBar = ({
 
   return (
     <InputGroup
-      {...groupProps}
       colorPalette="brand"
+      {...props}
       endElement={
         <>
           {Boolean(value) ? (
@@ -84,11 +77,6 @@ export const SearchBar = ({
               size="xs"
             />
           ) : undefined}
-          {Boolean(hideAdvanced) ? undefined : (
-            <Button fontWeight="normal" height={28} variant="ghost" {...buttonProps}>
-              {translate("search.advanced")}
-            </Button>
-          )}
           {!hotkeyDisabled && (
             <Kbd size="sm">
               {metaKey}
@@ -102,7 +90,7 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder={placeHolder}
+        placeholder={placeholder}
         pr={150}
         ref={searchRef}
         value={value}

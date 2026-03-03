@@ -25,6 +25,7 @@
     "requiredActions": "Szükséges műveletek",
     "xcoms": "XComok"
   },
+  "collapseAllExtra": "Összes extra JSON összecsukása",
   "collapseDetailsPanel": "Részletek panel összecsukása",
   "createdAssetEvent_one": "Létrehozott adatkészlet esemény",
   "createdAssetEvent_other": "Létrehozott adatkészlet események",
@@ -98,6 +99,7 @@
     "hotkey": "e",
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a kibontáshoz"
   },
+  "expandAllExtra": "Összes extra JSON kibontása",
   "expression": {
     "all": "Mind",
     "and": "ÉS",

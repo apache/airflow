@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse, DagRun
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -42,10 +42,12 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetDagRun,
     GetXCom,
     VariableResult,
     XComResult,
@@ -514,7 +516,9 @@ class TestTriggeringAssetEventsAccessor:
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(name=name)] == expected
 
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByName(name=name, type="GetAssetByName"))
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetAssetByName(name=name, type="GetAssetByName"))
+        ]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
@@ -536,29 +540,35 @@ class TestTriggeringAssetEventsAccessor:
         mock_supervisor_comms.send.return_value = resolved_asset
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(uri=uri)] == expected
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByUri(uri=uri))
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
         assert len(events) == 1
+
+        mock_dag_run = mock.Mock(dag_id="d1", run_id="r1")
+        mock_supervisor_comms.send.side_effect = [mock_dag_run]
         source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(dag_id="d1", task_id="t2", run_id="r1", map_index=-1)
+        assert source == AssetEventSourceTaskInstance(dag_run=mock_dag_run, task_id="t2", map_index=-1)
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetDagRun(dag_id="d1", run_id="r1"))]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="d1",
-                run_id="r1",
-                task_id="t2",
-                map_index=-1,
-            ),
-        )
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="d1",
+                    run_id="r1",
+                    task_id="t2",
+                    map_index=-1,
+                ),
+            )
+        ]
 
 
 TEST_ASSET = Asset(name="test_uri", uri="test://test")
@@ -801,42 +811,83 @@ class TestInletEventAccessor:
             )
         ]
         events = list(sample_inlet_evnets_accessor[Asset.ref(name="test_uri")])
-        mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetEventByAsset(
-                name="test_uri",
-                uri=None,
-                after=None,
-                before=None,
-                limit=None,
-                ascending=True,
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetAssetEventByAsset(
+                    name="test_uri",
+                    uri=None,
+                    after=None,
+                    before=None,
+                    limit=None,
+                    ascending=True,
+                )
             )
-        )
+        ]
 
         assert len(events) == 2
-        assert events[1].source_task_instance is None
 
-        source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(
+        dag_run_result = DagRunResult(
             dag_id="__dag__",
             run_id="__run__",
-            task_id="__task__",
-            map_index=0,
+            run_after=timezone.utcnow(),
+            start_date=timezone.utcnow(),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
         )
+        mock_supervisor_comms.reset_mock()
+        mock_supervisor_comms.send.side_effect = [dag_run_result]
+        assert events[1].source_task_instance is None
+        source = events[0].source_task_instance
+        assert source == AssetEventSourceTaskInstance(dag_run=dag_run_result, task_id="__task__", map_index=0)
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetDagRun(dag_id="__dag__", run_id="__run__"))
+        ]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="__dag__",
-                run_id="__run__",
-                task_id="__task__",
-                map_index=0,
-            ),
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="__dag__",
+                    run_id="__run__",
+                    task_id="__task__",
+                    map_index=0,
+                ),
+            )
+        ]
+
+
+class TestDagRunStartDateNullable:
+    """Test that DagRun and TIRunContext accept start_date=None (queued runs that haven't started)."""
+
+    def test_dag_run_model_accepts_null_start_date(self):
+        """DagRun datamodel should accept start_date=None for runs that haven't started yet."""
+        dag_run = DagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2024-12-01T01:00:00Z",
+            data_interval_start="2024-12-01T00:00:00Z",
+            data_interval_end="2024-12-01T01:00:00Z",
+            start_date=None,
+            run_after="2024-12-01T01:00:00Z",
+            run_type="manual",
+            state="queued",
+            conf=None,
+            consumed_asset_events=[],
         )
+
+        assert dag_run.start_date is None
+
+    def test_ti_run_context_with_null_start_date(self, make_ti_context):
+        """TIRunContext should be constructable when the DagRun has start_date=None."""
+        ti_context = make_ti_context(start_date=None)
+
+        assert ti_context.dag_run.start_date is None
 
 
 class TestAsyncGetConnection:
@@ -887,12 +938,12 @@ class TestSecretsBackend:
 
     def test_metastore_backend_in_server_chain(self):
         """Test that MetastoreBackend is in the API server search path."""
-        from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+        from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
-        assert "airflow.secrets.metastore.MetastoreBackend" in DEFAULT_SECRETS_SEARCH_PATH
+        assert "airflow.secrets.metastore.MetastoreBackend" in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
         assert (
             "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            not in DEFAULT_SECRETS_SEARCH_PATH
+            not in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
         )
 
     def test_get_connection_uses_backend_chain(self, mock_supervisor_comms):

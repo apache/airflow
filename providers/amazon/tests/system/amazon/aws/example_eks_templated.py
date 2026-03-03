@@ -53,7 +53,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example", "templated"],
     catchup=False,
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
     render_template_as_native_obj=True,

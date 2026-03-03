@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import ANY
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models.team import Team
 from airflow.models.variable import Variable
@@ -65,7 +66,7 @@ def create_file_upload(content: dict) -> BytesIO:
 
 @provide_session
 def _create_variables(session) -> None:
-    team = session.query(Team).where(Team.name == "test").one()
+    team = session.scalars(select(Team).where(Team.name == "test")).one()
 
     Variable.set(
         key=TEST_VARIABLE_KEY,
@@ -92,7 +93,7 @@ def _create_variables(session) -> None:
         key=TEST_VARIABLE_KEY4,
         value=TEST_VARIABLE_VALUE4,
         description=TEST_VARIABLE_DESCRIPTION4,
-        team_id=team.id,
+        team_name=team.name,
         session=session,
     )
 
@@ -108,11 +109,6 @@ def _create_variables(session) -> None:
 def _create_team(session) -> None:
     session.add(Team(name="test"))
     session.commit()
-
-
-@pytest.fixture(scope="session")
-def team_id(session):
-    return str(session.query(Team.id).filter_by(name="test").one()[0])
 
 
 class TestVariableEndpoint:
@@ -135,13 +131,13 @@ class TestVariableEndpoint:
 class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
-        variables = session.query(Variable).all()
+        variables = session.scalars(select(Variable)).all()
         assert len(variables) == 5
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
-        variables = session.query(Variable).all()
+        variables = session.scalars(select(Variable)).all()
         assert len(variables) == 3
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
@@ -172,7 +168,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_VALUE,
                     "description": TEST_VARIABLE_DESCRIPTION,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -182,7 +178,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -192,7 +188,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": TEST_VARIABLE_DESCRIPTION3,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -202,7 +198,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_VALUE4,
                     "description": TEST_VARIABLE_DESCRIPTION4,
                     "is_encrypted": True,
-                    "team_id": ANY,
+                    "team_name": ANY,
                 },
             ),
             (
@@ -212,7 +208,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_SEARCH_VALUE,
                     "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
         ],
@@ -370,7 +366,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": "The new description",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -379,7 +375,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": "The new description",
-                    "team_id": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["value"]},
                 {
@@ -387,7 +383,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -403,7 +399,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION4,
                     "is_encrypted": True,
-                    "team_id": ANY,
+                    "team_name": ANY,
                 },
             ),
             (
@@ -419,7 +415,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -435,7 +431,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": "new description",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
         ],
@@ -453,7 +449,7 @@ class TestPatchVariable(TestVariableEndpoint):
             "key": TEST_VARIABLE_KEY,
             "value": "The new value",
             "description": "The new description",
-            "team_id": str(testing_team.id),
+            "team_name": str(testing_team.name),
         }
         response = test_client.patch(f"/variables/{TEST_VARIABLE_KEY}", json=body)
         assert response.status_code == 200
@@ -462,7 +458,7 @@ class TestPatchVariable(TestVariableEndpoint):
             "value": "The new value",
             "description": "The new description",
             "is_encrypted": True,
-            "team_id": str(testing_team.id),
+            "team_name": testing_team.name,
         }
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
@@ -515,7 +511,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "new variable value",
                     "description": "new variable description",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -529,7 +525,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": "another password",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -543,7 +539,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": "some description",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -557,7 +553,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "",
                     "description": "some description",
                     "is_encrypted": True,
-                    "team_id": None,
+                    "team_name": None,
                 },
             ),
         ],
@@ -575,7 +571,7 @@ class TestPostVariable(TestVariableEndpoint):
             "key": "new variable key",
             "value": "new variable value",
             "description": "new variable description",
-            "team_id": str(testing_team.id),
+            "team_name": str(testing_team.name),
         }
         response = test_client.post("/variables", json=body)
         assert response.status_code == 201
@@ -584,7 +580,7 @@ class TestPostVariable(TestVariableEndpoint):
             "value": "new variable value",
             "description": "new variable description",
             "is_encrypted": True,
-            "team_id": str(testing_team.id),
+            "team_name": str(testing_team.name),
         }
         check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
 

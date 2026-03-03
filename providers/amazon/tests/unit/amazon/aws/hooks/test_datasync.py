@@ -23,8 +23,8 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout
 
 
 @mock_aws

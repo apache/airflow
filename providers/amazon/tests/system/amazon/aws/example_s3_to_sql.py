@@ -99,7 +99,6 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
@@ -250,6 +249,7 @@ with DAG(
         task_id="delete_cluster",
         cluster_identifier=redshift_cluster_identifier,
         trigger_rule=TriggerRule.ALL_DONE,
+        max_attempts=50,
     )
 
     chain(

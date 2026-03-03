@@ -28,12 +28,12 @@ from kubernetes.client import (
     V1PodStatus,
 )
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
     CustomObjectLauncher,
     SparkJobSpec,
     SparkResources,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture

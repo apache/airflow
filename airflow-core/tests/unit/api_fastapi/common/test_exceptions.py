@@ -42,7 +42,6 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import DagMaker
@@ -104,9 +103,6 @@ def get_unique_constraint_error_prefix():
     return ""
 
 
-uuid_suffix = "" if SQLALCHEMY_V_1_4 else "::UUID"
-
-
 class TestUniqueConstraintErrorHandler:
     unique_constraint_error_handler = _UniqueConstraintErrorHandler()
 
@@ -133,7 +129,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_id) VALUES (?, ?, ?, ?, ?)",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (?, ?, ?, ?, ?)",
                             "orig_error": "UNIQUE constraint failed: slot_pool.pool",
                             "message": MESSAGE,
                         },
@@ -142,7 +138,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_id) VALUES (%s, %s, %s, %s, %s)",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool.slot_pool_pool_uq'\")",
                             "message": MESSAGE,
                         },
@@ -151,7 +147,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": f"INSERT INTO slot_pool (pool, slots, description, include_deferred, team_id) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_id)s{uuid_suffix}) RETURNING slot_pool.id",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_name)s) RETURNING slot_pool.id",
                             "orig_error": 'duplicate key value violates unique constraint "slot_pool_pool_uq"\nDETAIL:  Key (pool)=(test_pool) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -162,7 +158,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": 'INSERT INTO variable ("key", val, description, is_encrypted, team_id) VALUES (?, ?, ?, ?, ?)',
+                            "statement": 'INSERT INTO variable ("key", val, description, is_encrypted, team_name) VALUES (?, ?, ?, ?, ?)',
                             "orig_error": "UNIQUE constraint failed: variable.key",
                             "message": MESSAGE,
                         },
@@ -171,7 +167,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO variable (`key`, val, description, is_encrypted, team_id) VALUES (%s, %s, %s, %s, %s)",
+                            "statement": "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (%s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_key' for key 'variable.variable_key_uq'\")",
                             "message": MESSAGE,
                         },
@@ -180,7 +176,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": f"INSERT INTO variable (key, val, description, is_encrypted, team_id) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_id)s{uuid_suffix}) RETURNING variable.id",
+                            "statement": "INSERT INTO variable (key, val, description, is_encrypted, team_name) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_name)s) RETURNING variable.id",
                             "orig_error": 'duplicate key value violates unique constraint "variable_key_uq"\nDETAIL:  Key (key)=(test_key) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -287,18 +283,15 @@ class TestUniqueConstraintErrorHandler:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        if SQLALCHEMY_V_1_4:
-            assert exeinfo_response_error.value.detail == expected_exception.detail
-        else:
-            # The SQL statement is an implementation detail, so we match on the statement pattern (contains
-            # the table name and is an INSERT) instead of insisting on an exact match.
-            response_detail = exeinfo_response_error.value.detail
-            expected_detail = expected_exception.detail
-            actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
-            expected_detail.pop("statement", None)
+        # The SQL statement is an implementation detail, so we match on the statement pattern (contains
+        # the table name and is an INSERT) instead of insisting on an exact match.
+        response_detail = exeinfo_response_error.value.detail
+        expected_detail = expected_exception.detail
+        actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
+        expected_detail.pop("statement", None)
 
-            assert response_detail == expected_detail
-            assert "INSERT INTO dag_run" in actual_statement
+        assert response_detail == expected_detail
+        assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
 

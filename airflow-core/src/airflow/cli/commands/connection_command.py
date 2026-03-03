@@ -65,6 +65,8 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 @providers_configuration_loaded
 def connections_get(args):
     """Get a connection."""
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
     try:
         conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
@@ -82,10 +84,7 @@ def connections_list(args):
     """List all connections at the command line."""
     with create_session() as session:
         query = select(Connection)
-        if args.conn_id:
-            query = query.where(Connection.conn_id == args.conn_id)
-        query = session.scalars(query)
-        conns = query.all()
+        conns = session.scalars(query).all()
 
         AirflowConsole().print_as(
             data=conns,
@@ -358,6 +357,8 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 @providers_configuration_loaded
 def connections_test(args) -> None:
     """Test an Airflow connection."""
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
     console = AirflowConsole()
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         console.print(

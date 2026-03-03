@@ -41,7 +41,7 @@ if AIRFLOW_VERSION.major == 3:
     schedule = AssetOrTimeSchedule(
         timetable=CronTriggerTimetable("21 13 29 2 4", timezone="UTC"),
         assets=(
-            (Asset(uri="s3://bucket/file.txt", extra={"a": 1}) | Asset(uri="s3://bucket2/file.txt"))
+            (Asset(uri="s3://bucket/file.txt", extra={"a": 1}) | Asset(uri="s3://bucket2/file.txt"))  # type: ignore[arg-type]
             & (Asset(uri="s3://bucket3/file.txt") | Asset(uri="s3://bucket4/file.txt", extra={"b": 2}))
         ),
     )

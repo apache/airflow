@@ -36,10 +36,10 @@ class TestConnections:
     @pytest.fixture
     def mock_providers_manager(self):
         """Mock the ProvidersManager to return predefined hooks."""
-        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+        with mock.patch("airflow.sdk.definitions.connection.ProvidersManagerTaskRuntime") as mock_manager:
             yield mock_manager
 
-    @mock.patch("airflow.sdk.module_loading.import_string")
+    @mock.patch("airflow.sdk._shared.module_loading.import_string")
     def test_get_hook(self, mock_import_string, mock_providers_manager):
         """Test that get_hook returns the correct hook instance."""
 
@@ -188,6 +188,25 @@ class TestConnections:
         assert connection.conn_type == expected_id
         assert connection.host == "localhost"
         assert connection.port == 5432
+
+    def test_from_json_without_conn_type(self):
+        """Test that from_json works without conn_type (backward compatibility with AF 2)."""
+        json_data = {
+            "host": "mydb.example.com",
+            "port": "5432",
+            "login": "admin",
+            "password": "secret",
+            "schema": "production",
+        }
+        connection = Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+
+        assert connection.conn_id == "test_conn"
+        assert connection.conn_type is None
+        assert connection.host == "mydb.example.com"
+        assert connection.port == 5432
+        assert connection.login == "admin"
+        assert connection.password == "secret"
+        assert connection.schema == "production"
 
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
@@ -357,6 +376,20 @@ class TestConnectionFromUri:
         uri = "http://user@host://example.com"
         with pytest.raises(AirflowException, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
+
+    def test_connection_constructor_with_uri(self):
+        """Test Connection(uri=..., conn_id=...) constructor form."""
+        conn = Connection(conn_id="test_conn", uri="postgres://user:pass@host:5432/db")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "postgres"
+        assert conn.host == "host"
+        assert conn.login == "user"
+        assert conn.password == "pass"
+        assert conn.port == 5432
+        assert conn.schema == "db"
+        # uri should not exist as an attribute (it's init-only)
+        assert not hasattr(conn, "uri")
 
     def test_from_uri_roundtrip(self):
         """Test that from_uri and get_uri are inverse operations."""

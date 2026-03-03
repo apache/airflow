@@ -1,0 +1,35 @@
+{
+  "additional_data": "追加データ",
+  "asset_many": "アセット",
+  "asset_one": "アセット",
+  "consumingDags": "Consuming Dags",
+  "consumingTasks": "Consuming Tasks",
+  "createEvent": {
+    "button": "イベントを作成",
+    "manual": {
+      "description": "アセットイベントを手動で作成",
+      "extra": "アセットイベントの追加情報",
+      "label": "手動"
+    },
+    "materialize": {
+      "description": "このアセットの上流 Dag をトリガー",
+      "descriptionWithDag": "このアセットの上流 Dag をトリガー: {{dagName}}",
+      "label": "実体化",
+      "unpauseDag": "トリガー時に {{dagName}} の停止を解除"
+    },
+    "success": {
+      "manualDescription": "アセットイベントの手動作成に成功しました",
+      "manualTitle": "アセットイベントを作成しました",
+      "materializeDescription": "上流の Dag {{dagId}} は正常にトリガーされました",
+      "materializeTitle": "アセットを実体化"
+    },
+    "title": "{{name}} 用のアセットイベントを作成"
+  },
+  "extra": "追加情報",
+  "group": "グループ",
+  "lastAssetEvent": "最終アセットイベント",
+  "name": "名前",
+  "producingTasks": "タスクを生成",
+  "scheduledDags": "スケジュール済 Dag",
+  "searchPlaceholder": "アセットを検索"
+}

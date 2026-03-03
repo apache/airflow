@@ -29,7 +29,7 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, PipelineServiceAsyncClient
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import (
     CustomJobAsyncHook,
     CustomJobHook,

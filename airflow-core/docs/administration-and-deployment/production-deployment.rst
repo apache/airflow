@@ -90,7 +90,7 @@ e.g. metadata DB, password, etc. You can accomplish this using the format :envva
 .. code-block:: bash
 
  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_id
- AIRFLOW__WEBSERVER__BASE_URL=http://host:port
+ AIRFLOW__API__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 
@@ -178,12 +178,6 @@ of the executor you use:
   triggerer, webserver in a rolling restart mode, and generally you should not worry about the workers, as they
   are managed by the Kubernetes cluster and will be automatically adopted by ``Schedulers`` when they are
   upgraded and restarted.
-
-* For the :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`, you follow the
-  same procedure as for the ``CeleryExecutor`` - you put the workers in offline mode, wait for the running
-  tasks to complete, upgrade the workers, and then upgrade the scheduler, triggerer and webserver in a
-  rolling restart mode - which should also adopt tasks run via the ``KubernetesExecutor`` part of the
-  executor.
 
 Most of the rolling-restart upgrade scenarios are implemented in the :doc:`helm-chart:index`, so you can
 use it to upgrade your Airflow deployment without any downtime - especially in case you do patch-level

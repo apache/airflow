@@ -25,12 +25,12 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         TaskInstance,
         TaskInstanceKey,
     )
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
     CommandType = Sequence[str]
 
@@ -107,10 +108,10 @@ class LocalKubernetesExecutor(BaseExecutor):
     def queued_tasks(self, value) -> None:
         """Not implemented for hybrid executors."""
 
-    @property
+    @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from local and kubernetes executor."""
-        return self.local_executor.running.union(self.kubernetes_executor.running)
+        return self.local_executor.running.union(self.kubernetes_executor.running)  # type: ignore[return-value, arg-type]
 
     @running.setter
     def running(self, value) -> None:
@@ -218,7 +219,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.local_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
+    def get_event_buffer(  # type: ignore[override]
         self, dag_ids: list[str] | None = None
     ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -230,7 +231,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         cleared_events_from_local = self.local_executor.get_event_buffer(dag_ids)
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
-        return {**cleared_events_from_local, **cleared_events_from_kubernetes}
+        return {**cleared_events_from_local, **cleared_events_from_kubernetes}  # type: ignore[dict-item]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
@@ -302,5 +303,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.callback_sink.send(request)
 
     @staticmethod
-    def get_cli_commands() -> list:
-        return KubernetesExecutor.get_cli_commands()
+    def get_cli_commands() -> list[GroupCommand]:
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
+
+        return get_kubernetes_cli_commands()

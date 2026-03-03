@@ -23,7 +23,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataform_v1beta1.types import WorkflowInvocation
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id

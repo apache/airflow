@@ -37,7 +37,8 @@ import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import TaskInstanceState
+from airflow.executors.workloads.callback import execute_callback_workload
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -50,14 +51,25 @@ else:
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
+    from airflow.executors.workloads.types import WorkloadResultType
+
+
+def _get_executor_process_title_prefix(team_name: str | None) -> str:
+    """
+    Build the process title prefix for LocalExecutor workers.
+
+    :param team_name: Team name from executor configuration
+    """
+    team_suffix = f" [{team_name}]" if team_name else ""
+    return f"airflow worker -- LocalExecutor{team_suffix}:"
 
 
 def _run_worker(
     logger_name: str,
     input: SimpleQueue[workloads.All | None],
-    output: Queue[TaskInstanceStateType],
+    output: Queue[WorkloadResultType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
+    team_conf,
 ):
     import signal
 
@@ -68,7 +80,7 @@ def _run_worker(
     log.info("Worker starting up pid=%d", os.getpid())
 
     while True:
-        setproctitle("airflow worker -- LocalExecutor: <idle>", log)
+        setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} <idle>", log)
         try:
             workload = input.get()
         except EOFError:
@@ -83,40 +95,45 @@ def _run_worker(
             # Received poison pill, no more tasks to run
             return
 
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
-
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
             unread_messages.value -= 1
-        key = None
-        if ti := getattr(workload, "ti", None):
-            key = ti.key
+
+        # Handle different workload types
+        if isinstance(workload, workloads.ExecuteTask):
+            try:
+                _execute_work(log, workload, team_conf)
+                output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
+            except Exception as e:
+                log.exception("Task execution failed.")
+                output.put((workload.ti.key, TaskInstanceState.FAILED, e))
+
+        elif isinstance(workload, workloads.ExecuteCallback):
+            output.put((workload.callback.id, CallbackState.RUNNING, None))
+            try:
+                _execute_callback(log, workload, team_conf)
+                output.put((workload.callback.id, CallbackState.SUCCESS, None))
+            except Exception as e:
+                log.exception("Callback execution failed")
+                output.put((workload.callback.id, CallbackState.FAILED, e))
+
         else:
-            raise TypeError(f"Don't know how to get ti key from {type(workload).__name__}")
-
-        try:
-            _execute_work(log, workload)
-
-            output.put((key, TaskInstanceState.SUCCESS, None))
-        except Exception as e:
-            log.exception("uhoh")
-            output.put((key, TaskInstanceState.FAILED, e))
+            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
 
 
-def _execute_work(log: Logger, workload: workloads.ExecuteTask) -> None:
+def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
     """
     Execute command received and stores result state in queue.
 
-    :param key: the key to identify the task instance
-    :param command: the command to execute
+    :param log: Logger instance
+    :param workload: The workload to execute
+    :param team_conf: Team-specific executor configuration
     """
-    from airflow.configuration import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
-    setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}", log)
+    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.ti.id}", log)
 
-    base_url = conf.get("api", "base_url", fallback="/")
+    base_url = team_conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default
     if base_url.startswith("/"):
         base_url = f"http://localhost:8080{base_url}"
@@ -130,9 +147,25 @@ def _execute_work(log: Logger, workload: workloads.ExecuteTask) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+        server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
+
+
+def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_conf) -> None:
+    """
+    Execute a callback workload.
+
+    :param log: Logger instance
+    :param workload: The ExecuteCallback workload to execute
+    :param team_conf: Team-specific executor configuration
+    """
+    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.callback.id}", log)
+
+    success, error_msg = execute_callback_workload(workload.callback, log)
+
+    if not success:
+        raise RuntimeError(error_msg or "Callback execution failed")
 
 
 class LocalExecutor(BaseExecutor):
@@ -147,12 +180,27 @@ class LocalExecutor(BaseExecutor):
     is_local: bool = True
     is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
+    supports_multi_team: bool = True
     serve_logs: bool = True
+    supports_callbacks: bool = True
 
     activity_queue: SimpleQueue[workloads.All | None]
-    result_queue: SimpleQueue[TaskInstanceStateType]
+    result_queue: SimpleQueue[WorkloadResultType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.configuration import conf
+
+            self.conf = conf
 
     def start(self) -> None:
         """Start the executor."""
@@ -212,6 +260,7 @@ class LocalExecutor(BaseExecutor):
                 "input": self.activity_queue,
                 "output": self.result_queue,
                 "unread_messages": self._unread_messages,
+                "team_conf": self.conf,
             },
         )
         p.start()
@@ -279,10 +328,14 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def _process_workloads(self, workloads):
-        for workload in workloads:
+    def _process_workloads(self, workload_list):
+        for workload in workload_list:
             self.activity_queue.put(workload)
-            del self.queued_tasks[workload.ti.key]
+            # Remove from appropriate queue based on workload type
+            if isinstance(workload, workloads.ExecuteTask):
+                del self.queued_tasks[workload.ti.key]
+            elif isinstance(workload, workloads.ExecuteCallback):
+                del self.queued_callbacks[workload.callback.id]
         with self._unread_messages:
-            self._unread_messages.value += len(workloads)
+            self._unread_messages.value += len(workload_list)
         self._check_workers()

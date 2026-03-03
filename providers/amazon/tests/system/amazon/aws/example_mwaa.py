@@ -34,6 +34,7 @@ else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -105,7 +106,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

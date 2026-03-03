@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import stat
 import subprocess
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -321,6 +322,10 @@ def get_remote_temp_directory(ssh_client: SSHClient, logger: logging.Logger | No
         return TPTConfig.TEMP_DIR_UNIX
 
 
+def is_valid_file(file_path: str) -> bool:
+    return os.path.isfile(file_path)
+
+
 def verify_tpt_utility_installed(utility: str) -> None:
     """Verify if a TPT utility (e.g., tbuild) is installed and available in the system's PATH."""
     if shutil.which(utility) is None:
@@ -438,6 +443,147 @@ def prepare_tpt_ddl_script(
         );
         """
     return tpt_script
+
+
+def prepare_tdload_job_var_file(
+    mode: str,
+    source_table: str | None,
+    select_stmt: str | None,
+    insert_stmt: str | None,
+    target_table: str | None,
+    source_file_name: str | None,
+    target_file_name: str | None,
+    source_format: str,
+    target_format: str,
+    source_text_delimiter: str,
+    target_text_delimiter: str,
+    source_conn: dict[str, Any],
+    target_conn: dict[str, Any] | None = None,
+) -> str:
+    """
+    Prepare a tdload job variable file based on the specified mode.
+
+    :param mode: The operation mode ('file_to_table', 'table_to_file', or 'table_to_table')
+    :param source_table: Name of the source table
+    :param select_stmt: SQL SELECT statement for data extraction
+    :param insert_stmt: SQL INSERT statement for data loading
+    :param target_table: Name of the target table
+    :param source_file_name: Path to the source file
+    :param target_file_name: Path to the target file
+    :param source_format: Format of source data
+    :param target_format: Format of target data
+    :param source_text_delimiter: Source text delimiter
+    :param target_text_delimiter: Target text delimiter
+    :return: The content of the job variable file
+    :raises ValueError: If invalid parameters are provided
+    """
+    # Create a dictionary to store job variables
+    job_vars = {}
+
+    # Add appropriate parameters based on the mode
+    if mode == "file_to_table":
+        job_vars.update(
+            {
+                "TargetTdpId": source_conn["host"],
+                "TargetUserName": source_conn["login"],
+                "TargetUserPassword": source_conn["password"],
+                "TargetTable": target_table,
+                "SourceFileName": source_file_name,
+            }
+        )
+        if insert_stmt:
+            job_vars["InsertStmt"] = insert_stmt
+
+    elif mode == "table_to_file":
+        job_vars.update(
+            {
+                "SourceTdpId": source_conn["host"],
+                "SourceUserName": source_conn["login"],
+                "SourceUserPassword": source_conn["password"],
+                "TargetFileName": target_file_name,
+            }
+        )
+
+        if source_table:
+            job_vars["SourceTable"] = source_table
+        elif select_stmt:
+            job_vars["SourceSelectStmt"] = select_stmt
+
+    elif mode == "table_to_table":
+        if target_conn is None:
+            raise ValueError("target_conn must be provided for 'table_to_table' mode")
+        job_vars.update(
+            {
+                "SourceTdpId": source_conn["host"],
+                "SourceUserName": source_conn["login"],
+                "SourceUserPassword": source_conn["password"],
+                "TargetTdpId": target_conn["host"],
+                "TargetUserName": target_conn["login"],
+                "TargetUserPassword": target_conn["password"],
+                "TargetTable": target_table,
+            }
+        )
+
+        if source_table:
+            job_vars["SourceTable"] = source_table
+        elif select_stmt:
+            job_vars["SourceSelectStmt"] = select_stmt
+        if insert_stmt:
+            job_vars["InsertStmt"] = insert_stmt
+
+    # Add common parameters if not empty
+    if source_format:
+        job_vars["SourceFormat"] = source_format
+    if target_format:
+        job_vars["TargetFormat"] = target_format
+    if source_text_delimiter:
+        job_vars["SourceTextDelimiter"] = source_text_delimiter
+    if target_text_delimiter:
+        job_vars["TargetTextDelimiter"] = target_text_delimiter
+
+    # Format job variables content
+    job_var_content = "".join([f"{key}='{value}',\n" for key, value in job_vars.items()])
+    job_var_content = job_var_content.rstrip(",\n")
+
+    return job_var_content
+
+
+def is_valid_remote_job_var_file(
+    ssh_client: SSHClient, remote_job_var_file_path: str, logger: logging.Logger | None = None
+) -> bool:
+    """Check if the given remote job variable file path is a valid file."""
+    if remote_job_var_file_path:
+        sftp_client = ssh_client.open_sftp()
+        try:
+            # Get file metadata
+            file_stat = sftp_client.stat(remote_job_var_file_path)
+            if file_stat.st_mode:
+                is_regular_file = stat.S_ISREG(file_stat.st_mode)
+                return is_regular_file
+            return False
+        except FileNotFoundError:
+            if logger:
+                logger.error("File does not exist on remote at : %s", remote_job_var_file_path)
+            return False
+        finally:
+            sftp_client.close()
+    else:
+        return False
+
+
+def read_file(file_path: str, encoding: str = "UTF-8") -> str:
+    """
+    Read the content of a file with the specified encoding.
+
+    :param file_path: Path to the file to be read.
+    :param encoding: Encoding to use for reading the file.
+    :return: Content of the file as a string.
+    """
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+    with open(file_path, encoding=encoding) as f:
+        return f.read()
 
 
 def decrypt_remote_file(
