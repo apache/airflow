@@ -38,6 +38,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from airflow.observability.traces import configure_otel
+
 try:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 except ImportError:
@@ -758,3 +760,6 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 # Prefix used by gunicorn workers to indicate they are ready to serve requests
 # Used by GunicornMonitor to track worker readiness via process titles
 GUNICORN_WORKER_READY_PREFIX: str = "[ready] "
+
+
+configure_otel()
