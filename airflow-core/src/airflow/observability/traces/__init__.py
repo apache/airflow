@@ -85,7 +85,7 @@ def _get_backcompat_config() -> tuple[str | None, Resource | None]:
         # this is only for backcompat!
         host = conf.get("traces", "otel_host", fallback=None)
         port = conf.get("traces", "otel_port", fallback=None)
-        ssl_active = conf.get("traces", "otel_ssl_active", fallback=None)
+        ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
         if host and port:
             scheme = "https" if ssl_active else "http"
             endpoint = f"{scheme}://{host}:{port}/v1/traces"
