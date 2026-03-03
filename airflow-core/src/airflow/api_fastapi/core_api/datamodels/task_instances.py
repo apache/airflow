@@ -215,6 +215,29 @@ class PatchTaskInstanceBody(StrictBaseModel):
         return ns
 
 
+class PatchTaskGroupBody(StrictBaseModel):
+    """Request body for patching the state of all task instances in a task group."""
+
+    new_state: TaskInstanceState
+    include_future: bool = False
+    include_past: bool = False
+
+    @field_validator("new_state", mode="before")
+    @classmethod
+    def validate_new_state(cls, ns: str | None) -> str:
+        """Validate new_state."""
+        valid_states = [
+            vs.name.lower()
+            for vs in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED)
+        ]
+        if ns is None:
+            raise ValueError("'new_state' should not be empty")
+        ns = ns.lower()
+        if ns not in valid_states:
+            raise ValueError(f"'{ns}' is not one of {valid_states}")
+        return ns
+
+
 class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
     """Request body for bulk update, and delete task instances."""
 

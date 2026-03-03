@@ -1134,6 +1134,15 @@ export type LastAssetEventResponse = {
 };
 
 /**
+ * Request body for patching the state of all task instances in a task group.
+ */
+export type PatchTaskGroupBody = {
+    new_state: TaskInstanceState;
+    include_future?: boolean;
+    include_past?: boolean;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
@@ -3149,6 +3158,24 @@ export type PostClearTaskInstancesData = {
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskGroupBody;
+};
+
+export type PatchTaskGroupInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskGroupBody;
+};
+
+export type PatchTaskGroupInstancesDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
@@ -5718,6 +5745,72 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}': {
+        patch: {
+            req: PatchTaskGroupInstancesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run': {
+        patch: {
+            req: PatchTaskGroupInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

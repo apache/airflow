@@ -5919,3 +5919,211 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+
+class TestPatchTaskGroup(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances/{GROUP_ID}"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_patch_task_group_success(self, mock_set_ti_state, test_client, session):
+        """Test that patching a task group sets state for all tasks in the group."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+            )
+        ).all()
+        mock_set_ti_state.return_value = tis[:1]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == mock_set_ti_state.call_count
+        assert mock_set_ti_state.call_count == 3
+        called_task_ids = sorted(call.kwargs["task_id"] for call in mock_set_ti_state.call_args_list)
+        assert called_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_patch_task_group_failed_state(self, mock_set_ti_state, test_client, session):
+        """Test that patching a task group with failed state works."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+            )
+        ).all()
+        mock_set_ti_state.return_value = tis[:1]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed"},
+        )
+        assert response.status_code == 200
+        for call in mock_set_ti_state.call_args_list:
+            assert call.kwargs["state"] == "failed"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_patch_task_group_nested(self, mock_set_ti_state, test_client, session):
+        """Test that patching a nested task group includes tasks from inner groups."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).all()
+        mock_set_ti_state.return_value = tis[:1]
+
+        # section_2 contains task_1, and inner_section_2 which contains task_2, task_3, task_4
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_ti_state.call_count == 4
+        called_task_ids = sorted(call.kwargs["task_id"] for call in mock_set_ti_state.call_args_list)
+        assert called_task_ids == [
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+            "section_2.task_1",
+        ]
+
+    def test_patch_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+        assert "nonexistent_group" in response.json()["detail"]
+
+    def test_patch_task_group_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_patch_task_group_with_upstream_downstream(self, mock_set_ti_state, test_client, session):
+        """Test that include_upstream and include_downstream flags are passed through."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).all()
+        mock_set_ti_state.return_value = tis[:1]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": "success",
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+        assert response.status_code == 200
+        for call in mock_set_ti_state.call_args_list:
+            assert call.kwargs["upstream"] is True
+            assert call.kwargs["downstream"] is True
+
+    def test_patch_task_group_dag_not_found(self, test_client, session):
+        """Test that requesting a non-existent DAG returns 404."""
+        url = f"/dags/nonexistent_dag/dagRuns/{self.RUN_ID}/taskGroupInstances/{self.GROUP_ID}"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403
+
+
+class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances/{GROUP_ID}/dry_run"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_dry_run_returns_affected_tis_without_committing(self, mock_set_ti_state, test_client, session):
+        """Test that dry run returns TIs that would be affected without committing."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+            )
+        ).all()
+        mock_set_ti_state.return_value = tis[:1]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_ti_state.call_count == 3
+        # Verify commit=False was passed for dry run
+        for call in mock_set_ti_state.call_args_list:
+            assert call.kwargs["commit"] is False
+
+    def test_dry_run_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group/dry_run"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_dry_run_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403

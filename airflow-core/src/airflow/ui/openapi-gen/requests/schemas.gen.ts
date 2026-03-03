@@ -4454,6 +4454,29 @@ export const $LastAssetEventResponse = {
     description: 'Last asset event response serializer.'
 } as const;
 
+export const $PatchTaskGroupBody = {
+    properties: {
+        new_state: {
+            '$ref': '#/components/schemas/TaskInstanceState'
+        },
+        include_future: {
+            type: 'boolean',
+            title: 'Include Future',
+            default: false
+        },
+        include_past: {
+            type: 'boolean',
+            title: 'Include Past',
+            default: false
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['new_state'],
+    title: 'PatchTaskGroupBody',
+    description: 'Request body for patching the state of all task instances in a task group.'
+} as const;
+
 export const $PatchTaskInstanceBody = {
     properties: {
         new_state: {

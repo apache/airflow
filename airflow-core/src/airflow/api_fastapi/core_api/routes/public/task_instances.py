@@ -72,6 +72,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
+    PatchTaskGroupBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
@@ -82,6 +83,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _get_task_group_task_ids,
+    _patch_task_group_state,
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_validate_request,
@@ -853,6 +856,101 @@ def post_clear_task_instances(
 
 
 @task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="patch_task_group_instances",
+)
+def patch_task_group_instances(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskGroupBody,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Update the state of all task instances in a task group."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+    _patch_task_group_state(
+        dag=dag,
+        dag_run_id=dag_run_id,
+        group_id=group_id,
+        body=body,
+        session=session,
+    )
+
+    # Collect all TIs for the task group to build the response
+    task_ids = _get_task_group_task_ids(dag, group_id)
+    tis = (
+        session.scalars(
+            select(TI)
+            .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id.in_(task_ids))
+            .join(TI.dag_run)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .options(joinedload(TI.dag_version))
+            .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        )
+        .unique()
+        .all()
+    )
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],
+        total_entries=len(tis),
+    )
+
+
+@task_instances_router.patch(
+    "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+    ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_group_instances_dry_run",
+)
+def patch_task_group_instances_dry_run(
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskGroupBody,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Dry-run of updating the state of all task instances in a task group."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    task_ids = _get_task_group_task_ids(dag, group_id)
+
+    all_tis: list[TI] = []
+    for task_id in task_ids:
+        tis = (
+            dag.set_task_instance_state(
+                task_id=task_id,
+                run_id=dag_run_id,
+                state=body.new_state,
+                upstream=False,
+                downstream=False,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
+            )
+            or []
+        )
+        all_tis.extend(tis)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_tis],
+        total_entries=len(all_tis),
+    )
+
+
+@task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
@@ -969,24 +1067,16 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=task_id,
-                map_index=map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
-
             _patch_task_instance_state(
                 task_id=task_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
+                new_state=data["new_state"],
+                map_indexes=[map_index] if map_index is not None else None,
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
                 session=session,
             )
 
