@@ -26,7 +26,7 @@ repos:
     hooks:
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
-        language: python
-        entry: ../../scripts/ci/prek/generate_openapi_spec_providers.py keycloak
+        language: system
+        entry: python ../../scripts/ci/prek/generate_openapi_spec_providers.py keycloak
         pass_filenames: false
         files: ^src/airflow/providers/keycloak/auth_manager/.*\.py$
