@@ -1350,8 +1350,11 @@ class SelectiveChecks:
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
         if providers_affected:
+            suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
-                packages.append(provider.replace("-", "."))
+                pkg = provider.replace("-", ".")
+                if pkg not in suspended:
+                    packages.append(pkg)
         return " ".join(packages)
 
     @cached_property
