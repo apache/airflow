@@ -93,6 +93,10 @@ def _get_backcompat_config() -> tuple[str | None, Resource | None]:
 
 
 def configure_otel():
+    otel_on = conf.getboolean("traces", "otel_on", fallback=False)
+    if not otel_on:
+        return
+
     # ideally both endpoint and resource are None here
     # they would only be something other than None if user is using deprecated
     # Airflow-defined otel configs
