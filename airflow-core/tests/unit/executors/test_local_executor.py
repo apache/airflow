@@ -58,9 +58,9 @@ skip_fork_mp_start = pytest.mark.skipif(
 def _make_mock_task_workload():
     """Create a MagicMock that passes isinstance checks for ExecuteTask and has required attributes."""
     task_workload = mock.MagicMock(spec=workloads.ExecuteTask)
-    task_workload.ti = mock.MagicMock()
+    task_workload.ti = mock.MagicMock(spec=TaskInstanceDTO)
     task_workload.dag_rel_path = "some/path"
-    task_workload.bundle_info = mock.MagicMock()
+    task_workload.bundle_info = mock.MagicMock(spec=BundleInfo)
     task_workload.token = "test_token"
     task_workload.log_path = None
     return task_workload
