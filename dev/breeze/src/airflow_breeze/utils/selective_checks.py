@@ -1865,7 +1865,7 @@ class SelectiveChecks:
         # Check if dependency line contains both the package and the comment
         for line in result.stdout.splitlines():
             if "apache-airflow-providers-common-compat" in line.lower():
-                return "# use next version" in line.lower()
+                return bool(re.search(r"#\s*use next version", line, re.IGNORECASE))
         return True  # If dependency not found, don't flag as violation
 
     def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:

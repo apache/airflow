@@ -20,39 +20,6 @@ import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
 
-test.describe("Dags Pagination", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should verify pagination works on the Dags list page", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
-    await dagsPage.navigate();
-
-    await expect(dagsPage.paginationNextButton).toBeVisible();
-    await expect(dagsPage.paginationPrevButton).toBeVisible();
-
-    const initialDagNames = await dagsPage.getDagNames();
-
-    expect(initialDagNames.length).toBeGreaterThan(0);
-
-    await dagsPage.clickNextPage();
-
-    const dagNamesAfterNext = await dagsPage.getDagNames();
-
-    expect(dagNamesAfterNext.length).toBeGreaterThan(0);
-    expect(dagNamesAfterNext).not.toEqual(initialDagNames);
-
-    await dagsPage.clickPrevPage();
-
-    const dagNamesAfterPrev = await dagsPage.getDagNames();
-
-    expect(dagNamesAfterPrev).toEqual(initialDagNames);
-  });
-});
-
 test.describe("Dag Trigger Workflow", () => {
   let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;
@@ -226,57 +193,5 @@ test.describe("Dags Status Filtering", () => {
 
     await dagsPage.filterByStatus("failed");
     await dagsPage.verifyDagsListVisible();
-  });
-});
-
-test.describe("Dags Sorting", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should sort Dags by name in card view", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
-    await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
-
-    await dagsPage.switchToCardView();
-
-    await expect(dagsPage.sortSelect).toBeVisible();
-
-    const ascNames = await dagsPage.getDagNames();
-
-    expect(ascNames.length).toBeGreaterThan(1);
-
-    await dagsPage.clickSortSelect();
-
-    await expect(dagsPage.page.getByRole("option").first()).toBeVisible();
-
-    await dagsPage.page.getByRole("option", { name: "Sort by Display Name (Z-A)" }).click();
-
-    // Poll until the list order actually changes instead of a fixed delay
-    await expect
-      .poll(async () => dagsPage.getDagNames(), {
-        message: "List did not re-sort within timeout",
-        timeout: 10_000,
-      })
-      .not.toEqual(ascNames);
-
-    const descNames = await dagsPage.getDagNames();
-
-    expect(descNames.length).toBeGreaterThan(1);
-
-    const [firstName] = descNames;
-    const lastName = descNames[descNames.length - 1];
-
-    expect(firstName).toBeDefined();
-    expect(lastName).toBeDefined();
-
-    expect(firstName).not.toEqual(ascNames[0]);
-
-    if (firstName !== undefined && firstName !== "" && lastName !== undefined && lastName !== "") {
-      expect(firstName.localeCompare(lastName)).toBeGreaterThan(0);
-    }
   });
 });

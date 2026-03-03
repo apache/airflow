@@ -24,6 +24,7 @@ type Props = {
 
 export const TruncatedText = ({ text, ...rest }: Props) => (
   <Text
+    data-testid="truncated-text"
     display="-webkit-box"
     minWidth={200}
     overflow="hidden"

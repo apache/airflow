@@ -853,6 +853,7 @@ rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-provide
 Run the check:
 
 ```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-providers-src/.rat-excludes
 java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
 ```
 
@@ -1037,8 +1038,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 

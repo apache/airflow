@@ -104,7 +104,7 @@ the following criteria:
   - Managing translation-related GitHub issues and discussions, when needed (e.g., closing GitHub issues).
 - Code owners who act as translation sponsors are also responsible for:
   - Ensuring that the translation owner is active and able to maintain the translation.
-  - Act according to section 6.4 when the translation owner relinquishes their role or become inactive.
+  - Act according to section 6.4 when the translation owner relinquishes their role or becomes inactive.
   - When they sponsor a single translation owner, without additional translation owners/engaged translators involved,
     they SHALL also review the language aspects of translation-related PRs using a trusted third-party opinion (e.g., LLM).
 
@@ -177,8 +177,8 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 ### 5.6. Deprecating / refactoring terms
 
 - When existing terms are deprecated or refactored in the default locale (key renamed/relocated but value
-  unchanged), **the contributor initiating the change holds responsible for updating all relevant locale
-  files, and not any of the locale's owners**. When such available, automation through Breeze tooling SHOULD
+  unchanged), **the contributor initiating the change is responsible for updating all relevant locale
+  files, and not any of the locale's owners**. When such is available, automation through Breeze tooling SHOULD
   be used.
 
 ### 5.7. Merging of translation-related Pull Requests (PRs)
@@ -216,7 +216,7 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
   according to the requirements in section 5.3.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member,
   and no objections from other committers/PMC.
-- Approval of any translation owner who is also a code owner (committer) do not need to be voted on.
+- Approval of any translation owner who is also a code owner (committer) does not need to be voted on.
 
 ### 6.2. Approval of a new locale
 
@@ -261,7 +261,7 @@ When a translation conflict arises in a locale-related PR, the following steps w
 
 ### 6.4. Relinquishing translation/code ownership
 
-- When a code owner asks to relinquish their role, or they become inactive, any another committer should:
+- When a code owner asks to relinquish their role, or they become inactive, any other committer should:
   - Raise a PR for removal of the previous code owner from the `.github/CODEOWNERS` file.
   - Post a thread in the dev list that they step in as the code owner (either as a translation sponsor, or a
     translation owner according to steps discussed in section 6.1).
@@ -376,7 +376,7 @@ label is applied to the PR. This still allows issues in the English translation 
 deliberate updates to be made, while avoiding accidental changes.
 
 Any change in the English translation files during freeze time MUST be communicated in the
-[#18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
+[#i18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
 being added.
 
 > [!NOTE]

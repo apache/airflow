@@ -419,7 +419,10 @@ def find_matching_long_package_names(
     removed_packages: list[str] = [
         f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
-    all_packages_including_removed: list[str] = available_doc_packages + removed_packages
+    not_ready_packages: list[str] = [
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_not_ready_provider_ids()
+    ]
+    all_packages_including_removed: list[str] = available_doc_packages + removed_packages + not_ready_packages
     invalid_filters = [
         f
         for f in processed_package_filters
@@ -893,6 +896,8 @@ def regenerate_pyproject_toml(
     in_required_dependencies = False
     in_optional_dependencies = False
     in_additional_devel_dependency_groups = False
+    suspended_provider_ids = get_suspended_provider_ids()
+
     for line in pyproject_toml_content.splitlines():
         if line == "dependencies = [":
             in_required_dependencies = True
@@ -946,6 +951,11 @@ def regenerate_pyproject_toml(
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
+        if provider_id in suspended_provider_ids:
+            get_console().print(
+                f"[info]Provider {provider_id} in suspended list, skipping adding to optional dependencies.\n"
+            )
+            continue
         cross_provider_dependencies.append(f'    "{get_pip_package_name(provider_id)}",')
         if f'"{provider_id}" = [' not in optional_dependencies and get_pip_package_name(
             provider_id
@@ -1260,8 +1270,8 @@ def _update_dependency_line_with_new_version(
     new_constraint = f'"{provider_package_name}>={new_version}"'
     updated_line = line.replace(old_constraint, new_constraint)
 
-    # remove the comment starting with '# use next version' (and anything after it) and rstrip spaces
-    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line).rstrip()
+    # remove the comment starting with '# use next version' or '#use next version' (and anything after it) and rstrip spaces
+    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line, flags=re.IGNORECASE).rstrip()
 
     # Track the update
     provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
@@ -1335,8 +1345,8 @@ def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
         file_modified = False
 
         for line in lines:
-            # Check if line contains "# use next version" comment (but not the dependencies declaration line)
-            if "# use next version" in line and "dependencies = [" not in line:
+            # Check if line contains "# use next version" or "#use next version" comment (but not the dependencies declaration line)
+            if re.search(r"#\s*use next version", line, re.IGNORECASE) and "dependencies = [" not in line:
                 processed_line, was_modified = _process_line_with_next_version_comment(
                     line, pyproject_file, updates_made
                 )
