@@ -162,7 +162,7 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/fab/v1/users", headers={"Authorization": "bearer JWT_TOKEN"})
 
-        assert response.status_code == 401
+        assert response.status_code == 403
 
     @conf_vars({("fab", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
