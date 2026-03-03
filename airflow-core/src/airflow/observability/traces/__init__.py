@@ -68,6 +68,12 @@ def override_ids(trace_id, span_id, ctx=None):
 
 
 def _get_backcompat_config() -> tuple[str | None, Resource | None]:
+    """
+    Possibly get deprecated Airflow configs for otel.
+
+    Ideally we return (None, None) here.  But if the old configuration is there,
+    then we will use it.
+    """
     resource = None
     if not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
         service_name = conf.get("traces", "otel_service", fallback=None)
@@ -87,7 +93,11 @@ def _get_backcompat_config() -> tuple[str | None, Resource | None]:
 
 
 def configure_otel():
+    # ideally both endpoint and resource are None here
+    # they would only be something other than None if user is using deprecated
+    # Airflow-defined otel configs
     endpoint, resource = _get_backcompat_config()
+
     provider = TracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
     exporter = OTLPSpanExporter(endpoint=endpoint)
     span_processor = BatchSpanProcessor(exporter)
