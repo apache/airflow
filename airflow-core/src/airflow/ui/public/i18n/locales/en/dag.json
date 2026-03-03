@@ -159,10 +159,6 @@
         "description": "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
         "title": "Dag Failed to Reparse"
       },
-      "forbidden": {
-        "description": "You do not have permission to reparse this DAG.",
-        "title": "Access Denied"
-      },
       "success": {
         "description": "Dag should reparse soon.",
         "title": "Reparsing request submitted successfully"
