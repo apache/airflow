@@ -265,11 +265,20 @@ class SerializedReferenceModels:
             return self.inner_ref.reference_name
 
         def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
-            """Pass through all kwargs to inner reference without filtering."""
-            deadline = self.inner_ref._evaluate_with(session=session, **kwargs)
-            if deadline is None:
-                return None
-            return deadline + interval
+            """Validate the provided kwargs and evaluate this deadline with the given conditions."""
+            required_kwargs = getattr(self.inner_ref, "required_kwargs", set())
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in required_kwargs}
+
+            if missing_kwargs := required_kwargs - filtered_kwargs.keys():
+                raise ValueError(
+                    f"{self.inner_ref.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
+                )
+
+            if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
+                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+
+            deadline = self.inner_ref._evaluate_with(session=session, **filtered_kwargs)
+            return deadline + interval if deadline is not None else None
 
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             return self.inner_ref._evaluate_with(session=session, **kwargs)
