@@ -453,8 +453,10 @@ datasetId
 Datasets
 datasets
 datasource
+DataSourceConfig
 Datastore
 datastore
+datastores
 Datasync
 datasync
 datatransfer
@@ -500,6 +502,7 @@ del
 delim
 delitem
 deltalake
+denylist
 dep
 DependencyMixin
 deployable
@@ -812,6 +815,7 @@ gpus
 Grafana
 graphviz
 greenlet
+Groq
 Groupalia
 groupId
 Groupon
@@ -1100,6 +1104,7 @@ LiteralValue
 Liveness
 liveness
 livy
+llm
 loadBalancerIP
 localExecutor
 localexecutor
@@ -1282,6 +1287,7 @@ ok
 oklch
 Okta
 okta
+Ollama
 onboarded
 onboarding
 OnFailure
@@ -1459,6 +1465,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pyiceberg
 pylint
 pyMongo
 pymongo
@@ -1721,6 +1728,7 @@ sql
 sqla
 Sqlalchemy
 sqlalchemy
+sqlglot
 Sqlite
 sqlite
 sqlproxy
@@ -1798,6 +1806,7 @@ Subpath
 subpath
 subprocess
 subprocesses
+subqueries
 subquery
 SubscriberClient
 subscriptionId
@@ -2047,6 +2056,7 @@ virtualenv
 virtualenvs
 virtualized
 Vite
+vLLM
 vm
 VolumeKmsKeyId
 VolumeMount
@@ -2059,6 +2069,7 @@ wape
 warmup
 Wasb
 wasb
+wasn
 weaviate
 WebClient
 webhdfs
@@ -2082,6 +2093,7 @@ winrm
 WIT
 workgroup
 workgroups
+WorkloadKey
 workspaces
 writeable
 wsman

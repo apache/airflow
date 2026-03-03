@@ -20,10 +20,8 @@
 ################################
 ## Airflow Triggerer Deployment
 #################################
-{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-{{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
+{{- $persistence := .Values.triggerer.persistence.enabled }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
@@ -221,12 +219,9 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
-        {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-          {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
             - name: triggerer-logs
               containerPort: {{ .Values.ports.triggererLogs }}
-          {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
@@ -337,5 +332,4 @@ spec:
           requests:
             storage: {{ .Values.triggerer.persistence.size }}
   {{- end }}
-{{- end }}
 {{- end }}

@@ -103,6 +103,7 @@ operators:
     python-modules:
       - airflow.providers.common.sql.operators.sql
       - airflow.providers.common.sql.operators.generic_transfer
+      - airflow.providers.common.sql.operators.analytics
 
 dialects:
   - dialect-type: default
@@ -128,3 +129,5 @@ sensors:
 task-decorators:
   - class-name: airflow.providers.common.sql.decorators.sql.sql_task
     name: sql
+  - class-name: airflow.providers.common.sql.decorators.analytics.analytics_task
+    name: analytics

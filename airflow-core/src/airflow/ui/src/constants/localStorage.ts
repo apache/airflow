@@ -26,6 +26,7 @@ export const CALENDAR_VIEW_MODE_KEY = "calendar-view-mode";
 export const LOG_WRAP_KEY = "log_wrap";
 export const LOG_SHOW_TIMESTAMP_KEY = "log_show_timestamp";
 export const LOG_SHOW_SOURCE_KEY = "log_show_source";
+export const VERSION_INDICATOR_DISPLAY_MODE_KEY = "version_indicator_display_mode";
 
 // Dag-scoped keys
 export const dagViewKey = (dagId: string) => `dag_view-${dagId}`;
