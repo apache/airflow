@@ -502,6 +502,7 @@ del
 delim
 delitem
 deltalake
+denylist
 dep
 DependencyMixin
 deployable
@@ -1464,6 +1465,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pyiceberg
 pylint
 pyMongo
 pymongo
@@ -1726,6 +1728,7 @@ sql
 sqla
 Sqlalchemy
 sqlalchemy
+sqlglot
 Sqlite
 sqlite
 sqlproxy
@@ -1803,6 +1806,7 @@ Subpath
 subpath
 subprocess
 subprocesses
+subqueries
 subquery
 SubscriberClient
 subscriptionId
@@ -2089,6 +2093,7 @@ winrm
 WIT
 workgroup
 workgroups
+WorkloadKey
 workspaces
 writeable
 wsman
