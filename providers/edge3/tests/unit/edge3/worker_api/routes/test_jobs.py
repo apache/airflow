@@ -27,6 +27,8 @@ from airflow.providers.edge3.worker_api.routes.jobs import state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -35,7 +37,7 @@ TASK_ID = "my_task"
 RUN_ID = "manual__2024-11-24T21:03:01+01:00"
 QUEUE = "test"
 
-try:
+if AIRFLOW_V_3_2_PLUS:
     from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
     stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
@@ -49,7 +51,7 @@ try:
         },
     }
     expected_call_count = 1
-except ImportError:
+else:
     from airflow.providers.common.compat.sdk import Stats
 
     stats_reference = f"{Stats.__module__}.Stats"

@@ -33,8 +33,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
-try:
+if AIRFLOW_V_3_2_PLUS:
     from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
     stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
@@ -48,7 +49,7 @@ try:
         },
     }
     expected_call_count = 1
-except ImportError:
+else:
     from airflow.providers.common.compat.sdk import Stats
 
     stats_reference = f"{Stats.__module__}.Stats"
