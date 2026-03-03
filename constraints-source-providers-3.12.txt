@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-01T17:45:38.594785
+# This constraints file was automatically generated on 2026-03-03T20:58:16.938144
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,7 +10,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 APScheduler==3.11.2
-Authlib==1.6.8
+Authlib==1.6.9
 Deprecated==1.3.1
 Events==0.5
 Flask-AppBuilder==4.6.3
@@ -157,7 +157,7 @@ colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.13.0
+confluent-kafka==2.13.2
 connexion==2.14.2
 coverage==7.13.4
 crcmod==1.7
@@ -220,7 +220,7 @@ gitdb==4.0.12
 google-ads==29.2.0
 google-analytics-admin==0.27.0
 google-api-core==2.30.0
-google-api-python-client==2.190.0
+google-api-python-client==2.191.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.3.0
 google-auth==2.48.0
@@ -305,10 +305,10 @@ ibm-cloud-sdk-core==3.24.4
 ibmcloudant==0.11.4
 icdiff==2.0.10
 id==1.6.1
-identify==2.6.16
+identify==2.6.17
 idna==3.11
 ijson==3.4.0.post0
-imagesize==1.4.1
+imagesize==2.0.0
 immutabledict==4.3.1
 importlib_metadata==8.4.0
 impyla==0.22.0
@@ -337,7 +337,7 @@ jsonpath-ng==1.8.0
 jsonpath-python==1.1.4
 jsonpickle==3.4.2
 jsonpointer==3.0.0
-jsonschema-path==0.4.4
+jsonschema-path==0.4.5
 jsonschema-specifications==2025.9.1
 jsonschema==4.24.1
 jupyter_client==8.8.0
@@ -370,11 +370,11 @@ matplotlib-inline==0.2.1
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.8
-microsoft-kiota-authentication-azure==1.9.8
-microsoft-kiota-http==1.9.8
-microsoft-kiota-serialization-json==1.9.8
-microsoft-kiota-serialization-text==1.9.8
+microsoft-kiota-abstractions==1.9.9
+microsoft-kiota-authentication-azure==1.9.9
+microsoft-kiota-http==1.9.9
+microsoft-kiota-serialization-json==1.9.9
+microsoft-kiota-serialization-text==1.9.9
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
@@ -410,7 +410,7 @@ numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
 openai==2.24.0
-openapi-schema-validator==0.8.0
+openapi-schema-validator==0.8.1
 openapi-spec-validator==0.8.4
 opencensus-context==0.1.3
 opencensus==0.11.4
@@ -501,7 +501,7 @@ pydynamodb==0.8.1
 pyenchant==3.3.0
 pyexasol==1.1.0
 pygtrie==2.5.0
-pyiceberg==0.11.0
+pyiceberg==0.11.1
 pykerberos==1.2.4
 pymongo==4.16.0
 pymssql==2.3.13
@@ -512,7 +512,7 @@ pyproject_hooks==1.2.0
 pypsrp==0.9.0
 pyroaring==1.0.3
 pyspark==4.1.1
-pyspnego==0.12.0
+pyspnego==0.12.1
 pytest-asyncio==1.3.0
 pytest-cov==7.0.0
 pytest-custom-exit-code==0.3.0
@@ -539,7 +539,7 @@ python-slugify==8.0.4
 python-telegram-bot==22.6
 python3-saml==1.16.0
 pytokens==0.4.1
-pytz==2025.2
+pytz==2026.1.post1
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.17.0
@@ -581,7 +581,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.3
 semver==3.0.4
 sendgrid==6.11.0
-sentry-sdk==2.53.0
+sentry-sdk==2.54.0
 setproctitle==1.3.7
 setuptools==81.0.0
 shellingham==1.5.4
@@ -669,7 +669,7 @@ types-docutils==0.22.3.20260223
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20260221
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20260124
+types-python-dateutil==2.9.0.20260302
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20251108
 types-redis==4.6.0.20241004
@@ -710,7 +710,7 @@ xmltodict==1.0.4
 yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
-yarl==1.22.0
+yarl==1.23.0
 ydb-dbapi==0.1.19
 ydb==3.26.6
 zeep==4.3.2
