@@ -125,7 +125,11 @@ def _callback_subprocess_main():
         sys.exit(1)
 
 
-# An empty message set — callbacks don't send requests back to the supervisor (yet).
+# An empty message set; the callback subprocess doesn't currently communicate back to the
+# supervisor. This means callback code cannot access runtime services like Connection.get()
+# or Variable.get() which require the supervisor to pass requests to the API server.
+# To enable this, add the needed message types here and implement _handle_request accordingly.
+# See ActivitySubprocess.decoder in supervisor.py for the full task message set and examples.
 _EmptyMessage: TypeAdapter[None] = TypeAdapter(None)
 
 
