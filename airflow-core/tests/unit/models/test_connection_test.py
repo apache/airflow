@@ -55,13 +55,13 @@ class TestConnectionTestModel:
         assert "test_conn" in r
         assert "pending" in r
 
-    def test_queue_parameter(self):
-        ct = ConnectionTest(connection_id="test_conn", queue="my_queue")
-        assert ct.queue == "my_queue"
+    def test_executor_parameter(self):
+        ct = ConnectionTest(connection_id="test_conn", executor="my_executor")
+        assert ct.executor == "my_executor"
 
-    def test_queue_defaults_to_none(self):
+    def test_executor_defaults_to_none(self):
         ct = ConnectionTest(connection_id="test_conn")
-        assert ct.queue is None
+        assert ct.executor is None
 
 
 class TestRunConnectionTest:

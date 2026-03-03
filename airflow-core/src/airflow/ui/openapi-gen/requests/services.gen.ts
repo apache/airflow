@@ -779,20 +779,20 @@ export class ConnectionService {
      * @param data.connectionId
      * @param data.requestBody
      * @param data.updateMask
-     * @param data.queue Executor queue to route the connection test to
+     * @param data.executor Executor (team) to route the connection test to
      * @returns ConnectionSaveAndTestResponse Successful Response
      * @throws ApiError
      */
     public static patchConnectionAndTest(data: PatchConnectionAndTestData): CancelablePromise<PatchConnectionAndTestResponse> {
         return __request(OpenAPI, {
             method: 'PATCH',
-            url: '/api/v2/connections/{connection_id}/save-and-test',
+            url: '/api/v2/connections/{connection_id}/test',
             path: {
                 connection_id: data.connectionId
             },
             query: {
                 update_mask: data.updateMask,
-                queue: data.queue
+                executor: data.executor
             },
             body: data.requestBody,
             mediaType: 'application/json',
