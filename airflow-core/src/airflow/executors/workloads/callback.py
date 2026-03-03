@@ -83,7 +83,11 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     @property
     def display_name(self) -> str:
-        """Return the callback ID as a display name."""
+        """Return a human-readable name for logging and process titles."""
+        if path := self.callback.data.get("path", ""):
+            # Use just the function/class name for brevity in process titles.
+            # The full path and UUID are available in log messages if needed.
+            return path.rsplit(".", 1)[-1]
         return str(self.callback.id)
 
     @property
