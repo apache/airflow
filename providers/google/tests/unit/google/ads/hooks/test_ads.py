@@ -51,9 +51,22 @@ EXTRAS_DEVELOPER_TOKEN = {
     "google_ads_client": ADS_CLIENT_DEVELOPER_TOKEN,
 }
 
+# Flat format (matches get_connection_form_widgets output)
+EXTRAS_FLAT_DEVELOPER_TOKEN = {
+    "developer_token": "dev_token",
+    "refresh_token": "refresh_val",
+    "client_id": "client_id_val",
+    "client_secret": "client_secret_val",
+}
+
 
 @pytest.fixture(
-    params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT], ids=["developer_token", "service_account"]
+    params=[
+        EXTRAS_DEVELOPER_TOKEN,
+        EXTRAS_SERVICE_ACCOUNT,
+        EXTRAS_FLAT_DEVELOPER_TOKEN,
+    ],
+    ids=["developer_token", "service_account", "flat_developer_token"],
 )
 def mock_hook(request):
     with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
@@ -66,9 +79,10 @@ def mock_hook(request):
     params=[
         {"input": EXTRAS_DEVELOPER_TOKEN, "expected_result": "developer_token"},
         {"input": EXTRAS_SERVICE_ACCOUNT, "expected_result": "service_account"},
+        {"input": EXTRAS_FLAT_DEVELOPER_TOKEN, "expected_result": "developer_token"},
         {"input": {"google_ads_client": {}}, "expected_result": AirflowException},
     ],
-    ids=["developer_token", "service_account", "empty"],
+    ids=["developer_token", "service_account", "flat_developer_token", "empty"],
 )
 def mock_hook_for_authentication_method(request):
     with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
