@@ -32,7 +32,7 @@ requires = [
     "tomli==2.4.0; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
     "typing-extensions==4.15.0; python_version < '3.11'",
-    "virtualenv==20.39.1",
+    "virtualenv==21.1.0",
 ]
 build-backend = "hatchling.build"
 
