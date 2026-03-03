@@ -86,8 +86,11 @@ dependencies = [
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
-    "cryptography>=41.0.0,<46.0.0",
+    # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
+    # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
+    # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
+    # support for Airflow 3.1.
+    "cryptography>=44.0.3",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
