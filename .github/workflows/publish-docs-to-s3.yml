@@ -105,6 +105,7 @@ jobs:
       "potiuk",
       "utkarsharma2",
       "vincbeck",
+      "vatsrahul1001",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"
