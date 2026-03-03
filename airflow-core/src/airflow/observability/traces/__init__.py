@@ -44,14 +44,12 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
     def generate_span_id(self):
         override = context.get_value(OVERRIDE_SPAN_ID_KEY)
         if override is not None:
-            context.attach(context.set_value(OVERRIDE_SPAN_ID_KEY, None))
             return override
         return super().generate_span_id()
 
     def generate_trace_id(self):
         override = context.get_value(OVERRIDE_TRACE_ID_KEY)
         if override is not None:
-            context.attach(context.set_value(OVERRIDE_TRACE_ID_KEY, None))
             return override
         return super().generate_trace_id()
 

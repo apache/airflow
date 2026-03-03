@@ -135,6 +135,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 log = structlog.get_logger("task")
+
 tracer = trace.get_tracer(__name__)
 
 
@@ -502,8 +503,6 @@ class RuntimeTaskInstance(TaskInstance):
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
 
-        log = structlog.get_logger(logger_name="task")
-
         log.debug("Requesting first reschedule date from supervisor")
 
         response = SUPERVISOR_COMMS.send(
@@ -519,8 +518,6 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the previous Dag run before the given logical date, optionally filtered by state."""
         context = self.get_template_context()
         dag_run = context.get("dag_run")
-
-        log = structlog.get_logger(logger_name="task")
 
         log.debug("Getting previous Dag run", dag_run=dag_run)
 
@@ -556,7 +553,6 @@ class RuntimeTaskInstance(TaskInstance):
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
-        log = structlog.get_logger(logger_name="task")
         log.debug("Getting previous task instance", task_id=self.task_id, state=state)
 
         # Use current dag run's logical_date if not provided
@@ -872,7 +868,6 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
 def get_startup_details() -> StartupDetails:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
-    log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
         msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
@@ -897,7 +892,6 @@ def get_startup_details() -> StartupDetails:
 
 
 def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
-    log = structlog.get_logger("task")
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -1892,7 +1886,6 @@ def reinit_supervisor_comms() -> None:
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
-        log = structlog.get_logger(logger_name="task")
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
