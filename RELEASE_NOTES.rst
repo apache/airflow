@@ -25,7 +25,7 @@
 .. towncrier release notes start
 
 Airflow 3.2.0b1 (2026-03-03)
---------------------------
+----------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
