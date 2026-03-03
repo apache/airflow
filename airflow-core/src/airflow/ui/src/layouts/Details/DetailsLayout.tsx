@@ -48,6 +48,7 @@ import {
   dagRunStateFilterKey,
   dagViewKey,
   DEFAULT_DAG_VIEW_KEY,
+  runAfterLteKey,
   runTypeFilterKey,
   showGanttKey,
   triggeringUserFilterKey,
@@ -77,6 +78,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(dagViewKey(dagId), defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(dagRunsLimitKey(dagId), 10);
+  const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
   const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
     runTypeFilterKey(dagId),
     undefined,
@@ -163,10 +165,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   dagView={dagView}
                   limit={limit}
                   panelGroupRef={panelGroupRef}
+                  runAfterLte={runAfterLte}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
+                  setRunAfterLte={setRunAfterLte}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setShowVersionIndicatorMode={setShowVersionIndicatorMode}
@@ -182,6 +186,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     <Grid
                       dagRunState={dagRunStateFilter}
                       limit={limit}
+                      runAfterLte={runAfterLte}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       showVersionIndicatorMode={showVersionIndicatorMode}
