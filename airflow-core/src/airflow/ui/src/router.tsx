@@ -49,6 +49,7 @@ import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
+import { Deadlines as RunDeadlines } from "src/pages/Run/Deadlines";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
 import { Task } from "src/pages/Task";
@@ -186,6 +187,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <RunDeadlines />, path: "deadlines" },
           pluginRoute,
         ],
         element: <Run />,

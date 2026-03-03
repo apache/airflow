@@ -22,6 +22,8 @@ export const ROW_HEIGHT = 20;
 export const GRID_OUTER_PADDING_PX = 64; // pt={16} = 16 * 4 = 64px
 export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
+// Space above bars for failed-run icon so it is not clipped
+export const GRID_HEADER_ICON_SPACE_PX = 28;
 
 // Gantt chart's x-axis height (time labels at top of chart)
 export const GANTT_AXIS_HEIGHT_PX = 36;
