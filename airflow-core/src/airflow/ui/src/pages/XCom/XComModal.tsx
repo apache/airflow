@@ -62,12 +62,16 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
       xcomKey: xcomKey ?? "",
     },
     undefined,
-    { enabled: isOpen && isEditMode && Boolean(xcomKey) },
+    {
+      enabled: isOpen && isEditMode && Boolean(xcomKey),
+      refetchOnMount: "always",
+      staleTime: 0,
+    }
   );
 
   // Populate form when editing
   useEffect(() => {
-    if (isEditMode && data?.value !== undefined) {
+    if (isEditMode && data) {
       const val = data.value;
 
       setValue(typeof val === "string" ? val : JSON.stringify(val, undefined, 2));
@@ -167,7 +171,7 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
   const title = isEditMode ? translate("browse:xcom.edit.title") : translate("browse:xcom.add.title");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="lg">
+    <Dialog.Root onOpenChange={onClose} open={isOpen} size="lg">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
