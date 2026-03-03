@@ -19,15 +19,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
-from pydantic_ai.models import Model, infer_model
-from pydantic_ai.providers import Provider, infer_provider, infer_provider_class
 
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
 
 if TYPE_CHECKING:
-    from pydantic_ai.models import KnownModelName
+    from pydantic_ai.models import KnownModelName, Model
 
 
 class PydanticAIHook(BaseHook):
@@ -36,12 +34,28 @@ class PydanticAIHook(BaseHook):
 
     Manages connection credentials and model creation. Uses pydantic-ai's
     model inference to support any provider (OpenAI, Anthropic, Google,
-    Bedrock, Ollama, vLLM, etc.).
+    Bedrock, Ollama, vLLM, Azure OpenAI, etc.).
 
     Connection fields:
-        - **password**: API key (OpenAI, Anthropic, Groq, Mistral, etc.)
-        - **host**: Base URL (optional — for custom endpoints like Ollama, vLLM, Azure)
-        - **extra** JSON: ``{"model": "openai:gpt-5.3"}``
+        - **password**: API key
+        - **host**: Base URL or Azure endpoint
+          (e.g. ``https://<resource>.openai.azure.com``)
+        - **extra** JSON::
+
+            {"model": "openai:gpt-5.3"}
+
+          For Azure OpenAI, add ``api_version`` and optionally
+          ``azure_deployment``, ``azure_ad_token``,
+          ``azure_ad_token_provider``::
+
+            {
+              "model": "openai:gpt-5.2",
+              "api_version": "2024-07-01-preview",
+              "azure_deployment": "my-gpt4o-deployment"
+            }
+
+          When ``api_version`` is present the hook switches to the
+          Azure OpenAI client path automatically.
 
     Cloud providers (Bedrock, Vertex) that use native auth chains should leave
     password empty and configure environment-based auth (``AWS_PROFILE``,
@@ -75,60 +89,62 @@ class PydanticAIHook(BaseHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {
-                "host": "https://api.openai.com/v1 (optional, for custom endpoints)",
-                "extra": '{"model": "openai:gpt-5.3"}',
+                "host": (
+                    "https://api.openai.com/v1  — or Azure endpoint: https://<resource>.openai.azure.com"
+                ),
+                "extra": ('{"model": "openai:gpt-5.3"}  — Azure: also add "api_version", "azure_deployment"'),
             },
         }
+
+    # ------------------------------------------------------------------
+    # Core connection / agent API
+    # ------------------------------------------------------------------
 
     def get_conn(self) -> Model:
         """
         Return a configured pydantic-ai Model.
 
-        Reads API key from connection password, model from connection extra
-        or ``model_id`` parameter, and base_url from connection host.
-        The result is cached for the lifetime of this hook instance.
+        Resolution is delegated to builders based on connection characteristics:
+
+        1. **Azure OpenAI** — when ``api_version`` is present in connection extra.
+        2. **Custom endpoint** — when ``password`` or ``host`` are set.
+        3. **Default resolution** — delegates to pydantic-ai ``infer_model``.
+
+        The resolved model is cached for the lifetime of this hook instance.
         """
         if self._model is not None:
             return self._model
 
+        from airflow.providers.common.ai.builders import (
+            AzureOpenAIBuilder,
+            CustomEndpointBuilder,
+            DefaultBuilder,
+            ProviderBuilder,
+        )
+
         conn = self.get_connection(self.llm_conn_id)
-        model_name: str | KnownModelName = self.model_id or conn.extra_dejson.get("model", "")
+        extra: dict[str, Any] = conn.extra_dejson
+        model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
                 "No model specified. Set model_id on the hook or 'model' in the connection's extra JSON."
             )
-        api_key = conn.password
-        base_url = conn.host or None
 
-        if not api_key and not base_url:
-            # No credentials to inject — use default provider resolution
-            # (picks up env vars like OPENAI_API_KEY, AWS_PROFILE, etc.)
-            self._model = infer_model(model_name)
-            return self._model
+        api_key: str | None = conn.password or None
+        base_url: str | None = conn.host or None
 
-        def _provider_factory(provider_name: str) -> Provider[Any]:
-            """
-            Create a provider with credentials from the Airflow connection.
+        builders: list[ProviderBuilder] = [
+            AzureOpenAIBuilder(),
+            CustomEndpointBuilder(),
+            DefaultBuilder(),
+        ]
 
-            Falls back to default provider resolution if the provider's constructor
-            doesn't accept api_key/base_url (e.g. Google Vertex, Bedrock).
-            """
-            provider_cls = infer_provider_class(provider_name)
-            kwargs: dict[str, Any] = {}
-            if api_key:
-                kwargs["api_key"] = api_key
-            if base_url:
-                kwargs["base_url"] = base_url
-            try:
-                return provider_cls(**kwargs)
-            except TypeError:
-                # Provider doesn't accept these kwargs (e.g. Google Vertex/GLA
-                # use ADC, Bedrock uses boto session). Fall back to default
-                # provider resolution which reads credentials from the environment.
-                return infer_provider(provider_name)
+        for builder in builders:
+            if builder.supports(extra, api_key, base_url):
+                self._model = builder.build(model_name, extra, api_key, base_url)
+                return self._model
 
-        self._model = infer_model(model_name, provider_factory=_provider_factory)
-        return self._model
+        raise RuntimeError("No suitable ProviderBuilder found to construct the model.")
 
     @overload
     def create_agent(
@@ -155,9 +171,11 @@ class PydanticAIHook(BaseHook):
         Test connection by resolving the model.
 
         Validates that the model string is valid, the provider package is
-        installed, and the provider class can be instantiated. Does NOT make an
-        LLM API call — that would be expensive, flaky, and fail for reasons
-        unrelated to connectivity (quotas, billing, rate limits).
+        installed, and the provider class can be instantiated.  For Azure
+        connections this also validates that all required extra fields
+        (``api_version``, ``host``) are present.  Does NOT make an LLM API
+        call — that would be expensive, flaky, and fail for reasons unrelated
+        to connectivity (quotas, billing, rate limits).
         """
         try:
             self.get_conn()
