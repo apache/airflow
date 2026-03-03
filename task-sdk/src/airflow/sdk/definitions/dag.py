@@ -1324,7 +1324,7 @@ class DAG:
                 triggered_by=DagRunTriggeredByType.TEST,
                 triggering_user_name="dag_test",
             )
-            # todo: add dagrun span?
+
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management.
