@@ -566,6 +566,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.try_number = 0
 
         self.refresh_from_task(task)
         if TYPE_CHECKING:
@@ -575,7 +576,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         if run_id is not None:
             self.run_id = run_id
-        self.try_number = 0
         self.max_tries = self.task.retries
         if not self.id:
             self.id = uuid7()
