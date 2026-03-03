@@ -2481,6 +2481,53 @@ export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInsta
   requestBody: BulkBody_BulkTaskInstanceBody_;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Patch Task Group Instances
+* Update the state of all task instances in a task group.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.groupId
+* @param data.requestBody
+* @param data.updateMask
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroupInstances = <TData = Common.TaskInstanceServicePatchTaskGroupInstancesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+  updateMask?: string[];
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody, updateMask }) => TaskInstanceService.patchTaskGroupInstances({ dagId, dagRunId, groupId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Task Group Instances Dry Run
+* Dry-run of updating the state of all task instances in a task group.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.groupId
+* @param data.requestBody
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroupInstancesDryRun = <TData = Common.TaskInstanceServicePatchTaskGroupInstancesDryRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  groupId: string;
+  requestBody: PatchTaskInstanceBody;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody }) => TaskInstanceService.patchTaskGroupInstancesDryRun({ dagId, dagRunId, groupId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Patch Task Instance Dry Run
 * Update a task instance dry_run mode.
 * @param data The data for the request.

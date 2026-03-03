@@ -56,6 +56,17 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
+def _collect_unique_tis(
+    affected_tis_dict: dict[tuple[str, str, str, int], TI],
+    tis: list[TI] | None,
+) -> None:
+    """Collect unique task instances into a dictionary keyed by (dag_id, run_id, task_id, map_index)."""
+    if tis:
+        for ti in tis:
+            key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index)
+            affected_tis_dict[key] = ti
+
+
 def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
@@ -101,6 +112,64 @@ def _patch_ti_validate_request(
     return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
 
 
+def _get_task_group_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag: SerializedDAG,
+    session: Session,
+) -> list[TI]:
+    """Get all task instances in a task group for a specific DAG run."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id.in_(task_ids),
+        )
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+        .order_by(TI.task_id, TI.map_index)
+    )
+
+    group_tis = list(session.scalars(query).all())
+
+    return group_tis
+
+
+def _patch_ti_group_validate_request(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    update_mask: list[str] | None = Query(None),
+) -> tuple[SerializedDAG, list[TI], dict]:
+    """Validate and prepare data for task group patch request."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
+
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return dag, tis, body.model_dump(include=fields_to_update, by_alias=True)
+
+
 def _patch_task_instance_state(
     task_id: str,
     dag_run_id: str,
@@ -108,7 +177,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -144,6 +213,8 @@ def _patch_task_instance_state(
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
         except Exception:
             log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
