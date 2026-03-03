@@ -20,12 +20,12 @@ from __future__ import annotations
 import json
 import logging
 from typing import cast
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 from fastapi import Request  # noqa: TC002
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
 
@@ -118,7 +118,8 @@ def logout(request: Request):
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
     id_token = request.cookies.get(COOKIE_NAME_ID_TOKEN)
-    post_logout_redirect_uri = request.url_for("logout_callback")
+    base_url = conf.get("api", "base_url", fallback="/")
+    post_logout_redirect_uri = urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout_callback")
 
     if id_token:
         encoded_id_token = quote(id_token, safe="")
