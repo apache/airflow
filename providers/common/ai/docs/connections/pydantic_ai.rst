@@ -28,7 +28,7 @@ Mistral, Ollama, vLLM, and others.
 Default Connection IDs
 ----------------------
 
-The ``PydanticAIHook`` uses ``pydantic_ai_default`` by default.
+The ``PydanticAIHook`` uses ``pydanticai_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -66,7 +66,7 @@ Examples
 .. code-block:: json
 
     {
-        "conn_type": "pydantic_ai",
+        "conn_type": "pydanticai",
         "password": "sk-...",
         "extra": "{\"model\": \"openai:gpt-5.3\"}"
     }
@@ -76,7 +76,7 @@ Examples
 .. code-block:: json
 
     {
-        "conn_type": "pydantic_ai",
+        "conn_type": "pydanticai",
         "password": "sk-ant-...",
         "extra": "{\"model\": \"anthropic:claude-opus-4-6\"}"
     }
@@ -86,7 +86,7 @@ Examples
 .. code-block:: json
 
     {
-        "conn_type": "pydantic_ai",
+        "conn_type": "pydanticai",
         "host": "http://localhost:11434/v1",
         "extra": "{\"model\": \"openai:llama3\"}"
     }
@@ -98,7 +98,7 @@ Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environmen
 .. code-block:: json
 
     {
-        "conn_type": "pydantic_ai",
+        "conn_type": "pydanticai",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-6-v1:0\"}"
     }
 
@@ -109,6 +109,6 @@ Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the env
 .. code-block:: json
 
     {
-        "conn_type": "pydantic_ai",
+        "conn_type": "pydanticai",
         "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
     }
