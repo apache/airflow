@@ -870,8 +870,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if executable_tis:
-            task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
-            self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
+            task_instance_str = "\n".join(
+                f"\t{x!r} (id={x.id}, try_number={x.try_number})" for x in executable_tis
+            )
+            self.log.info(
+                "Setting the following tasks to queued state (scheduler job_id=%s):\n%s",
+                self.job.id,
+                task_instance_str,
+            )
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
@@ -938,6 +944,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            self.log.debug(
+                "Queueing workload for TI: %s id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                ti,
+                ti.id,
+                ti.try_number,
+                ti.state,
+                self.job.id,
+                executor,
+            )
             workload = workloads.ExecuteTask.make(
                 ti,
                 generator=executor.jwt_generator,
@@ -1133,6 +1148,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
             if isinstance(key, TaskInstanceKey):
+                existing_try = ti_primary_key_to_try_number_map.get(key.primary)
+                if existing_try is not None and existing_try != key.try_number:
+                    cls.logger().warning(
+                        "Multiple executor events for same TI with different try_numbers! "
+                        "primary_key=%s existing_try_number=%d new_try_number=%d new_state=%s. ",
+                        key.primary,
+                        existing_try,
+                        key.try_number,
+                        state,
+                    )
                 ti_primary_key_to_try_number_map[key.primary] = key.try_number
                 cls.logger().info("Received executor event with state %s for task instance %s", state, key)
                 if state in (
@@ -1197,6 +1222,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
+            if ti.try_number != try_number:
+                cls.logger().warning(
+                    "TI try_number mismatch: db_try_number=%d event_try_number=%d "
+                    "ti=%s ti_id=%s state=%s job_id=%s. "
+                    "Another scheduler may have already modified this TI.",
+                    ti.try_number,
+                    try_number,
+                    ti,
+                    ti.id,
+                    ti.state,
+                    job_id,
+                )
             state, info = event_buffer.pop(buffer_key)
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
@@ -2475,6 +2512,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # query to update all the TIs across all the logical dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
+        if schedulable_tis and self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug(
+                "Scheduling TIs for dag_run=%s/%s (scheduler job_id=%s): %s",
+                dag_run.dag_id,
+                dag_run.run_id,
+                self.job.id,
+                [
+                    f"{ti.task_id} (id={ti.id}, state={ti.state}, try_number={ti.try_number})"
+                    for ti in schedulable_tis
+                ],
+            )
         dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
