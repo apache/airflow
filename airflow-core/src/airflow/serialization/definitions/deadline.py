@@ -266,7 +266,7 @@ class SerializedReferenceModels:
 
         def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
-            required_kwargs = getattr(self.inner_ref, "required_kwargs", set())
+            required_kwargs: set[str] = getattr(self.inner_ref, "required_kwargs", set())
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in required_kwargs}
 
             if missing_kwargs := required_kwargs - filtered_kwargs.keys():
