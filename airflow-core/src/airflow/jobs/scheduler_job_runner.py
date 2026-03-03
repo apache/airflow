@@ -114,8 +114,6 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -2253,17 +2251,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ):
             self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
             return callback
-
-        if (
-            self._is_tracing_enabled()
-            and dag_run.scheduled_by_job_id is not None
-            and dag_run.scheduled_by_job_id != self.job.id
-            and self.active_spans.get("dr:" + str(dag_run.id)) is None
-        ):
-            # If the dag_run has been previously scheduled by another job and there is no active span,
-            # then check if the job is still healthy.
-            # If it's not healthy, then recreate the spans.
-            self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
 
         dag_run.scheduled_by_job_id = self.job.id
 

@@ -374,8 +374,9 @@ class DagRun(Base, LoggingMixin):
         empty_context = context.Context()
         span = tracer.start_span("notused", context=empty_context)
         ctx = trace.set_span_in_context(span)
-        TraceContextTextMapPropagator().inject(self.context_carrier, context=ctx)
-
+        carrier = {}
+        TraceContextTextMapPropagator().inject(carrier, context=ctx)
+        self.context_carrier = carrier
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
