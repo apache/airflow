@@ -60,11 +60,11 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-try:
+if AIRFLOW_V_3_2_PLUS:
     from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
     stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
-except ImportError:
+else:
     stats_reference = "airflow.providers.openlineage.plugins.adapter.Stats"
 
 

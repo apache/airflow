@@ -29,6 +29,7 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
@@ -36,11 +37,6 @@ from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWork
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -197,7 +193,9 @@ class EdgeExecutor(BaseExecutor):
                     "queue": job.queue,
                     "state": str(TaskInstanceState.FAILED),
                 }
-                if DualStatsManager is not None:
+                if AIRFLOW_V_3_2_PLUS:
+                    from airflow.sdk.observability.stats import DualStatsManager
+
                     DualStatsManager.incr("edge_worker.ti.finish", tags={}, legacy_name_tags=tags)
                 else:
                     Stats.incr(

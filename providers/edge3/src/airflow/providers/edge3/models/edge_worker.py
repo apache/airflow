@@ -27,13 +27,9 @@ from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.providers.edge3.models.edge_base import Base
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -179,7 +175,9 @@ def set_metrics(
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
 
-    if DualStatsManager is not None:
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.sdk.observability.stats import DualStatsManager
+
         DualStatsManager.gauge(
             "edge_worker.connected",
             int(connected),
