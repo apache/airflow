@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-__all__ = ["CallbackSubprocess", "execute_callback", "supervise_callback"]
+__all__ = ["CallbackSubprocess", "supervise_callback"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_supervisor")
 
