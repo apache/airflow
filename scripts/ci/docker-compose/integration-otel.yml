@@ -27,6 +27,12 @@ services:
     ports:
       - "24318:4318"    # OTLP http receiver
       - "28889:8889"    # Prometheus exporter metrics
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus
@@ -80,7 +86,11 @@ services:
       - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
 
     depends_on:
-      - otel-collector
-      - prometheus
-      - grafana
-      - jaeger
+      otel-collector:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+      grafana:
+        condition: service_started
+      jaeger:
+        condition: service_started

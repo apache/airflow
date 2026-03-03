@@ -708,6 +708,8 @@ class TestOtelIntegration:
         os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
         if cls.use_otel != "true":
             os.environ["OTEL_TRACES_EXPORTER"] = "console"
+            os.environ["OTEL_METRICS_EXPORTER"] = "none"
+            os.environ["AIRFLOW__METRICS__OTEL_ON"] = "False"
 
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
