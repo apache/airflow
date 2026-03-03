@@ -276,7 +276,7 @@ Triggerer's system path.  **Synchronous callbacks** must be importable on the wo
 
 A **custom synchronous callback** might look like this:
 
-1. Place this method in your plugins folder (e.g. `$AIRFLOW_HOME/plugins/deadline_callbacks.py`):
+1. Place this method in your plugins folder (e.g. ``$AIRFLOW_HOME/plugins/deadline_callbacks.py``):
 
 .. code-block:: python
 
@@ -327,7 +327,7 @@ A **custom synchronous callback** might look like this:
 
 A **custom asynchronous callback** might look like this:
 
-1. Place this method in your plugins folder (e.g. `$AIRFLOW_HOME/plugins/deadline_callbacks.py`):
+1. Place this method in your plugins folder (e.g. ``$AIRFLOW_HOME/plugins/deadline_callbacks.py``):
 
 .. code-block:: python
 
