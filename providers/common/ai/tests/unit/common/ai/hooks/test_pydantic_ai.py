@@ -28,7 +28,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 class TestPydanticAIHookInit:
     def test_default_conn_id(self):
         hook = PydanticAIHook()
-        assert hook.llm_conn_id == "pydantic_ai_default"
+        assert hook.llm_conn_id == "pydanticai_default"
         assert hook.model_id is None
 
     def test_custom_conn_id(self):
@@ -50,7 +50,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             password="sk-test-key",
             host="https://api.openai.com/v1",
         )
@@ -82,7 +82,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             password="sk-test-key",
             extra='{"model": "anthropic:claude-opus-4-6"}',
         )
@@ -101,7 +101,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             password="sk-test-key",
             extra='{"model": "anthropic:claude-opus-4-6"}',
         )
@@ -115,7 +115,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             password="sk-test-key",
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -131,7 +131,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="bedrock:us.anthropic.claude-v2")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
@@ -149,7 +149,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:llama3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             host="http://localhost:11434/v1",
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -167,7 +167,7 @@ class TestPydanticAIHookGetConn:
         mock_infer_model.return_value = mock_model
 
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
-        conn = Connection(conn_id="test_conn", conn_type="pydantic_ai")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             first = hook.get_conn()
             second = hook.get_conn()
@@ -191,7 +191,7 @@ class TestPydanticAIHookGetConn:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="google:gemini-2.0-flash")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
             password="some-key",
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -216,7 +216,7 @@ class TestPydanticAIHookCreateAgent:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(instructions="You are a helpful assistant.")
@@ -236,7 +236,7 @@ class TestPydanticAIHookCreateAgent:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(
@@ -262,7 +262,7 @@ class TestPydanticAIHookTestConnection:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             success, message = hook.test_connection()
@@ -277,7 +277,7 @@ class TestPydanticAIHookTestConnection:
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="badprovider:model")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             success, message = hook.test_connection()
@@ -289,7 +289,7 @@ class TestPydanticAIHookTestConnection:
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(
             conn_id="test_conn",
-            conn_type="pydantic_ai",
+            conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
             success, message = hook.test_connection()

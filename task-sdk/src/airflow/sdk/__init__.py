@@ -65,6 +65,7 @@ __all__ = [
     "SkipMixin",
     "SyncCallback",
     "TaskGroup",
+    "TaskInstance",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
@@ -151,6 +152,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
+    from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
 
@@ -201,6 +203,7 @@ __lazy_imports: dict[str, str] = {
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
+    "TaskInstance": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
