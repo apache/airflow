@@ -102,7 +102,7 @@ class TestLLMSchemaCompareOperator:
             data_sources=[ds_config],
             db_conn_ids=["test_conn_db"],
             table_names=["test_table_db"],
-            context_strategy="basic",
+            context_strategy=None,
             reasoning_mode=False,
             system_prompt="additional instructions",
             agent_params={"temperature": 0.5},
@@ -111,7 +111,7 @@ class TestLLMSchemaCompareOperator:
         assert op.data_sources == [ds_config]
         assert op.db_conn_ids == ["test_conn_db"]
         assert op.table_names == ["test_table_db"]
-        assert op.context_strategy == "basic"
+        assert op.context_strategy is None
         assert op.reasoning_mode is False
         assert op.system_prompt == "additional instructions"
         assert op.agent_params == {"temperature": 0.5}
@@ -346,8 +346,8 @@ class TestLLMSchemaCompareOperator:
             table_names=["wrong_table"],
             llm_conn_id="llm_conn",
             agent_params={"param": "value"},
+            context_strategy=None,
         )
-        op.context_strategy = "basic"
 
         result = op._introspect_db_schema(db_hook, "orders")
 

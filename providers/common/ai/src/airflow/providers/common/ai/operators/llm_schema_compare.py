@@ -109,7 +109,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         data_sources: list[DataSourceConfig] | None = None,
         db_conn_ids: list[str] | None = None,
         table_names: list[str] | None = None,
-        context_strategy: str = "full",
+        context_strategy: str | None = "full",
         reasoning_mode: bool = True,
         **kwargs: Any,
     ) -> None:
