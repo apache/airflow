@@ -47,7 +47,6 @@
     :hidden:
     :caption: References
 
-    Fab auth manager API <api-ref/fab-public-api-ref>
     Fab auth manager token API <api-ref/fab-token-api-ref>
 
 .. toctree::
