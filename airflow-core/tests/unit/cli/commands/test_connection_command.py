@@ -29,7 +29,7 @@ from sqlalchemy import select
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER
+from airflow.cli.commands.connection_command import _mask_uri_credentials
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
@@ -110,9 +110,7 @@ class TestCliListConnections:
 
     def test_cli_connections_list_show_values_shows_full_details(self):
         """With --show-values, list includes connection details."""
-        args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", "--show-values"]
-        )
+        args = self.parser.parse_args(["connections", "list", "--output", "json", "--show-values"])
         with redirect_stdout(StringIO()) as stdout_io:
             connection_command.connections_list(args)
             stdout = stdout_io.getvalue()
@@ -170,8 +168,6 @@ class TestUriMasking:
         ],
     )
     def test_mask_uri_credentials(self, uri, expected):
-        """Test that URI credentials are properly masked while preserving structure."""
-        from airflow.cli.commands.connection_command import _mask_uri_credentials
         result = _mask_uri_credentials(uri)
         assert result == expected
 
