@@ -368,7 +368,7 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
 @mock.patch("airflow.sdk.execution_time.task_runner.get_startup_details")
 @mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
 def test_main_sends_reschedule_task_when_startup_reschedules(
-    mock_comms_decoder_cls, mock_get_startup_details, mock_startup, mock_exit, time_machine
+    mock_comms_decoder_cls, mock_get_startup_details, mock_startup, mock_exit, time_machine, make_ti_context
 ):
     """
     If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
@@ -380,7 +380,23 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     mock_comms_instance = mock.Mock()
     mock_comms_instance.socket = None
     mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
-    mock_get_startup_details.return_value = mock.Mock()
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            context_carrier={},
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mock_get_startup_details.return_value = what
     mock_startup.side_effect = AirflowRescheduleException(reschedule_date=reschedule_date)
 
     # Move time
