@@ -249,7 +249,8 @@ Creating Custom Callbacks
 
 You can create custom callables for more complex handling. If ``kwargs`` are specified in the ``Callback``,
 they are passed to the callback function. **Asynchronous callbacks** must be defined somewhere in the
-Triggerer's system path.  **Synchronous callbacks** must be defined in the executor's path.
+Triggerer's system path.  **Synchronous callbacks** must be importable on the worker where they will be executed.
+
 
 .. note::
     Regarding Async Custom Deadline callbacks:
@@ -275,7 +276,7 @@ Triggerer's system path.  **Synchronous callbacks** must be defined in the execu
 
 A **custom synchronous callback** might look like this:
 
-1. Place this method in ``/files/plugins/deadline_callbacks.py``:
+1. Place this method in your plugins folder (e.g. `$AIRFLOW_HOME/plugins/deadline_callbacks.py`):
 
 .. code-block:: python
 
@@ -326,7 +327,7 @@ A **custom synchronous callback** might look like this:
 
 A **custom asynchronous callback** might look like this:
 
-1. Place this method in ``/files/plugins/deadline_callbacks.py``:
+1. Place this method in your plugins folder (e.g. `$AIRFLOW_HOME/plugins/deadline_callbacks.py`):
 
 .. code-block:: python
 
