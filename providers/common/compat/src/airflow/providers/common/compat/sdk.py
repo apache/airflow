@@ -73,7 +73,9 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
+        KeywordParameters as KeywordParameters,
         TaskDecorator as TaskDecorator,
+        determine_kwargs as determine_kwargs,
         get_unique_task_id as get_unique_task_id,
         task_decorator_factory as task_decorator_factory,
     )
@@ -167,6 +169,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "TaskDecorator": ("airflow.sdk.bases.decorator", "airflow.decorators"),
     "task_decorator_factory": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     "get_unique_task_id": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
+    "KeywordParameters": ("airflow.sdk.bases.decorator", "airflow.utils.operator_helpers"),
+    "determine_kwargs": ("airflow.sdk.bases.decorator", "airflow.utils.operator_helpers"),
     # ============================================================================
     # Models
     # ============================================================================

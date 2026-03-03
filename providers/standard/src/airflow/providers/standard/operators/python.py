@@ -47,7 +47,12 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    KeywordParameters,
+    context_merge,
+)
 from airflow.providers.common.compat.standard.operators import (
     BaseAsyncOperator,
     is_async_callable,
@@ -61,7 +66,6 @@ from airflow.providers.standard.utils.python_virtualenv import (
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
