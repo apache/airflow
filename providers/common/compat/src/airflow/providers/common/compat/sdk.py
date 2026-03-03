@@ -155,7 +155,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "BaseBranchOperator": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
     "BranchMixIn": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
-    "SkipMixin": ("airflow.sdk.bases.skipmixin", "airflow.models.skipmixin"),
+    "SkipMixin": (
+        "airflow.sdk.bases.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
+        "airflow.models.skipmixin",
+    ),
     # ============================================================================
     # Sensors
     # ============================================================================
