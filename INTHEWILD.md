@@ -71,6 +71,7 @@ Currently, **officially** using Airflow:
 1. [Away](https://awaytravel.com) [[@trunsky](https://github.com/trunsky)]
 1. [Axesor designeted activity company](https://www.axesor.es/)
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
+1. [AEX Partners Corp.](https://aex.partners) [[@andreahlert](https://github.com/andreahlert)]
 1. [Bagelcode](https://www.bagelcode.com/)
 1. [Bajaj Finserv Health Ltd](https://www.bajajfinservhealth.in/)
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
