@@ -998,6 +998,13 @@ repos:
         entry: ./scripts/ci/prek/check_template_fields.py
         files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
         require_serial: true
+      - id: check-execution-api-versions
+        name: Check execution API datamodel changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_execution_api_versions.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
+        require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
