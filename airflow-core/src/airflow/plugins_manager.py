@@ -360,7 +360,7 @@ def ensure_plugins_loaded():
             load_providers_plugins()
 
     if plugins:
-        log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
+        log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
 
 
 def initialize_ui_plugins():
