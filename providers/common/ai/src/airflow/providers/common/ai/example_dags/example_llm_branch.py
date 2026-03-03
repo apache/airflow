@@ -28,7 +28,7 @@ def example_llm_branch_operator():
     route = LLMBranchOperator(
         task_id="route_ticket",
         prompt="User says: 'My password reset email never arrived.'",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Route support tickets to the right team.",
     )
 
@@ -58,7 +58,7 @@ def example_llm_branch_multi():
     route = LLMBranchOperator(
         task_id="classify",
         prompt="This product is great but shipping was slow and the box was damaged.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Select all applicable categories for this customer review.",
         allow_multiple_branches=True,
     )
@@ -87,7 +87,7 @@ example_llm_branch_multi()
 @dag
 def example_llm_branch_decorator():
     @task.llm_branch(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Route support tickets to the right team.",
     )
     def route_ticket(message: str):
@@ -121,7 +121,7 @@ example_llm_branch_decorator()
 @dag
 def example_llm_branch_decorator_multi():
     @task.llm_branch(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Select all applicable categories for this customer review.",
         allow_multiple_branches=True,
     )

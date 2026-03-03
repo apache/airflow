@@ -30,6 +30,30 @@ datasource_config_local = DataSourceConfig(
     conn_id="", table_name="users_data", uri="file:///path/to/", format="parquet"
 )
 
+datasource_config_iceberg = DataSourceConfig(
+    conn_id="iceberg_default",
+    table_name="users_data",
+    db_name="demo",  # will be used to load table via pyiceberg eg: demo.users_data
+    format="iceberg",
+)
+
+"""
+
+For example when working iceberg with glue catalog provide the following format for iceberg connection extras:
+
+{
+
+    "client.access-key-id": "<>",
+    "client.secret-access-key": "<>",
+    'client.region': '<region>',
+    "type": "glue",
+    "uri": "https://glue.<region>.amazonaws.com/iceberg",
+
+}
+
+"""
+
+
 # Please replace uri with appropriate value
 
 with DAG(
@@ -64,4 +88,12 @@ with DAG(
 
     # [END howto_analytics_decorator]
 
-    analytics_with_local >> get_user_summary_queries()
+    # [START howto_analytics_iceberg]
+
+    @task.analytics(datasource_configs=[datasource_config_iceberg])
+    def get_users_product_queries_from_iceberg_catalog():
+        return ["SELECT * FROM users_data LIMIT 10", "SELECT count(*) FROM users_data"]
+
+    # [END howto_analytics_iceberg]
+
+    analytics_with_local >> get_user_summary_queries() >> get_users_product_queries_from_iceberg_catalog()
