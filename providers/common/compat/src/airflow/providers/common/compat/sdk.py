@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk._shared.listeners import hookimpl as hookimpl
     from airflow.sdk._shared.observability.metrics.stats import Stats as Stats
+    from airflow.sdk.bases.branch import BaseBranchOperator as BaseBranchOperator, BranchMixIn as BranchMixIn
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
@@ -148,6 +150,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Hooks
     # ============================================================================
     "BaseHook": ("airflow.sdk", "airflow.hooks.base"),
+    # ============================================================================
+    # Branching
+    # ============================================================================
+    "BaseBranchOperator": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
+    "BranchMixIn": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
+    "SkipMixin": ("airflow.sdk.bases.skipmixin", "airflow.models.skipmixin"),
     # ============================================================================
     # Sensors
     # ============================================================================

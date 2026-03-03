@@ -50,7 +50,9 @@ from airflow.models.variable import Variable
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowSkipException,
+    BaseBranchOperator,
     KeywordParameters,
+    SkipMixin,
     context_merge,
 )
 from airflow.providers.common.compat.standard.operators import (
@@ -66,14 +68,6 @@ from airflow.providers.standard.utils.python_virtualenv import (
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.branch import BaseBranchOperator
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
-else:
-    from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
-
 
 log = logging.getLogger(__name__)
 
