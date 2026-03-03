@@ -1027,15 +1027,18 @@ class DagRun(Base, LoggingMixin):
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
+            attributes = {
+                "dag_id": str(self.dag_id),
+                "run_id": self.run_id,
+            }
+            if self.logical_date:
+                attributes["logical_date"] = str(self.logical_date)
+            if self.partition_key:
+                attributes["partition_key"] = str(self.partition_key)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
-                attributes={
-                    "dag_id": str(self.dag_id),
-                    "run_id": self.run_id,
-                    "logical_date": self.logical_date,
-                    "partition_key": self.partition_key,
-                },
+                attributes=attributes,
                 context=context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
