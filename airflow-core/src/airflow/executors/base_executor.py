@@ -395,8 +395,9 @@ class BaseExecutor(LoggingMixin):
             if key in self.attempts:
                 del self.attempts[key]
 
-            ti = workload.ti
-            ti.context_carrier = ti.parent_context_carrier
+            if isinstance(workload, workloads.ExecuteTask):
+                ti = workload.ti
+                ti.context_carrier = ti.parent_context_carrier
 
             workload_list.append(workload)
 
