@@ -28,6 +28,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
     from airflow.sdk import Context
@@ -93,7 +94,7 @@ class AgentOperator(BaseOperator):
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:
             extra_kwargs["toolsets"] = self.toolsets
-        agent = self.llm_hook.create_agent(
+        agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
             **extra_kwargs,
