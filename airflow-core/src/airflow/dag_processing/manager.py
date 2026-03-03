@@ -77,6 +77,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
