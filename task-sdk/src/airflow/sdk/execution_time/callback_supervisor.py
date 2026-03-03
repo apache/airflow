@@ -246,10 +246,14 @@ def supervise_callback(
     """
     start = time.monotonic()
 
-    logger: FilteringBoundLogger | None = None
+    logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
     if log_path:
         logger, log_file_descriptor = _configure_logging(log_path)
+    else:
+        # When no log file is requested, still use a callback-specific logger
+        # so logs are clearly separated from task logs.
+        logger = structlog.get_logger(logger_name="callback").bind()
 
     try:
         process = CallbackSubprocess.start(
