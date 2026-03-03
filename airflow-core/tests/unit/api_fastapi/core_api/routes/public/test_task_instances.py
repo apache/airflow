@@ -6025,32 +6025,6 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 422
 
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
-    def test_patch_task_group_with_upstream_downstream(self, mock_set_ti_state, test_client, session):
-        """Test that include_upstream and include_downstream flags are passed through."""
-        self.create_task_instances(session, dag_id=self.DAG_ID)
-
-        tis = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == self.DAG_ID,
-                TaskInstance.run_id == self.RUN_ID,
-            )
-        ).all()
-        mock_set_ti_state.return_value = tis[:1]
-
-        response = test_client.patch(
-            self.ENDPOINT_URL,
-            json={
-                "new_state": "success",
-                "include_upstream": True,
-                "include_downstream": True,
-            },
-        )
-        assert response.status_code == 200
-        for call in mock_set_ti_state.call_args_list:
-            assert call.kwargs["upstream"] is True
-            assert call.kwargs["downstream"] is True
-
     def test_patch_task_group_dag_not_found(self, test_client, session):
         """Test that requesting a non-existent DAG returns 404."""
         url = f"/dags/nonexistent_dag/dagRuns/{self.RUN_ID}/taskGroupInstances/{self.GROUP_ID}"

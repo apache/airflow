@@ -873,19 +873,21 @@ def patch_task_group_instances(
     dag_bag: DagBagDep,
     body: PatchTaskGroupBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> TaskInstanceCollectionResponse:
     """Update the state of all task instances in a task group."""
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
     _patch_task_group_state(
-        dag=dag,
+        dag_id=dag_id,
         dag_run_id=dag_run_id,
         group_id=group_id,
         body=body,
+        dag_bag=dag_bag,
+        user=user,
         session=session,
     )
 
     # Collect all TIs for the task group to build the response
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     task_ids = _get_task_group_task_ids(dag, group_id)
     tis = (
         session.scalars(
@@ -1067,16 +1069,24 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
+            # Create BulkTaskInstanceBody object with map_index field
+            bulk_ti_body = BulkTaskInstanceBody(
+                task_id=task_id,
+                map_index=map_index,
+                new_state=body.new_state,
+                note=body.note,
+                include_upstream=body.include_upstream,
+                include_downstream=body.include_downstream,
+                include_future=body.include_future,
+                include_past=body.include_past,
+            )
+
             _patch_task_instance_state(
                 task_id=task_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
-                new_state=data["new_state"],
-                map_indexes=[map_index] if map_index is not None else None,
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
+                task_instance_body=bulk_ti_body,
+                data=data,
                 session=session,
             )
 
