@@ -724,7 +724,7 @@ def initialize():
     load_policy_plugins(policy_mgr)
     import_local_settings()
     configure_logging()
-
+    configure_otel()
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
@@ -760,6 +760,3 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 # Prefix used by gunicorn workers to indicate they are ready to serve requests
 # Used by GunicornMonitor to track worker readiness via process titles
 GUNICORN_WORKER_READY_PREFIX: str = "[ready] "
-
-
-configure_otel()
