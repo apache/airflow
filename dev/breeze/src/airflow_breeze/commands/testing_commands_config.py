@@ -39,6 +39,7 @@ TEST_ENVIRONMENT_DB: dict[str, str | list[str]] = {
     "name": "Test environment",
     "options": [
         "--backend",
+        "--custom-db-url",
         "--no-db-cleanup",
         "--python",
         "--postgres-version",
