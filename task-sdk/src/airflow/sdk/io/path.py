@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
 from upath import UPath
-from upath.extensions import ProxyUPath
+from upath.extensions import ProxyUPath, classmethod_or_method
 
 from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
@@ -116,6 +116,18 @@ class ObjectStoragePath(ProxyUPath):
         # to the underlying fsspec filesystem, which doesn't understand it
         self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
+
+    @classmethod_or_method
+    def _from_upath(cls_or_self, upath, /):
+        """Wrap a UPath, propagating conn_id from the calling instance."""
+        is_instance = isinstance(cls_or_self, ObjectStoragePath)
+        cls = type(cls_or_self) if is_instance else cls_or_self
+        if isinstance(upath, cls):
+            return upath
+        obj = object.__new__(cls)
+        obj.__wrapped__ = upath
+        obj._conn_id = getattr(cls_or_self, "_conn_id", None) if is_instance else None
+        return obj
 
     @property
     def conn_id(self) -> str | None:
