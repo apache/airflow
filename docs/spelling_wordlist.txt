@@ -834,6 +834,7 @@ Gzip
 gzipped
 hadoop
 hadoopcmd
+hardcode
 hardcoded
 Harenslak
 Hashable
