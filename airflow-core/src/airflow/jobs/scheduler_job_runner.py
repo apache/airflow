@@ -3142,11 +3142,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         for ct in pending_tests:
-            executor = self._find_executor_for_connection_test(ct.queue)
+            executor = self._find_executor_for_connection_test(ct.executor)
             if executor is None:
                 reason = (
-                    f"No executor serves queue '{ct.queue}'"
-                    if ct.queue
+                    f"No executor matches '{ct.executor}'"
+                    if ct.executor
                     else "No executor supports connection testing"
                 )
                 ct.state = ConnectionTestState.FAILED
@@ -3176,6 +3176,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ConnectionTest.state.in_([ConnectionTestState.QUEUED, ConnectionTestState.RUNNING]),
             ConnectionTest.updated_at < cutoff,
         )
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTest, skip_locked=True)
         stale_tests = session.scalars(stale_stmt).all()
 
         for ct in stale_tests:
@@ -3187,11 +3188,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         session.flush()
 
-    def _find_executor_for_connection_test(self, queue: str | None) -> BaseExecutor | None:
-        """Find an executor that supports connection testing, optionally matching a queue."""
-        if queue is not None:
+    def _find_executor_for_connection_test(self, executor_name: str | None) -> BaseExecutor | None:
+        """Find an executor that supports connection testing, optionally matching by team name."""
+        if executor_name is not None:
             for executor in self.executors:
-                if executor.supports_connection_test and executor.team_name == queue:
+                if executor.supports_connection_test and executor.team_name == executor_name:
                     return executor
             return None
         for executor in self.executors:

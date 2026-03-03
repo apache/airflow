@@ -69,16 +69,16 @@ class ConnectionTest(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
-    queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    executor: Mapped[str | None] = mapped_column(String(256), nullable=True)
     connection_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     reverted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     __table_args__ = (Index("idx_connection_test_state_created_at", state, created_at),)
 
-    def __init__(self, *, connection_id: str, queue: str | None = None, **kwargs):
+    def __init__(self, *, connection_id: str, executor: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.connection_id = connection_id
-        self.queue = queue
+        self.executor = executor
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
 

@@ -9502,11 +9502,11 @@ class TestDispatchConnectionTests:
             "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
         },
     )
-    def test_dispatch_with_unmatched_queue_fails_fast(
+    def test_dispatch_with_unmatched_executor_fails_fast(
         self, scheduler_job_runner_for_connection_tests, session
     ):
-        """Tests requesting a queue with no matching executor are failed immediately."""
-        ct = ConnectionTest(connection_id="test_conn", queue="gpu_workers")
+        """Tests requesting an executor with no match are failed immediately."""
+        ct = ConnectionTest(connection_id="test_conn", executor="gpu_workers")
         session.add(ct)
         session.commit()
 
@@ -9589,14 +9589,16 @@ class TestDispatchConnectionTests:
             "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
         },
     )
-    def test_dispatch_fails_fast_for_unserved_queue(self, scheduler_job_runner_for_connection_tests, session):
-        """Tests requesting a queue no executor serves are failed immediately."""
+    def test_dispatch_fails_fast_for_unserved_executor(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """Tests requesting an executor no team serves are failed immediately."""
         with mock.patch.object(
             scheduler_job_runner_for_connection_tests,
             "_find_executor_for_connection_test",
             return_value=None,
         ):
-            ct = ConnectionTest(connection_id="test_conn", queue="nonexistent_queue")
+            ct = ConnectionTest(connection_id="test_conn", executor="nonexistent_queue")
             session.add(ct)
             session.commit()
 
@@ -9614,8 +9616,8 @@ class TestDispatchConnectionTests:
             "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
         },
     )
-    def test_dispatch_queue_matched_to_team_name(self, session):
-        """When queue is specified, executor whose team_name matches is selected."""
+    def test_dispatch_executor_matched_to_team_name(self, session):
+        """When executor is specified, the executor whose team_name matches is selected."""
         session.execute(delete(ConnectionTest))
         session.commit()
 
@@ -9637,7 +9639,7 @@ class TestDispatchConnectionTests:
         runner.executor = executor_a
         runner._log = mock.MagicMock(spec=logging.Logger)
 
-        ct = ConnectionTest(connection_id="team_conn", queue="team_b")
+        ct = ConnectionTest(connection_id="team_conn", executor="team_b")
         session.add(ct)
         session.commit()
 

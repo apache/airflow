@@ -2128,21 +2128,21 @@ export const useConnectionServiceBulkConnections = <TData = Common.ConnectionSer
 * @param data.connectionId
 * @param data.requestBody
 * @param data.updateMask
-* @param data.queue Executor queue to route the connection test to
+* @param data.executor Executor (team) to route the connection test to
 * @returns ConnectionSaveAndTestResponse Successful Response
 * @throws ApiError
 */
 export const useConnectionServicePatchConnectionAndTest = <TData = Common.ConnectionServicePatchConnectionAndTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   connectionId: string;
-  queue?: string;
+  executor?: string;
   requestBody: ConnectionBody;
   updateMask?: string[];
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   connectionId: string;
-  queue?: string;
+  executor?: string;
   requestBody: ConnectionBody;
   updateMask?: string[];
-}, TContext>({ mutationFn: ({ connectionId, queue, requestBody, updateMask }) => ConnectionService.patchConnectionAndTest({ connectionId, queue, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ connectionId, executor, requestBody, updateMask }) => ConnectionService.patchConnectionAndTest({ connectionId, executor, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dag Run
 * Modify a DAG Run.

@@ -1273,14 +1273,14 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
 
 
 class TestSaveAndTest(TestConnectionEndpoint):
-    """Tests for the combined PATCH /{connection_id}/save-and-test endpoint."""
+    """Tests for the combined PATCH /{connection_id}/test endpoint."""
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_save_and_test_returns_200_with_token(self, test_client, session):
-        """PATCH save-and-test updates the connection and returns a test token."""
+        """PATCH /{connection_id}/test updates the connection and returns a test token."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test",
+            f"/connections/{TEST_CONN_ID}/test",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1295,10 +1295,10 @@ class TestSaveAndTest(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_save_and_test_creates_snapshot(self, test_client, session):
-        """PATCH save-and-test creates a ConnectionTest with a connection_snapshot."""
+        """PATCH /{connection_id}/test creates a ConnectionTest with a connection_snapshot."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test",
+            f"/connections/{TEST_CONN_ID}/test",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1318,11 +1318,11 @@ class TestSaveAndTest(TestConnectionEndpoint):
         assert snapshot["post"]["host"] == "new-host.example.com"
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_save_and_test_passes_queue_parameter(self, test_client, session):
-        """PATCH save-and-test passes the queue parameter to the ConnectionTest."""
+    def test_save_and_test_passes_executor_parameter(self, test_client, session):
+        """PATCH /{connection_id}/test passes the executor parameter to the ConnectionTest."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test?queue=team_a",
+            f"/connections/{TEST_CONN_ID}/test?executor=team_a",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1334,13 +1334,13 @@ class TestSaveAndTest(TestConnectionEndpoint):
 
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         assert ct is not None
-        assert ct.queue == "team_a"
+        assert ct.executor == "team_a"
 
     def test_save_and_test_403_when_disabled(self, test_client):
-        """PATCH save-and-test returns 403 when test_connection is disabled."""
+        """PATCH /{connection_id}/test returns 403 when test_connection is disabled."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test",
+            f"/connections/{TEST_CONN_ID}/test",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1350,9 +1350,9 @@ class TestSaveAndTest(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_save_and_test_404_for_nonexistent(self, test_client):
-        """PATCH save-and-test returns 404 for nonexistent connection."""
+        """PATCH /{connection_id}/test returns 404 for nonexistent connection."""
         response = test_client.patch(
-            "/connections/nonexistent/save-and-test",
+            "/connections/nonexistent/test",
             json={
                 "connection_id": "nonexistent",
                 "conn_type": "http",
@@ -1365,7 +1365,7 @@ class TestSaveAndTest(TestConnectionEndpoint):
         """GET status shows reverted=True after a failed test triggers a revert."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test",
+            f"/connections/{TEST_CONN_ID}/test",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1391,7 +1391,7 @@ class TestSaveAndTest(TestConnectionEndpoint):
         """GET status shows reverted=False for a successful test."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/save-and-test",
+            f"/connections/{TEST_CONN_ID}/test",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,

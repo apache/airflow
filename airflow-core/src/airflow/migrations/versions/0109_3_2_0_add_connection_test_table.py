@@ -51,7 +51,7 @@ def upgrade():
         sa.Column("result_message", sa.Text(), nullable=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("queue", sa.String(256), nullable=True),
+        sa.Column("executor", sa.String(256), nullable=True),
         sa.Column("connection_snapshot", sa.JSON(), nullable=True),
         sa.Column("reverted", sa.Boolean(), nullable=False, server_default="0"),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_pkey")),

@@ -1631,7 +1631,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/connections/{connection_id}/save-and-test:
+  /api/v2/connections/{connection_id}/test:
     patch:
       tags:
       - Connection
@@ -1665,16 +1665,16 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: queue
+      - name: executor
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          description: Executor queue to route the connection test to
-          title: Queue
-        description: Executor queue to route the connection test to
+          description: Executor (team) to route the connection test to
+          title: Executor
+        description: Executor (team) to route the connection test to
       requestBody:
         required: true
         content:
@@ -10325,11 +10325,11 @@ components:
         connection_id:
           type: string
           title: Connection Id
-        queue:
+        executor:
           anyOf:
           - type: string
           - type: 'null'
-          title: Queue
+          title: Executor
       additionalProperties: false
       type: object
       required:

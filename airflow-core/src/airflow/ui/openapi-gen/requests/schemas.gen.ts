@@ -1745,7 +1745,7 @@ export const $ConnectionTestRequestBody = {
             type: 'string',
             title: 'Connection Id'
         },
-        queue: {
+        executor: {
             anyOf: [
                 {
                     type: 'string'
@@ -1754,7 +1754,7 @@ export const $ConnectionTestRequestBody = {
                     type: 'null'
                 }
             ],
-            title: 'Queue'
+            title: 'Executor'
         }
     },
     additionalProperties: false,
