@@ -1029,7 +1029,7 @@ class DagRun(Base, LoggingMixin):
         with override_ids(span_context.trace_id, span_context.span_id):
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
-                start_time=int(self.start_date.timestamp() * 1e9),
+                start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes={
                     "dag_id": str(self.dag_id),
                     "run_id": self.run_id,
