@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import os
 import tempfile
@@ -83,16 +82,10 @@ class TestCliAuthCommands:
         )
 
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
-        with (
-            patch("sys.stdin", io.StringIO("test_password")),
-            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
-        ):
-            auth_command.login(
-                self.parser.parse_args(
-                    ["auth", "login", "--skip-keyring", "--api-url", "http://localhost:8080"]
-                ),
-                api_client=api_client,
-            )
+        auth_command.login(
+            self.parser.parse_args(["auth", "login", "--skip-keyring", "--api-url", "http://localhost:8080"]),
+            api_client=api_client,
+        )
 
     @patch("airflowctl.api.client.keyring")
     def test_login_without_skip_keyring_raises_on_no_keyring(self, mock_keyring, api_client_maker):
@@ -106,9 +99,10 @@ class TestCliAuthCommands:
         )
 
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+        non_tty_stdin = mock.MagicMock()
+        non_tty_stdin.isatty.return_value = False
         with (
-            patch("sys.stdin", io.StringIO("test_password")),
-            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
+            patch("sys.stdin", non_tty_stdin),
             pytest.raises(SystemExit, match="1"),
         ):
             auth_command.login(
@@ -128,29 +122,26 @@ class TestCliAuthCommands:
 
         mock_keyring.set_password = mock.MagicMock()
         mock_keyring.get_password.return_value = None
-        with (
-            patch("sys.stdin", io.StringIO("test_password")),
-            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
-        ):
-            auth_command.login(
-                self.parser.parse_args(
-                    [
-                        "auth",
-                        "login",
-                        "--api-url",
-                        "http://localhost:8080",
-                        "--username",
-                        "test_user",
-                        "--password",
-                    ]
-                ),
-                api_client=api_client,
-            )
-            mock_keyring.set_password.assert_has_calls(
+        auth_command.login(
+            self.parser.parse_args(
                 [
-                    mock.call("airflowctl", "api_token_production", "TEST_TOKEN"),
+                    "auth",
+                    "login",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--username",
+                    "test_user",
+                    "--password",
+                    "test_password",
                 ]
-            )
+            ),
+            api_client=api_client,
+        )
+        mock_keyring.set_password.assert_has_calls(
+            [
+                mock.call("airflowctl", "api_token_production", "TEST_TOKEN"),
+            ]
+        )
 
     @patch("airflowctl.api.client.keyring")
     def test_login_prompts_for_credentials_interactively(self, mock_keyring, api_client_maker):
@@ -247,11 +238,7 @@ class TestCliAuthCommands:
         )
 
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
-        with (
-            patch("sys.stdin", io.StringIO("test_password")),
-            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
-            pytest.raises(SystemExit, match="1"),
-        ):
+        with pytest.raises(SystemExit, match="1"):
             auth_command.login(
                 self.parser.parse_args(
                     [
@@ -262,6 +249,7 @@ class TestCliAuthCommands:
                         "--username",
                         "test_user",
                         "--password",
+                        "test_password",
                     ]
                 ),
                 api_client=api_client,
