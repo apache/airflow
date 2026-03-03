@@ -25,6 +25,7 @@ __all__ = [
     "Self",
     "TypeAlias",
     "TypeGuard",
+    "assert_never",
 ]
 
 import sys
@@ -33,6 +34,6 @@ import sys
 from typing import Literal, ParamSpec, TypeAlias, TypeGuard
 
 if sys.version_info >= (3, 11):
-    from typing import Self
+    from typing import Self, assert_never
 else:
-    from typing_extensions import Self
+    from typing_extensions import Self, assert_never
