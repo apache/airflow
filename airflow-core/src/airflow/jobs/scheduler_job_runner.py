@@ -33,7 +33,6 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from opentelemetry import trace
 from sqlalchemy import (
     and_,
     delete,
@@ -137,8 +136,6 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
-
-tracer = trace.get_tracer(__name__)
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
