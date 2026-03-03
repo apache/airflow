@@ -1262,6 +1262,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
     operator_extra_links = (BigQueryTableLink(),)
