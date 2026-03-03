@@ -390,7 +390,7 @@ def _register():
                 log.debug("registering %s for stringifying", c)
                 _stringifiers[c] = name
 
-    log.debug("loading serializers took %.3f seconds", timer.duration)
+    log.debug("loading serializers took %.3f ms", timer.duration)
 
 
 @functools.cache
