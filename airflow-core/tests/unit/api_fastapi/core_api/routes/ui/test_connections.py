@@ -58,6 +58,48 @@ class TestHookMetaData:
                 },
                 {"secret_key": "***", "extra_fields": "test-extra_fields", "password": "***"},
             ),
+            (
+                {
+                    "auth_type": {
+                        "value": "oauth2",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "title": "Auth Type",
+                        },
+                        "description": "Authentication type: 'basic' (default) | 'oauth2'",
+                        "source": None,
+                    },
+                    "access_token": {  # sensitive field
+                        "value": "oauth2-bearer-token",
+                        "schema": {
+                            "type": ["string", "null"],  # Optional field
+                            "title": "Access Token",
+                        },
+                        "description": "OAuth 2 bearer (one-hour).",
+                        "source": None,
+                    },
+                },
+                {
+                    "auth_type": {
+                        "value": "oauth2",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "title": "Auth Type",
+                        },
+                        "description": "Authentication type: 'basic' (default) | 'oauth2'",
+                        "source": None,
+                    },
+                    "access_token": {  # sensitive field - only value masked, schema.type preserved
+                        "value": "***",
+                        "schema": {
+                            "type": ["string", "null"],  # Should be preserved
+                            "title": "Access Token",  # Preserved
+                        },
+                        "description": "OAuth 2 bearer (one-hour).",  # Preserved
+                        "source": None,
+                    },
+                },
+            ),
         ],
     )
     @pytest.mark.enable_redact

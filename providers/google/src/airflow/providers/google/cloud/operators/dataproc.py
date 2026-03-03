@@ -213,6 +213,7 @@ class ClusterGenerator:
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
+    :param cluster_type: The type of the cluster (e.g. "STANDARD" / "SINGLE_NODE" / "ZERO_SCALE")
     """
 
     def __init__(
@@ -263,6 +264,7 @@ class ClusterGenerator:
         secondary_worker_accelerator_count: int | None = None,
         *,
         cluster_tier: str | None = None,
+        cluster_type: str | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -311,6 +313,7 @@ class ClusterGenerator:
         self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
         self.cluster_tier = cluster_tier
+        self.cluster_type = cluster_type
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -518,6 +521,9 @@ class ClusterGenerator:
 
         if self.cluster_tier:
             cluster_data["cluster_tier"] = self.cluster_tier
+
+        if self.cluster_type:
+            cluster_data["cluster_type"] = self.cluster_type
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 
@@ -949,8 +955,6 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
-    :param ignore_if_missing: If True, the operator will not raise an exception if the cluster does not exist.
-        Defaults to False.
     """
 
     template_fields: Sequence[str] = (
@@ -976,7 +980,6 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 10,
-        ignore_if_missing: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -994,7 +997,6 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
-        self.ignore_if_missing = ignore_if_missing
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -1002,14 +1004,12 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
             op: operation.Operation = self._delete_cluster(hook)
 
         except NotFound:
-            if self.ignore_if_missing:
-                self.log.info(
-                    "Cluster %s not found in region %s. Ignoring.",
-                    self.cluster_name,
-                    self.region,
-                )
-                return
-            raise
+            self.log.info(
+                "Cluster %s not found in region %s. might have been deleted already.",
+                self.cluster_name,
+                self.region,
+            )
+            return
 
         except Exception as e:
             raise AirflowException(str(e))

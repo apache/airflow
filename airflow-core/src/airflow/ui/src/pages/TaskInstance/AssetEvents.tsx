@@ -25,17 +25,16 @@ import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInsta
 import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [searchParams, setSearchParams] = useSearchParams();
   const { t: translate } = useTranslation(["assets"]);
 
-  const [assetNameSearch, setAssetNameSearch] = useState(
-    searchParams.get(SearchParamsKeys.NAME_PATTERN) ?? "",
-  );
+  const [assetNameSearch, setAssetNameSearch] = useState(searchParams.get(NAME_PATTERN) ?? "");
 
   const parsedMapIndex = parseInt(mapIndex, 10);
 
@@ -65,10 +64,11 @@ export const AssetEvents = () => {
       pagination: { ...pagination, pageIndex: 0 },
     });
     if (value) {
-      searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(SearchParamsKeys.NAME_PATTERN);
+      searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
   };
 

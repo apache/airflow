@@ -29,6 +29,7 @@ from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio
 from aiofiles import open as aio_open
 from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
@@ -238,7 +239,8 @@ class EdgeWorker:
         return process, results_queue
 
     async def _push_logs_in_chunks(self, job: Job):
-        if push_logs and job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+        aio_logfile = anyio.Path(job.logfile)
+        if push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
             async with aio_open(job.logfile, mode="rb") as logf:
                 await logf.seek(job.logsize, os.SEEK_SET)
                 read_data = await logf.read()

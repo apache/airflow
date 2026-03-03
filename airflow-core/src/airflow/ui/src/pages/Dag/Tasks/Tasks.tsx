@@ -16,37 +16,77 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, Box } from "@chakra-ui/react";
+import { Box, Link } from "@chakra-ui/react";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
 import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
-import { TaskCard } from "./TaskCard";
+type TaskRow = { row: { original: TaskResponse } };
 
-const cardDef = (dagId: string): CardDef<TaskResponse> => ({
-  card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
-  meta: {
-    customSkeleton: <Skeleton height="120px" width="100%" />,
+const createColumns = ({
+  dagId,
+  translate,
+}: {
+  dagId: string;
+  translate: TFunction;
+}): Array<ColumnDef<TaskResponse>> => [
+  {
+    accessorKey: "task_display_name",
+    cell: ({ row: { original } }: TaskRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${dagId}/tasks/${original.task_id}`}>
+          <TruncatedText text={original.task_display_name ?? original.task_id ?? ""} />
+        </RouterLink>
+      </Link>
+    ),
+    enableSorting: false,
+    header: translate("common:taskId"),
   },
-});
+  {
+    accessorKey: "trigger_rule",
+    enableSorting: false,
+    header: translate("common:task.triggerRule"),
+  },
+  {
+    accessorKey: "operator_name",
+    enableSorting: false,
+    header: translate("common:task.operator"),
+  },
+  {
+    accessorKey: "retries",
+    enableSorting: false,
+    header: translate("tasks:retries"),
+  },
+  {
+    accessorKey: "is_mapped",
+    enableSorting: false,
+    header: translate("tasks:mapped"),
+  },
+];
 
 export const Tasks = () => {
   const { dagId = "" } = useParams();
   const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
-  const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
   const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
   const selectedRetries = searchParams.getAll(RETRIES);
   const selectedMapped = searchParams.get(MAPPED) ?? undefined;
   const namePattern = searchParams.get(NAME_PATTERN) ?? undefined;
+
+  const { t: translate } = useTranslation(["tasks", "common"]);
+
+  const columns = createColumns({ dagId, translate });
 
   const {
     data,
@@ -94,13 +134,12 @@ export const Tasks = () => {
       <TaskFilters tasksData={data} />
 
       <DataTable
-        cardDef={cardDef(dagId)}
-        columns={[]}
+        columns={columns}
         data={filteredTasks}
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("task_one")}
+        modelName="common:task"
         total={data ? data.total_entries : 0}
       />
     </Box>

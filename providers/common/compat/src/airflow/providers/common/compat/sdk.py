@@ -70,14 +70,18 @@ if TYPE_CHECKING:
     )
     from airflow.sdk._shared.listeners import hookimpl as hookimpl
     from airflow.sdk._shared.observability.metrics.stats import Stats as Stats
+    from airflow.sdk.bases.branch import BaseBranchOperator as BaseBranchOperator, BranchMixIn as BranchMixIn
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
+        KeywordParameters as KeywordParameters,
         TaskDecorator as TaskDecorator,
+        determine_kwargs as determine_kwargs,
         get_unique_task_id as get_unique_task_id,
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
@@ -95,6 +99,13 @@ if TYPE_CHECKING:
         TaskDeferred as TaskDeferred,
         XComNotFound as XComNotFound,
     )
+    from airflow.sdk.lineage import (
+        HookLineage as HookLineage,
+        HookLineageCollector as HookLineageCollector,
+        HookLineageReader as HookLineageReader,
+        NoOpCollector as NoOpCollector,
+        get_hook_lineage_collector as get_hook_lineage_collector,
+    )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
@@ -111,6 +122,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
+    from airflow.sdk.types import TaskInstanceKey as TaskInstanceKey
 
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
@@ -125,6 +137,10 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
     "AssetAny": ("airflow.sdk", "airflow.datasets", "DatasetAny"),
 }
 
+# Airflow 3-only renames (not available in Airflow 2)
+_AIRFLOW_3_ONLY_RENAMES: dict[str, tuple[str, str, str]] = {}
+
+
 # Import map for classes/functions/constants
 # Format: class_name -> module_path(s)
 # - str: single module path (no fallback)
@@ -134,6 +150,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Hooks
     # ============================================================================
     "BaseHook": ("airflow.sdk", "airflow.hooks.base"),
+    # ============================================================================
+    # Branching
+    # ============================================================================
+    "BaseBranchOperator": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
+    "BranchMixIn": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
+    "SkipMixin": ("airflow.sdk.bases.skipmixin", "airflow.models.skipmixin"),
     # ============================================================================
     # Sensors
     # ============================================================================
@@ -155,6 +177,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "TaskDecorator": ("airflow.sdk.bases.decorator", "airflow.decorators"),
     "task_decorator_factory": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     "get_unique_task_id": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
+    "KeywordParameters": ("airflow.sdk.bases.decorator", "airflow.utils.operator_helpers"),
+    "determine_kwargs": ("airflow.sdk.bases.decorator", "airflow.utils.operator_helpers"),
     # ============================================================================
     # Models
     # ============================================================================
@@ -185,6 +209,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Operator Links & Task Groups
     # ============================================================================
     "BaseOperatorLink": ("airflow.sdk", "airflow.models.baseoperatorlink"),
+    "TaskInstanceKey": ("airflow.sdk.types", "airflow.models.taskinstancekey"),
     "TaskGroup": ("airflow.sdk", "airflow.utils.task_group"),
     # ============================================================================
     # Operator Utilities (chain, cross_downstream, etc.)
@@ -233,6 +258,15 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "XCOM_RETURN_KEY": "airflow.models.xcom",
     # ============================================================================
+    # Lineage
+    # ============================================================================
+    "HookLineageCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "HookLineageReader": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "get_hook_lineage_collector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "HookLineage": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    # Note: AssetLineageInfo is handled by _RENAME_MAP (DatasetLineageInfo -> AssetLineageInfo)
+    "NoOpCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================
     # Note: AirflowException and AirflowNotFoundException are not deprecated, but exposing them
@@ -250,7 +284,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Observability
     # ============================================================================
-    "Stats": ("airflow.sdk._shared.observability.metrics.stats", "airflow.stats"),
+    "Stats": ("airflow.sdk.observability.stats", "airflow.observability.stats", "airflow.stats"),
     # ============================================================================
     # Secrets Masking
     # ============================================================================
@@ -277,9 +311,14 @@ _AIRFLOW_3_ONLY_EXCEPTIONS: dict[str, tuple[str, ...]] = {
     "DagRunTriggerException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
-# Add Airflow 3-only exceptions to _IMPORT_MAP if running Airflow 3+
+# Add Airflow 3-only exceptions and renames to _IMPORT_MAP if running Airflow 3+
 if AIRFLOW_V_3_0_PLUS:
     _IMPORT_MAP.update(_AIRFLOW_3_ONLY_EXCEPTIONS)
+    _RENAME_MAP.update(_AIRFLOW_3_ONLY_RENAMES)
+    # AssetLineageInfo exists in 3.0+ but location changed in 3.2
+    # 3.0-3.1: airflow.lineage.hook.AssetLineageInfo
+    # 3.2+: airflow.sdk.lineage.AssetLineageInfo
+    _IMPORT_MAP["AssetLineageInfo"] = ("airflow.sdk.lineage", "airflow.lineage.hook")
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)

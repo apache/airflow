@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 import sys
 from pathlib import Path
+from types import EllipsisType
 
 AIRFLOW_ROOT = Path(__file__).parents[3].resolve()
 CORE_SECRETS_FILE = AIRFLOW_ROOT / "airflow-core" / "src" / "airflow" / "secrets" / "base_secrets.py"
@@ -29,7 +30,9 @@ SDK_SECRETS_FILE = (
 )
 
 
-def extract_from_file(file_path: Path, constant_name: str) -> list[str] | None:
+def extract_from_file(
+    file_path: Path, constant_name: str
+) -> list[str | bytes | int | float | complex | EllipsisType | None] | None:
     """Extract a list constant value from a Python file using AST parsing."""
     try:
         with open(file_path) as f:

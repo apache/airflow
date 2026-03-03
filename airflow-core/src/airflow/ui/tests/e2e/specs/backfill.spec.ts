@@ -56,12 +56,8 @@ test.describe("Backfill creation and validation", () => {
         toDate: config.toDate,
       });
 
-      await setupBackfillPage.navigateToBackfillsTab(testDagId);
-      await setupBackfillPage.findBackfillRowByDateRange({
-        fromDate: config.fromDate,
-        toDate: config.toDate,
-      });
-
+      // Wait for backfill to complete on Dag detail page (where the banner is visible)
+      await setupBackfillPage.navigateToDagDetail(testDagId);
       await setupBackfillPage.waitForNoActiveBackfill();
     }
 
@@ -192,5 +188,83 @@ test.describe("validate date range", () => {
     await backfillPage.backfillFromDateInput.fill(fromDate);
     await backfillPage.backfillToDateInput.fill(toDate);
     await expect(backfillPage.backfillDateError).toBeVisible();
+  });
+});
+
+test.describe("Backfill pause, resume, and cancel controls", () => {
+  test.describe.configure({ mode: "serial" });
+  test.setTimeout(180_000);
+
+  const testDagId = testConfig.testDag.id;
+  const controlFromDate = getPastDate(90);
+  const controlToDate = getPastDate(30);
+
+  let backfillPage: BackfillPage;
+
+  test.beforeEach(async ({ page }) => {
+    backfillPage = new BackfillPage(page);
+    await backfillPage.navigateToDagDetail(testDagId);
+
+    if (await backfillPage.cancelButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await backfillPage.clickCancelButton();
+    }
+
+    await backfillPage.createBackfill(testDagId, {
+      fromDate: controlFromDate,
+      reprocessBehavior: "All Runs",
+      toDate: controlToDate,
+    });
+
+    await expect(async () => {
+      await backfillPage.page.reload();
+      await expect(backfillPage.triggerButton).toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 60_000 });
+  });
+
+  test.afterEach(async () => {
+    await backfillPage.navigateToDagDetail(testDagId);
+    if (await backfillPage.cancelButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await backfillPage.clickCancelButton();
+    }
+  });
+
+  test("verify pause and resume backfill", async () => {
+    await backfillPage.clickPauseButton();
+    expect(await backfillPage.isBackfillPaused()).toBe(true);
+
+    await backfillPage.clickPauseButton();
+    expect(await backfillPage.isBackfillPaused()).toBe(false);
+  });
+
+  test("verify cancel backfill", async () => {
+    await backfillPage.clickCancelButton();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.cancelButton).not.toBeVisible({ timeout: 10_000 });
+  });
+
+  test("verify cancelled backfill cannot be resumed", async () => {
+    await backfillPage.clickCancelButton();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+
+    await backfillPage.page.reload();
+    await expect(backfillPage.triggerButton).toBeVisible({ timeout: 30_000 });
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
+    const row = await backfillPage.findBackfillRowByDateRange({
+      fromDate: controlFromDate,
+      toDate: controlToDate,
+    });
+
+    await expect(row).toBeVisible();
+
+    const columnMap = await backfillPage.getColumnIndexMap();
+    const completedAtIndex = BackfillPage.findColumnIndex(columnMap, ["Completed at", "table.completedAt"]);
+    const completedAtCell = row.locator("td").nth(completedAtIndex);
+    const completedAtText = await completedAtCell.textContent();
+
+    expect(completedAtText?.trim()).not.toBe("");
   });
 });

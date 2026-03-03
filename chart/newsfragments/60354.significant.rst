@@ -1,3 +1,0 @@
-``workers.strategy`` section is now deprecated in favor of ``workers.celery.strategy``.
-
-Along the upgrade of Helm Chart version, change the configuration of values in section ``workers.strategy`` to ``workers.celery.strategy`` section or unset all values under ``workers.celery.strategy`` to preserve previous behaviour of the Helm Chart.

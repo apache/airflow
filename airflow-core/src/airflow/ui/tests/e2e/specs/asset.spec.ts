@@ -17,8 +17,9 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE } from "playwright.config";
+import { AUTH_FILE, testConfig } from "playwright.config";
 
+import { AssetDetailPage } from "../pages/AssetDetailPage";
 import { AssetListPage } from "../pages/AssetListPage";
 import { DagsPage } from "../pages/DagsPage";
 
@@ -88,7 +89,7 @@ test.describe("Assets Page", () => {
 
     expect(initialCount).toBeGreaterThan(0);
 
-    const searchTerm = "s3://dag1/output_1.txt";
+    const searchTerm = testConfig.asset.name;
 
     await assets.searchInput.fill(searchTerm);
 
@@ -116,23 +117,18 @@ test.describe("Assets Page", () => {
     }
   });
 
-  test("verify pagination controls navigate between pages", async () => {
-    await assets.navigateTo("/assets?limit=5&offset=0");
-    await assets.waitForLoad();
+  test("verify asset details and dependencies", async ({ page }) => {
+    const assetDetailPage = new AssetDetailPage(page);
+    const assetName = testConfig.asset.name;
 
-    const page1Initial = await assets.assetNames();
+    await assetDetailPage.goto();
 
-    expect(page1Initial.length).toBeGreaterThan(0);
+    await assetDetailPage.clickOnAsset(assetName);
 
-    const pagination = assets.page.locator('[data-scope="pagination"]');
+    await assetDetailPage.verifyAssetDetails(assetName);
 
-    await pagination.getByRole("button", { name: /page 2/i }).click();
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
+    await assetDetailPage.verifyProducingTasks(1);
 
-    const page2Assets = await assets.assetNames();
-
-    await pagination.getByRole("button", { name: /page 1/i }).click();
-
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
+    await assetDetailPage.verifyScheduledDags(1);
   });
 });

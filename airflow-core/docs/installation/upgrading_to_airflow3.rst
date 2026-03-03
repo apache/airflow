@@ -118,7 +118,8 @@ To trigger these fixes, run the following command:
 
 .. note::
 
-    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``.
+    These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the ``unused-import`` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>`_
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -237,7 +238,7 @@ Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
    - **Breaks task isolation**: This contradicts one of Airflow 3's core features - task isolation. Tasks should not directly access the metadata database.
    - **Performance implications**: This reintroduces Airflow 2 behavior where each task opens separate database connections, dramatically changing performance characteristics and scalability.
 
-If your use case cannot be addressed using the Python Client and you understand the risks above, you ma use database hooks to query your metadata database directly. Create a database
+If your use case cannot be addressed using the Python Client and you understand the risks above, you may use database hooks to query your metadata database directly. Create a database
 connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
 and use Database Hooks in Airflow.
 
@@ -255,14 +256,12 @@ the API server) using database drivers like psycopg2 or mysqlclient.
    @task
    def get_connections_from_db():
        hook = PostgresHook(postgres_conn_id="metadata_postgres")
-       records = hook.get_records(
-           sql="""
+       records = hook.get_records(sql="""
            SELECT conn_id, conn_type, host, schema, login
            FROM connection
            WHERE conn_type = 'postgres'
            LIMIT 10;
-           """
-       )
+           """)
 
        return records
 

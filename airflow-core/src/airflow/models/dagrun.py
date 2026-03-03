@@ -24,6 +24,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
+from uuid import UUID
 
 import structlog
 from natsort import natsorted
@@ -38,6 +39,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     and_,
     case,
     func,
@@ -51,10 +53,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
@@ -66,12 +67,13 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.observability.trace import Trace
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -85,7 +87,6 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     get_dialect_name,
-    mapped_column,
     nulls_first,
     with_row_locks,
 )
@@ -191,6 +192,7 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
@@ -214,8 +216,8 @@ class DagRun(Base, LoggingMixin):
     span_status: Mapped[str] = mapped_column(
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
-    created_dag_version_id: Mapped[str | None] = mapped_column(
-        UUIDType(binary=False),
+    created_dag_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(),
         ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
         nullable=True,
     )
@@ -225,6 +227,7 @@ class DagRun(Base, LoggingMixin):
     """
 
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -328,6 +331,8 @@ class DagRun(Base, LoggingMixin):
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
+        note: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
@@ -348,6 +353,7 @@ class DagRun(Base, LoggingMixin):
             self.run_after = run_after
         self.start_date = start_date
         self.conf = conf or {}
+        self.note = note
         if state is not None:
             self.state = state
         if not is_arg_set(queued_at):
@@ -368,6 +374,7 @@ class DagRun(Base, LoggingMixin):
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
             )
         self.partition_key = partition_key
+        self.partition_date = partition_date
         super().__init__()
 
     def __repr__(self):
@@ -438,7 +445,7 @@ class DagRun(Base, LoggingMixin):
         return case(when_condition, else_=None)
 
     @provide_session
-    def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
+    def check_version_id_exists_in_dr(self, dag_version_id: UUID, session: Session = NEW_SESSION):
         select_stmt = (
             select(TI.dag_version_id)
             .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
@@ -463,7 +470,7 @@ class DagRun(Base, LoggingMixin):
 
     def set_state(self, state: DagRunState) -> None:
         """
-        Change the state of the DagRan.
+        Change the state of the DagRun.
 
         Changes to attributes are implemented in accordance with the following table
         (rows represent old states, columns represent new states):
@@ -601,7 +608,6 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
-            .options(joinedload(cls.task_instances))
             .order_by(
                 nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
@@ -1094,7 +1100,7 @@ class DagRun(Base, LoggingMixin):
                             ti_carrier = Trace.inject()
                             ti.context_carrier = ti_carrier
                             ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set("ti:" + ti.id, ti_span)
+                            self.active_spans.set(f"ti:{ti.id}", ti_span)
             else:
                 self.log.debug(
                     "Found span_status '%s', while updating state for dag_run '%s'",
@@ -1265,9 +1271,13 @@ class DagRun(Base, LoggingMixin):
 
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
+                deadline_alerts = [
+                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
+                ]
+
                 if any(
-                    isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
-                    for d in cast("list", dag.deadline)
+                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
+                    for deadline_alert in deadline_alerts
                 ):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
@@ -1686,7 +1696,7 @@ class DagRun(Base, LoggingMixin):
         )
 
     @provide_session
-    def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType) -> None:
+    def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUID) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1823,7 +1833,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-        dag_version_id: UUIDType,
+        dag_version_id: UUID,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
@@ -1832,7 +1842,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-        dag_version_id: UUIDType,
+        dag_version_id: UUID,
     ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
@@ -1840,7 +1850,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
-        dag_version_id: UUIDType,
+        dag_version_id: UUID,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.
@@ -1956,7 +1966,7 @@ class DagRun(Base, LoggingMixin):
             session.rollback()
 
     def _revise_map_indexes_if_mapped(
-        self, task: Operator, *, dag_version_id: UUIDType, session: Session
+        self, task: Operator, *, dag_version_id: UUID | None, session: Session
     ) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
@@ -2049,8 +2059,8 @@ class DagRun(Base, LoggingMixin):
         """
         # Get list of TI IDs that do not need to executed, these are
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
-        empty_ti_ids: list[str] = []
-        schedulable_ti_ids: list[str] = []
+        empty_ti_ids: list[UUID] = []
+        schedulable_ti_ids: list[UUID] = []
         for ti in schedulable_tis:
             if ti.is_schedulable:
                 schedulable_ti_ids.append(ti.id)

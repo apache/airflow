@@ -373,8 +373,10 @@ binary-reproduced when built from the sources.
 
 1) Set versions of the packages to be checked:
 
+Go to directory where your airflow sources are checked out and set the following environment variables:
+
 ```shell script
-cd <directory where airflow is checked out>
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
 VERSION=X.Y.Z
 VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
@@ -449,6 +451,7 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files python-client --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 
@@ -456,10 +459,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
+wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -471,6 +477,7 @@ rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-pyt
 Run the check:
 
 ```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-python-client-src/.rat-excludes
 java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-python-client-src/.rat-excludes /tmp/apache-airflow-python-client-src/ | grep -E "! |INFO: "
 ```
 
@@ -515,6 +522,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 

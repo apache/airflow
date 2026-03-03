@@ -62,8 +62,7 @@ else:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -83,8 +82,17 @@ class ExternalDagLink(BaseOperatorLink):
 
         if not AIRFLOW_V_3_0_PLUS:
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
+            from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
 
-            if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+            core_ti_key = CoreTaskInstanceKey(
+                dag_id=ti_key.dag_id,
+                task_id=ti_key.task_id,
+                run_id=ti_key.run_id,
+                try_number=ti_key.try_number,
+                map_index=ti_key.map_index,
+            )
+
+            if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
                 external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
 
         if AIRFLOW_V_3_0_PLUS:

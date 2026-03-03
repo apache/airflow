@@ -47,7 +47,8 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy import Select
+    from sqlalchemy.orm import Session
 
     from airflow.models import Base
 
@@ -170,6 +171,7 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="revoked_token", recency_column_name="exp"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -183,8 +185,8 @@ if (
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
 
-def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
-    num_entities = query.count()
+def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+    num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
@@ -192,7 +194,7 @@ def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
     max_rows_to_print = 100
     print(f"Printing first {max_rows_to_print} rows.")
     logger.debug("print entities query: %s", query)
-    for entry in query.limit(max_rows_to_print):
+    for entry in session.execute(query.limit(max_rows_to_print)):
         print(entry.__dict__)
     return num_entities
 
@@ -213,7 +215,7 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *, query: Query, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
 ) -> None:
     import itertools
     import re
@@ -224,7 +226,9 @@ def _do_delete(
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
-        if limited_query.count() == 0:  # nothing left to delete
+        if (
+            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
+        ):  # nothing left to delete
             break
 
         batch_no = next(batch_counter)
@@ -290,13 +294,17 @@ def _do_delete(
 
 
 def _subquery_keep_last(
-    *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
+    *,
+    recency_column,
+    keep_last_filters,
+    group_by_columns,
+    max_date_colname,
 ):
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
-            subquery = subquery.filter(entry)
+            subquery = subquery.where(entry)
 
     if group_by_columns is not None:
         subquery = subquery.group_by(*group_by_columns)
@@ -332,10 +340,10 @@ def _build_query(
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     **kwargs,
-) -> Query:
+) -> Select:
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
-    query = session.query(base_table).with_entities(text(f"{base_table_alias}.*"))
+    query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
 
@@ -355,9 +363,8 @@ def _build_query(
             keep_last_filters=keep_last_filters,
             group_by_columns=group_by_columns,
             max_date_colname=max_date_col_name,
-            session=session,
         )
-        query = query.select_from(base_table).outerjoin(
+        query = query.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
@@ -365,7 +372,7 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
-    query = query.filter(and_(*conditions))
+    query = query.where(and_(*conditions))
     return query
 
 
@@ -404,7 +411,7 @@ def _cleanup_table(
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(query=query, print_rows=False)
+    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
 
     if num_rows and not dry_run:
         _do_delete(

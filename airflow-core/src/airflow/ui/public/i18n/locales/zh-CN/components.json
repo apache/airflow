@@ -115,6 +115,7 @@
         "title": "已触发 Dag 执行"
       }
     },
+    "triggerAgainWithConfig": "使用此配置再次触发",
     "unpause": "触发时取消暂停 {{dagDisplayName}}"
   },
   "trimText": {

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import jmespath
-import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -26,7 +25,7 @@ class TestGitSyncSchedulerTest:
 
     def test_should_add_dags_volume(self):
         docs = render_chart(
-            values={"airflowVersion": "2.10.5", "dags": {"gitSync": {"enabled": True}}},
+            values={"airflowVersion": "2.11.0", "dags": {"gitSync": {"enabled": True}}},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
@@ -54,7 +53,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_the_git_sync_container_spec(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
@@ -117,7 +116,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_the_git_sync_container_spec_if_wait_specified(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
@@ -181,7 +180,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -221,7 +220,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -267,18 +266,10 @@ class TestGitSyncSchedulerTest:
         )
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
-    @pytest.mark.parametrize(
-        ("tag", "expected_prefix"),
-        [
-            ("v3.6.7", "GIT_SYNC_"),
-            ("v4.4.2", "GITSYNC_"),
-            ("latest", "GITSYNC_"),
-        ],
-    )
-    def test_should_set_username_and_pass_env_variables_in_scheduler(self, tag, expected_prefix):
+    def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -286,31 +277,33 @@ class TestGitSyncSchedulerTest:
                         "sshKeySecret": None,
                     }
                 },
-                "images": {
-                    "gitSync": {
-                        "tag": tag,
-                    }
-                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        envs = jmespath.search("spec.template.spec.containers[1].env", docs[0])
-
         assert {
-            "name": f"{expected_prefix}USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}USERNAME"}},
-        } in envs
-
+            "name": "GIT_SYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {
-            "name": f"{expected_prefix}PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
-        } in envs
+            "name": "GIT_SYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+
+        # Testing git-sync v4
+        assert {
+            "name": "GITSYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GITSYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -349,7 +342,7 @@ class TestGitSyncSchedulerTest:
     def test_extra_volume_and_git_sync_extra_volume_mount(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraVolumes": [{"name": "test-volume-{{ .Values.executor }}", "emptyDir": {}}],
@@ -379,7 +372,7 @@ class TestGitSyncSchedulerTest:
     def test_should_add_env(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -397,7 +390,7 @@ class TestGitSyncSchedulerTest:
     def test_resources_are_configurable(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -435,7 +428,7 @@ class TestGitSyncSchedulerTest:
         }
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "dags": {
                     "gitSync": {
                         "enabled": True,

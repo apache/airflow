@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import os
@@ -43,7 +44,7 @@ from slugify import slugify
 from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -69,15 +70,14 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     NOTSET,
 )
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
     from airflow.sdk.execution_time.context import set_current_context
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
@@ -2463,6 +2463,25 @@ class TestShortCircuitWithTeardown:
         else:
             assert isinstance(actual_skipped, Generator)
         assert set(actual_skipped) == {op3}
+
+
+class TestPythonAsyncOperator(TestPythonOperator):
+    def test_run_async_task(self, caplog):
+        caplog.set_level(logging.INFO, logger=LOGGER_NAME)
+
+        async def say_hello(name: str) -> str:
+            await asyncio.sleep(1)
+            return f"Hello {name}!"
+
+        if AIRFLOW_V_3_2_PLUS:
+            self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
+            assert "Done. Returned value was: Hello world!" in caplog.messages
+        else:
+            with pytest.raises(
+                RuntimeError,
+                match=r"Async operators require Airflow 3\.2\+\. Upgrade Airflow or use a synchronous callable\.",
+            ):
+                self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
 
 
 @pytest.mark.parametrize(

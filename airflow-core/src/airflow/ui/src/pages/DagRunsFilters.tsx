@@ -33,11 +33,14 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
     SearchParamsKeys.RUN_TYPE,
     SearchParamsKeys.LOGICAL_DATE_RANGE,
     SearchParamsKeys.RUN_AFTER_RANGE,
+    SearchParamsKeys.START_DATE_RANGE,
+    SearchParamsKeys.END_DATE_RANGE,
     SearchParamsKeys.DURATION_GTE,
     SearchParamsKeys.DURATION_LTE,
     SearchParamsKeys.CONF_CONTAINS,
     SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
     SearchParamsKeys.DAG_VERSION,
+    SearchParamsKeys.PARTITION_KEY_PATTERN,
   ];
 
   if (dagId === undefined) {

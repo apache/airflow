@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractFileSystem
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -93,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -109,6 +111,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -142,6 +145,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -233,7 +237,7 @@ cancelled
 Cancelling
 carbonite
 cas
-Cassanda
+Cassandra
 cassandra
 casted
 Catchup
@@ -368,6 +372,7 @@ CSRFProtect
 css
 csv
 Ctl
+ctl
 ctor
 Ctrl
 cubeName
@@ -375,6 +380,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -426,6 +432,7 @@ DataFusion
 Datafusion
 datafusion
 Datalake
+datamodel
 Datanodes
 datapipe
 Dataplex
@@ -446,8 +453,10 @@ datasetId
 Datasets
 datasets
 datasource
+DataSourceConfig
 Datastore
 datastore
+datastores
 Datasync
 datasync
 datatransfer
@@ -473,7 +482,7 @@ de
 Debounce
 debuggability
 declaratively
-decomissioning
+decommissioning
 Decrypt
 decrypt
 decrypted
@@ -493,6 +502,7 @@ del
 delim
 delitem
 deltalake
+denylist
 dep
 DependencyMixin
 deployable
@@ -536,6 +546,7 @@ DisplayVideo
 distcp
 distro
 distros
+dkr
 Dlp
 dlp
 DlpJob
@@ -577,6 +588,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -593,7 +605,9 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -612,6 +626,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -721,7 +736,7 @@ fluentd
 fmt
 fn
 fo
-followsa
+follows
 forecasted
 forkserver
 formatter
@@ -733,6 +748,7 @@ fqdn
 frontend
 fs
 fsGroup
+fsspec
 fullname
 func
 Fundera
@@ -784,6 +800,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
@@ -798,6 +815,7 @@ gpus
 Grafana
 graphviz
 greenlet
+Groq
 Groupalia
 groupId
 Groupon
@@ -830,6 +848,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs
@@ -899,6 +919,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing
@@ -973,12 +995,15 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId
 JobList
 jobName
 JobRunning
+JobsAsyncClient
+JobsClient
 JobSpec
 JobStatus
 jobtracker
@@ -1079,6 +1104,7 @@ LiteralValue
 Liveness
 liveness
 livy
+llm
 loadBalancerIP
 localExecutor
 localexecutor
@@ -1183,6 +1209,7 @@ muldelete
 multi-cloud
 multimodal
 Multinamespace
+multiprocess
 mutex
 mv
 mwaa
@@ -1260,6 +1287,7 @@ ok
 oklch
 Okta
 okta
+Ollama
 onboarded
 onboarding
 OnFailure
@@ -1437,6 +1465,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pyiceberg
 pylint
 pyMongo
 pymongo
@@ -1506,6 +1535,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes
@@ -1633,6 +1663,7 @@ servicebus
 ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
+ServicesClient
 SES
 sessionmaker
 setattr
@@ -1670,6 +1701,8 @@ sns
 somecollection
 somedatabase
 sortable
+Source
+source
 sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
@@ -1695,6 +1728,7 @@ sql
 sqla
 Sqlalchemy
 sqlalchemy
+sqlglot
 Sqlite
 sqlite
 sqlproxy
@@ -1731,6 +1765,7 @@ stderr
 stdout
 stmts
 StorageClass
+storages
 StoredInfoType
 storedInfoType
 str
@@ -1772,6 +1807,7 @@ Subpath
 subpath
 subprocess
 subprocesses
+subqueries
 subquery
 SubscriberClient
 subscriptionId
@@ -2021,6 +2057,7 @@ virtualenv
 virtualenvs
 virtualized
 Vite
+vLLM
 vm
 VolumeKmsKeyId
 VolumeMount
@@ -2033,6 +2070,7 @@ wape
 warmup
 Wasb
 wasb
+wasn
 weaviate
 WebClient
 webhdfs
@@ -2056,6 +2094,7 @@ winrm
 WIT
 workgroup
 workgroups
+WorkloadKey
 workspaces
 writeable
 wsman
@@ -2073,6 +2112,7 @@ xcomresult
 XComs
 Xero
 Xiaodong
+xlarge
 xml
 xmltodict
 xpath

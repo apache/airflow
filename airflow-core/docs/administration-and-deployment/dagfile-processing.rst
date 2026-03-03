@@ -120,7 +120,7 @@ There are several areas of resource usage that you should pay attention to:
 * Another solution to FileSystem performance, if it becomes your bottleneck, is to turn to alternative
   mechanisms of distributing your Dags. Embedding Dags in your image and GitSync distribution have both
   the property that the files are available locally for the Dag processor and it does not have to use a
-  distributed filesystem to read the files, the files are available locally for the the Dag processor and it is
+  distributed filesystem to read the files, the files are available locally for the Dag processor and it is
   usually as fast as it can be, especially if your machines use fast SSD disks for local storage. Those
   distribution mechanisms have other characteristics that might make them not the best choice for you,
   but if your problems with performance come from distributed filesystem performance, they might be the

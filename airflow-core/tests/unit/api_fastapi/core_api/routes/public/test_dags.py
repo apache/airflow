@@ -386,6 +386,7 @@ class TestGetDags(TestDagEndpoint):
             ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
@@ -946,6 +947,7 @@ class TestDagDetails(TestDagEndpoint):
                 "retries": 1,
                 "retry_delay": "PT5M",
             },
+            "allowed_run_types": None,
             "description": None,
             "doc_md": "details",
             "end_date": None,
@@ -1043,6 +1045,7 @@ class TestDagDetails(TestDagEndpoint):
                 "retries": 1,
                 "retry_delay": "PT5M",
             },
+            "allowed_run_types": None,
             "description": None,
             "doc_md": "details",
             "end_date": None,
@@ -1222,6 +1225,7 @@ class TestGetDag(TestDagEndpoint):
         expected = {
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
+            "allowed_run_types": None,
             "description": None,
             "fileloc": __file__,
             "file_token": file_token,

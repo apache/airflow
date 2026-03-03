@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -147,20 +146,6 @@ class ExecutorLoader:
         return executor_names
 
     @classmethod
-    def block_use_of_multi_team(cls):
-        """
-        Raise an exception if the user tries to use multiple team based executors.
-
-        Before the feature is complete we do not want users to accidentally configure this.
-        This can be overridden by setting the AIRFLOW__DEV__MULTI_TEAM_MODE environment
-        variable to "enabled"
-        This check is built into a method so that it can be easily mocked in unit tests.
-        """
-        team_dev_mode: str | None = os.environ.get("AIRFLOW__DEV__MULTI_TEAM_MODE")
-        if not team_dev_mode or team_dev_mode != "enabled":
-            raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
-
-    @classmethod
     def _validate_teams_exist_in_database(cls, team_names: set[str]) -> None:
         """
         Validate that all specified team names exist in the database.
@@ -218,7 +203,6 @@ class ExecutorLoader:
                 team_name = None
                 executor_names = team_executor_config.strip("=")
             else:
-                cls.block_use_of_multi_team()
                 if conf.getboolean("core", "multi_team", fallback=False):
                     team_name, executor_names = team_executor_config.split("=")
                 else:
@@ -317,7 +301,7 @@ class ExecutorLoader:
 
     @classmethod
     def lookup_executor_name_by_str(
-        cls, executor_name_str: str, team_name: str | None = None
+        cls, executor_name_str: str, team_name: str | None = None, validate_teams: bool = True
     ) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
         if (
@@ -326,7 +310,7 @@ class ExecutorLoader:
             or not _alias_to_executors_per_team
         ):
             # if we haven't loaded the executors yet, such as directly calling load_executor
-            cls._get_executor_names()
+            cls._get_executor_names(validate_teams)
 
         if executor_name := _alias_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name
@@ -360,6 +344,13 @@ class ExecutorLoader:
             executor_cls, import_source = cls.import_executor_cls(_executor_name)
             log.debug("Loading executor %s from %s", _executor_name, import_source.value)
             if _executor_name.team_name:
+                # Validate that team executors support multi-team functionality
+                if not executor_cls.supports_multi_team:
+                    raise AirflowConfigException(
+                        f"Executor {_executor_name.module_path} does not support multi-team functionality "
+                        f"but was configured for team '{_executor_name.team_name}'. "
+                        f"Only executors with supports_multi_team=True can be used as team executors."
+                    )
                 executor = executor_cls(team_name=_executor_name.team_name)
             else:
                 executor = executor_cls()

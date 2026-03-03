@@ -106,6 +106,19 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         event = validate_execute_complete_event(event)
 
+        if event["status"] == "failed":
+            # Command failed - raise an exception with detailed information
+            command_status = event.get("command_status", "Unknown")
+            exit_code = event.get("exit_code", -1)
+            instance_id = event.get("instance_id", "Unknown")
+            message = event.get("message", "Command failed")
+
+            error_msg = (
+                f"SSM run command {event['command_id']} failed on instance {instance_id}. "
+                f"Status: {command_status}, Exit code: {exit_code}. {message}"
+            )
+            raise RuntimeError(error_msg)
+
         if event["status"] != "success":
             raise RuntimeError(f"Error while running run command: {event}")
 

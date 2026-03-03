@@ -28,6 +28,30 @@
 Changelog
 ---------
 
+4.6.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DbtCloudRunJobTrigger timeout error message and add final status check (#61979) (#62306)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+4.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix time-machine lib >=3.0.0 supporting changes (#60939)``
+
 4.6.3
 .....
 

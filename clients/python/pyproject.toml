@@ -16,7 +16,14 @@
 # under the License.
 
 [build-system]
-requires = ["hatchling==1.27.0"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [project]
@@ -45,6 +52,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 
@@ -55,12 +63,12 @@ dependencies = [
 ]
 
 [project.urls]
-"Bug Tracker" = "https://github.com/apache/airflow-client-python/issues"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
 Changelog = "https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md"
 Documentation = "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html"
 Download = "https://archive.apache.org/dist/airflow/clients/python/"
 Homepage = "https://airflow.apache.org/"
-"Source Code" = "https://github.com/apache/airflow/clients/python"
+"Source Code" = "https://github.com/apache/airflow-client-python"
 
 [tool.hatch.envs.test]
 dependencies = [
