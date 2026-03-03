@@ -24,7 +24,7 @@ from pydantic import Field
 
 from airflow.executors.workloads.base import BaseWorkload, BundleInfo
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
-from airflow.executors.workloads.task import ExecuteTask
+from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 
 All = Annotated[
@@ -32,4 +32,15 @@ All = Annotated[
     Field(discriminator="type"),
 ]
 
-__all__ = ["All", "BaseWorkload", "BundleInfo", "CallbackFetchMethod", "ExecuteCallback", "ExecuteTask"]
+TaskInstance = TaskInstanceDTO
+
+__all__ = [
+    "All",
+    "BaseWorkload",
+    "BundleInfo",
+    "CallbackFetchMethod",
+    "ExecuteCallback",
+    "ExecuteTask",
+    "TaskInstance",
+    "TaskInstanceDTO",
+]
