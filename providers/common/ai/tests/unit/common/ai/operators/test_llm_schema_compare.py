@@ -26,6 +26,7 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
     SchemaCompareResult,
 )
 from airflow.providers.common.sql.config import DataSourceConfig
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 def _make_ds_config(conn_id="test_conn", table_name="test_table", **kwargs):
@@ -37,6 +38,24 @@ def _make_ds_config(conn_id="test_conn", table_name="test_table", **kwargs):
     for k, v in kwargs.items():
         setattr(ds, k, v)
     return ds
+
+
+@pytest.fixture
+def db_hook():
+    hook = MagicMock(spec=DbApiHook)
+    hook.get_table_schema.return_value = [
+        {"name": "id", "type": "INTEGER"},
+        {"name": "customer_id", "type": "INTEGER"},
+        {"name": "status", "type": "TEXT"},
+    ]
+    hook.dialect.get_primary_keys.return_value = ["id"]
+    hook.inspector.get_foreign_keys.return_value = [
+        {"constrained_columns": ["customer_id"], "referred_table": "customers", "referred_columns": ["id"]}
+    ]
+    hook.inspector.get_indexes.return_value = [
+        {"name": "idx_orders_status", "column_names": ["status"], "unique": False}
+    ]
+    return hook
 
 
 class TestLLMSchemaCompareOperator:
@@ -287,3 +306,52 @@ class TestLLMSchemaCompareOperator:
         )
         mock_agent.run_sync.assert_called_once_with("user_prompt")
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
+
+    def test_introspect_full_schema(self, db_hook):
+        op = LLMSchemaCompareOperator(
+            task_id="test_task",
+            prompt="user_prompt",
+            db_conn_ids=["conn"],
+            table_names=["table"],
+            llm_conn_id="llm_conn",
+            agent_params={"param": "value"},
+        )
+        result = op._introspect_db_schema(db_hook, "orders")
+
+        assert "customer_id" in result
+        assert "Primary Key: id" in result
+        assert "Foreign Key: (customer_id) -> customers(id)" in result
+        assert "Index: idx_orders_status (status)" in result
+
+    def test_introspect_empty_table_returns_empty_string(self, db_hook):
+        op = LLMSchemaCompareOperator(
+            task_id="test_task",
+            prompt="user_prompt",
+            db_conn_ids=["conn"],
+            table_names=["wrong_table"],
+            llm_conn_id="llm_conn",
+            agent_params={"param": "value"},
+        )
+        db_hook.get_table_schema.return_value = []
+
+        result = op._introspect_db_schema(db_hook, "wrong_table")
+
+        assert result == ""
+
+    def test_introspect_basic_strategy_omits_constraints(self, db_hook):
+        op = LLMSchemaCompareOperator(
+            task_id="test_task",
+            prompt="user_prompt",
+            db_conn_ids=["conn"],
+            table_names=["wrong_table"],
+            llm_conn_id="llm_conn",
+            agent_params={"param": "value"},
+        )
+        op.context_strategy = "basic"
+
+        result = op._introspect_db_schema(db_hook, "orders")
+
+        assert result.startswith("Columns:")
+        assert "Primary Key" not in result
+        assert "Foreign Key" not in result
+        assert "Index" not in result
