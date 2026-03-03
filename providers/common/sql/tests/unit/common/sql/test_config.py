@@ -65,7 +65,7 @@ class TestDataSourceConfig:
 
     def test_iceberg_creation(self):
         config = DataSourceConfig(
-            conn_id="iceberg_conn", table_name="default.my_iceberg_table", format="iceberg"
+            conn_id="iceberg_conn", table_name="default.my_iceberg_table", format="iceberg", db_name="default"
         )
         assert config.conn_id == "iceberg_conn"
         assert config.table_name == "default.my_iceberg_table"
@@ -73,7 +73,9 @@ class TestDataSourceConfig:
         assert config.storage_type is None
 
     def test_iceberg_is_table_provider(self):
-        config = DataSourceConfig(conn_id="iceberg_conn", table_name="my_table", format="iceberg")
+        config = DataSourceConfig(
+            conn_id="iceberg_conn", table_name="my_table", format="iceberg", db_name="default"
+        )
         assert config.is_table_provider is True
 
     def test_non_iceberg_is_not_table_provider(self):

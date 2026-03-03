@@ -47,7 +47,7 @@ class ParquetFormatHandler(FormatHandler):
                 **self.datasource_config.options,
             )
         except Exception as e:
-            raise FileFormatRegistrationException(f"Failed to register Parquet data source: {e}")
+            raise FileFormatRegistrationException(f"Failed to register {self.get_format} data source: {e}")
 
 
 class CsvFormatHandler(FormatHandler):
@@ -67,7 +67,7 @@ class CsvFormatHandler(FormatHandler):
                 **self.datasource_config.options,
             )
         except Exception as e:
-            raise FileFormatRegistrationException(f"Failed to register csv data source: {e}")
+            raise FileFormatRegistrationException(f"Failed to register {self.get_format} data source: {e}")
 
 
 class AvroFormatHandler(FormatHandler):
@@ -87,7 +87,7 @@ class AvroFormatHandler(FormatHandler):
                 **self.datasource_config.options,
             )
         except Exception as e:
-            raise FileFormatRegistrationException(f"Failed to register Avro data source: {e}")
+            raise FileFormatRegistrationException(f"Failed to register {self.get_format} data source: {e}")
 
 
 class IcebergFormatHandler(FormatHandler):
