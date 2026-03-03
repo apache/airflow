@@ -27,6 +27,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
@@ -3147,6 +3148,14 @@ class TestDagRunHandleDagCallback:
 
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.dagrun")
+        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+            yield
 
     def test_context_carrier_set_on_init(self, dag_maker):
         """DagRun.__init__ should populate context_carrier with a W3C traceparent."""

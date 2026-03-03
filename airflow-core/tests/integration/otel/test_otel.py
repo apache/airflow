@@ -250,7 +250,7 @@ class TestOtelIntegration:
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
         dag_ids = dag_bag.dag_ids
-        assert len(dag_ids) == 3
+        assert len(dag_ids) == 1
 
         dag_dict: dict[str, SerializedDAG] = {}
         with create_session() as session:
@@ -486,10 +486,8 @@ class TestOtelIntegration:
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
 
-        # host = "host.docker.internal"
         host = "jaeger"
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
-        # service_name ``= "my-service-name"
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
 
@@ -510,13 +508,9 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "otel_test_dag": None,
-            "task1": None,
-            "task1_sub_span1": None,
-            "task1_sub_span2": None,
-            "task1_sub_span3": "task1_sub_span2",
-            "task1_sub_span4": None,
-            "task2": None,
+            "sub_span1": "task_run.task1",
+            "task_run.task1": "dag_run.otel_test_dag",
+            "dag_run.otel_test_dag": None,
         }
 
     def start_worker_and_scheduler(self):
