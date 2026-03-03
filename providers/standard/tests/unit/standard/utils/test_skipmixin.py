@@ -106,7 +106,7 @@ class TestSkipMixin:
         else:
             session = Mock()
             assert SkipMixin().skip(dag_run=None, execution_date=None, tasks=[]) is None
-            assert not session.query.called
+            assert not session.scalars.called
             assert not session.commit.called
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
