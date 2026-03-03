@@ -22,15 +22,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
-else:
-    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
+from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.skipmixin import SkipMixin
 
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
@@ -43,7 +39,6 @@ class BranchMixIn(SkipMixin):
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
         if branches_to_execute is None:
-            # When None is returned, skip all downstream tasks
             self.skip_all_except(context["ti"], None)
         else:
             branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
