@@ -213,12 +213,34 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
-
 {{- if .Values.securityContext }}
 
  DEPRECATION WARNING:
     `securityContext` has been renamed to `securityContexts`, to be enabled on container and pod level.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.scheduler.securityContext }}
+
+ DEPRECATION WARNING:
+    `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.webserver.securityContext }}
+
+ DEPRECATION WARNING:
+    `webserver.securityContext` has been renamed to `webserver.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.statsd.securityContext }}
+
+ DEPRECATION WARNING:
+    `statsd.securityContext` has been renamed to `statsd.securityContexts`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -479,6 +501,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #

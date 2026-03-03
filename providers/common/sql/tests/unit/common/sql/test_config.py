@@ -46,7 +46,7 @@ class TestDataSourceConfig:
 
     def test_missing_table_name_raises_error(self):
         with pytest.raises(ValueError, match="Table name must be provided for storage type"):
-            DataSourceConfig(conn_id="test", uri="s3://bucket/path")
+            DataSourceConfig(conn_id="test", uri="s3://bucket/path", table_name="")
 
     def test_parquet_with_partition_cols(self):
         config = DataSourceConfig(
@@ -62,6 +62,27 @@ class TestDataSourceConfig:
         assert config.format == "parquet"
         assert config.options == {"table_partition_cols": [("year", "integer"), ("month", "integer")]}
         assert config.storage_type == StorageType.S3
+
+    def test_iceberg_creation(self):
+        config = DataSourceConfig(
+            conn_id="iceberg_conn", table_name="default.my_iceberg_table", format="iceberg", db_name="default"
+        )
+        assert config.conn_id == "iceberg_conn"
+        assert config.table_name == "default.my_iceberg_table"
+        assert config.format == "iceberg"
+        assert config.storage_type is None
+
+    def test_iceberg_is_table_provider(self):
+        config = DataSourceConfig(
+            conn_id="iceberg_conn", table_name="my_table", format="iceberg", db_name="default"
+        )
+        assert config.is_table_provider is True
+
+    def test_non_iceberg_is_not_table_provider(self):
+        config = DataSourceConfig(
+            conn_id="test", uri="s3://bucket/path", table_name="my_table", format="parquet"
+        )
+        assert config.is_table_provider is False
 
 
 class TestConnectionConfig:
