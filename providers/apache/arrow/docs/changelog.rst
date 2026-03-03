@@ -26,7 +26,7 @@
 Changelog
 ---------
 
-1.0.0
+0.1.0
 .....
 
 .. note::
@@ -43,7 +43,7 @@ Misc
    * ``Update description of provider.yaml dependencies (#50231)``
    * ``Avoid committing history for providers (#49907)``
 
-1.0.0
+0.1.0
 .....
 
 Initial version of the provider.

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-arrow``
 
-Release: ``1.0.0``
+Release: ``0.1.0``
 
 
 `Apache Arrow  <https://arrow.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.arrow`` provider. All classes for this p
 are in ``airflow.providers.apache.arrow`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/0.1.0/>`_.
 
 Installation
 ------------
@@ -50,15 +50,16 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``adbc-driver-manager``                  ``>=1.7.0``
 ``importlib-resources``                  ``>=1.3``
-``pyarrow``                              ``>=18.0.0``
-=======================================  ==================
+``pyarrow``                              ``>=16.1.0; python_version < "3.13"``
+``pyarrow``                              ``>=18.0.0; python_version >= "3.13"``
+=======================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -80,4 +81,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-arrow/1.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-arrow/0.1.0/changelog.html>`_.

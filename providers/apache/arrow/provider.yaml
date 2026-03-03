@@ -20,6 +20,7 @@ package-name: apache-airflow-providers-apache-arrow
 name: Apache Arrow
 
 state: ready
+lifecycle: incubation
 source-date-epoch: 1744788833
 description: |
   `Apache Arrow  <https://arrow.apache.org/>`__
@@ -28,7 +29,7 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
-  - 1.0.0
+  - 0.1.0
 
 integrations:
   - integration-name: Apache Arrow
