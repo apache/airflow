@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, T
 import anyio
 import attrs
 import structlog
-from opentelemetry import trace
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars

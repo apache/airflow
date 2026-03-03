@@ -373,7 +373,7 @@ class DagRun(Base, LoggingMixin):
         empty_context = context.Context()
         span = tracer.start_span("notused", context=empty_context)
         ctx = trace.set_span_in_context(span)
-        carrier = {}
+        carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier, context=ctx)
         self.context_carrier = carrier
         if not isinstance(partition_key, str | None):

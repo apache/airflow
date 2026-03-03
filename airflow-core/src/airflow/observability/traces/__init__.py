@@ -20,14 +20,12 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import contextmanager
+from importlib.metadata import entry_points
 
 from opentelemetry import context, trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 
 from airflow.configuration import conf
@@ -90,6 +88,27 @@ def _get_backcompat_config() -> tuple[str | None, Resource | None]:
     return endpoint, resource
 
 
+def _load_exporter_from_env() -> SpanExporter:
+    """
+    Load a span exporter using the OTEL_TRACES_EXPORTER env var.
+
+    Mirrors the entry-point mechanism used by the OTEL SDK auto-instrumentation
+    configurator.  Supported values (from installed packages):
+      - ``otlp`` (default) — OTLP/gRPC
+      - ``otlp_proto_http`` — OTLP/HTTP
+      - ``console`` — stdout (useful for debugging)
+    """
+    exporter_name = os.environ.get("OTEL_TRACES_EXPORTER", "otlp")
+    eps = entry_points(group="opentelemetry_traces_exporter", name=exporter_name)
+    ep = next(iter(eps), None)
+    if ep is None:
+        raise RuntimeError(
+            f"No span exporter found for OTEL_TRACES_EXPORTER={exporter_name!r}. "
+            f"Available: {[e.name for e in entry_points(group='opentelemetry_traces_exporter')]}"
+        )
+    return ep.load()()
+
+
 def configure_otel():
     otel_on = conf.getboolean("traces", "otel_on", fallback=False)
     if not otel_on:
@@ -100,8 +119,11 @@ def configure_otel():
     # Airflow-defined otel configs
     endpoint, resource = _get_backcompat_config()
 
+    # backcompat: if old-style host/port config provided an endpoint, set the
+    # env var so the exporter (loaded below) picks it up automatically
+    if endpoint and not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = endpoint
+
     provider = TracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
-    exporter = OTLPSpanExporter(endpoint=endpoint)
-    span_processor = BatchSpanProcessor(exporter)
-    provider.add_span_processor(span_processor)
+    provider.add_span_processor(BatchSpanProcessor(_load_exporter_from_env()))
     trace.set_tracer_provider(provider)
