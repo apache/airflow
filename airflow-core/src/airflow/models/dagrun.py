@@ -367,7 +367,7 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier = {}
+        self.context_carrier: dict[str, str] = {}
 
         # We never call .end() on this span. It's solely used to generate a trace context for the rest of the run.
         empty_context = context.Context()
