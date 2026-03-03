@@ -38,9 +38,11 @@ test.describe("DAG Calendar Tab", () => {
     });
 
     const now = dayjs();
+    const yesterday = now.subtract(1, "day");
+    const baseDate = yesterday.isSame(now, "month") ? yesterday : now;
 
-    const successIso = now.subtract(3, "day").hour(10).toISOString();
-    const failedIso = now.subtract(2, "day").hour(12).toISOString();
+    const successIso = baseDate.startOf("day").hour(10).toISOString();
+    const failedIso = baseDate.startOf("day").hour(14).toISOString();
 
     async function createRun(runId: string, iso: string, state: string) {
       const response = await page.request.post(`/api/v2/dags/${dagId}/dagRuns`, {
@@ -51,6 +53,12 @@ test.describe("DAG Calendar Tab", () => {
           note: "e2e test",
         },
       });
+
+      // 409 = a run at this logical_date already exists (parallel worker race);
+      // another worker's beforeAll already created the test data, so skip.
+      if (response.status() === 409) {
+        return;
+      }
 
       if (!response.ok()) {
         const body = await response.text();
@@ -101,7 +109,7 @@ test.describe("DAG Calendar Tab", () => {
   // can override the PATCH-to-failed state back to success before tests run
   // because the shared testDag may already be unpaused by parallel tests.
 
-  test.fixme("verify hover shows correct run states", async () => {
+  test("verify hover shows correct run states", async () => {
     await calendar.switchToHourly();
 
     const states = await calendar.getManualRunStates();
@@ -110,7 +118,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(states).toContain("failed");
   });
 
-  test.fixme("failed filter shows only failed runs", async () => {
+  test("failed filter shows only failed runs", async () => {
     await calendar.switchToHourly();
 
     const totalStates = await calendar.getManualRunStates();
@@ -126,7 +134,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(failedStates).not.toContain("success");
   });
 
-  test.fixme("failed view reduces active cells", async () => {
+  test("failed view reduces active cells", async () => {
     await calendar.switchToHourly();
 
     const totalCount = await calendar.getActiveCellCount();
@@ -138,7 +146,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(failedCount).toBeLessThan(totalCount);
   });
 
-  test.fixme("color scale changes between total and failed view", async () => {
+  test("color scale changes between total and failed view", async () => {
     await calendar.switchToHourly();
 
     const totalColors = await calendar.getActiveCellColors();
@@ -151,7 +159,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(failedColors).not.toEqual(totalColors);
   });
 
-  test.fixme("cells reflect failed view mode attribute", async () => {
+  test("cells reflect failed view mode attribute", async () => {
     await calendar.switchToHourly();
     await calendar.switchToFailedView();
 
