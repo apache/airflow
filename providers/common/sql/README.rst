@@ -89,7 +89,7 @@ Extra            Dependencies
 ``pandas``       ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
 ``openlineage``  ``apache-airflow-providers-openlineage``
 ``polars``       ``polars>=1.26.0``
-``sqlalchemy``   ``sqlalchemy>=1.4.49``
+``sqlalchemy``   ``sqlalchemy>=1.4.54``
 ===============  ================================================================================================
 
 The changelog for the provider package can be found in the

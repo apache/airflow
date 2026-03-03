@@ -70,6 +70,52 @@ class TestCliAuthCommands:
                 "airflowctl", "api_token_TEST_AUTH_LOGIN", "TEST_TOKEN"
             )
 
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_login_with_skip_keyring(self, mock_keyring, api_client_maker):
+        from keyring.errors import NoKeyringError
+
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+
+        mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+        with (
+            patch("sys.stdin", io.StringIO("test_password")),
+            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(
+                    ["auth", "login", "--skip-keyring", "--api-url", "http://localhost:8080"]
+                ),
+                api_client=api_client,
+            )
+
+    @patch("airflowctl.api.client.keyring")
+    def test_login_without_skip_keyring_raises_on_no_keyring(self, mock_keyring, api_client_maker):
+        from keyring.errors import NoKeyringError
+
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+
+        mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+        with (
+            patch("sys.stdin", io.StringIO("test_password")),
+            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"]),
+                api_client=api_client,
+            )
+
     # Test auth login with username and password
     @patch("airflowctl.api.client.keyring")
     def test_login_with_username_and_password(self, mock_keyring, api_client_maker):
@@ -102,7 +148,6 @@ class TestCliAuthCommands:
             )
             mock_keyring.set_password.assert_has_calls(
                 [
-                    mock.call("airflowctl", "api_token_production", ""),
                     mock.call("airflowctl", "api_token_production", "TEST_TOKEN"),
                 ]
             )

@@ -20,6 +20,46 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Auto-discover DB managers from provider.yaml (#62308)``
+* ``Feature/enable dynamic build of fab UI assets (#61959)``
+* ``feat(fab): Add configurable role key for Azure OAuth groups (#61585)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``providers-fab: Handle database errors in cleanup_session_middleware Session.remove() (#62336)``
+* ``Fix 500 Error in FAB API Users endpoint by allowing naive datetimes i… (#62327)``
+* ``fix(providers/fab): restore OAuth callback route exposure (#62151)``
+* ``fix: fab deserialize issue (#62153)``
+* ``Fix FAB auth_manager load_user causing PendingRollbackError and Inter… (#61943)``
+* ``fix(api): unify get_permissions pagination with other list endpoints (#61726)``
+
+Misc
+~~~~
+
+* ``chore(deps-dev): bump eslint (#62418)``
+* ``Remove unused dependencies from FAB provider (#62382)``
+* ``Bump css-loader (#62235)``
+* ``fab: centralize FastAPI auth manager routing (#61647)``
+* ``Change FAB asset compilation from yarn to pnpm (#61958)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#62039)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#61779)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix race condition in auth manager initialization (#62214)" (#62404)``
+   * ``Fix race condition in auth manager initialization (#62214)``
+   * ``Add comment to remove 'get_db_manager' method from FAB provider (#62361)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Remove duplicated import in roles.py (#61896)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+
 3.3.0
 .....
 
