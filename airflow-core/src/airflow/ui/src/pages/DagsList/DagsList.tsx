@@ -320,7 +320,7 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <Box overflow="auto" pb={8}>
+      <Box pb={8}>
         <DataTable
           cardDef={cardDef}
           columns={columns}
