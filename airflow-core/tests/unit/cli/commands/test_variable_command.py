@@ -275,8 +275,9 @@ class TestCliVariables:
 
     def test_variables_list_hide_sensitive_without_show_values_fails(self):
         """--hide-sensitive without --show-values should fail."""
+        args = self.parser.parse_args(["variables", "list", "--hide-sensitive"])
         with pytest.raises(SystemExit, match="--hide-sensitive can only be used with --show-values"):
-            self.parser.parse_args(["variables", "list", "--hide-sensitive"])
+            variable_command.variables_list(args)
 
     def test_variables_list_default_hides_values(self):
         """By default, variables list should only show keys."""
