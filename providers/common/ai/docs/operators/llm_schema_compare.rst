@@ -131,6 +131,5 @@ Parameters
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
 - ``data_sources``: List of ``DataSourceConfig`` objects for object-storage or
   catalog-managed sources.
-- ``context_strategy``: ``full`` for primary keys, foreign keys, and indexes.
-- ``reasoning_mode``: ``True`` (default) for step-by-step LLM reasoning —
-  strongly recommended for cross-system comparisons.
+- ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
+  strongly recommended for cross-system comparisons. default is ``full``

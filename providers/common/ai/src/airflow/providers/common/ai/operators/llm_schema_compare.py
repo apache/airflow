@@ -21,20 +21,13 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
-try:
-    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
-except ImportError as e:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
-
-
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import BaseHook
+from airflow.sdk.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
@@ -50,7 +43,7 @@ class SchemaMismatch(BaseModel):
     column: str = Field(description="Column name where the mismatch was detected")
     source_type: str = Field(description="Data type in the source system")
     target_type: str = Field(description="Data type in the target system")
-    severity: str = Field(description="One of: critical, warning, info")
+    severity: Literal["critical", "warning", "info"] = Field(description="Mismatch severity")
     description: str = Field(description="Human-readable description of the mismatch")
     suggested_action: str = Field(description="Recommended action to resolve the mismatch")
     migration_query: str = Field(description="Provide migration query to resolve the mismatch")
@@ -110,8 +103,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         data_sources: list[DataSourceConfig] | None = None,
         db_conn_ids: list[str] | None = None,
         table_names: list[str] | None = None,
-        context_strategy: str | None = "full",
-        reasoning_mode: bool = True,
+        context_strategy: Literal["basic", "full"] = "full",
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
@@ -120,13 +112,19 @@ class LLMSchemaCompareOperator(LLMOperator):
         self.db_conn_ids = db_conn_ids or []
         self.table_names = table_names or []
         self.context_strategy = context_strategy
-        self.reasoning_mode = reasoning_mode
 
         if not self.data_sources and not self.db_conn_ids:
             raise ValueError("Provide at least one of 'data_sources' or 'db_conn_ids'.")
 
         if self.db_conn_ids and not self.table_names:
             raise ValueError("'table_names' is required when using 'db_conn_ids'.")
+
+        total_sources = len(self.db_conn_ids) + len(self.data_sources)
+        if total_sources < 2:
+            raise ValueError(
+                "Provide at-least two combinations of 'db_conn_ids' and 'table_names' or 'data_sources' "
+                "to compare."
+            )
 
     @staticmethod
     def _get_db_hook(conn_id: str) -> DbApiHook:
@@ -141,8 +139,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             )
         return hook
 
-    @staticmethod
-    def _is_dbapi_connection(conn_id: str) -> bool:
+    def _is_dbapi_connection(self, conn_id: str) -> bool:
         """Check whether a connection resolves to a DbApiHook."""
         from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -150,16 +147,9 @@ class LLMSchemaCompareOperator(LLMOperator):
             connection = BaseHook.get_connection(conn_id)
             hook = connection.get_hook()
             return isinstance(hook, DbApiHook)
-        except Exception:
+        except (AirflowException, ValueError) as exc:
+            self.log.debug("Connection %s does not resolve to a DbApiHook: %s", conn_id, exc, exc_info=True)
             return False
-
-    @cached_property
-    def _db_hooks(self) -> dict[str, DbApiHook]:
-        """Cache DbApiHook instances keyed by connection ID."""
-        hooks: dict[str, DbApiHook] = {}
-        for conn_id in self.db_conn_ids:
-            hooks[conn_id] = self._get_db_hook(conn_id)
-        return hooks
 
     def _introspect_db_schema(self, hook: DbApiHook, table_name: str) -> str:
         """Introspect schema from a database connection via DbApiHook."""
@@ -176,8 +166,10 @@ class LLMSchemaCompareOperator(LLMOperator):
                 pks = hook.dialect.get_primary_keys(table_name)
                 if pks:
                     parts.append(f"Primary Key: {', '.join(pks)}")
-            except Exception:
-                self.log.debug("Could not retrieve PK for %r", table_name)
+            except NotImplementedError:
+                self.log.warning("primary key introspection not implemented for dialect", hook.dialect_name)
+            except Exception as ex:
+                self.log.warning("Could not retrieve PK", ex)
 
             try:
                 fks = hook.inspector.get_foreign_keys(table_name)
@@ -186,20 +178,29 @@ class LLMSchemaCompareOperator(LLMOperator):
                     ref = fk.get("referred_table", "?")
                     ref_cols = ", ".join(fk.get("referred_columns", []))
                     parts.append(f"Foreign Key: ({cols}) -> {ref}({ref_cols})")
-            except Exception:
-                self.log.debug("Could not retrieve FKs for %r", table_name)
+            except NotImplementedError:
+                self.log.warning("foreign key introspection not implemented for dialect", hook.dialect_name)
+            except Exception as ex:
+                self.log.warning("Could not retrieve FK", ex)
 
             try:
                 indexes = hook.inspector.get_indexes(table_name)
                 for idx in indexes:
                     column_names = [c for c in idx.get("column_names", []) if c is not None]
-                    idx_cols = ", ".join(c for c in column_names)
+                    idx_cols = ", ".join(column_names)
                     unique = " UNIQUE" if idx.get("unique") else ""
                     parts.append(f"Index{unique}: {idx.get('name', '?')} ({idx_cols})")
-            except Exception:
-                self.log.debug("Could not retrieve indexes for %r", table_name)
+            except NotImplementedError:
+                self.log.warning("index introspection not implemented for dialect", hook.dialect_name)
+            except Exception as ex:
+                self.log.warning("Could not retrieve index", ex)
 
-        return "\n".join(parts)
+            return "\n".join(parts)
+
+        if self.context_strategy == "basic":
+            return "\n".join(parts)
+
+        raise ValueError(f"Invalid context_strategy: {self.context_strategy}")
 
     def _introspect_datasource_schema(self, ds_config: DataSourceConfig) -> str:
         """Introspect schema from a DataSourceConfig, choosing DbApiHook or DataFusion."""
@@ -211,9 +212,22 @@ class LLMSchemaCompareOperator(LLMOperator):
                 f"Source: {ds_config.conn_id} ({dialect_name})\nTable: {ds_config.table_name}\n{schema_text}"
             )
 
+        return self._introspect_schema_from_datafusion(ds_config)
+
+    @cached_property
+    def _df_engine(self):
+        try:
+            from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
         engine = DataFusionEngine()
-        engine.register_datasource(ds_config)
-        schema_text = engine.get_schema(ds_config.table_name)
+        return engine
+
+    def _introspect_schema_from_datafusion(self, ds_config: DataSourceConfig):
+        self._df_engine.register_datasource(ds_config)
+        schema_text = self._df_engine.get_schema(ds_config.table_name)
 
         return f"Source: {ds_config.conn_id} \nFormat: ({ds_config.format})\nTable: {ds_config.table_name}\nColumns: {schema_text}"
 
@@ -227,7 +241,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             for table in self.table_names:
                 schema_text = self._introspect_db_schema(hook, table)
                 if schema_text:
-                    sections.append(f"Source: {conn_id} ({dialect_name})\nTable: {table}\n{schema_text}")
+                    sections.append(f"Source: {dialect_name}\nTable: {table}\n{schema_text}")
 
         for ds_config in self.data_sources:
             sections.append(self._introspect_datasource_schema(ds_config))
@@ -242,37 +256,19 @@ class LLMSchemaCompareOperator(LLMOperator):
 
     def _build_system_prompt(self, schema_context: str) -> str:
         """Construct the system prompt for cross-system schema comparison."""
-        prompt = ""
-        if self.reasoning_mode:
-            prompt = prompt + (
-                "Consider cross-system type equivalences:\n"
-                "- varchar(n) / text / string / TEXT may be compatible\n"
-                "- int / integer / int4 / INT32 are equivalent\n"
-                "- bigint / int8 / int64 / BIGINT are equivalent\n"
-                "- timestamp / timestamptz / TIMESTAMP_NTZ / datetime may differ in timezone handling\n"
-                "- numeric(p,s) / decimal(p,s) / NUMBER — check precision and scale\n"
-                "- boolean / bool / BOOLEAN / tinyint(1) — check semantic equivalence\n\n"
-                "Severity levels:\n"
-                "- critical: Will cause data loading failures or data loss "
-                "(e.g., column missing in target, incompatible types)\n"
-                "- warning: May cause data quality issues "
-                "(e.g., precision loss, timezone mismatch)\n"
-                "- info: Cosmetic differences that won't affect data loading "
-                "(e.g., varchar length differences within safe range)\n\n"
-            )
-
-        prompt = prompt + (
+        parts = [
             "You are a database schema comparison expert. "
             "You understand type systems across PostgreSQL, MySQL, Snowflake, BigQuery, "
             "Redshift, S3 Parquet/CSV, Iceberg, and other data systems.\n\n"
             "Analyze the schemas from the following data sources and identify mismatches "
-            "that could break data loading, cause data loss, or produce unexpected behavior.\n\n"
-            f"{prompt}"
-            f"Schemas to compare:\n\n{schema_context}\n"
-        )
+            "that could break data loading, cause data loss, or produce unexpected behavior.\n\n",
+            f"Schemas to compare:\n\n{schema_context}\n",
+        ]
+
         if self.system_prompt:
-            prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
-        return prompt
+            parts.append(f"Additional instructions:\n{self.system_prompt}\n")
+
+        return "".join(parts)
 
     def execute(self, context: Context) -> dict[str, Any]:
         schema_context = self._build_schema_context()
