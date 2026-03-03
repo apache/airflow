@@ -1566,7 +1566,7 @@ export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) 
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
-* @returns DealineCollectionResponse Successful Response
+* @returns DeadlineCollectionResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseDeadlinesServiceGetDagRunDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy }: {

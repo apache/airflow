@@ -25,11 +25,11 @@ from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
     context_merge,
+    determine_kwargs,
     task_decorator_factory,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
-from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
