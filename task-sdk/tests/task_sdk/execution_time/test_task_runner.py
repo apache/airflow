@@ -130,6 +130,7 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
+    get_startup_details,
     parse,
     run,
     startup,
@@ -363,9 +364,10 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
 
 @mock.patch("builtins.exit", side_effect=lambda code: (_ for _ in ()).throw(SystemExit(code)))
 @mock.patch("airflow.sdk.execution_time.task_runner.startup")
+@mock.patch("airflow.sdk.execution_time.task_runner.get_startup_details")
 @mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
 def test_main_sends_reschedule_task_when_startup_reschedules(
-    mock_comms_decoder_cls, mock_startup, mock_exit, time_machine
+    mock_comms_decoder_cls, mock_get_startup_details, mock_startup, mock_exit, time_machine
 ):
     """
     If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
@@ -377,6 +379,7 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     mock_comms_instance = mock.Mock()
     mock_comms_instance.socket = None
     mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
+    mock_get_startup_details.return_value = mock.Mock()
     mock_startup.side_effect = AirflowRescheduleException(reschedule_date=reschedule_date)
 
     # Move time
@@ -927,7 +930,7 @@ def test_startup_and_run_dag_with_rtif(
 
     mock_supervisor_comms._get_response.return_value = what
 
-    run(*startup())
+    run(*startup(get_startup_details()))
     expected_calls = [
         mock.call.send(SetRenderedFields(rendered_fields=expected_rendered_fields)),
         mock.call.send(
@@ -977,7 +980,7 @@ def test_task_run_with_user_impersonation(
     mock_supervisor_comms.socket.fileno.return_value = 42
 
     with mock.patch.dict(os.environ, {}, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
@@ -1026,7 +1029,7 @@ def test_task_run_with_user_impersonation_default_user(
     mock_get_user.return_value = "default_user"
 
     with mock.patch.dict(os.environ, {}, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert "_AIRFLOW__REEXECUTED_PROCESS" not in os.environ
         assert "_AIRFLOW__STARTUP_MSG" not in os.environ
@@ -1069,7 +1072,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
         "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
     }
     with mock.patch.dict("os.environ", mock_os_env, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
@@ -1241,7 +1244,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     )
 
     monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
-    ti, _, _ = startup()
+    ti, _, _ = startup(get_startup_details())
 
     # Presence of `conditional_task` below means Dag ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
@@ -3596,7 +3599,7 @@ class TestTaskRunnerCallsListeners:
         mock_supervisor_comms._get_response.return_value = what
         mocked_parse(what, "basic_dag", task)
 
-        runtime_ti, context, log = startup()
+        runtime_ti, context, log = startup(get_startup_details())
         assert runtime_ti is not None
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
