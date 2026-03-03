@@ -37,7 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskGroupBody,
+    PatchTaskInstanceBody,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -94,45 +98,47 @@ def _patch_ti_validate_request(
 
 
 def _patch_task_instance_state(
+    *,
     task_id: str,
     dag_run_id: str,
     dag: SerializedDAG,
-    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
-    data: dict,
+    new_state: TaskInstanceState,
+    map_indexes: list[int] | None = None,
+    upstream: bool = False,
+    downstream: bool = False,
+    future: bool = False,
+    past: bool = False,
     session: Session,
 ) -> None:
-    map_index = getattr(task_instance_body, "map_index", None)
-    map_indexes = None if map_index is None else [map_index]
-
     updated_tis = dag.set_task_instance_state(
         task_id=task_id,
         run_id=dag_run_id,
         map_indexes=map_indexes,
-        state=data["new_state"],
-        upstream=task_instance_body.include_upstream,
-        downstream=task_instance_body.include_downstream,
-        future=task_instance_body.include_future,
-        past=task_instance_body.include_past,
+        state=new_state,
+        upstream=upstream,
+        downstream=downstream,
+        future=future,
+        past=past,
         commit=True,
         session=session,
     )
     if not updated_tis:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Task id {task_id} is already in {data['new_state']} state",
+            f"Task id {task_id} is already in {new_state} state",
         )
 
     for ti in updated_tis:
         try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
+            if new_state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
+            elif new_state == TaskInstanceState.FAILED:
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
                 )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
+            elif new_state == TaskInstanceState.SKIPPED:
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
         except Exception:
             log.exception("error calling listener")
@@ -151,6 +157,78 @@ def _patch_task_instance_note(
             else:
                 ti.task_instance_note.content = task_instance_body.note
                 ti.task_instance_note.user_id = user.get_id()
+
+
+def _get_task_group_task_ids(
+    dag: SerializedDAG,
+    group_id: str,
+) -> list[str]:
+    """
+    Get task ids that belong to a task group.
+
+    :param dag: The serialized DAG containing the task group.
+    :param group_id: The ID of the task group.
+    :return: List of task IDs in the group.
+    :raises HTTPException: If the task group is not found or has no tasks.
+    """
+    if not hasattr(dag, "task_group"):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DAG '{dag.dag_id}' does not have task groups",
+        )
+
+    task_groups = dag.task_group.get_task_group_dict()
+    task_group = task_groups.get(group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task group '{group_id}' not found in DAG '{dag.dag_id}'",
+        )
+
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+    if not task_ids:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task group '{group_id}' in DAG '{dag.dag_id}' has no tasks",
+        )
+
+    return task_ids
+
+
+def _patch_task_group_state(
+    dag: SerializedDAG,
+    dag_run_id: str,
+    group_id: str,
+    body: PatchTaskGroupBody,
+    session: Session,
+) -> None:
+    """
+    Set the state of all task instances in a task group.
+
+    :param dag: The serialized DAG containing the task group.
+    :param dag_run_id: The run_id of the DAG run.
+    :param group_id: The ID of the task group.
+    :param body: The request body with the new state and options.
+    :param session: The database session.
+    """
+    task_ids = _get_task_group_task_ids(dag, group_id)
+
+    for task_id in task_ids:
+        try:
+            _patch_task_instance_state(
+                task_id=task_id,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                new_state=body.new_state,
+                future=body.include_future,
+                past=body.include_past,
+                session=session,
+            )
+        except HTTPException as e:
+            if e.status_code == status.HTTP_409_CONFLICT:
+                # Skip tasks already in the target state
+                continue
+            raise
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
@@ -284,9 +362,13 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     task_id=task_id,
                     dag_run_id=dag_run_id,
                     dag=dag,
-                    task_instance_body=entity,
+                    new_state=data["new_state"],
+                    map_indexes=[entity.map_index] if entity.map_index is not None else None,
+                    upstream=entity.include_upstream,
+                    downstream=entity.include_downstream,
+                    future=entity.include_future,
+                    past=entity.include_past,
                     session=self.session,
-                    data=data,
                 )
             elif key == "note":
                 _patch_task_instance_note(
