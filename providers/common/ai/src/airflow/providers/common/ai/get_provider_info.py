@@ -52,14 +52,18 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
-                "connection-type": "pydantic_ai",
+                "connection-type": "pydanticai",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
-                    "placeholders": {
-                        "host": "https://api.openai.com/v1 (optional, for custom endpoints)",
-                        "extra": '{"model": "openai:gpt-5"}',
-                    },
+                    "placeholders": {"host": "https://api.openai.com/v1 (optional, for custom endpoints)"},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)",
+                        "schema": {"type": ["string", "null"]},
+                    }
                 },
             }
         ],

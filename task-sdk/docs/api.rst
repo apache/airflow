@@ -123,6 +123,8 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
+.. autoclass:: airflow.sdk.TaskInstance
+
 .. autoapiclass:: airflow.sdk.XComArg
 
 .. autoapifunction:: airflow.sdk.literal
@@ -244,7 +246,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:
