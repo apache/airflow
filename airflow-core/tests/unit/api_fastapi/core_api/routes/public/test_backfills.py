@@ -332,12 +332,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
     @pytest.mark.parametrize(
@@ -618,28 +618,76 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             (
                 "none",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
             (
                 "failed",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-03T00:00:00Z"},  # Reprocess failed
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-03T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },  # Reprocess failed
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
             (
                 "completed",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-02T00:00:00Z"},  # Reprocess all
-                    {"logical_date": "2024-01-03T00:00:00Z"},
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-02T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },  # Reprocess all
+                    {
+                        "logical_date": "2024-01-03T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
         ],
@@ -736,12 +784,12 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
 

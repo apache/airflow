@@ -69,14 +69,12 @@ data:
   {{- end }}
 
 {{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-
     {{- if .Values.podTemplate }}
       {{- tpl .Values.podTemplate . | nindent 4 }}
     {{- else }}
       {{- tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
     {{- end }}
-{{- end }}
 {{- end }}
 
   {{- if .Values.kerberos.enabled }}

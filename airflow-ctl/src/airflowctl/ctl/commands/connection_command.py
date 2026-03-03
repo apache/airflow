@@ -54,7 +54,7 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
                 login=v.get("login"),
                 password=v.get("password"),
                 port=v.get("port"),
-                extra=v.get("extra", {}),
+                extra=v.get("extra"),
                 description=v.get("description", ""),
             )
             for k, v in connections_json.items()

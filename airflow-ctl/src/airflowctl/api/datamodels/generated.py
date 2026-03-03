@@ -395,6 +395,7 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+    ASSET_MATERIALIZATION = "asset_materialization"
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -462,7 +463,9 @@ class DryRunBackfillResponse(BaseModel):
     Backfill serializer for responses in dry-run mode.
     """
 
-    logical_date: Annotated[datetime, Field(title="Logical Date")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[datetime | None, Field(title="Partition Date")] = None
 
 
 class EventLogResponse(BaseModel):
@@ -499,6 +502,7 @@ class Destination(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
 
 
 class ExternalViewResponse(BaseModel):
@@ -705,6 +709,7 @@ class Destination1(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    BASE = "base"
     DASHBOARD = "dashboard"
 
 

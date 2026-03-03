@@ -44,6 +44,7 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
+import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
@@ -199,12 +200,10 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   },
 };
 
-const DAGS_LIST_DISPLAY = "dags_list_display";
-
 export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -315,7 +314,7 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <Box overflow="auto" pb={8}>
+      <Box pb={8}>
         <DataTable
           cardDef={cardDef}
           columns={columns}

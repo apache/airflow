@@ -81,7 +81,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param completions: Specifies the desired number of successfully finished pods the job should be run with.
     :param manual_selector: manualSelector controls generation of pod labels and pod selectors.
     :param parallelism: Specifies the maximum desired number of pods the job should run at any given time.
-        The value here must be >=1. Default value is 1
+        The value here must be >=1 if wait_until_job_complete=True. Default value is 1
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).

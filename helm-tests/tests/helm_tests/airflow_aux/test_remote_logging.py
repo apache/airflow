@@ -130,38 +130,6 @@ class TestElasticsearchConfig:
             "valueFrom": {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}},
         } in scheduler_env
 
-    def test_env_should_omit_elasticsearch_host_var_if_es_disabled_legacy(self):
-        """AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST was the environment key prior to Airflow 1.10.4
-        (see https://github.com/apache/airflow/pull/5048), this test can be removed when the Helm chart
-        no longer supports Airflow 1.10.3"""
-        docs = render_chart(
-            values={},
-            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
-        )
-
-        scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
-        assert "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST" not in scheduler_env_keys
-
-    def test_env_should_add_elasticsearch_host_var_if_es_enabled_legacy(self):
-        """AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST was the environment key prior to Airflow 1.10.4
-        (see https://github.com/apache/airflow/pull/5048), this test can be removed when the Helm chart
-        no longer supports Airflow 1.10.3"""
-        docs = render_chart(
-            values={
-                "elasticsearch": {
-                    "enabled": True,
-                    "secretName": "test-elastic-secret",
-                },
-            },
-            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
-        )
-
-        scheduler_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
-        assert {
-            "name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
-            "valueFrom": {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}},
-        } in scheduler_env
-
     def test_airflow_cfg_should_set_remote_logging_false_if_es_disabled(self):
         docs = render_chart(
             values={},
@@ -188,37 +156,6 @@ class TestElasticsearchConfig:
 
         logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
         assert "remote_logging = True" in logging_lines
-
-    def test_airflow_cfg_should_set_remote_logging_false_if_es_disabled_legacy(self):
-        """core.remote_logging was the config location prior to Airflow 2.0.0, this test can be removed
-        when the Helm chart no longer supports Airflow 1.x"""
-        docs = render_chart(
-            values={},
-            show_only=[CONFIGMAP_TEMPLATE],
-        )
-
-        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
-
-        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
-        assert "remote_logging = False" in core_lines
-
-    def test_airflow_cfg_should_set_remote_logging_true_if_es_enabled_legacy(self):
-        """core.remote_logging was the config location prior to Airflow 2.0.0, this test can be removed
-        when the Helm chart no longer supports Airflow 1.x"""
-        docs = render_chart(
-            values={
-                "elasticsearch": {
-                    "enabled": True,
-                    "secretName": "test-elastic-secret",
-                },
-            },
-            show_only=[CONFIGMAP_TEMPLATE],
-        )
-
-        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
-
-        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
-        assert "remote_logging = True" in core_lines
 
 
 class TestOpenSearchConfig:
@@ -326,9 +263,6 @@ class TestOpenSearchConfig:
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
 
-        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
-        assert "remote_logging = False" in core_lines
-
         logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
         assert "remote_logging = False" in logging_lines
 
@@ -344,9 +278,6 @@ class TestOpenSearchConfig:
         )
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
-
-        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
-        assert "remote_logging = True" in core_lines
 
         logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
         assert "remote_logging = True" in logging_lines
