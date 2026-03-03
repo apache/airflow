@@ -92,7 +92,7 @@ It's not recommended to rely on task instance variables in Dag callbacks except 
 For example, a timeout may be caused by a number of stalling tasks, but only one will eventually be selected for context.
 
 .. note::
-    Before Airflow 3.1.9, the rules above did not apply and the task instance passed to Dag callback was not related to Dag state, rather being selected as the latest task in the Dag
+    Before Airflow 3.1.8, the rules above did not apply and the task instance passed to Dag callback was not related to Dag state, rather being selected as the latest task in the Dag
     lexicographically.
 
 
