@@ -1414,6 +1414,9 @@ traces:
       description: |
         If True, then traces from Airflow internal methods are exported. Defaults to False.
       version_added: 3.1.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "False"

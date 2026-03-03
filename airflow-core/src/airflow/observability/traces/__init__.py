@@ -18,15 +18,19 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import contextmanager
 
 from opentelemetry import context, trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
 )
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -63,18 +67,29 @@ def override_ids(trace_id, span_id, ctx=None):
         context.detach(token)
 
 
-# port = conf.getint("traces", "otel_port", fallback=None)
-# host = conf.get("traces", "otel_host", fallback=None)
-# ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
-# otel_service = conf.get("traces", "otel_service", fallback=None)
+def _get_backcompat_config() -> tuple[str | None, Resource | None]:
+    resource = None
+    if not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
+        service_name = conf.get("traces", "otel_service", fallback=None)
+        if service_name:
+            resource = Resource({"service.name": service_name})
 
-# resource = Resource.create(attributes={SERVICE_NAME: otel_service})
-# otel_env_config = load_traces_env_config()
+    endpoint = None
+    if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        # this is only for backcompat!
+        host = conf.get("traces", "otel_host", fallback=None)
+        port = conf.get("traces", "otel_port", fallback=None)
+        ssl_active = conf.get("traces", "otel_ssl_active", fallback=None)
+        if host and port:
+            scheme = "https" if ssl_active else "http"
+            endpoint = f"{scheme}://{host}:{port}/v1/traces"
+    return endpoint, resource
 
 
 def configure_otel():
-    provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
-    exporter = OTLPSpanExporter()
+    endpoint, resource = _get_backcompat_config()
+    provider = TracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
+    exporter = OTLPSpanExporter(endpoint=endpoint)
     span_processor = BatchSpanProcessor(exporter)
     provider.add_span_processor(span_processor)
     trace.set_tracer_provider(provider)
