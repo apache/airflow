@@ -26,7 +26,11 @@ from sqlalchemy import select
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:  # Fallback for Airflow < 3.1
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
