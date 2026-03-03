@@ -49,8 +49,8 @@ class TestSparkPipelinesOperator:
 
     def test_execute(self):
         mock_hook = MagicMock()
-        
-        with patch.object(SparkPipelinesOperator, 'hook', mock_hook):
+
+        with patch.object(SparkPipelinesOperator, "hook", mock_hook):
             operator = SparkPipelinesOperator(
                 task_id="test_task", pipeline_spec="test_pipeline.yml", pipeline_command="run"
             )
@@ -62,8 +62,8 @@ class TestSparkPipelinesOperator:
 
     def test_on_kill(self):
         mock_hook = MagicMock()
-        
-        with patch.object(SparkPipelinesOperator, 'hook', mock_hook):
+
+        with patch.object(SparkPipelinesOperator, "hook", mock_hook):
             operator = SparkPipelinesOperator(task_id="test_task", pipeline_spec="test_pipeline.yml")
 
             operator.on_kill()
@@ -109,8 +109,8 @@ class TestSparkPipelinesOperator:
     )
     def test_execute_with_openlineage_parent_job_info(self, mock_inject_parent):
         mock_hook = MagicMock()
-        
-        with patch.object(SparkPipelinesOperator, 'hook', mock_hook):
+
+        with patch.object(SparkPipelinesOperator, "hook", mock_hook):
             original_conf = {"spark.sql.adaptive.enabled": "true"}
             modified_conf = {**original_conf, "spark.openlineage.parentJobName": "test_job"}
             mock_inject_parent.return_value = modified_conf
@@ -134,8 +134,8 @@ class TestSparkPipelinesOperator:
     )
     def test_execute_with_openlineage_transport_info(self, mock_inject_transport):
         mock_hook = MagicMock()
-        
-        with patch.object(SparkPipelinesOperator, 'hook', mock_hook):
+
+        with patch.object(SparkPipelinesOperator, "hook", mock_hook):
             original_conf = {"spark.sql.adaptive.enabled": "true"}
             modified_conf = {**original_conf, "spark.openlineage.transport.type": "http"}
             mock_inject_transport.return_value = modified_conf
