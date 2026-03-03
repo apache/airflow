@@ -60,6 +60,8 @@ jobs:
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
+      fail-fast: false
+      max-parallel: 20
       matrix:
         python-version: ${{ fromJson(inputs.python-versions) }}
     env:

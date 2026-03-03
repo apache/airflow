@@ -22,6 +22,7 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770750957
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -925,14 +926,105 @@ extra-links:
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
     connection-type: aws
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - port
+      relabeling:
+        login: AWS Access Key ID
+        password: AWS Secret Access Key
+      placeholders:
+        login: AKIAIOSFODNN7EXAMPLE
+        password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        extra: |
+          {
+            "region_name": "us-east-1",
+            "session_kwargs": {"profile_name": "default"},
+            "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+            "role_arn": "arn:aws:iam::123456789098:role/role-name",
+            "assume_role_method": "assume_role",
+            "assume_role_kwargs": {"RoleSessionName": "airflow"},
+            "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+            "endpoint_url": "http://localhost:4566"
+          }
   - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
     connection-type: chime
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - port
+        - extra
+      relabeling:
+        host: Chime Webhook Endpoint
+        password: Chime Webhook token
+      placeholders:
+        schema: https
+        host: hooks.chime.aws/incomingwebhook/
+        password: T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - port
+        - login
+        - password
+      relabeling:
+        extra: Run Job Flow Configuration
+      placeholders:
+        extra: |
+          {
+            "Name": "MyClusterName",
+            "ReleaseLabel": "emr-5.36.0",
+            "Applications": [{"Name": "Spark"}],
+            "Instances": {
+              "InstanceGroups": [{
+                "Name": "Primary node",
+                "Market": "SPOT",
+                "InstanceRole": "MASTER",
+                "InstanceType": "m5.large",
+                "InstanceCount": 1
+              }],
+              "KeepJobFlowAliveWhenNoSteps": false,
+              "TerminationProtected": false
+            },
+            "StepConcurrencyLevel": 2
+          }
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+    ui-field-behaviour:
+      relabeling:
+        login: User
+        schema: Database
   - hook-class-name: airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook
     connection-type: athena
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - port
+      relabeling:
+        login: AWS Access Key ID
+        password: AWS Secret Access Key
+      placeholders:
+        login: AKIAIOSFODNN7EXAMPLE
+        password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        extra: |
+          {
+            "aws_domain": "amazonaws.com",
+            "driver": "rest",
+            "s3_staging_dir": "s3://bucket_name/staging/",
+            "work_group": "primary",
+            "region_name": "us-east-1",
+            "session_kwargs": {"profile_name": "default"},
+            "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+            "role_arn": "arn:aws:iam::123456789098:role/role-name",
+            "assume_role_method": "assume_role",
+            "assume_role_kwargs": {"RoleSessionName": "airflow"},
+            "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+            "endpoint_url": "http://localhost:4566"
+          }
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier

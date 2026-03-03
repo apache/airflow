@@ -22,6 +22,7 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335322
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -85,3 +86,28 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.mongo.hooks.mongo.MongoHook
     connection-type: mongo
+    conn-fields:
+      srv:
+        label: Srv
+        schema:
+          type:
+            - boolean
+            - 'null'
+      ssl:
+        label: Ssl
+        schema:
+          type:
+            - boolean
+            - 'null'
+      allow_insecure:
+        label: Allow Insecure
+        schema:
+          type:
+            - boolean
+            - 'null'
+    ui-field-behaviour:
+      relabeling:
+        login: Username
+        schema: Default DB
+      placeholders:
+        port: 'Note: port should not be set for SRV connections'

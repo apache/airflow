@@ -1,6 +1,7 @@
 aarch
 abc
 AbstractFileSystem
+AbstractToolset
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -24,6 +25,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentic
 AgentKey
 ai
 aio
@@ -237,7 +239,7 @@ cancelled
 Cancelling
 carbonite
 cas
-Cassanda
+Cassandra
 cassandra
 casted
 Catchup
@@ -372,13 +374,16 @@ CSRFProtect
 css
 csv
 Ctl
+ctl
 ctor
 Ctrl
+ctx
 cubeName
 customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -430,6 +435,7 @@ DataFusion
 Datafusion
 datafusion
 Datalake
+datamodel
 Datanodes
 datapipe
 Dataplex
@@ -450,8 +456,10 @@ datasetId
 Datasets
 datasets
 datasource
+DataSourceConfig
 Datastore
 datastore
+datastores
 Datasync
 datasync
 datatransfer
@@ -477,7 +485,7 @@ de
 Debounce
 debuggability
 declaratively
-decomissioning
+decommissioning
 Decrypt
 decrypt
 decrypted
@@ -497,6 +505,7 @@ del
 delim
 delitem
 deltalake
+denylist
 dep
 DependencyMixin
 deployable
@@ -540,6 +549,7 @@ DisplayVideo
 distcp
 distro
 distros
+dkr
 Dlp
 dlp
 DlpJob
@@ -729,7 +739,7 @@ fluentd
 fmt
 fn
 fo
-followsa
+follows
 forecasted
 forkserver
 formatter
@@ -808,6 +818,7 @@ gpus
 Grafana
 graphviz
 greenlet
+Groq
 Groupalia
 groupId
 Groupon
@@ -823,6 +834,7 @@ Gzip
 gzipped
 hadoop
 hadoopcmd
+hardcode
 hardcoded
 Harenslak
 Hashable
@@ -994,6 +1006,8 @@ jobId
 JobList
 jobName
 JobRunning
+JobsAsyncClient
+JobsClient
 JobSpec
 JobStatus
 jobtracker
@@ -1094,6 +1108,7 @@ LiteralValue
 Liveness
 liveness
 livy
+llm
 loadBalancerIP
 localExecutor
 localexecutor
@@ -1276,6 +1291,7 @@ ok
 oklch
 Okta
 okta
+Ollama
 onboarded
 onboarding
 OnFailure
@@ -1453,6 +1469,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pyiceberg
 pylint
 pyMongo
 pymongo
@@ -1650,6 +1667,7 @@ servicebus
 ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
+ServicesClient
 SES
 sessionmaker
 setattr
@@ -1714,6 +1732,7 @@ sql
 sqla
 Sqlalchemy
 sqlalchemy
+sqlglot
 Sqlite
 sqlite
 sqlproxy
@@ -1750,6 +1769,7 @@ stderr
 stdout
 stmts
 StorageClass
+storages
 StoredInfoType
 storedInfoType
 str
@@ -1791,6 +1811,7 @@ Subpath
 subpath
 subprocess
 subprocesses
+subqueries
 subquery
 SubscriberClient
 subscriptionId
@@ -1901,6 +1922,9 @@ tokopedia
 tolerations
 toml
 toolchain
+toolset
+Toolsets
+toolsets
 Tooltip
 tooltip
 tooltips
@@ -2040,6 +2064,7 @@ virtualenv
 virtualenvs
 virtualized
 Vite
+vLLM
 vm
 VolumeKmsKeyId
 VolumeMount
@@ -2052,6 +2077,7 @@ wape
 warmup
 Wasb
 wasb
+wasn
 weaviate
 WebClient
 webhdfs
@@ -2075,6 +2101,7 @@ winrm
 WIT
 workgroup
 workgroups
+WorkloadKey
 workspaces
 writeable
 wsman
@@ -2092,6 +2119,7 @@ xcomresult
 XComs
 Xero
 Xiaodong
+xlarge
 xml
 xmltodict
 xpath

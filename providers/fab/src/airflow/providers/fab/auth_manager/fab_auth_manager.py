@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import warnings
+from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,7 +32,7 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -120,6 +122,8 @@ else:
         RESOURCE_ASSET_ALIAS,
     )
 
+log = logging.getLogger(__name__)
+
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
@@ -199,11 +203,11 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
-            login_router,
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.router import (
+            auth_router,
+            fab_router,
+            register_routes,
         )
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.users import users_router
 
         flask_app = create_app(enable_plugins=False)
 
@@ -217,10 +221,9 @@ class FabAuthManager(BaseAuthManager[User]):
             ),
         )
 
-        # Add the login router to the FastAPI app
-        app.include_router(login_router)
-        app.include_router(roles_router)
-        app.include_router(users_router)
+        register_routes()
+        app.include_router(auth_router)
+        app.include_router(fab_router)
 
         # Session cleanup middleware to prevent PendingRollbackError.
         # FAB's Flask views (e.g., /users/list/, /roles/list/) are mounted below via
@@ -240,7 +243,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 from airflow import settings
 
                 if settings.Session:
-                    settings.Session.remove()
+                    try:
+                        settings.Session.remove()
+                    except Exception:
+                        log.warning("Failed to remove session during cleanup", exc_info=True)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
@@ -290,6 +296,12 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
         except NoResultFound:
             raise ValueError(f"User with id {token['sub']} not found")
+        except SQLAlchemyError:
+            # Discard the poisoned scoped session so the next request gets a
+            # fresh connection from the pool instead of a PendingRollbackError.
+            with suppress(Exception):
+                self.session.remove()
+            raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -650,6 +662,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @staticmethod
     def get_db_manager() -> str | None:
+        # This method can be removed once the min Airflow version supported in FAB provider is >= 3.2
+        # https://github.com/apache/airflow/pull/62308 auto uses DB managers from installed providers
         return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
     def _is_authorized(

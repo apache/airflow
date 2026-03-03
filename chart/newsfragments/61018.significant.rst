@@ -1,0 +1,4 @@
+Support for old versions of Apache Airflow <2.11 has been dropped.
+
+Minimum supported version of Apache Airflow is now 2.11.0. If you want to deploy an
+old version of Apache Airflow, please use the last released version of the chart 1.19.0.

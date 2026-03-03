@@ -79,6 +79,7 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
             impersonation_chain=IMPERSONATION_CHAIN,
+            unwrap_single=True,
         )
 
         result = op.execute(context=None)
@@ -106,7 +107,78 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator:
             gzip=False,
         )
 
-        assert result == f"{BUCKET_NAME}/{OBJECT_NAME}"
+        assert result == f"gs://{BUCKET_NAME}/{OBJECT_NAME}"
+
+    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.zipfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.os")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.display_video.tempfile.TemporaryDirectory"
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.GCSHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.display_video.open",
+        new_callable=mock.mock_open,
+    )
+    def test_execute_with_unwrap_single_false(
+        self, mock_open, mock_hook, gcs_hook_mock, temp_dir_mock, os_mock, zipfile_mock
+    ):
+        operation = {"response": {"resourceName": RESOURCE_NAME}}
+        media = mock.Mock()
+
+        mock_hook.return_value.get_sdf_download_operation.return_value = operation
+        mock_hook.return_value.download_media.return_value = media
+
+        tmp_dir = "/tmp/mock_dir"
+        temp_dir_mock.return_value.__enter__.return_value = tmp_dir
+
+        # Mock os behavior
+        os_mock.path.join.side_effect = lambda *args: "/".join(args)
+        os_mock.listdir.return_value = [FILENAME]
+
+        # Mock zipfile behavior
+        zipfile_mock.ZipFile.return_value.__enter__.return_value.extractall.return_value = None
+
+        op = GoogleDisplayVideo360SDFtoGCSOperator(
+            operation_name=OPERATION_NAME,
+            bucket_name=BUCKET_NAME,
+            object_name=OBJECT_NAME,
+            gzip=False,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
+            unwrap_single=False,
+        )
+
+        result = op.execute(context=None)
+
+        # Assertions
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.get_sdf_download_operation.assert_called_once_with(
+            operation_name=OPERATION_NAME
+        )
+        mock_hook.return_value.download_media.assert_called_once_with(resource_name=RESOURCE_NAME)
+        mock_hook.return_value.download_content_from_request.assert_called_once()
+
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        gcs_hook_mock.return_value.upload.assert_called_once_with(
+            bucket_name=BUCKET_NAME,
+            object_name=OBJECT_NAME,
+            filename=f"{tmp_dir}/{FILENAME}",
+            gzip=False,
+        )
+
+        assert result == [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]
 
 
 class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator:
