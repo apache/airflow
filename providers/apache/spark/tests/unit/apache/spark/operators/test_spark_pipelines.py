@@ -47,10 +47,9 @@ class TestSparkPipelinesOperator:
         operator = SparkPipelinesOperator(task_id="test_task")
         assert operator.template_fields == expected_fields
 
-    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator._get_hook")
-    def test_execute(self, mock_get_hook):
-        mock_hook = MagicMock()
-        mock_get_hook.return_value = mock_hook
+    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator.hook", new_callable=lambda: MagicMock())
+    def test_execute(self, mock_hook):
+        mock_hook = mock_hook
 
         operator = SparkPipelinesOperator(
             task_id="test_task", pipeline_spec="test_pipeline.yml", pipeline_command="run"
@@ -61,10 +60,9 @@ class TestSparkPipelinesOperator:
 
         mock_hook.submit_pipeline.assert_called_once()
 
-    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator._get_hook")
-    def test_on_kill(self, mock_get_hook):
-        mock_hook = MagicMock()
-        mock_get_hook.return_value = mock_hook
+    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator.hook", new_callable=lambda: MagicMock())
+    def test_on_kill(self, mock_hook):
+        mock_hook = mock_hook
 
         operator = SparkPipelinesOperator(task_id="test_task", pipeline_spec="test_pipeline.yml")
 
@@ -90,7 +88,7 @@ class TestSparkPipelinesOperator:
             principal="user@REALM.COM",
         )
 
-        hook = operator._get_hook()
+        hook = operator.hook
 
         assert hook.pipeline_spec == "test_pipeline.yml"
         assert hook.pipeline_command == "run"
@@ -109,10 +107,9 @@ class TestSparkPipelinesOperator:
     @patch(
         "airflow.providers.apache.spark.operators.spark_pipelines.inject_parent_job_information_into_spark_properties"
     )
-    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator._get_hook")
-    def test_execute_with_openlineage_parent_job_info(self, mock_get_hook, mock_inject_parent):
-        mock_hook = MagicMock()
-        mock_get_hook.return_value = mock_hook
+    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator.hook", new_callable=lambda: MagicMock())
+    def test_execute_with_openlineage_parent_job_info(self, mock_hook, mock_inject_parent):
+        mock_hook = mock_hook
 
         original_conf = {"spark.sql.adaptive.enabled": "true"}
         modified_conf = {**original_conf, "spark.openlineage.parentJobName": "test_job"}
@@ -135,10 +132,9 @@ class TestSparkPipelinesOperator:
     @patch(
         "airflow.providers.apache.spark.operators.spark_pipelines.inject_transport_information_into_spark_properties"
     )
-    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator._get_hook")
-    def test_execute_with_openlineage_transport_info(self, mock_get_hook, mock_inject_transport):
-        mock_hook = MagicMock()
-        mock_get_hook.return_value = mock_hook
+    @patch("airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator.hook", new_callable=lambda: MagicMock())
+    def test_execute_with_openlineage_transport_info(self, mock_hook, mock_inject_transport):
+        mock_hook = mock_hook
 
         original_conf = {"spark.sql.adaptive.enabled": "true"}
         modified_conf = {**original_conf, "spark.openlineage.transport.type": "http"}
