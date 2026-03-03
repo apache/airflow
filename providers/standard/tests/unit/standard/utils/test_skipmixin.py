@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, SkipMixin
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -39,12 +39,10 @@ pytestmark = pytest.mark.db_test
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
     from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
-    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_DAG_RUN_ID = "test1"

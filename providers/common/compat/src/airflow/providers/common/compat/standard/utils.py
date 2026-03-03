@@ -22,8 +22,8 @@ from airflow.providers.common.compat._compat_utils import create_module_getattr
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "SkipMixin": (
         "airflow.sdk.bases.skipmixin",
-        "airflow.providers.standard.utils.skipmixin",
         "airflow.models.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
     ),
     "XCOM_SKIPMIXIN_KEY": (
         "airflow.sdk.bases.skipmixin",
