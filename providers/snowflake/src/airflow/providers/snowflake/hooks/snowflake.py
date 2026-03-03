@@ -34,9 +34,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError, Timeout
-from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import (
@@ -57,6 +54,8 @@ T = TypeVar("T")
 
 
 if TYPE_CHECKING:
+    from snowflake.connector import SnowflakeConnection
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -583,6 +582,8 @@ class SnowflakeHook(DbApiHook):
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
+        from snowflake.sqlalchemy import URL
+
         return URL(
             **{
                 k: v
@@ -607,8 +608,10 @@ class SnowflakeHook(DbApiHook):
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
+        from snowflake.connector import connect
+
         conn_config = self._get_conn_params()
-        conn = connector.connect(**conn_config)
+        conn = connect(**conn_config)
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -722,6 +725,8 @@ class SnowflakeHook(DbApiHook):
         :return: Result of the last SQL statement if *handler* is set.
             *None* otherwise.
         """
+        from snowflake.connector import util_text
+
         self.query_ids = []
 
         if isinstance(sql, str):
@@ -776,6 +781,8 @@ class SnowflakeHook(DbApiHook):
 
     @contextmanager
     def _get_cursor(self, conn: Any, return_dictionaries: bool):
+        from snowflake.connector import DictCursor
+
         cursor = None
         try:
             if return_dictionaries:
