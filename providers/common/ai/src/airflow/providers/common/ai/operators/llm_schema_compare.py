@@ -191,7 +191,8 @@ class LLMSchemaCompareOperator(LLMOperator):
             try:
                 indexes = hook.inspector.get_indexes(table_name)
                 for idx in indexes:
-                    idx_cols = ", ".join(idx.get("column_names", []))
+                    column_names = [c for c in idx.get("column_names", []) if c is not None]
+                    idx_cols = ", ".join(c for c in column_names)
                     unique = " UNIQUE" if idx.get("unique") else ""
                     parts.append(f"Index{unique}: {idx.get('name', '?')} ({idx_cols})")
             except Exception:
