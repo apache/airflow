@@ -230,5 +230,7 @@ class TestVariableOutsideTaskContext:
 
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", None)
 
-        with pytest.raises(AirflowRuntimeError, match="Variable.delete\\(\\) requires a task execution context"):
+        with pytest.raises(
+            AirflowRuntimeError, match="Variable.delete\\(\\) requires a task execution context"
+        ):
             _delete_variable(key="my_key")
