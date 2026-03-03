@@ -66,9 +66,13 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
-The following setting is required on the **central Airflow instance** (not the edge worker node)
-so that edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``) are created and
-migrated when running ``airflow db migrate``:
+**Airflow 3.2 and newer:** Once the provider is installed on the **central Airflow instance**,
+the ``EdgeDBManager`` is automatically registered via the provider's built-in ``db-managers``
+entry. Airflow's ``ProvidersManager`` discovers it at startup — no manual configuration is needed.
+
+**Airflow versions earlier than 3.2:** You must explicitly register the ``EdgeDBManager`` on the
+**central Airflow instance** so that edge3 database tables (``edge_worker``, ``edge_job``,
+``edge_logs``) are created and migrated when running ``airflow db migrate``:
 
 - Section ``[database]``
 
@@ -94,8 +98,8 @@ migrated when running ``airflow db migrate``:
             [database]
             external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager,airflow.providers.edge3.models.db.EdgeDBManager
 
-After configuring ``external_db_managers``, run the following on the central Airflow instance
-to apply the edge3 schema migrations:
+To create or migrate the edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``),
+run on the central Airflow instance:
 
 .. code-block:: bash
 
