@@ -42,11 +42,13 @@ datasource_config_iceberg = DataSourceConfig(
 For example when working iceberg with glue catalog provide the following format for iceberg connection extras:
 
 {
+
     "client.access-key-id": "<>",
     "client.secret-access-key": "<>",
     'client.region': '<region>',
     "type": "glue",
     "uri": "https://glue.<region>.amazonaws.com/iceberg",
+
 }
 
 """
