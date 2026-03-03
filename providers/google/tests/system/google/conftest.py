@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import pytest
+from openlineage_tests_variable import VariableTransport
 
-from system.openlineage.conftest import set_transport_variable  # noqa: F401
+from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 
@@ -26,3 +27,11 @@ REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 @pytest.fixture
 def provider_env_vars():
     return REQUIRED_ENV_VARS
+
+
+@pytest.fixture(autouse=True)
+def set_transport_variable(listener_manager):
+    listener = OpenLineageListener()
+    listener.adapter._client = listener.adapter.get_or_create_openlineage_client()
+    listener.adapter._client.transport = VariableTransport({})
+    listener_manager(listener)
