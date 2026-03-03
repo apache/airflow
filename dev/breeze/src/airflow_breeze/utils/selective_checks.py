@@ -65,7 +65,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DEVEL_COMMON_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -1348,8 +1348,11 @@ class SelectiveChecks:
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
         if providers_affected:
+            suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
-                packages.append(provider.replace("-", "."))
+                pkg = provider.replace("-", ".")
+                if pkg not in suspended:
+                    packages.append(pkg)
         return " ".join(packages)
 
     @cached_property
