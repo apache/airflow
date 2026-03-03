@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -52,7 +53,7 @@ class SchemaMismatch(BaseModel):
     severity: str = Field(description="One of: critical, warning, info")
     description: str = Field(description="Human-readable description of the mismatch")
     suggested_action: str = Field(description="Recommended action to resolve the mismatch")
-    migration_query: str = Field("Provide migration query")
+    migration_query: str = Field(description="Provide migration query to resolve the mismatch")
 
 
 class SchemaCompareResult(BaseModel):
@@ -287,5 +288,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         )
         self.log.info("Running LLM schema comparison...")
         result = agent.run_sync(self.prompt)
-        self.log.info("LLM schema comparison complete.")
-        return result.output.model_dump()
+        self.log.info("LLM schema comparison completed.")
+
+        output_result = result.output.model_dump()
+        self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))
+
+        return output_result
