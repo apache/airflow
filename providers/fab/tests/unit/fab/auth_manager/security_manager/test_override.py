@@ -41,7 +41,7 @@ class TestFabAirflowSecurityManagerOverride:
         permission = Mock(id=2)
 
         mock_session = Mock()
-        mock_session.merge.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
 
         sm._is_permission_assigned_to_role = Mock(return_value=True)
 
@@ -49,7 +49,7 @@ class TestFabAirflowSecurityManagerOverride:
             sm.add_permission_to_role(role, permission)
 
         mock_session.rollback.assert_called_once_with()
-        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_id=2)
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
         mock_log.error.assert_not_called()
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
@@ -59,7 +59,8 @@ class TestFabAirflowSecurityManagerOverride:
         permission = Mock(id=2)
 
         mock_session = Mock()
-        mock_session.merge.side_effect = IntegrityError("stmt", {}, Exception("duplicate key"))
+        mock_error = IntegrityError("stmt", {}, Exception("duplicate key"))
+        mock_session.commit.side_effect = mock_error
 
         sm._is_permission_assigned_to_role = Mock(return_value=False)
 
@@ -67,10 +68,10 @@ class TestFabAirflowSecurityManagerOverride:
             sm.add_permission_to_role(role, permission)
 
         mock_session.rollback.assert_called_once_with()
-        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_id=2)
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
         mock_log.error.assert_called_once_with(
             const.LOGMSG_ERR_SEC_ADD_PERMROLE,
-            "Failed to assign permission after rollback",
+            f"Failed to assign permission after rollback: {mock_error}",
         )
 
     def test_load_user(self):

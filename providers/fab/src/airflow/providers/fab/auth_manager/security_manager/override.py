@@ -1740,26 +1740,30 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.merge(role)
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
-            except IntegrityError:
+            except IntegrityError as e:
                 self.session.rollback()
-                if self._is_permission_assigned_to_role(role_id=role.id, permission_id=permission.id):
+                if self._is_permission_assigned_to_role(role_id=role.id, permission_view_id=permission.id):
                     log.debug("Permission '%s' already assigned to role '%s'", permission, role.name)
                 else:
-                    log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, "Failed to assign permission after rollback")
+                    log.error(
+                        const.LOGMSG_ERR_SEC_ADD_PERMROLE, f"Failed to assign permission after rollback: {e}"
+                    )
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
                 self.session.rollback()
 
-    def _is_permission_assigned_to_role(self, role_id: int | None, permission_id: int | None) -> bool:
+    def _is_permission_assigned_to_role(self, role_id: int | None, permission_view_id: int | None) -> bool:
         """Check if the permission is already assigned to the role."""
-        if role_id is None or permission_id is None:
+        if role_id is None or permission_view_id is None:
             return False
         return bool(
             self.session.scalar(
-                select(assoc_permission_role.c.id).where(
+                select(select(1))
+                .where(
                     assoc_permission_role.c.role_id == role_id,
-                    assoc_permission_role.c.permission_view_id == permission_id,
+                    assoc_permission_role.c.permission_view_id == permission_view_id,
                 )
+                .exists()
             )
         )
 
