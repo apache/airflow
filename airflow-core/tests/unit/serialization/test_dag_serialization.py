@@ -3129,6 +3129,48 @@ def test_mapped_task_group_serde():
     assert serde_tg._expand_input == SchedulerDictOfListsExpandInput({"a": [".", ".."]})
 
 
+def test_serialized_task_group_hierarchical_alphabetical_sort():
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+
+    with DAG("test_dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+        EmptyOperator(task_id="a")
+        EmptyOperator(task_id="b")
+        with TaskGroup("c"):
+            EmptyOperator(task_id="d")
+        with TaskGroup("e"):
+            EmptyOperator(task_id="f")
+        with TaskGroup("h"):
+            with TaskGroup("i"):
+                EmptyOperator(task_id="j")
+                EmptyOperator(task_id="k")
+                EmptyOperator(task_id="l")
+            EmptyOperator(task_id="m")
+            EmptyOperator(task_id="n")
+
+    serialized_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(dag))
+
+    def nested(group):
+        return [
+            nested(node) if isinstance(node, SerializedTaskGroup) else node.task_id
+            for node in group.hierarchical_alphabetical_sort()
+        ]
+
+    assert nested(serialized_dag.task_group) == [
+        # groups first, alphabetically
+        ["c.d"],  # c
+        ["e.f"],  # e
+        [  # h
+            ["h.i.j", "h.i.k", "h.i.l"],  # i (group first)
+            "h.m",  # tasks after
+            "h.n",
+        ],
+        # tasks after, alphabetically
+        "a",
+        "b",
+    ]
+
+
 @pytest.mark.db_test
 def test_mapped_task_with_operator_extra_links_property():
     class _DummyOperator(BaseOperator):

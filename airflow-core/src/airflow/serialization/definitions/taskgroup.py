@@ -215,6 +215,18 @@ class SerializedTaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
+    def hierarchical_alphabetical_sort(self) -> list[DAGNode]:
+        """
+        Sort children in hierarchical alphabetical order.
+
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+        """
+        return sorted(
+            self.children.values(),
+            key=lambda node: (not isinstance(node, SerializedTaskGroup), node.node_id),
+        )
+
     def topological_sort(self) -> list[DAGNode]:
         """
         Sorts children in topographical order.
