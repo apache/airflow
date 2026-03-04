@@ -91,13 +91,13 @@ Add a newsfragment for user-visible changes:
 **Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
 directly to `main`.
 
-Before pushing, determine the GitHub username with `gh api user -q .login` and identify the
-user's fork remote from the existing remotes. Run `git remote -v` and look for a remote
-pointing to `github.com:<GITHUB_USER>/airflow.git` where `<GITHUB_USER>` is **not** `apache`.
-That is the user's fork remote. If no such remote exists, create the fork and add it:
+Before pushing, determine the fork remote. Check `git remote -v` — if `origin` does **not**
+point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
+`apache/airflow`, look for another remote that points to the user's fork. If no fork remote
+exists, create one:
 
 ```bash
-gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
+gh repo fork apache/airflow --remote --remote-name fork
 ```
 
 Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
@@ -117,11 +117,11 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
 6. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
 7. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
-Then push the branch to the user's fork remote and open the PR creation page in the browser
+Then push the branch to the fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
 ```bash
-git push -u <GITHUB_USER> <branch-name>
+git push -u <fork-remote> <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
 Brief description of the changes.
 

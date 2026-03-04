@@ -74,6 +74,7 @@ class DAGResponse(BaseModel):
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None
+    timetable_partitioned: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
     max_active_runs: int | None
