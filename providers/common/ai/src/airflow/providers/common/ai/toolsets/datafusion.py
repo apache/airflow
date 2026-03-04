@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any
 
 try:
-    from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
+    from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError, validate_sql as _validate_sql
     from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+    from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -37,6 +39,8 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
 
     from airflow.providers.common.sql.config import DataSourceConfig
+
+log = logging.getLogger(__name__)
 
 _PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
@@ -89,14 +93,14 @@ class DataFusionToolset(AbstractToolset[Any]):
     def __init__(
         self,
         datasource_configs: list[DataSourceConfig],
-        allow_writes: bool = False,
         *,
+        allow_writes: bool = False,
         max_rows: int = 50,
     ) -> None:
         self._datasource_configs = datasource_configs
+        self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._engine: DataFusionEngine | None = None
-        self._allow_writes = allow_writes
 
     @property
     def id(self) -> str:
@@ -150,16 +154,29 @@ class DataFusionToolset(AbstractToolset[Any]):
         raise ValueError(f"Unknown tool: {name!r}")
 
     def _list_tables(self) -> str:
-        engine = self._get_engine()
-        tables: list[str] = list(engine.session_context.catalog().schema().table_names())
-        return json.dumps(tables)
+        try:
+            engine = self._get_engine()
+            tables: list[str] = list(engine.session_context.catalog().schema().table_names())
+            return json.dumps(tables)
+        except QueryExecutionException as ex:
+            log.warning("list_tables failed: %s", ex)
+            return json.dumps({"error": str(ex)})
 
     def _get_schema(self, table_name: str) -> str:
         engine = self._get_engine()
-        if table_name not in engine.registered_tables:
+        # session_context lookup is required here instead of engine.registered_tables,
+        # because registered_tables only tracks tables registered via datasource config.
+        # When allow_writes is enabled, the agent may create temporary in-memory tables
+        # that would not be captured there.
+        if not engine.session_context.table_exist(table_name):
             return json.dumps({"error": f"Table {table_name!r} is not available"})
-        print(engine.get_schema(table_name))
-        return engine.get_schema(table_name)
+        # Intentionally using session_context instead of engine.get_schema() —
+        # the latter returns a pre-formatted string intended for other operators,
+        # not a JSON-compatible format.
+        # TODO: refactor engine.get_schema() to return JSON and update this accordingly
+        table = engine.session_context.table(table_name)
+        columns = [{"name": f.name, "type": str(f.type)} for f in table.schema()]
+        return json.dumps(columns)
 
     def _query(self, sql: str) -> str:
         try:
@@ -181,5 +198,6 @@ class DataFusionToolset(AbstractToolset[Any]):
                 output["truncated"] = True
                 output["max_rows"] = self._max_rows
             return json.dumps(output, default=str)
-        except Exception as ex:
+        except (SQLSafetyError, QueryExecutionException) as ex:
+            log.warning("query failed: %s", ex)
             return json.dumps({"error": str(ex), "query": sql})

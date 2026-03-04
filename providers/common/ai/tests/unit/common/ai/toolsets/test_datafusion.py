@@ -44,10 +44,17 @@ def _make_mock_engine(
     tables = registered_tables or {"sales_data": "s3://bucket/sales/"}
     mock.registered_tables = tables
     mock.session_context.catalog().schema().table_names.return_value = list(tables.keys())
+    mock.session_context.table_exist.side_effect = lambda name: name in tables
 
-    mock.get_schema.return_value = json.dumps(
-        [{"name": n, "type": t} for n, t in schema_fields or [("id", "Int64"), ("amount", "Float64")]]
-    )
+    fields = schema_fields or [("id", "Int64"), ("amount", "Float64")]
+    arrow_fields = []
+    for name, ftype in fields:
+        field = MagicMock()
+        field.name = name
+        field.type = ftype
+        arrow_fields.append(field)
+    for tname in tables:
+        mock.session_context.table(tname).schema.return_value = arrow_fields
 
     mock.execute_query.return_value = (
         query_result
@@ -61,7 +68,7 @@ def _make_mock_engine(
 
 
 class TestDataFusionToolsetInit:
-    def test_id_includes_sorted_table_names(self):
+    def test_id_includes_table_names(self):
         cfg_a = _make_mock_datasource_config("alpha")
         cfg_b = _make_mock_datasource_config("beta")
         ts = DataFusionToolset([cfg_b, cfg_a])
@@ -228,20 +235,6 @@ class TestDataFusionToolsetGetSchemaErrors:
 
 
 class TestDataFusionToolsetQueryErrors:
-    def test_execute_query_exception_returns_error_json(self):
-        cfg = _make_mock_datasource_config()
-        ts = DataFusionToolset([cfg])
-        engine = _make_mock_engine()
-        engine.execute_query.side_effect = RuntimeError("table not found")
-        ts._engine = engine
-
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT * FROM bad"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
-        assert data["error"] == "table not found"
-        assert data["query"] == "SELECT * FROM bad"
-
     def test_query_execution_exception_returns_error_json(self):
         from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
 
@@ -257,6 +250,16 @@ class TestDataFusionToolsetQueryErrors:
         data = json.loads(result)
         assert "column x not found" in data["error"]
         assert data["query"] == "SELECT x FROM t"
+
+    def test_unexpected_exception_propagates(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        engine = _make_mock_engine()
+        engine.execute_query.side_effect = TypeError("unexpected error")
+        ts._engine = engine
+
+        with pytest.raises(TypeError, match="unexpected error"):
+            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
 
 
 class TestDataFusionToolsetEngineResolution:
