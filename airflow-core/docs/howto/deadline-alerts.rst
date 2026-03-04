@@ -21,7 +21,7 @@ Deadline Alerts
 
 .. warning::
   Deadline Alerts are new in Airflow 3.1 and should be considered experimental. The feature may be
-  subject to changes in 3.2 without warning based on user feedback.
+  subject to changes in future versions without warning based on user feedback.
 
 |experimental|
 
