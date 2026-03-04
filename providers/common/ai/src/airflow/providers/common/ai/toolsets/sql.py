@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Curated SQL toolset wrapping DbApiHook for agentic database workflows."""
+"""Curated SQL toolset wrapping DbApiHook and DataFusion for agentic database/object-store workflows."""
 
 from __future__ import annotations
 
@@ -37,6 +37,8 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
+
+    from airflow.providers.common.sql.config import DataSourceConfig
 
 _PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
@@ -73,15 +75,19 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
 
 class SQLToolset(AbstractToolset[Any]):
     """
-    Curated toolset that gives an LLM agent safe access to a SQL database.
+    Curated toolset that gives an LLM agent safe access to a SQL database or object-storage data via DataFusion.
 
     Provides four tools — ``list_tables``, ``get_schema``, ``query``, and
     ``check_query`` — inspired by LangChain's ``SQLDatabaseToolkit`` pattern.
 
-    Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
-    lazily from the given ``db_conn_id``.
+    SQLToolset provides accessing two ways
+     1. Via DbApiHook: Query any database that exposes a DbApiHook interface.
+     2. Via DataFusion: Query files (Parquet, CSV, Avro, Iceberg) stored on S3 or local storage.
 
-    :param db_conn_id: Airflow connection ID for the database.
+    Exactly one of ``db_conn_id`` or ``datasource_configs`` must be provided.
+
+    :param db_conn_id: Airflow connection ID for the database (database mode).
+    :param datasource_configs: One or more DataFusion data-source configurations
     :param allowed_tables: Restrict which tables the agent can discover via
         ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
 
@@ -101,30 +107,46 @@ class SQLToolset(AbstractToolset[Any]):
 
     def __init__(
         self,
-        db_conn_id: str,
+        db_conn_id: str | None = None,
         *,
+        datasource_configs: list[DataSourceConfig] | None = None,
         allowed_tables: list[str] | None = None,
         schema: str | None = None,
         allow_writes: bool = False,
         max_rows: int = 50,
     ) -> None:
+        if db_conn_id and datasource_configs:
+            raise ValueError("Specify either 'db_conn_id' or 'datasource_configs', not both.")
+        if not db_conn_id and not datasource_configs:
+            raise ValueError("Either 'db_conn_id' or 'datasource_configs' must be provided.")
+
         self._db_conn_id = db_conn_id
+        self._datasource_configs = datasource_configs
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._hook: DbApiHook | None = None
+        self._engine = None
+
+    @property
+    def _uses_datafusion(self) -> bool:
+        return self._datasource_configs is not None
 
     @property
     def id(self) -> str:
-        return f"sql-{self._db_conn_id}"
+        if self._db_conn_id:
+            return f"sql-{self._db_conn_id}"
+        return "sql-datafusion"
 
     # ------------------------------------------------------------------
-    # Lazy hook resolution
+    # Lazy hook / engine resolution
     # ------------------------------------------------------------------
 
     def _get_db_hook(self) -> DbApiHook:
         if self._hook is None:
+            if self._db_conn_id is None:
+                raise ValueError("db_conn_id must be provided for DbApiHook.")
             connection = BaseHook.get_connection(self._db_conn_id)
             hook = connection.get_hook()
             if not isinstance(hook, DbApiHook):
@@ -135,6 +157,21 @@ class SQLToolset(AbstractToolset[Any]):
             self._hook = hook
         return self._hook
 
+    def _get_engine(self):
+        if self._engine is None:
+            try:
+                from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+            except ImportError as e:
+                from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                raise AirflowOptionalProviderFeatureException(e)
+
+            engine = DataFusionEngine()
+            for config in self._datasource_configs or []:
+                engine.register_datasource(config)
+            self._engine = engine
+        return self._engine
+
     # ------------------------------------------------------------------
     # AbstractToolset interface
     # ------------------------------------------------------------------
@@ -143,13 +180,13 @@ class SQLToolset(AbstractToolset[Any]):
         tools: dict[str, ToolsetTool[Any]] = {}
 
         for name, description, schema in (
-            ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
+            ("list_tables", "List available table names.", _LIST_TABLES_SCHEMA),
             ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
             ("query", "Execute a SQL query and return rows as JSON.", _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
-            # sequential=True because all tools use a shared DbApiHook with
-            # synchronous I/O — they must not run concurrently.
+            # sequential=True because all tools use a shared DbApiHook
+            # with synchronous I/O — they must not run concurrently.
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
@@ -186,8 +223,12 @@ class SQLToolset(AbstractToolset[Any]):
     # ------------------------------------------------------------------
 
     def _list_tables(self) -> str:
-        hook = self._get_db_hook()
-        tables: list[str] = hook.inspector.get_table_names(schema=self._schema)
+        if self._uses_datafusion:
+            engine = self._get_engine()
+            tables: list[str] = list(engine.registered_tables.keys())
+        else:
+            hook = self._get_db_hook()
+            tables = hook.inspector.get_table_names(schema=self._schema)
         if self._allowed_tables is not None:
             tables = [t for t in tables if t in self._allowed_tables]
         return json.dumps(tables)
@@ -195,6 +236,11 @@ class SQLToolset(AbstractToolset[Any]):
     def _get_schema(self, table_name: str) -> str:
         if self._allowed_tables is not None and table_name not in self._allowed_tables:
             return json.dumps({"error": f"Table {table_name!r} is not in the allowed tables list."})
+        if self._uses_datafusion:
+            engine = self._get_engine()
+            arrow_schema = engine.session_context.table(table_name).schema()
+            columns = [{"name": field.name, "type": str(field.type)} for field in arrow_schema]
+            return json.dumps(columns)
         hook = self._get_db_hook()
         columns = hook.get_table_schema(table_name, schema=self._schema)
         return json.dumps(columns)
@@ -202,7 +248,11 @@ class SQLToolset(AbstractToolset[Any]):
     def _query(self, sql: str) -> str:
         if not self._allow_writes:
             _validate_sql(sql)
+        if self._uses_datafusion:
+            return self._query_datafusion(sql)
+        return self._query_dbapi(sql)
 
+    def _query_dbapi(self, sql: str) -> str:
         hook = self._get_db_hook()
         rows = hook.get_records(sql)
         # Fetch column names from cursor description.
@@ -218,6 +268,23 @@ class SQLToolset(AbstractToolset[Any]):
 
         truncated = len(rows or []) > self._max_rows
         output: dict[str, Any] = {"rows": result, "count": len(rows or [])}
+        if truncated:
+            output["truncated"] = True
+            output["max_rows"] = self._max_rows
+        return json.dumps(output, default=str)
+
+    def _query_datafusion(self, sql: str) -> str:
+        engine = self._get_engine()
+        pydict = engine.execute_query(sql)
+        col_names = list(pydict.keys())
+        num_rows = len(next(iter(pydict.values()), []))
+
+        result: list[dict[str, Any]] = [
+            {col: pydict[col][i] for col in col_names} for i in range(min(num_rows, self._max_rows))
+        ]
+
+        truncated = num_rows > self._max_rows
+        output: dict[str, Any] = {"rows": result, "count": num_rows}
         if truncated:
             output["truncated"] = True
             output["max_rows"] = self._max_rows

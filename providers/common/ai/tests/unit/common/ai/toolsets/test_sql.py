@@ -47,6 +47,43 @@ def _make_mock_db_hook(
     return mock
 
 
+def _make_mock_datasource_config(table_name: str = "sales_data"):
+    """Create a mock DataSourceConfig."""
+    from airflow.providers.common.sql.config import DataSourceConfig
+
+    mock = MagicMock(spec=DataSourceConfig)
+    mock.table_name = table_name
+    return mock
+
+
+def _make_mock_engine(
+    registered_tables: dict[str, str] | None = None,
+    schema_fields: list[tuple[str, str]] | None = None,
+    query_result: dict[str, list] | None = None,
+):
+    """Create a mock DataFusionEngine with sensible defaults."""
+    mock = MagicMock()
+    mock.registered_tables = registered_tables or {"sales_data": "s3://bucket/sales/"}
+
+    fields = []
+    for name, ftype in schema_fields or [("id", "Int64"), ("amount", "Float64")]:
+        field = MagicMock()
+        field.name = name
+        field.type = ftype
+        fields.append(field)
+    mock.session_context.table.return_value.schema.return_value = fields
+
+    mock.execute_query.return_value = (
+        query_result
+        if query_result is not None
+        else {
+            "id": [1, 2],
+            "amount": [10.5, 20.0],
+        }
+    )
+    return mock
+
+
 class TestSQLToolsetInit:
     def test_id_includes_conn_id(self):
         ts = SQLToolset("my_pg")
@@ -231,3 +268,223 @@ class TestSQLToolsetHookResolution:
 
         # Only called once because result is cached.
         mock_base_hook.get_connection.assert_called_once()
+
+
+class TestSQLToolsetInitValidation:
+    def test_rejects_both_db_conn_id_and_datasource_configs(self):
+        config = _make_mock_datasource_config()
+        with pytest.raises(ValueError, match="Specify either 'db_conn_id' or 'datasource_configs', not both"):
+            SQLToolset("pg_default", datasource_configs=[config])
+
+    def test_rejects_neither_db_conn_id_nor_datasource_configs(self):
+        with pytest.raises(ValueError, match="Either 'db_conn_id' or 'datasource_configs' must be provided."):
+            SQLToolset()
+
+    def test_uses_datafusion_flag(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        assert ts._uses_datafusion is True
+
+        ts_db = SQLToolset("pg_default")
+        assert ts_db._uses_datafusion is False
+
+
+class TestSQLToolsetDataFusionInit:
+    def test_id_includes_table_names(self):
+        cfg_a = _make_mock_datasource_config("s3_table_a")
+        cfg_b = _make_mock_datasource_config("s3_table_b")
+        ts = SQLToolset(datasource_configs=[cfg_b, cfg_a])
+        assert ts.id == "sql-datafusion"
+
+    def test_get_tools_returns_four_tools(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query"}
+
+
+class TestSQLToolsetDataFusionListTables:
+    def test_returns_registered_tables(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._engine = _make_mock_engine(
+            registered_tables={"sales": "s3://bucket/sales/", "orders": "s3://bucket/orders/"}
+        )
+
+        result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+        tables = json.loads(result)
+        assert set(tables) == {"sales", "orders"}
+
+    def test_filters_by_allowed_tables(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config], allowed_tables=["sales"])
+        ts._engine = _make_mock_engine(
+            registered_tables={"sales": "s3://bucket/sales/", "orders": "s3://bucket/orders/"}
+        )
+
+        result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+        tables = json.loads(result)
+        assert tables == ["sales"]
+
+
+class TestSQLToolsetDataFusionGetSchema:
+    def test_returns_column_info(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._engine = _make_mock_engine(
+            schema_fields=[("id", "Int64"), ("amount", "Float64"), ("name", "Utf8")]
+        )
+
+        result = asyncio.run(
+            ts.call_tool("get_schema", {"table_name": "sales_data"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        columns = json.loads(result)
+        assert columns == [
+            {"name": "id", "type": "Int64"},
+            {"name": "amount", "type": "Float64"},
+            {"name": "name", "type": "Utf8"},
+        ]
+
+    def test_blocks_table_not_in_allowed_list(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config], allowed_tables=["sales"])
+        ts._engine = _make_mock_engine()
+
+        result = asyncio.run(
+            ts.call_tool("get_schema", {"table_name": "secrets"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert "error" in data
+        assert "secrets" in data["error"]
+
+
+class TestSQLToolsetDataFusionQuery:
+    def test_returns_rows_as_json(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._engine = _make_mock_engine(query_result={"id": [1, 2], "amount": [10.5, 20.0]})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query", {"sql": "SELECT id, amount FROM sales_data"}, ctx=MagicMock(), tool=MagicMock()
+            )
+        )
+        data = json.loads(result)
+        assert data["rows"] == [{"id": 1, "amount": 10.5}, {"id": 2, "amount": 20.0}]
+        assert data["count"] == 2
+
+    def test_truncates_at_max_rows(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config], max_rows=1)
+        ts._engine = _make_mock_engine(query_result={"id": [1, 2, 3], "name": ["a", "b", "c"]})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query", {"sql": "SELECT id, name FROM sales_data"}, ctx=MagicMock(), tool=MagicMock()
+            )
+        )
+        data = json.loads(result)
+        assert len(data["rows"]) == 1
+        assert data["truncated"] is True
+        assert data["count"] == 3
+
+    def test_handles_empty_result(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._engine = _make_mock_engine(query_result={})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query", {"sql": "SELECT * FROM sales_data WHERE 1=0"}, ctx=MagicMock(), tool=MagicMock()
+            )
+        )
+        data = json.loads(result)
+        assert data["rows"] == []
+        assert data["count"] == 0
+
+    def test_blocks_unsafe_sql_by_default(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._engine = _make_mock_engine()
+
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            asyncio.run(
+                ts.call_tool("query", {"sql": "DROP TABLE sales_data"}, ctx=MagicMock(), tool=MagicMock())
+            )
+
+    def test_allows_writes_when_enabled(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config], allow_writes=True)
+        ts._engine = _make_mock_engine(query_result={"count": [1]})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query",
+                {"sql": "INSERT INTO sales_data VALUES (3, 30.0)"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        data = json.loads(result)
+        assert "rows" in data
+
+
+class TestSQLToolsetDataFusionCheckQuery:
+    def test_valid_select(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+
+        result = asyncio.run(
+            ts.call_tool("check_query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert data["valid"] is True
+
+    def test_invalid_sql(self):
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+
+        result = asyncio.run(
+            ts.call_tool("check_query", {"sql": "DROP TABLE sales_data"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert data["valid"] is False
+        assert "error" in data
+
+
+class TestSQLToolsetDataFusionEngineResolution:
+    @patch("airflow.providers.common.sql.datafusion.engine.DataFusionEngine", autospec=True)
+    def test_lazy_creates_engine(self, MockEngine):
+        mock_engine_instance = MagicMock()
+        MockEngine.return_value = mock_engine_instance
+
+        config = _make_mock_datasource_config("my_table")
+        ts = SQLToolset(datasource_configs=[config])
+        engine = ts._get_engine()
+
+        assert engine is mock_engine_instance
+        MockEngine.assert_called_once()
+        mock_engine_instance.register_datasource.assert_called_once_with(config)
+
+    @patch("airflow.providers.common.sql.datafusion.engine.DataFusionEngine", autospec=True)
+    def test_registers_multiple_datasources(self, MockEngine):
+        mock_engine_instance = MagicMock()
+        MockEngine.return_value = mock_engine_instance
+
+        cfg_a = _make_mock_datasource_config("table_a")
+        cfg_b = _make_mock_datasource_config("table_b")
+        ts = SQLToolset(datasource_configs=[cfg_a, cfg_b])
+        ts._get_engine()
+
+        assert mock_engine_instance.register_datasource.call_count == 2
+
+    @patch("airflow.providers.common.sql.datafusion.engine.DataFusionEngine", autospec=True)
+    def test_caches_engine_after_first_creation(self, MockEngine):
+        MockEngine.return_value = MagicMock()
+
+        config = _make_mock_datasource_config()
+        ts = SQLToolset(datasource_configs=[config])
+        ts._get_engine()
+        ts._get_engine()
+
+        MockEngine.assert_called_once()

@@ -79,7 +79,9 @@ Parameters
 --------------
 
 Curated toolset wrapping
-:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` with four tools:
+:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` **or**
+:class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
+with four tools:
 
 .. list-table::
    :header-rows: 1
@@ -96,6 +98,15 @@ Curated toolset wrapping
    * - ``check_query``
      - Validates SQL syntax without executing it
 
+Exactly one of ``db_conn_id`` or ``datasource_configs`` must be provided.
+
+Using DbApiHook
+^^^^^^^^^^^^^^^
+
+Pass ``db_conn_id`` to query a traditional database through a ``DbApiHook``.
+The hook is resolved lazily on the first tool call via
+``BaseHook.get_connection(conn_id).get_hook()``.
+
 .. code-block:: python
 
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -106,13 +117,49 @@ Curated toolset wrapping
         max_rows=20,
     )
 
-The ``DbApiHook`` is resolved lazily from ``db_conn_id`` on first tool call
-via ``BaseHook.get_connection(conn_id).get_hook()``.
+Using DataFusionEngine
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pass ``datasource_configs`` to query files on object stores (S3, local
+filesystem) via Apache DataFusion. Each
+:class:`~airflow.providers.common.sql.config.DataSourceConfig` entry
+registers a table backed by Parquet, CSV, Avro, or Iceberg data.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.providers.common.sql.config import DataSourceConfig
+
+    toolset = SQLToolset(
+        datasource_configs=[
+            DataSourceConfig(
+                conn_id="aws_default",
+                table_name="sales",
+                uri="s3://my-bucket/data/sales/",
+                format="parquet",
+            ),
+            DataSourceConfig(
+                conn_id="aws_default",
+                table_name="returns",
+                uri="s3://my-bucket/data/returns/",
+                format="csv",
+            ),
+        ],
+        allowed_tables=["sales", "returns"],
+        max_rows=100,
+    )
+
+The ``DataFusionEngine`` is created lazily on the first tool call. All
+datasource configs are registered with a single engine, so SQL queries can
+join across tables. This requires the ``datafusion`` extra of
+``apache-airflow-providers-common-sql``.
 
 Parameters
 ^^^^^^^^^^
 
-- ``db_conn_id``: Airflow connection ID for the database.
+- ``db_conn_id``: Airflow connection ID for the database via DbApiHook.
+- ``datasource_configs``: One or more
+  :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries for files stored on local or s3.
 - ``allowed_tables``: Restrict which tables the agent can discover via
   ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
   See :ref:`allowed-tables-limitation` for an important caveat.
@@ -235,6 +282,24 @@ Recommended Configuration
         allowed_tables=["orders", "customers"],  # Hide other tables from agent
         allow_writes=False,  # Default — validates SQL
         max_rows=50,  # Default — truncate large results
+    )
+
+**Querying object-storage data** (Parquet on S3):
+
+.. code-block:: python
+
+    from airflow.providers.common.sql.config import DataSourceConfig
+
+    SQLToolset(
+        datasource_configs=[
+            DataSourceConfig(
+                conn_id="aws_default",
+                table_name="sales",
+                uri="s3://analytics/sales/",
+                format="parquet",
+            ),
+        ],
+        max_rows=50,
     )
 
 **Agents that need to modify data** (use with caution):
