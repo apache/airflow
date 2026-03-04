@@ -17,6 +17,6 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:3.1.7
+FROM apache/airflow:3.1.8
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" lxml
 # [END Dockerfile]
