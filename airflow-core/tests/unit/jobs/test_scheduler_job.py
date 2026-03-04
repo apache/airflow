@@ -631,8 +631,8 @@ class TestSchedulerJob:
         ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
 
         executor = MockExecutor(do_update=False)
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
         mock_stats_incr.reset_mock()
 
         ti.state = State.QUEUED
