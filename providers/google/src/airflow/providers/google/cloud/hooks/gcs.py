@@ -329,9 +329,6 @@ class GCSHook(GoogleBaseHook):
         :param user_project: The identifier of the Google Cloud project to bill for the request.
             Required for Requester Pays buckets.
         """
-        # TODO: future improvement check file size before downloading,
-        #  to check for local space availability
-
         if num_max_attempts is None:
             num_max_attempts = 3
 
@@ -347,6 +344,16 @@ class GCSHook(GoogleBaseHook):
                 blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
 
                 if filename:
+                    blob.reload(timeout=timeout)
+                    if blob.size is not None:
+                        directory = os.path.dirname(filename) or os.getcwd()
+                        free_space = shutil.disk_usage(directory).free
+                        if free_space < blob.size:
+                            raise AirflowException(
+                                f"Insufficient disk space to download file. "
+                                f"Required: {blob.size} bytes, Available: {free_space} bytes."
+                            )
+
                     blob.download_to_filename(filename, timeout=timeout)
                     get_hook_lineage_collector().add_input_asset(
                         context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
