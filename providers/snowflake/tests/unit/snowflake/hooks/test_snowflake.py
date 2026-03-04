@@ -756,12 +756,12 @@ class TestPytestSnowflakeHook:
             mock.patch.dict(
                 "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
             ),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
-            mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
-            assert mock_connector.connect.return_value == conn
+            mock_connect.assert_called_once_with(**hook._get_conn_params())
+            assert mock_connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
         with (
@@ -1503,12 +1503,12 @@ class TestPytestSnowflakeHook:
 
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             hook.get_conn()
 
-            call_args = mock_connector.connect.call_args[1]
+            call_args = mock_connect.call_args[1]
             assert call_args["proxy_host"] == "proxy.example.com"
             assert call_args["proxy_port"] == 8080
             assert call_args["proxy_user"] == "proxy_user"
