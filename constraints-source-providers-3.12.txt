@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-02T19:57:13.930639
+# This constraints file was automatically generated on 2026-03-04T02:27:46.142089
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -168,7 +168,7 @@ databricks-sql-connector==4.2.5
 databricks-sqlalchemy==2.0.9
 dataclasses-json==0.6.7
 datadog==0.52.1
-datafusion==52.0.0
+datafusion==51.0.0
 db-dtypes==1.5.0
 debugpy==1.8.20
 decorator==5.2.1
@@ -224,7 +224,7 @@ google-api-python-client==2.191.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.3.0
 google-auth==2.48.0
-google-cloud-aiplatform==1.139.0
+google-cloud-aiplatform==1.140.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
@@ -308,13 +308,13 @@ hyperframe==6.1.0
 hyperlink==21.0.0
 ibm-cloud-sdk-core==3.24.4
 ibmcloudant==0.11.4
-icalendar==7.0.2
+icalendar==7.0.3
 icdiff==2.0.10
 id==1.6.1
 identify==2.6.17
 idna==3.11
 ijson==3.4.0.post0
-imagesize==1.4.1
+imagesize==2.0.0
 immutabledict==4.3.1
 importlib_metadata==8.7.1
 importlib_resources==6.5.2
@@ -343,7 +343,7 @@ jsonpatch==1.33
 jsonpath-ng==1.8.0
 jsonpath-python==1.1.4
 jsonpointer==3.0.0
-jsonschema-path==0.4.4
+jsonschema-path==0.4.5
 jsonschema-specifications==2025.9.1
 jsonschema==4.24.1
 jupyter_client==8.8.0
@@ -379,11 +379,11 @@ mdurl==0.1.2
 memray==1.19.1
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.8
-microsoft-kiota-authentication-azure==1.9.8
-microsoft-kiota-http==1.9.8
-microsoft-kiota-serialization-json==1.9.8
-microsoft-kiota-serialization-text==1.9.8
+microsoft-kiota-abstractions==1.9.9
+microsoft-kiota-authentication-azure==1.9.9
+microsoft-kiota-http==1.9.9
+microsoft-kiota-serialization-json==1.9.9
+microsoft-kiota-serialization-text==1.9.9
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
@@ -448,7 +448,7 @@ outcome==1.3.0.post0
 packaging==26.0
 pagefind==1.5.0b1
 pagefind_bin==1.5.0b1
-pagerduty==6.2.0
+pagerduty==6.2.1
 pandas-gbq==0.33.0
 pandas-stubs==3.0.0.260204
 pandas==2.3.3
@@ -511,7 +511,8 @@ pydruid==0.6.9
 pyenchant==3.3.0
 pyexasol==1.1.0
 pygtrie==2.5.0
-pyiceberg==0.11.0
+pyiceberg-core==0.8.0
+pyiceberg==0.11.1
 pykerberos==1.2.4
 pymongo==4.16.0
 pymssql==2.3.13
@@ -522,7 +523,7 @@ pyproject_hooks==1.2.0
 pypsrp==0.9.0
 pyroaring==1.0.3
 pyspark==4.1.1
-pyspnego==0.12.0
+pyspnego==0.12.1
 pytest-asyncio==1.3.0
 pytest-cov==7.0.0
 pytest-custom-exit-code==0.3.0
@@ -549,7 +550,7 @@ python-slugify==8.0.4
 python-telegram-bot==22.6
 python3-saml==1.16.0
 pytokens==0.4.1
-pytz==2025.2
+pytz==2026.1.post1
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.16.2
