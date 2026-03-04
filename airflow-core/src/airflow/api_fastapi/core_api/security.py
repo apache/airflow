@@ -172,7 +172,7 @@ def requires_access_dag(
                 method=method,
                 access_entity=access_entity,
                 details=DagDetails(id=dag_id, team_name=team_name),
-                user=user,
+                user=user
             )
         )
 
