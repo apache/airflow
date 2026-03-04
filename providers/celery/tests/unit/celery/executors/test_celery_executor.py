@@ -496,9 +496,9 @@ def test_visibility_timeout_no_warning_when_configured(caplog):
 
     with caplog.at_level(logging.WARNING, logger=log.name):
         importlib.reload(default_celery)
-        assert (
-            default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["visibility_timeout"] == "172800"
-        )
+        assert int(
+            default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["visibility_timeout"]
+        ) == 172800
         assert "No visibility_timeout configured" not in caplog.text
 
 
