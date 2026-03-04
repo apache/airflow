@@ -32,7 +32,7 @@ Those are the most common arguments that you use when you want to build a custom
 +==========================================+===========================================+=============================================+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`           | Version of Airflow.                         |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PYTHON_VERSION``               | ``3.12.12``                               | Version of Python.                          |
+| ``AIRFLOW_PYTHON_VERSION``               | ``3.12.13``                               | Version of Python.                          |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see below the table)                     | Default extras with which Airflow is        |
 |                                          |                                           | installed.                                  |
@@ -51,8 +51,6 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USE_UV``                       | ``false``                                 |  Whether to use UV to build the image.      |
 |                                          |                                           |  This is an experimental feature.           |
-+------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``UV_HTTP_TIMEOUT``                      | ``300``                                   |  Timeout in seconds for UV pull requests.   |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                           | additional ``pip`` flags passed to the      |
 |                                          |                                           | installation commands (except when          |

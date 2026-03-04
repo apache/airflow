@@ -42,6 +42,7 @@ from tenacity import (
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -226,6 +227,29 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.query_ids.append(json_response["statementHandle"])
         else:
             raise AirflowException("No statementHandle/statementHandles present in response")
+
+        # Send Hook Level Lineage
+        len_query_ids = len(self.query_ids)
+        if len_query_ids == 1:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                job_id=self.query_ids[0],
+            )
+        else:
+            sql_statements = sql.split(";")
+            if len(sql_statements) == len_query_ids:
+                for single_sql, single_query_id in zip(sql_statements, self.query_ids):
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=single_sql,
+                        job_id=single_query_id,
+                    )
+            else:  # SQL/query ID count mismatch; can't correlate sql with id - send SQL only.
+                send_sql_hook_lineage(
+                    context=self,
+                    sql=sql,
+                )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
@@ -476,6 +500,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             return True
         return False
 
+    @staticmethod
+    def _should_raise_for_status(status: int) -> bool:
+        # _process_response handles HTTP 422 to provide richer error context.
+        # The response payload must be passed through even when the status is 422.
+        # See https://docs.snowflake.com/en/developer-guide/sql-api/reference
+        return status >= 400 and status != 422
+
     def _make_api_call_with_retries(
         self, method: str, url: str, headers: dict, params: dict | None = None, json: dict | None = None
     ):
@@ -516,7 +547,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                     # user first, base second => base wins even if guard misses something
                     request_kwargs: dict[str, Any] = {**user_kwargs, **base_request_kwargs}
                     response = session.request(**request_kwargs)
-                    response.raise_for_status()
+                    if self._should_raise_for_status(response.status_code):
+                        response.raise_for_status()
                     return response.status_code, response.json()
 
     async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
@@ -560,7 +592,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                     }
                     request_kwargs: dict[str, Any] = {**user_request_kwargs, **base_request_kwargs}
                     async with session.request(**request_kwargs) as response:
-                        response.raise_for_status()
+                        if self._should_raise_for_status(response.status):
+                            response.raise_for_status()
                         # Return status and json content for async processing
                         content = await response.json()
                         return response.status, content

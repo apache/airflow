@@ -95,7 +95,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``asyncssh``                                ``>=2.12.0``
-``paramiko``                                ``>=2.9.0,<4.0.0``
+``paramiko``                                ``>=3.4.0,<4.0.0``
 ``sshtunnel``                               ``>=0.3.2``
 ==========================================  ==================
 

@@ -39,6 +39,7 @@ VALID_AUTH_TYPES: list[str] = [
     "azure",
     "github",
     "gcp",
+    "jwt",
     "kubernetes",
     "ldap",
     "radius",
@@ -58,7 +59,7 @@ class _VaultClient(LoggingMixin):
 
     :param url: Base URL for the Vault instance being addressed.
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
-        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
@@ -93,6 +94,9 @@ class _VaultClient(LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     """
 
     def __init__(
@@ -112,7 +116,7 @@ class _VaultClient(LoggingMixin):
         role_id: str | None = None,
         region: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        kubernetes_jwt_path: str | None = DEFAULT_KUBERNETES_JWT_PATH,
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -121,6 +125,10 @@ class _VaultClient(LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        *,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -143,6 +151,11 @@ class _VaultClient(LoggingMixin):
                 raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_role'")
             if not kubernetes_jwt_path:
                 raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_jwt_path'")
+        if auth_type == "jwt":
+            if not jwt_role:
+                raise VaultError("The 'jwt' authentication type requires 'jwt_role'")
+            if not jwt_token and not jwt_token_path:
+                raise VaultError("The 'jwt' authentication type requires 'jwt_token' or 'jwt_token_path'")
         if auth_type == "azure":
             if not azure_resource:
                 raise VaultError("The 'azure' authentication type requires 'azure_resource'")
@@ -188,6 +201,9 @@ class _VaultClient(LoggingMixin):
         self.radius_host = radius_host
         self.radius_secret = radius_secret
         self.radius_port = radius_port
+        self.jwt_role = jwt_role
+        self.jwt_token = jwt_token
+        self.jwt_token_path = jwt_token_path
 
     @property
     def client(self):
@@ -241,6 +257,8 @@ class _VaultClient(LoggingMixin):
             self._auth_gcp(_client)
         elif self.auth_type == "github":
             self._auth_github(_client)
+        elif self.auth_type == "jwt":
+            self._auth_jwt(_client)
         elif self.auth_type == "kubernetes":
             self._auth_kubernetes(_client)
         elif self.auth_type == "ldap":
@@ -298,6 +316,21 @@ class _VaultClient(LoggingMixin):
                 )
             else:
                 Kubernetes(_client.adapter).login(role=self.kubernetes_role, jwt=jwt)
+
+    def _auth_jwt(self, _client: hvac.Client) -> None:
+        """Authenticate using JWT auth method."""
+        if self.jwt_token:
+            jwt = self.jwt_token.strip()
+        elif self.jwt_token_path:
+            with open(self.jwt_token_path) as f:
+                jwt = f.read().strip()
+        else:
+            raise VaultError("The jwt_token or jwt_token_path should be set here. This should not happen.")
+
+        if self.auth_mount_point:
+            _client.auth.jwt.jwt_login(role=self.jwt_role, jwt=jwt, path=self.auth_mount_point)
+        else:
+            _client.auth.jwt.jwt_login(role=self.jwt_role, jwt=jwt)
 
     def _auth_github(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

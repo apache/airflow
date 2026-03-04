@@ -32,7 +32,7 @@ export const WarningAlert = ({ warning }: Props) => {
   }
 
   return (
-    <Alert status="warning">
+    <Alert data-testid="warning-alert" status="warning">
       <Flex align="center">{warning?.message}</Flex>
     </Alert>
   );

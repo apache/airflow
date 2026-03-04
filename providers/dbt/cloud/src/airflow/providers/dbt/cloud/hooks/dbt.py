@@ -63,12 +63,7 @@ def fallback_to_default_account(func: Callable) -> Callable:
         # provided.
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
-            default_account_id = self.connection.login
-            if not default_account_id:
-                raise AirflowException("Could not determine the dbt Cloud account.")
-
-            bound_args.arguments["account_id"] = int(default_account_id)
-
+            bound_args.arguments["account_id"] = self._resolve_account_id()
         return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
@@ -162,11 +157,7 @@ def provide_account_id(func: T) -> T:
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
             if self.dbt_cloud_conn_id:
-                connection = await get_async_connection(self.dbt_cloud_conn_id)
-                default_account_id = connection.login
-                if not default_account_id:
-                    raise AirflowException("Could not determine the dbt Cloud account.")
-                bound_args.arguments["account_id"] = int(default_account_id)
+                bound_args.arguments["account_id"] = await self._resolve_account_id_async()
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
@@ -433,6 +424,32 @@ class DbtCloudHook(HttpHook):
             data=payload,
             extra_options=extra_options or None,
         )
+
+    def _resolve_account_id(self) -> int:
+        """Resolve and cache the dbt Cloud account ID (sync)."""
+        # Lazily initialized; absence means "not resolved yet".
+        if not hasattr(self, "_cached_account_id"):
+            conn = self.get_connection(self.dbt_cloud_conn_id)
+            if not conn.login:
+                raise AirflowException("Could not determine the dbt Cloud account.")
+
+            # Cache is shared between sync and async resolution to avoid duplicate
+            # metadata DB lookups on the same hook instance.
+            self._cached_account_id = int(conn.login)
+        return self._cached_account_id
+
+    async def _resolve_account_id_async(self) -> int:
+        """Resolve and cache the dbt Cloud account ID (async)."""
+        # Lazily initialized; absence means "not resolved yet".
+        if not hasattr(self, "_cached_account_id"):
+            conn = await get_async_connection(self.dbt_cloud_conn_id)
+            if not conn.login:
+                raise AirflowException("Could not determine the dbt Cloud account.")
+
+            # Cache is shared between sync and async resolution to avoid duplicate
+            # metadata DB lookups on the same hook instance.
+            self._cached_account_id = int(conn.login)
+        return self._cached_account_id
 
     def list_accounts(self) -> list[Response]:
         """
@@ -797,20 +814,32 @@ class DbtCloudHook(HttpHook):
         :param check_interval: Time in seconds to check on a pipeline run's status.
         :param timeout: Time in seconds to wait for a pipeline to reach a terminal status or the expected
             status.
-        :return: Boolean indicating if the job run has reached the ``expected_status``.
+        :return: ``True`` if the job run has reached the ``expected_status``.
+        :raises: ``DbtCloudJobRunException`` If the job run reaches an unexpected terminal status
+            or does not reach an expected status within the timeout.
         """
         expected_statuses = (expected_statuses,) if isinstance(expected_statuses, int) else expected_statuses
 
         DbtCloudJobRunStatus.check_is_valid(expected_statuses)
 
         job_run_info = JobRunInfo(account_id=account_id, run_id=run_id)
-        job_run_status = self.get_job_run_status(**job_run_info)
 
         start_time = time.monotonic()
 
-        while (
-            not DbtCloudJobRunStatus.is_terminal(job_run_status) and job_run_status not in expected_statuses
-        ):
+        while True:
+            job_run_status = self.get_job_run_status(**job_run_info)
+
+            if job_run_status in expected_statuses:
+                return True
+
+            # Reached terminal failure before expected state.
+            if DbtCloudJobRunStatus.is_terminal(job_run_status):
+                raise DbtCloudJobRunException(
+                    f"Job run {run_id} reached terminal status "
+                    f"{DbtCloudJobRunStatus(job_run_status).name} "
+                    f"before reaching expected statuses {expected_statuses}"
+                )
+
             # Check if the job-run duration has exceeded the ``timeout`` configured.
             if start_time + timeout < time.monotonic():
                 raise DbtCloudJobRunException(
@@ -819,10 +848,6 @@ class DbtCloudHook(HttpHook):
 
             # Wait to check the status of the job run based on the ``check_interval`` configured.
             time.sleep(check_interval)
-
-            job_run_status = self.get_job_run_status(**job_run_info)
-
-        return job_run_status in expected_statuses
 
     @fallback_to_default_account
     def cancel_job_run(self, run_id: int, account_id: int | None = None) -> None:

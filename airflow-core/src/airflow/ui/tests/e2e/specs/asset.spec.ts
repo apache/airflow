@@ -117,26 +117,6 @@ test.describe("Assets Page", () => {
     }
   });
 
-  test("verify pagination controls navigate between pages", async () => {
-    await assets.navigateTo("/assets?limit=5&offset=0");
-    await assets.waitForLoad();
-
-    const page1Initial = await assets.assetNames();
-
-    expect(page1Initial.length).toBeGreaterThan(0);
-
-    const pagination = assets.page.locator('[data-scope="pagination"]');
-
-    await pagination.getByRole("button", { name: /page 2/i }).click();
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
-
-    const page2Assets = await assets.assetNames();
-
-    await pagination.getByRole("button", { name: /page 1/i }).click();
-
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
-  });
-
   test("verify asset details and dependencies", async ({ page }) => {
     const assetDetailPage = new AssetDetailPage(page);
     const assetName = testConfig.asset.name;

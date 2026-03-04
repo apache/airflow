@@ -67,7 +67,7 @@ def _register_filesystems() -> Mapping[
                     raise ImportError(f"Filesystem {fs_module_name} does not have a get_fs method")
                 scheme_to_fs[scheme] = method
 
-    log.debug("loading filesystems from providers took %.3f seconds", timer.duration)
+    log.debug("loading filesystems from providers took %.3f ms", timer.duration)
     return scheme_to_fs
 
 

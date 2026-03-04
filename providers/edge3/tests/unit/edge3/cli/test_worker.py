@@ -26,6 +26,7 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import call, patch
 
+import anyio
 import pytest
 import time_machine
 from aiohttp import ClientResponseError, RequestInfo
@@ -307,7 +308,7 @@ class TestEdgeWorker:
     @pytest.mark.asyncio
     async def test_push_logs_in_chunks(self, mock_logs_push, worker_with_job: EdgeWorker):
         job = EdgeWorker.jobs[0]
-        job.logfile.write_text("some log content")
+        await anyio.Path(job.logfile).write_text("some log content")
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job._push_logs_in_chunks(job)
 
@@ -321,9 +322,10 @@ class TestEdgeWorker:
     @pytest.mark.asyncio
     async def test_check_running_jobs_log_push_increment(self, mock_logs_push, worker_with_job: EdgeWorker):
         job = EdgeWorker.jobs[0]
-        job.logfile.write_text("hello ")
-        job.logsize = job.logfile.stat().st_size
-        job.logfile.write_text("hello world")
+        aio_logfile = anyio.Path(job.logfile)
+        await aio_logfile.write_text("hello ")
+        job.logsize = (await aio_logfile.stat()).st_size
+        await aio_logfile.write_text("hello world")
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job._push_logs_in_chunks(job)
         assert len(EdgeWorker.jobs) == 1
@@ -459,9 +461,14 @@ class TestEdgeWorker:
     def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
         args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            with patch(
-                "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
-                return_value=[mock_edgeworker],
+            with (
+                patch(
+                    "airflow.providers.edge3.cli.edge_command._check_valid_db_connection",
+                ),
+                patch(
+                    "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                    return_value=[mock_edgeworker],
+                ),
             ):
                 edge_command.list_edge_workers(args)
                 out = temp_stdout.getvalue()

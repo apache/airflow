@@ -22,6 +22,7 @@ description: |
     `Telegram <https://telegram.org/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335695
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -78,6 +79,12 @@ operators:
 connection-types:
   - hook-class-name: airflow.providers.telegram.hooks.telegram.TelegramHook
     connection-type: telegram
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - extra
+        - login
+        - port
 
 hooks:
   - integration-name: Telegram

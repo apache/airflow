@@ -385,7 +385,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -395,7 +395,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -405,17 +405,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -429,7 +428,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -439,7 +438,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-helm-tests": "false",
                     "run-unit-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "true",
+                    "docs-build": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -449,17 +448,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -467,7 +465,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
                 },
-                id="Selected Providers and docs should run when system tests are modified",
+                id="Selected Providers should run when system tests are modified",
             )
         ),
         (
@@ -477,7 +475,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -497,17 +495,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -525,7 +522,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -545,17 +542,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -754,7 +750,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http informatica pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -775,31 +771,31 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...apache.livy",
-                                "test_types": "Providers[amazon] Providers[apache.livy]",
+                                "description": "amazon...atlassian.jir",
+                                "test_types": "Providers[amazon] Providers[apache.livy] Providers[atlassian.jira]",
                             },
                             {
-                                "description": "atlassian.jir...common.compat",
-                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
+                                "description": "common.compat...dbt.cloud",
+                                "test_types": "Providers[common.compat] Providers[dbt.cloud]",
                             },
                             {
-                                "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                                "description": "dingding...discord",
+                                "test_types": "Providers[dingding] Providers[discord]",
                             },
                             {
-                                "description": "discord...google",
-                                "test_types": "Providers[discord] Providers[google]",
+                                "description": "google...http",
+                                "test_types": "Providers[google] Providers[http]",
                             },
                             {
-                                "description": "http...pagerduty",
-                                "test_types": "Providers[http] Providers[pagerduty]",
+                                "description": "informatica...pagerduty",
+                                "test_types": "Providers[informatica] Providers[pagerduty]",
                             },
                         ]
                     ),
@@ -864,15 +860,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-helm-tests": "true",
-                    "run-unit-tests": "true",
+                    "run-unit-tests": "false",
                     "docs-build": "true",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "Always", "test_types": "Always"}]
-                    ),
                     "providers-test-types-list-as-strings-in-json": None,
                     "run-mypy": "false",
                     "mypy-checks": "[]",
@@ -921,7 +914,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
-                "docs-build": "true",
+                "docs-build": "false",
                 # no python files changed so flynt should not run
                 "skip-prek-hooks": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
@@ -959,7 +952,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1034,7 +1027,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "true",
+                "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
@@ -1193,7 +1186,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
                 "run-helm-tests": "true",
-                "run-unit-tests": "true",
+                "run-unit-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
@@ -1321,7 +1314,7 @@ def test_excluded_providers():
         {
             "excluded-providers-as-string": json.dumps(
                 {
-                    "3.13": ["apache.beam", "fab"],
+                    "3.13": ["fab"],
                 }
             ),
         },
@@ -1947,7 +1940,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
+                "selected-providers-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
@@ -1959,7 +1952,7 @@ def test_expected_output_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
@@ -1973,7 +1966,7 @@ def test_expected_output_push(
                     [
                         {
                             "description": "amazon...standard",
-                            "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
+                            "test_types": "Providers[amazon] Providers[apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
@@ -2047,10 +2040,7 @@ def test_expected_output_push(
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
-                "docs-build": "true",
-                "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
-                "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage oracle postgres sftp snowflake standard trino",
+                "docs-build": "false",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -2244,7 +2234,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
+                "docs-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
@@ -2254,8 +2244,8 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
+                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -2927,7 +2917,7 @@ def test_testable_providers_integrations_excludes_disabled():
     ):
         # Test with AMD runner - should exclude mssql (disabled for all CI)
         selective_checks_amd = SelectiveChecks(
-            files=("providers/tests/test_example.py",),
+            files=("providers/amazon/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
         )

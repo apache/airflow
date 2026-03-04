@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate trino/cohere connection UI metadata to YAML (#62390)``
+
 6.4.2
 .....
 

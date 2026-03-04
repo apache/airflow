@@ -350,6 +350,57 @@ class TestVaultSecrets:
         with pytest.raises(FileNotFoundError, match=path):
             VaultBackend(**kwargs).get_connection(conn_id="test")
 
+    def test_auth_type_jwt_with_unreadable_jwt_raises_error(self):
+        path = "/var/tmp/this_does_not_exist/jwt_token_file"
+        kwargs = {
+            "auth_type": "jwt",
+            "jwt_role": "default",
+            "jwt_token_path": path,
+            "url": "http://127.0.0.1:8200",
+        }
+
+        with pytest.raises(FileNotFoundError, match=path):
+            VaultBackend(**kwargs).get_connection(conn_id="test")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_auth_type(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"conn_uri": "postgresql://airflow:airflow@host:5432/airflow"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
+                },
+            },
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_type": "jwt",
+            "jwt_role": "airflow-role",
+            "jwt_token": "eyJhbGciOiJSUzI1NiJ9.test",
+            "url": "http://127.0.0.1:8200",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        connection = test_client.get_connection(conn_id="test_postgres")
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow"
+        mock_client.auth.jwt.jwt_login.assert_called_with(
+            role="airflow-role", jwt="eyJhbGciOiJSUzI1NiJ9.test"
+        )
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_config_value(self, mock_hvac):
         mock_client = mock.MagicMock()

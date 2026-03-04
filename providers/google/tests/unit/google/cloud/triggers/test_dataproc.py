@@ -587,10 +587,8 @@ class TestDataprocSubmitTrigger:
     async def test_submit_trigger_run_success(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job completion."""
         mock_job = Job(status=JobStatus(state=JobStatus.State.DONE))
-        future = asyncio.Future()
-        future.set_result(mock_job)
-        mock_get_async_hook.return_value.get_job.return_value = future
-
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(return_value=mock_job)
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
         expected_event = TriggerEvent(
@@ -603,9 +601,12 @@ class TestDataprocSubmitTrigger:
     async def test_submit_trigger_run_error(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job error."""
         mock_job = Job(status=JobStatus(state=JobStatus.State.ERROR))
-        future = asyncio.Future()
-        future.set_result(mock_job)
-        mock_get_async_hook.return_value.get_job.return_value = future
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(return_value=mock_job)
+
+        # future = asyncio.Future()
+        # future.set_result(mock_job)
+        # mock_get_async_hook.return_value.get_job.return_value = future
 
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
@@ -625,6 +626,8 @@ class TestDataprocSubmitTrigger:
         """Test the trigger correctly handles an asyncio.CancelledError."""
         mock_safe_to_cancel.return_value = is_safe_to_cancel
         mock_async_hook = mock_get_async_hook.return_value
+        mock_async_hook.get_job_client = mock.AsyncMock()
+
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 
         mock_sync_hook = mock_get_sync_hook.return_value
