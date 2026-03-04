@@ -132,14 +132,35 @@ def reinstall_if_setup_changed() -> bool:
     :return: True if warning was printed.
     """
 
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
+    timeout_seconds = int(os.environ.get("BREEZE_SELF_UPGRADE_TIMEOUT", "10"))
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        get_console().print(
+            f"[warning]Breeze self-upgrade check timed out after {timeout_seconds}s. Skipping check.[/]"
+        )
+        return False
+    except subprocess.CalledProcessError as err:
+        # Non-zero exit: warn in verbose mode but don't block startup.
+        if get_verbose():
+            get_console().print(
+                "[warning]Breeze self-upgrade check failed (uv returned non-zero). Continuing.[/]\n"
+            )
+            try:
+                if err.stderr:
+                    get_console().print(err.stderr)
+            except Exception:
+                pass
+        return False
+
+    if "Modified" in (res.stderr or ""):
         inform_about_self_upgrade()
         return True
     return False
