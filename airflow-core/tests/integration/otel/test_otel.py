@@ -641,7 +641,7 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
                 print("\n===== END =====\n")
 
 
-@pytest.mark.integration("redis")
+@pytest.mark.integration("otel")
 @pytest.mark.backend("postgres")
 class TestOtelIntegration:
     """
