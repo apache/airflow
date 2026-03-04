@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,20 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from tests_common.test_utils.fernet import generate_fernet_key_string
 
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
-DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
-DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
+class TestFernetUtils:
+    """Test utils for Fernet encryption."""
 
-DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-
-DOCKER_COMPOSE_FILE_PATH = (
-    AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
-)
-
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
-LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
+    def test_generate_fernet_key_string(self):
+        """Test generating a Fernet key."""
+        key = generate_fernet_key_string("TEST_KEY")
+        assert key == "NBJC_zYX6NWNek9v7tVv64YZz4K5sAgpoC4WGkQYv6I="
+        default_key = generate_fernet_key_string()
+        assert default_key == "BMsag_V7iplH1SIxzrTIbhLRZYOAYd6p0_nPtGdmuxo="

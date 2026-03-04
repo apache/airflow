@@ -15,25 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-What is airflowctl?
-===================
-airflowctl is a command line tool that helps you communicate with API and provide similar functionality with Apache Airflow CLI.
-It is designed to be easy to use and provides a simple interface for managing your Airflow API calls and daily operations.
 
-Please head over to :doc:`/start` to get started.
 
-.. toctree::
-    :hidden:
-    :caption: Content
+Release Notes
+=============
 
-    installation/index
-    howto/index
-    security
-    release_notes
-
-.. toctree::
-    :hidden:
-    :caption: Usage
-
-    start
-    References <cli-and-env-variables-ref>
+.. include:: ../RELEASE_NOTES.rst

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,20 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from pathlib import Path
+import base64
+import hashlib
 
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
-DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
-DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
-
-DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-
-DOCKER_COMPOSE_FILE_PATH = (
-    AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
-)
-
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
-LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
+def generate_fernet_key_string(string_key: str = "AIRFLOW_INTEGRATION_TEST") -> str:
+    """Generate always the same Fernet key value as a URL-safe base64-encoded 32-byte key."""
+    raw = hashlib.sha256(string_key.encode()).digest()  # 32 bytes
+    return base64.urlsafe_b64encode(raw).decode()

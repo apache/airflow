@@ -76,7 +76,3 @@ exclude = ["*"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
-
-[tool.ruff.lint.per-file-ignores]
-
-"!test/*" = ["S101"]
