@@ -22,6 +22,7 @@
 #   "packaging>=25",
 #   "rich>=13.6.0",
 #   "tomli>=2.0.1",
+#   "pyyaml",
 # ]
 # ///
 """
@@ -235,7 +236,7 @@ if __name__ == "__main__":
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
     optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
     all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
-    all_providers = sorted(get_all_provider_ids())
+    all_providers = sorted(get_all_provider_ids(exclude_suspended_providers=True))
     all_provider_lines = []
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)

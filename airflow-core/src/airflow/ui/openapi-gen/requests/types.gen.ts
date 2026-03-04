@@ -540,6 +540,7 @@ export type DAGDetailsResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -618,6 +619,7 @@ export type DAGResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -943,11 +945,11 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     href: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
 };
 
-export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
 
 /**
  * Extra Links Response.
@@ -1292,11 +1294,11 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     bundle_url: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1893,6 +1895,7 @@ export type DAGWithLatestDagRunsResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -1928,6 +1931,14 @@ export type DashboardDagStatsResponse = {
 };
 
 /**
+ * Deadline Collection serializer for responses.
+ */
+export type DeadlineCollectionResponse = {
+    deadlines: Array<DeadlineResponse>;
+    total_entries: number;
+};
+
+/**
  * Deadline serializer for responses.
  */
 export type DeadlineResponse = {
@@ -1937,14 +1948,6 @@ export type DeadlineResponse = {
     created_at: string;
     alert_name?: string | null;
     alert_description?: string | null;
-};
-
-/**
- * Deadline Collection serializer for responses.
- */
-export type DealineCollectionResponse = {
-    deadlines: Array<DeadlineResponse>;
-    total_entries: number;
 };
 
 /**
@@ -3568,7 +3571,7 @@ export type GetDagRunDeadlinesData = {
     orderBy?: Array<(string)>;
 };
 
-export type GetDagRunDeadlinesResponse = DealineCollectionResponse;
+export type GetDagRunDeadlinesResponse = DeadlineCollectionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -6821,7 +6824,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: DealineCollectionResponse;
+                200: DeadlineCollectionResponse;
                 /**
                  * Not Found
                  */

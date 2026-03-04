@@ -53,7 +53,7 @@ def stringify(line: str | bytes):
     """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
     decode_method = getattr(line, "decode", None)
     if decode_method:
-        return decode_method(encoding="utf-8", errors="surrogateescape")
+        return decode_method(encoding="utf-8", errors="replace")
     return line
 
 
