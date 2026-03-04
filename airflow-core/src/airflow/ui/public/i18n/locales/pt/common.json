@@ -28,6 +28,7 @@
   "backfill_zero": "Nenhum backfill",
   "browse": {
     "auditLog": "Log de Auditoria",
+    "jobs": "Tarefas",
     "requiredActions": "Ações Necessárias",
     "xcoms": "XComs"
   },
