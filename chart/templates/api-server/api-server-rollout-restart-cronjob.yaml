@@ -1,0 +1,113 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+##############################################
+## Airflow API Server Rollout Restart CronJob
+##############################################
+{{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.apiServer.enabled .Values.apiServer.rolloutRestart.enabled }}
+{{- $nodeSelector := or .Values.apiServer.rolloutRestart.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.apiServer.rolloutRestart.affinity .Values.affinity }}
+{{- $tolerations := or .Values.apiServer.rolloutRestart.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.apiServer.rolloutRestart.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.apiServer.rolloutRestart .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.apiServer.rolloutRestart .Values) }}
+{{- $deploymentName := default (printf "%s-api-server" (include "airflow.fullname" .)) .Values.apiServer.rolloutRestart.deploymentName }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "airflow.fullname" . }}-api-server-rollout-restart
+  labels:
+    tier: airflow
+    component: api-server-rollout-restart
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.apiServer.rolloutRestart.jobAnnotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: "{{ tpl .Values.apiServer.rolloutRestart.schedule . }}"
+  # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
+  concurrencyPolicy: Forbid
+  {{- if not ( eq .Values.apiServer.rolloutRestart.failedJobsHistoryLimit nil) }}
+  failedJobsHistoryLimit: {{ .Values.apiServer.rolloutRestart.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if not (eq .Values.apiServer.rolloutRestart.successfulJobsHistoryLimit nil) }}
+  successfulJobsHistoryLimit: {{ .Values.apiServer.rolloutRestart.successfulJobsHistoryLimit }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            tier: airflow
+            component: api-server-rollout-restart
+            release: {{ .Release.Name }}
+            {{- if or (.Values.labels) (.Values.apiServer.rolloutRestart.labels) }}
+              {{- mustMerge .Values.apiServer.rolloutRestart.labels .Values.labels | toYaml | nindent 12 }}
+            {{- end }}
+          annotations:
+            {{- if .Values.airflowPodAnnotations }}
+              {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
+            {{- end }}
+            {{- if .Values.apiServer.rolloutRestart.podAnnotations }}
+              {{- toYaml .Values.apiServer.rolloutRestart.podAnnotations | nindent 12 }}
+            {{- end }}
+        spec:
+          restartPolicy: Never
+          {{- if .Values.apiServer.rolloutRestart.priorityClassName }}
+          priorityClassName: {{ .Values.apiServer.rolloutRestart.priorityClassName }}
+          {{- end }}
+          nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
+          affinity: {{- toYaml $affinity | nindent 12 }}
+          {{- if .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
+          tolerations: {{- toYaml $tolerations | nindent 12 }}
+          topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
+          serviceAccountName: {{ include "apiServerRolloutRestart.serviceAccountName" . }}
+          imagePullSecrets: {{- include "image_pull_secrets" . | nindent 12 }}
+          securityContext: {{ $securityContext | nindent 12 }}
+          containers:
+            - name: api-server-rollout-restart
+              image: {{ template "kubectl_image" . }}
+              imagePullPolicy: {{ .Values.images.kubectl.pullPolicy }}
+              securityContext: {{ $containerSecurityContext | nindent 16 }}
+              {{- if .Values.apiServer.rolloutRestart.command }}
+              command: {{ tpl (toYaml .Values.apiServer.rolloutRestart.command) . | nindent 16 }}
+              {{- else }}
+              command:
+                - "kubectl"
+              {{- end }}
+              {{- if .Values.apiServer.rolloutRestart.args }}
+              args: {{ tpl (toYaml .Values.apiServer.rolloutRestart.args) . | nindent 16 }}
+              {{- else }}
+              args:
+                - "rollout"
+                - "restart"
+                - "deployment/{{ $deploymentName }}"
+                - "--namespace"
+                - "{{ .Release.Namespace }}"
+              {{- end }}
+              resources: {{- toYaml .Values.apiServer.rolloutRestart.resources | nindent 16 }}
+{{- end }}

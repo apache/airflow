@@ -108,6 +108,24 @@ Several additional options can be configured and passed to the ``airflow db clea
 
 See :ref:`db clean usage <cli-db-clean>` for more details.
 
+API server periodic restarts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When running the API server in Kubernetes (especially with the default Uvicorn mode), you may want to periodically
+restart the API server Pods to keep long-running processes fresh. The chart can create an optional CronJob that
+runs a ``kubectl rollout restart`` against the API server Deployment.
+
+.. code-block:: yaml
+
+  apiServer:
+    rolloutRestart:
+      enabled: true
+      schedule: "0 3 * * *"
+
+By default, the CronJob targets the API server Deployment created by the chart. If you need a custom target, set
+``apiServer.rolloutRestart.deploymentName`` or override ``command``/``args``. The CronJob uses the ``images.kubectl``
+image, so ensure the tag is compatible with your cluster.
+
 PgBouncer
 ---------
 
