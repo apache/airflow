@@ -34,13 +34,13 @@ Bug Fixes
 - Fix airflowctl auth login reporting success when keyring backend is unavailable (#61296)
 - Fix airflowctl crash when incorrect keyring password is entered (#61042)
 - Strip api-url for airflowctl auth login which fails with trailing slash (#61245)
-- Fix airflow-ctl-tests files not triggering pre-commit integration tests (#61023)
+- Fix ``airflow-ctl-tests`` files not triggering pre-commit integration tests (#61023)
 
 Improvements
 ^^^^^^^^^^^^
 
 - Print debug mode warning to stderr to avoid polluting stdout JSON output (#61302)
-- Refactor datamodel defaulting logic into dedicated method (#61236)
+- Refactor ``datamodel`` defaulting logic into dedicated method (#61236)
 - Alias run_after for XComResponse (#61443)
 - Add test for sensitive config masking in airflowctl (#60361)
 
