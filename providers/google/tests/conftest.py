@@ -1,3 +1,5 @@
+# providers/google/tests/conftest.py
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,4 +18,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.metadata
+
+import werkzeug
+
 pytest_plugins = "tests_common.pytest_plugin"
+
+# Flask 2.2.x test client reads werkzeug.__version__ which Werkzeug 3.x removed.
+# Connexion 2.x used to pin Werkzeug<3, but connexion is now removed from FAB provider.
+if not hasattr(werkzeug, "__version__"):
+    werkzeug.__version__ = importlib.metadata.version("werkzeug")
