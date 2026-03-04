@@ -63,7 +63,10 @@ class NotPreviouslySkippedDep(BaseTIDep):
                 # query with -1 instead of the child's map_index.
                 xcom_map_index = ti.map_index if parent.is_mapped else -1
                 prev_result = ti.xcom_pull(
-                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session, map_indexes=xcom_map_index
+                    task_ids=parent.task_id,
+                    key=XCOM_SKIPMIXIN_KEY,
+                    session=session,
+                    map_indexes=xcom_map_index,
                 )
 
                 if prev_result is None:

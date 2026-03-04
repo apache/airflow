@@ -22,10 +22,10 @@ import pytest
 from sqlalchemy import delete
 
 from airflow.models import DagRun, TaskInstance
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
-from airflow.models.xcom import XComModel
 from airflow.ti_deps.deps.not_previously_skipped_dep import (
     XCOM_SKIPMIXIN_FOLLOWED,
     XCOM_SKIPMIXIN_KEY,
