@@ -342,8 +342,13 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cursor = conn.cursor()
 
-        sql_statement = f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s"
-        parameters = (tmp_file, duplicate_key_handling, extra_options)
+        # duplicate_key_handling and extra_options are SQL keywords (e.g. IGNORE, REPLACE)
+        # and must be interpolated into the statement, not passed as query parameters,
+        # because parameterized values get quoted as strings which produces invalid SQL.
+        sql_statement = (
+            f"LOAD DATA LOCAL INFILE %s {duplicate_key_handling} INTO TABLE `{table}` {extra_options}"
+        )
+        parameters = (tmp_file,)
         cursor.execute(
             sql_statement,
             parameters,
