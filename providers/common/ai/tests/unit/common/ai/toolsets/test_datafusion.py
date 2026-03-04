@@ -95,7 +95,7 @@ class TestDataFusionToolsetListTables:
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
         ts._engine = _make_mock_engine(
-            registered_tables={"sales": "s3://b/sales/", "orders": "s3://b/orders/"}
+            registered_tables={"sales": "s3://bucket/sales/", "orders": "s3://bucket/orders/"}
         )
 
         result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))

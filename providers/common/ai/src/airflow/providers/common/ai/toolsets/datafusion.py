@@ -64,7 +64,7 @@ _QUERY_SCHEMA: dict[str, Any] = {
 
 class DataFusionToolset(AbstractToolset[Any]):
     """
-    Curated toolset that gives an LLM agent SQL access to object-storage data.
+    Curated toolset that gives an LLM agent SQL access to object-storage data vi Apache DataFusion.
 
     Provides three tools — ``list_tables``, ``get_schema``, and ``query`` —
     backed by
