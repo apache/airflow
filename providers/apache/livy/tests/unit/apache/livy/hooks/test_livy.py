@@ -770,6 +770,8 @@ class TestLivyAsyncHook:
 
     @pytest.mark.asyncio
     async def test_build_get_hook(self, setup_livy_conn):
+        from airflow.sdk.definitions.connection import Connection as SDKConnection
+
         connection_url_mapping = {
             # id, expected
             "default_port": "http://host",
@@ -782,8 +784,8 @@ class TestLivyAsyncHook:
         for conn_id, expected in connection_url_mapping.items():
             hook = LivyAsyncHook(livy_conn_id=conn_id)
             async with hook.session() as session:
-                response_conn: Connection = hook.get_connection(conn_id=conn_id)
-                assert isinstance(response_conn, Connection)
+                response_conn = hook.get_connection(conn_id=conn_id)
+                assert isinstance(response_conn, SDKConnection)
                 assert session.base_url == expected
 
     def test_build_body(self):
