@@ -2304,6 +2304,28 @@ class TestTaskInstance:
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
 
+    def test_handle_failure_clears_next_method_on_retry(self, dag_maker):
+        """Test that handle_failure clears next_method/next_kwargs for deferred tasks on retry (#62845)."""
+        session = settings.Session()
+        with dag_maker():
+            task = EmptyOperator(task_id="mytask", retries=1)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id)
+        ti.state = State.RUNNING
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"event": "test_event"}
+        session.merge(ti)
+        session.flush()
+
+        ti.handle_failure("test deferred retry", test_mode=False)
+
+        # After handle_failure with retries available, state should be UP_FOR_RETRY
+        # and next_method/next_kwargs should be cleared
+        reloaded_ti = session.scalar(select(TaskInstance))
+        assert reloaded_ti.state == State.UP_FOR_RETRY
+        assert reloaded_ti.next_method is None
+        assert reloaded_ti.next_kwargs is None
+
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
         """
@@ -2600,6 +2622,34 @@ class TestTaskInstance:
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert tih[0].task_instance_id == try_id
+
+    def test_prepare_db_for_next_try_clears_next_method_and_next_kwargs(self, dag_maker, session):
+        """Test that prepare_db_for_next_try clears next_method and next_kwargs (issue #62845)."""
+        with dag_maker(serialized=True):
+            BashOperator(
+                task_id="test_clear_deferred_fields_on_retry",
+                bash_command="echo",
+                retries=1,
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.state = State.RUNNING
+        # Simulate a task that was deferred and has next_method/next_kwargs set
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"event": "test_event"}
+        session.merge(ti)
+        session.flush()
+
+        old_id = ti.id
+        ti.prepare_db_for_next_try(session)
+        session.flush()
+
+        # next_method and next_kwargs should be cleared
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        # ID should have changed
+        assert ti.id != old_id
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

@@ -848,6 +848,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
+        self.clear_next_method_args()
         self.id = uuid7()
 
     @provide_session
