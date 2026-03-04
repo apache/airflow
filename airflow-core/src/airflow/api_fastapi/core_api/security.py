@@ -187,8 +187,8 @@ def requires_access_dag_run_bulk() -> Callable[[str, BulkBody[DAGRunPatchBody], 
         request: BulkBody[DAGRunPatchBody],
         user: GetUserDep,
     ) -> None:
-        dag_id: str | None = dag_id if dag_id != "~" else None
-        team_name = DagModel.get_team_name(dag_id) if dag_id else None
+        normalized_dag_id: str | None = dag_id if dag_id != "~" else None
+        team_name = DagModel.get_team_name(normalized_dag_id) if normalized_dag_id else None
 
         requests: list[IsAuthorizedDagRequest] = []
         for action in request.actions:
@@ -197,7 +197,7 @@ def requires_access_dag_run_bulk() -> Callable[[str, BulkBody[DAGRunPatchBody], 
                 req: IsAuthorizedDagRequest = {
                     "method": method,
                     "access_entity": DagAccessEntity.RUN,
-                    "details": DagDetails(id=dag_id, team_name=team_name),
+                    "details": DagDetails(id=normalized_dag_id, team_name=team_name),
                 }
                 requests.append(req)
 
