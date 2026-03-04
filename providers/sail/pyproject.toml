@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "apache-airflow-providers-sail"
+version = "1.0.0"
+description = "Provider package apache-airflow-providers-sail for Apache Airflow"
+readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
+authors = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+maintainers = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+keywords = [ "airflow-provider", "sail", "airflow", "integration" ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+]
+requires-python = ">=3.10"
+
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.12.0",
+    "pysail>=0.5.0",
+    "pyspark>=3.5.2",
+    "grpcio-status>=1.59.0",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
+]
+
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+
+[tool.uv.sources]
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+
+[project.urls]
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sail/1.0.0"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+"Source Code" = "https://github.com/apache/airflow"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow.providers.sail.get_provider_info:get_provider_info"
+
+[tool.flit.module]
+name = "airflow.providers.sail"
