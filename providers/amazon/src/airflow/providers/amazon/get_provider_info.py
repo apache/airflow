@@ -100,6 +100,7 @@ def get_provider_info():
                 "integration-name": "Amazon ECS",
                 "external-doc-url": "https://aws.amazon.com/ecs/",
                 "logo": "/docs/integration-logos/Amazon-Elastic-Container-Service_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecs.rst"],
                 "tags": ["aws"],
             },
             {
@@ -222,7 +223,7 @@ def get_provider_info():
                 "integration-name": "Amazon Simple Email Service (SES)",
                 "external-doc-url": "https://aws.amazon.com/ses/",
                 "logo": "/docs/integration-logos/Amazon-Simple-Email-Service-SES_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecs.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ses.rst"],
                 "tags": ["aws"],
             },
             {
@@ -446,6 +447,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
                 "python-modules": ["airflow.providers.amazon.aws.operators.sagemaker_unified_studio"],
+            },
+            {
+                "integration-name": "Amazon Simple Email Service (SES)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ses"],
             },
             {
                 "integration-name": "Amazon Simple Notification Service (SNS)",
