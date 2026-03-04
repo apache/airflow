@@ -88,7 +88,7 @@ class TestObjectStorageProvider:
     def test_gcs_provider_no_connection_config_raises(self):
         provider = GCSObjectStorageProvider()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="connection_config must be provided"):
             provider.create_object_store("gs://my-bucket/path", connection_config=None)
 
     def test_gcs_provider_failure(self):
@@ -122,7 +122,7 @@ class TestObjectStorageProvider:
     def test_azure_provider_no_connection_config_raises(self):
         provider = AzureObjectStorageProvider()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="connection_config must be provided"):
             provider.create_object_store("az://my-container/path", connection_config=None)
 
     def test_azure_provider_failure(self):
