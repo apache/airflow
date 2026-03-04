@@ -2400,7 +2400,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
+        callback_tuples = []
+        for run in dag_runs:
+            try:
+                callback = self._schedule_dag_run(run, session=session)
+                callback_tuples.append((run, callback))
+            except Exception:
+                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
         guard.commit()
         return callback_tuples
 
