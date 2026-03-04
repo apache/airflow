@@ -704,9 +704,7 @@ class TestSmtpHookAsync:
 
         mock_smtp_client.sendmail.assert_not_awaited()
 
-    async def test_async_ehlo_called_after_starttls(
-        self, mock_smtp, mock_smtp_client, mock_get_connection
-    ):
+    async def test_async_ehlo_called_after_starttls(self, mock_smtp, mock_smtp_client, mock_get_connection):
         """Test that ehlo() is called after starttls() in async path."""
         async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
             pass
@@ -715,7 +713,9 @@ class TestSmtpHookAsync:
         assert mock_smtp_client.starttls.await_count == 1
         assert mock_smtp_client.ehlo.await_count >= 2  # once in _abuild_client + once after starttls
 
-    async def test_async_oauth2_auth(self, mock_smtp, mock_smtp_client, mock_get_connection, create_connection_without_db):
+    async def test_async_oauth2_auth(
+        self, mock_smtp, mock_smtp_client, mock_get_connection, create_connection_without_db
+    ):
         """Test that async path supports OAuth2 authentication."""
         create_connection_without_db(
             Connection(
