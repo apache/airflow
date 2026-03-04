@@ -36,9 +36,16 @@ class ProductMapper(PartitionMapper):
         segments = key.split(self.DELIMITER)
         if len(segments) != len(self.mappers):
             raise ValueError(f"Expected {len(self.mappers)} segments in key, got {len(segments)}")
-        return self.DELIMITER.join(
-            mapper.to_downstream(segment) for mapper, segment in zip(self.mappers, segments)
-        )
+        results: list[str] = []
+        for mapper, segment in zip(self.mappers, segments):
+            result = mapper.to_downstream(segment)
+            if not isinstance(result, str):
+                raise TypeError(
+                    f"ProductMapper child mappers must return a single key, "
+                    f"but {type(mapper).__name__} returned multiple keys"
+                )
+            results.append(result)
+        return self.DELIMITER.join(results)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
