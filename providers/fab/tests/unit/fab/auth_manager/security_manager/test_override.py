@@ -71,7 +71,7 @@ class TestFabAirflowSecurityManagerOverride:
         sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
         mock_log.error.assert_called_once_with(
             const.LOGMSG_ERR_SEC_ADD_PERMROLE,
-            f"Failed to assign permission after rollback: {mock_error}",
+            f"Failed to add '{permission}' permission to the '{role}' role Error: {mock_error}",
         )
 
     def test_load_user(self):

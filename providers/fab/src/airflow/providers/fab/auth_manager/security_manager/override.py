@@ -1746,7 +1746,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     log.debug("Permission '%s' already assigned to role '%s'", permission, role.name)
                 else:
                     log.error(
-                        const.LOGMSG_ERR_SEC_ADD_PERMROLE, f"Failed to assign permission after rollback: {e}"
+                        const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+                        f"Failed to add '{permission}' permission to the '{role}' role Error: {e}",
                     )
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
