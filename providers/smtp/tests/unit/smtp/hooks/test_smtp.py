@@ -744,6 +744,5 @@ class TestSmtpHookAsync:
                 from_email=FROM_EMAIL,
             )
 
-        assert mock_smtp_client.auth.called
-        args, _ = mock_smtp_client.auth.call_args
-        assert args[0] == "XOAUTH2"
+        assert mock_smtp_client.auth_xoauth2.called
+        mock_smtp_client.auth_xoauth2.assert_awaited_once_with(SMTP_LOGIN, ACCESS_TOKEN)
