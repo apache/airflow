@@ -198,7 +198,7 @@ with DAG(
     """
     Ingest player statistics per region.
 
-    Externally triggered with partition_key set to a region code (us, eu, apac).
+    Externally triggered with partition_key set to a region code (``us``, ``eu``, ``apac``).
     """
 
     @task(outlets=[region_raw_stats])
@@ -222,6 +222,6 @@ def regional_stats_breakdown():
     Aggregate regional player statistics.
 
     This asset demonstrates SequenceMapper, which validates that upstream partition
-    keys belong to a fixed set of values (us, eu, apac) rather than time-based partitions.
+    keys belong to a fixed set of values (``us``, ``eu``, ``apac``) rather than time-based partitions.
     """
     pass
