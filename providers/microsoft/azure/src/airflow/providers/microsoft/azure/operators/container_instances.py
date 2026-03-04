@@ -464,17 +464,17 @@ class AzureContainerInstancesOperator(BaseOperator):
         Handle the trigger event after deferral.
 
         Called by the Triggerer when the container reaches a terminal state.
-        Raises an AirflowException on failure; returns the exit code on success.
+        Raises on failure; returns the exit code on success.
         """
         if event is None:
-            raise AirflowException("Trigger error: event is None")
+            raise ValueError("Trigger error: event is None")
 
         exit_code: int = event.get("exit_code", 1)
 
         if event["status"] == "error":
             if self.remove_on_error:
                 self.on_kill()
-            raise AirflowException(
+            raise RuntimeError(
                 event.get(
                     "message",
                     f"Container group {self.resource_group}/{self.name} failed with exit code {exit_code}",
