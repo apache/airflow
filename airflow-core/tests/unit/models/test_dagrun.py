@@ -2152,6 +2152,84 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     assert empty_ti.try_number == 1
 
 
+def test_schedule_tis_try_number_mismatch_logs_warning(dag_maker, session: Session, monkeypatch):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    original_execute = session.execute
+
+    class _FakeSelectResult:
+        def all(self):
+            return [(ti.id, ti.try_number + 2, TaskInstanceState.SCHEDULED)]
+
+    def execute_with_mismatch(statement, *args, **kwargs):
+        if getattr(statement, "is_select", False):
+            return _FakeSelectResult()
+        return original_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute_with_mismatch)
+
+    with (
+        mock.patch.object(dr.log, "isEnabledFor", return_value=True),
+        mock.patch.object(dr.log, "warning") as warning_mock,
+    ):
+        dr.schedule_tis((ti,), session=session)
+
+    assert any(
+        "schedule_tis: try_number mismatch after scheduling" in call.args[0]
+        for call in warning_mock.call_args_list
+    )
+
+
+def test_schedule_tis_try_number_match_has_no_warning(dag_maker, session: Session):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    with (
+        mock.patch.object(dr.log, "isEnabledFor", return_value=True),
+        mock.patch.object(dr.log, "warning") as warning_mock,
+    ):
+        dr.schedule_tis((ti,), session=session)
+
+    assert all(
+        "schedule_tis: try_number mismatch after scheduling" not in call.args[0]
+        for call in warning_mock.call_args_list
+    )
+
+
+def test_schedule_tis_try_number_check_is_debug_only(dag_maker, session: Session, monkeypatch):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    original_execute = session.execute
+    select_calls = 0
+
+    def execute_with_counter(statement, *args, **kwargs):
+        nonlocal select_calls
+        if getattr(statement, "is_select", False):
+            select_calls += 1
+        return original_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute_with_counter)
+
+    with mock.patch.object(dr.log, "isEnabledFor", return_value=False):
+        dr.schedule_tis((ti,), session=session)
+
+    assert select_calls == 0
+
+
 @pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     """
