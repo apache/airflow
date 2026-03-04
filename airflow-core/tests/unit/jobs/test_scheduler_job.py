@@ -5361,9 +5361,7 @@ class TestSchedulerJob:
             from airflow.utils.sqlalchemy import prohibit_commit
 
             with prohibit_commit(session) as guard:
-                result = self.job_runner._schedule_all_dag_runs(
-                    guard, [bad_run, good_run], session=session
-                )
+                result = self.job_runner._schedule_all_dag_runs(guard, [bad_run, good_run], session=session)
 
             # The good DAG run should have been processed despite the bad one failing
             assert len(result) == 1
