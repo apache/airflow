@@ -298,7 +298,7 @@ def requires_access_backfill(
 
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id = request.path_params.get("backfill_id")
-        if backfill_id is not None and isinstance(backfill_id, int):
+        if backfill_id is not None:
             backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
             dag_id = backfill.dag_id if backfill else None
 
