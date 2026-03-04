@@ -184,10 +184,7 @@ class SmtpHook(BaseHook):
                             raise AirflowException(
                                 "smtp_user or from_email must be set for OAuth2 authentication"
                             )
-                        await async_client.auth(
-                            "XOAUTH2",
-                            lambda _=None: build_xoauth2_string(user_identity, self._access_token),
-                        )
+                        await async_client.auth_xoauth2(user_identity, self._access_token)
                     elif self.smtp_user and self.smtp_password:
                         await async_client.auth_login(self.smtp_user, self.smtp_password)
                     break
