@@ -283,6 +283,66 @@ Example configurations:
     # Invalid: Duplicate Executor within a Team
     executor = LocalExecutor;team_a=CeleryExecutor,CeleryExecutor;team_b=LocalExecutor
 
+Aliasing Executors Across Teams
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the same executor type is used at both the global and team level (e.g., ``LocalExecutor`` globally and
+``LocalExecutor`` for a team), if tasks wish to target the global executor they need a way to distinguish between the
+two instances. To accomplish this, you can assign **aliases** to core executors using the ``Alias:ExecutorName`` syntax:
+
+.. code-block:: ini
+
+    [core]
+    executor = global_celery_exec:CeleryExecutor;team1=team_celery_exec:CeleryExecutor
+
+With this configuration:
+
+- The global ``CeleryExecutor`` is available via the alias ``global_celery_exec``
+- The team_a ``CeleryExecutor`` is available via the alias ``team_celery_exec``
+- A task in ``team_a`` that sets ``executor="team_celery_exec"``, ``executor="CeleryExecutor"``, or ``executor="airflow.providers.celery.executors.celery_executor.CeleryExecutor"``
+  will run on the **team** executor
+- A task in ``team_a`` that sets ``executor="global_celery_exec"`` will run on the **global** executor
+
+.. code-block:: python
+
+    # Runs on the global CeleryExecutor via alias
+    BashOperator(
+        task_id="uses_global",
+        executor="global_celery_exec",
+        bash_command="echo 'running on global executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via alias
+    BashOperator(
+        task_id="use_team_alias",
+        executor="team_celery_exec",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via class name
+    BashOperator(
+        task_id="use_team_classname",
+        executor="CeleryExecutor",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via full module path
+    BashOperator(
+        task_id="use_team_module_path",
+        executor="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Also runs on team_a's CeleryExecutor (implicit team default)
+    BashOperator(
+        task_id="use_default",
+        bash_command="echo 'running on default team executor'",
+    )
+
+Aliases work with all core executors (``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, etc) as
+well as custom executor module paths. For more information on aliases and multiple executor configuration,
+see :ref:`Using Multiple Executors Concurrently <using-multiple-executors-concurrently>`.
+
 Team-specific Executor Settings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
