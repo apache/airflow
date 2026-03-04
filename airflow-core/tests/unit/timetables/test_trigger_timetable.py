@@ -623,7 +623,9 @@ def test_latest_run_no_history(dag_maker, session):
     dag_maker.sync_dagbag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date
+    assert dm.next_dagrun_partition_key == "2026-01-01T00:00:00"
 
 
 @pytest.mark.db_test
@@ -657,29 +659,30 @@ def test_latest_run_with_run(dag_maker, session):
     dag_maker.sync_dag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun_partition_key == "2026-01-05T00:00:00"
 
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    ("schedule", "partition_key", "expected"),
+    ("schedule", "expected"),
     [
-        (
+        pytest.param(
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            "key-1",
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=None,
                 partition_date=START_DATE + datetime.timedelta(days=3),
                 partition_key="key-1",
             ),
+            id="cron-partition",
         ),
-        (
+        pytest.param(
             "0 0 * * *",
-            None,
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=DataInterval(
@@ -689,10 +692,11 @@ def test_latest_run_with_run(dag_maker, session):
                 partition_date=None,
                 partition_key=None,
             ),
+            id="cron-trigger",
         ),
     ],
 )
-def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, session):
+def test_run_info_from_dag_run(schedule, expected, dag_maker, session):
     with dag_maker(
         "test",
         start_date=START_DATE,
@@ -707,7 +711,8 @@ def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, ses
         data_interval=None,
         run_type="scheduled",
         run_after=START_DATE + datetime.timedelta(days=3),
-        partition_key=partition_key,
+        partition_key=expected.partition_key,
+        partition_date=expected.partition_date,
         session=session,
     )
     info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
