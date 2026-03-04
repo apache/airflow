@@ -49,15 +49,40 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
+    def _get_blob_path(self, relative_path: str | os.PathLike) -> str:
+        from urllib.parse import urlparse
+
+        if isinstance(relative_path, os.PathLike):
+            relative_path = str(relative_path)
+
+        if "://" in self.remote_base:
+            if self.remote_base.endswith("/"):
+                base = self.remote_base
+            else:
+                base = self.remote_base + "/"
+            full_path = base + relative_path
+            parsed = urlparse(full_path)
+            if parsed.scheme in ("wasb", "wasbs"):
+                return parsed.path.lstrip("/")
+            if parsed.scheme in ("http", "https"):
+                path = parsed.path.lstrip("/")
+                if path.startswith(f"{self.wasb_container}/"):
+                    return path[len(self.wasb_container) + 1 :]
+                return path
+
+        return os.path.join(self.remote_base, relative_path)
+
     def upload(self, path: str | os.PathLike, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
             local_loc = path
-            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+            relative_path = path.relative_to(self.base_log_folder)
         else:
             local_loc = self.base_log_folder.joinpath(path)
-            remote_loc = os.path.join(self.remote_base, path)
+            relative_path = path
+
+        remote_loc = self._get_blob_path(relative_path)
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
@@ -87,10 +112,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
     def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
-        # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
-        # unlike others with shceme in URL itself to identify the correct handler.
-        # This puts limitations on ways users can name the base_path.
-        prefix = os.path.join(self.remote_base, relative_path)
+        prefix = self._get_blob_path(relative_path)
         blob_names = []
         try:
             blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)

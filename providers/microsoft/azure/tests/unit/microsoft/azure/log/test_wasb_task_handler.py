@@ -232,3 +232,41 @@ class TestWasbTaskHandler:
             delete_local_copy=True,
             filename_template=None,
         )
+
+    @pytest.mark.parametrize(
+        ("remote_base", "relative_path", "expected_path"),
+        [
+            (
+                "wasb://container/remote/log/location",
+                "dag_id/task_id/run_id/1.log",
+                "remote/log/location/dag_id/task_id/run_id/1.log",
+            ),
+            (
+                "wasbs://container/remote/log/location",
+                "dag_id/task_id/run_id/1.log",
+                "remote/log/location/dag_id/task_id/run_id/1.log",
+            ),
+            (
+                "https://account.blob.core.windows.net/container/remote/log/location",
+                "dag_id/task_id/run_id/1.log",
+                "remote/log/location/dag_id/task_id/run_id/1.log",
+            ),
+            (
+                "remote/log/location",
+                "dag_id/task_id/run_id/1.log",
+                "remote/log/location/dag_id/task_id/run_id/1.log",
+            ),
+            (
+                "https://account.blob.core.windows.net/other-container/remote/log/location",
+                "dag_id/task_id/run_id/1.log",
+                "other-container/remote/log/location/dag_id/task_id/run_id/1.log",
+            ),
+        ],
+    )
+    def test_get_blob_path(self, remote_base, relative_path, expected_path):
+        handler = WasbTaskHandler(
+            base_log_folder=self.local_log_location,
+            wasb_log_folder=remote_base,
+            wasb_container="container",
+        )
+        assert handler.io._get_blob_path(relative_path) == expected_path
