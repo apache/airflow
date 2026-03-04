@@ -436,6 +436,15 @@ def test_queue_connection_test_workload_accepted_when_supported():
     assert executor.queued_connection_tests[str(wl.connection_test_id)] is wl
 
 
+def test_trigger_connection_tests_skipped_when_not_supported():
+    """trigger_connection_tests is a no-op when supports_connection_test is False."""
+    executor = BaseExecutor()
+    executor.queued_connection_tests["dummy"] = mock.MagicMock(spec=workloads.TestConnection)
+    with mock.patch.object(executor, "_process_workloads") as mock_process:
+        executor.trigger_connection_tests()
+    mock_process.assert_not_called()
+
+
 @mock.patch.dict("os.environ", {}, clear=True)
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""
