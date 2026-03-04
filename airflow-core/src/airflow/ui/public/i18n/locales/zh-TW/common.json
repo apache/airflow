@@ -161,6 +161,13 @@
     "placeholder": "新增筆記...",
     "taskInstance": "任務實例筆記"
   },
+  "partitionedDagRun_one": "分區的 Dag 執行",
+  "partitionedDagRun_other": "分區的 Dag 執行",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "收到的資源事件"
+  },
+  "pendingDagRun_one": "待執行的 Dag 執行",
+  "pendingDagRun_other": "待執行的 Dag 執行",
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {

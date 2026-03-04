@@ -283,6 +283,83 @@ Example configurations:
     # Invalid: Duplicate Executor within a Team
     executor = LocalExecutor;team_a=CeleryExecutor,CeleryExecutor;team_b=LocalExecutor
 
+Team-specific Executor Settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When multiple teams use the same executor type (e.g., both ``team_a`` and ``team_b`` using ``CeleryExecutor``),
+each team can provide its own configuration for that executor. This allows teams to point to different Celery
+brokers, use different Kubernetes namespaces, or customize any executor setting independently.
+
+Configuration Resolution Order
+"""""""""""""""""""""""""""""""
+
+When a team executor reads a configuration value (e.g., ``[celery] broker_url``), the system checks the
+following sources in order, returning the first value found:
+
+1. **Team-specific environment variable** — ``AIRFLOW__{TEAM}___{SECTION}__{KEY}``
+2. **Team-specific config file section** — ``[team_name=section]``
+3. **Default values** — built-in defaults or ``fallback`` values
+
+The following sources are **skipped** for team executors (they do not yet support team-based configuration):
+
+- **Command execution** (``{key}_cmd``)
+- **Secrets backend** (``{key}_secret``)
+
+.. note::
+
+    Team-specific configuration does **not** fall back to the global environment variable or global config file
+    settings. For example, if there is a global ``CeleryExecutor`` and a team ``CeleryExecutor`` in use, the global
+    ``CeleryExecutor`` may want to increase ``celery.worker_concurrency`` from the default of ``16`` to ``32`` by
+    overriding this configuration.  However, the team ``CeleryExecutor`` should not be forced to ``32``, it will
+    continue to use the default of ``16`` unless it is explicitly overridden with team-specific configuration.
+
+Via Environment Variables
+"""""""""""""""""""""""""
+
+Team-specific configuration can be provided using environment variables with the following format:
+
+.. code-block:: text
+
+    AIRFLOW__{TEAM}___{SECTION}__{KEY}
+
+Note the delimiters: double underscore before the team name (part of the ``AIRFLOW__`` prefix), **triple
+underscore** between the team name and section, and double underscore between section and key. The team name
+is uppercase.
+
+.. code-block:: bash
+
+    # team_a's Celery broker URL
+    export AIRFLOW__TEAM_A___CELERY__BROKER_URL="redis://team-a-redis:6379/0"
+
+    # team_b's Celery broker URL
+    export AIRFLOW__TEAM_B___CELERY__BROKER_URL="redis://team-b-redis:6379/0"
+
+    # team_b's Celery result backend
+    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql://team-b-db/celery_results"
+
+Via Config File
+"""""""""""""""
+
+Team-specific settings can also be placed in the ``airflow.cfg`` file using sections prefixed with the team
+name followed by an equals sign:
+
+.. code-block:: ini
+
+    # Global celery settings (used by the global executor, NOT as a fallback for teams)
+    [celery]
+    broker_url = redis://default-redis:6379/0
+    result_backend = db+postgresql://default-db/celery_results
+
+    # team_a overrides
+    [team_a=celery]
+    broker_url = redis://team-a-redis:6379/0
+    result_backend = db+postgresql://team-a-db/celery_results
+
+    # team_b overrides
+    [team_b=celery]
+    broker_url = redis://team-b-redis:6379/0
+    result_backend = db+postgresql://team-b-db/celery_results
+
 Dag Bundle to Team Association
 ------------------------------
 
@@ -370,6 +447,7 @@ Multi-Team mode is currently an experimental feature in preview. It is not yet f
 - Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
 - Some UI elements may not be fully team-aware
 - Full provider support for executors and secrets backends
+- Command and Secrets based lookup for team based configuration
 - Plugins
 
 Global Uniqueness of Identifiers
