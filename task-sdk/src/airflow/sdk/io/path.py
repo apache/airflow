@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
 from upath import UPath
-from upath.extensions import ProxyUPath, classmethod_or_method
+from upath.extensions import ProxyUPath
 
 from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
@@ -32,6 +32,10 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
     from typing_extensions import Self
     from upath.types import JoinablePathLike
+
+    _classmethod_or_method = classmethod
+else:
+    from upath.extensions import classmethod_or_method as _classmethod_or_method
 
 
 class _TrackingFileWrapper:
@@ -117,7 +121,7 @@ class ObjectStoragePath(ProxyUPath):
         self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
 
-    @classmethod_or_method
+    @_classmethod_or_method
     def _from_upath(cls_or_self, upath, /):
         """Wrap a UPath, propagating conn_id from the calling instance."""
         is_instance = isinstance(cls_or_self, ObjectStoragePath)
