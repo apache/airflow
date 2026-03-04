@@ -655,6 +655,10 @@
         "9.21.0": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "9.22.0": {
+            "associated_airflow_version": "3.1.7",
+            "date_released": "2026-03-04T17:35:54Z"
         }
     },
     "apache.beam": {
@@ -3541,6 +3545,10 @@
         "3.16.0": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "3.17.0": {
+            "associated_airflow_version": "3.1.7",
+            "date_released": "2026-03-04T17:35:58Z"
         }
     },
     "cloudant": {
@@ -5741,6 +5749,10 @@
         "3.0.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "3.1.0": {
+            "associated_airflow_version": "3.1.7",
+            "date_released": "2026-03-04T17:35:56Z"
         }
     },
     "elasticsearch": {
@@ -5975,6 +5987,10 @@
         "6.4.4": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "6.5.0": {
+            "associated_airflow_version": "3.1.7",
+            "date_released": "2026-03-04T17:35:55Z"
         }
     },
     "exasol": {
@@ -7923,6 +7939,12 @@
         "2.10.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        }
+    },
+    "informatica": {
+        "0.1.1": {
+            "associated_airflow_version": "3.1.7",
+            "date_released": "2026-03-04T17:35:57Z"
         }
     },
     "jdbc": {
