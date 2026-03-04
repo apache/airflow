@@ -52,27 +52,14 @@ ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, Callback
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
 
 
-def filter_kwargs(callback_obj: Callable[..., Any], kwargs: dict) -> dict:
-    """
-    Filter kwargs to only include parameters the callback accepts.
-
-    If the callable accepts **kwargs (VAR_KEYWORD), all kwargs are passed through.
-    Otherwise, only kwargs matching named parameters are passed.  This is useful
-    when calling user-provided callbacks that may not accept all kwargs that
-    Airflow provides (e.g. context).
-
-    :param callback_obj: The callback to inspect
-    :param kwargs: The full set of kwargs to filter
-    """
+def _accepts_context(callback: Callable) -> bool:
+    """Check if callback accepts a 'context' parameter or **kwargs."""
     try:
-        signature = inspect.signature(callback_obj)
+        sig = inspect.signature(callback)
     except (ValueError, TypeError):
-        return kwargs
-
-    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
-        return kwargs
-
-    return {k: v for k, v in kwargs.items() if k in set(signature.parameters.keys())}
+        return True
+    params = sig.parameters
+    return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 class CallbackType(str, Enum):

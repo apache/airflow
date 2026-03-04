@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import select
 
@@ -26,7 +28,7 @@ from airflow.models.callback import (
     CallbackState,
     ExecutorCallback,
     TriggererCallback,
-    filter_kwargs,
+    _accepts_context,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
@@ -211,38 +213,31 @@ class TestExecutorCallback:
 # Note: class DagProcessorCallback is tested in airflow-core/tests/unit/dag_processing/test_manager.py
 
 
-class TestFilterKwargs:
-    def test_passes_all_when_var_keyword_present(self):
+class TestAcceptsContext:
+    def test_true_when_var_keyword_present(self):
         def func_with_var_keyword(**kwargs):
             pass
 
-        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
-        assert filter_kwargs(func_with_var_keyword, kwargs) == kwargs
+        assert _accepts_context(func_with_var_keyword) is True
 
-    def test_filters_to_named_params_only(self):
-        def func_with_named_params(a, b):
+    def test_true_when_context_param_present(self):
+        def func_with_context(context, alert_type):
             pass
 
-        kwargs = {"a": 1, "b": 2, "context": {"dag_run": {}}}
-        assert filter_kwargs(func_with_named_params, kwargs) == {"a": 1, "b": 2}
+        assert _accepts_context(func_with_context) is True
 
-    def test_no_params_returns_empty(self):
+    def test_false_when_no_context_or_var_keyword(self):
+        def func_without_context(a, b):
+            pass
+
+        assert _accepts_context(func_without_context) is False
+
+    def test_false_when_no_params(self):
         def func_no_params():
             pass
 
-        kwargs = {"context": {"dag_run": {}}, "extra": "value"}
-        assert filter_kwargs(func_no_params, kwargs) == {}
+        assert _accepts_context(func_no_params) is False
 
-    def test_uninspectable_callable_passes_all(self):
-        # built-in len() cannot be inspected with inspect.signature in some Python versions
-        kwargs = {"a": 1}
-        result = filter_kwargs(len, kwargs)
-
-        assert isinstance(result, dict)
-
-    def test_mixed_named_and_extra_kwargs(self):
-        def func(context, alert_type):
-            pass
-
-        kwargs = {"context": {"dag_run": {}}, "alert_type": "deadline", "extra": "dropped"}
-        assert filter_kwargs(func, kwargs) == {"context": {"dag_run": {}}, "alert_type": "deadline"}
+    def test_true_for_uninspectable_callable(self):
+        with patch("airflow.models.callback.inspect.signature", side_effect=ValueError):
+            assert _accepts_context(lambda: None) is True
