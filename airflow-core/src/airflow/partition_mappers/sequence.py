@@ -27,10 +27,9 @@ class SequenceMapper(PartitionMapper):
 
     def __init__(self, sequence: list[str]) -> None:
         self.sequence = sequence
-        self._valid_keys = frozenset(sequence)
 
     def to_downstream(self, key: str) -> str:
-        if key not in self._valid_keys:
+        if key not in self.sequence:
             raise ValueError(f"Key {key!r} not in sequence {self.sequence}")
         return key
 
