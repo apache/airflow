@@ -126,7 +126,7 @@ class TestKubernetesPodTrigger:
             "schedule_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
-            "cancel_on_kill": True,
+            "on_kill_action": "delete_pod",
             "termination_grace_period": None,
             "last_log_time": None,
             "logging_interval": None,
@@ -568,7 +568,7 @@ class TestKubernetesPodTrigger:
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
             schedule_timeout=STARTUP_TIMEOUT_SECS,
-            cancel_on_kill=True,
+            on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
         trigger._fired_event = True
@@ -577,14 +577,14 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_cleanup_does_not_delete_when_cancel_on_kill_false(self, mock_hook):
+    async def test_cleanup_does_not_delete_when_on_kill_action_keep_pod(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
             schedule_timeout=STARTUP_TIMEOUT_SECS,
-            cancel_on_kill=False,
+            on_kill_action="keep_pod",
             on_finish_action="delete_pod",
         )
         await trigger.cleanup()
@@ -600,7 +600,7 @@ class TestKubernetesPodTrigger:
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
             schedule_timeout=STARTUP_TIMEOUT_SECS,
-            cancel_on_kill=True,
+            on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
         await trigger.cleanup()
@@ -616,7 +616,7 @@ class TestKubernetesPodTrigger:
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
             schedule_timeout=STARTUP_TIMEOUT_SECS,
-            cancel_on_kill=True,
+            on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
         mock_hook.delete_pod = mock.AsyncMock()
@@ -631,14 +631,14 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True)
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_deletes_pod_even_when_on_finish_action_keep_pod(self, mock_hook, mock_safe):
-        """on_finish_action is not consulted during kill -- cancel_on_kill is the sole control."""
+        """on_finish_action is not consulted during kill -- on_kill_action is the sole control."""
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
             schedule_timeout=STARTUP_TIMEOUT_SECS,
-            cancel_on_kill=True,
+            on_kill_action="delete_pod",
             on_finish_action="keep_pod",
         )
         mock_hook.delete_pod = mock.AsyncMock()

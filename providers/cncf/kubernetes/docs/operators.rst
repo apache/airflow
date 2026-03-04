@@ -158,19 +158,22 @@ Example to fetch and display container log periodically
 Pod cleanup on kill
 ^^^^^^^^^^^^^^^^^^^
 
-The ``cancel_on_kill`` parameter controls whether the Kubernetes pod is deleted when a
+The ``on_kill_action`` parameter controls what happens to the Kubernetes pod when a
 running task is killed (e.g. manually marked as success or failed from the Airflow UI).
+It accepts the same enum-style string values as ``on_finish_action``:
 
-In **sync mode**, ``cancel_on_kill`` gates the ``on_kill`` callback: when ``True`` (the
-default), killing the task deletes the pod; when ``False``, the pod is left running.
+- ``"delete_pod"`` (default) — the pod is deleted when the task is killed.
+- ``"keep_pod"`` — the pod is left running when the task is killed.
 
-In **deferrable mode**, ``cancel_on_kill`` is forwarded to the trigger. When the trigger
-is cancelled (e.g. the deferred task is manually marked as success or failed), the pod is
-deleted. The ``on_finish_action`` parameter is **not** consulted during a kill -- it only
+In **sync mode**, ``on_kill_action`` gates the ``on_kill`` callback.
+
+In **deferrable mode**, ``on_kill_action`` is forwarded to the trigger. When the trigger
+is cancelled (e.g. the deferred task is manually marked as success or failed), the action
+is applied. The ``on_finish_action`` parameter is **not** consulted during a kill — it only
 governs cleanup after normal task completion.
 
 If you want to prevent the pod from being deleted when a task is killed (for example,
-for debugging), set ``cancel_on_kill=False``:
+for debugging), set ``on_kill_action="keep_pod"``:
 
 .. code-block:: python
 
@@ -178,7 +181,7 @@ for debugging), set ``cancel_on_kill=False``:
         task_id="long_running_task",
         image="my-image:latest",
         on_finish_action="delete_pod",
-        cancel_on_kill=False,  # pod will NOT be deleted when the task is killed
+        on_kill_action="keep_pod",  # pod will NOT be deleted when the task is killed
     )
 
 The ``termination_grace_period`` parameter is also respected during cleanup, giving the

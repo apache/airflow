@@ -33,6 +33,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     OnFinishAction,
+    OnKillAction,
     PodLaunchTimeoutException,
     PodPhase,
 )
@@ -86,9 +87,9 @@ class KubernetesPodTrigger(BaseTrigger):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-    :param cancel_on_kill: If True (default), the pod will be cleaned up when the trigger is
-        cancelled (e.g. when a deferred task is manually marked as success/failed). If False,
-        the pod will not be deleted on cancellation.
+    :param on_kill_action: What to do when the trigger is cancelled (e.g. when a deferred task is
+        manually marked as success/failed). If "delete_pod" (default), the pod will be deleted.
+        If "keep_pod", the pod will not be deleted.
     :param termination_grace_period: Optional grace period in seconds for pod termination during cleanup.
     :param logging_interval: number of seconds to wait before kicking it back to
         the operator to print latest logs. If ``None`` will wait until container done.
@@ -113,7 +114,7 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
         on_finish_action: str = "delete_pod",
-        cancel_on_kill: bool = True,
+        on_kill_action: str = "delete_pod",
         termination_grace_period: int | None = None,
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
@@ -137,7 +138,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
-        self.cancel_on_kill = cancel_on_kill
+        self.on_kill_action = OnKillAction(on_kill_action)
         self.termination_grace_period = termination_grace_period
         self.trigger_kwargs = trigger_kwargs or {}
         self._fired_event = False
@@ -163,7 +164,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "schedule_timeout": self.schedule_timeout,
                 "trigger_start_time": self.trigger_start_time,
                 "on_finish_action": self.on_finish_action.value,
-                "cancel_on_kill": self.cancel_on_kill,
+                "on_kill_action": self.on_kill_action.value,
                 "termination_grace_period": self.termination_grace_period,
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,
@@ -425,8 +426,8 @@ class KubernetesPodTrigger(BaseTrigger):
             self.log.debug("Skipping cleanup since an event has already been fired.")
             return
 
-        if not self.cancel_on_kill:
-            self.log.debug("Skipping cleanup since cancel_on_kill is set to False.")
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.debug("Skipping cleanup since on_kill_action is set to %r.", self.on_kill_action.value)
             return
 
         try:
