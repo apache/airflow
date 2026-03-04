@@ -646,18 +646,18 @@ def ti_heartbeat(
         # If it does, it was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
         tih_exists = session.scalar(
-            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == ti_id_str)
+            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
         )
         if tih_exists:
             log.error(
                 "TaskInstance was previously cleared and archived in history, heartbeat skipped",
-                ti_id=ti_id_str,
+                ti_id=str(task_instance_id),
             )
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
                 detail={
                     "reason": "not_found",
-                    "message": "Task Instance not found",
+                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
                 },
             )
         log.error("Task Instance not found")
