@@ -44,12 +44,22 @@ spec:
     component: api-server
     release: {{ .Release.Name }}
   ports:
-  {{ range .Values.apiServer.service.ports }}
-    -
-      {{- range $key, $val := . }}
-      {{ $key }}: {{ tpl (toString $val) $ }}
+    {{- range .Values.apiServer.service.ports }}
+    - name: {{ .name }}
+      port: {{ tpl (toString .port) $ | int }}
+      {{- with .targetPort }}
+      targetPort: {{ tpl (toString .) $ }}
       {{- end }}
-  {{- end }}
+      {{- with .protocol }}
+      protocol: {{ . }}
+      {{- end }}
+      {{- with .nodePort }}
+      nodePort: {{ tpl (toString .) $ | int }}
+      {{- end }}
+      {{- with .appProtocol }}
+      appProtocol: {{ . }}
+      {{- end }}
+    {{- end }}
   {{- if .Values.apiServer.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
   {{- end }}

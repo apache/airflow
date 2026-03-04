@@ -54,7 +54,7 @@ data:
     {{- range $section, $settings := $config }}
     [{{ $section }}]
     {{- range $key, $val := $settings }}
-    {{ $key }} = {{ tpl ($val | toString) $Global }}
+    {{ $key }} = {{ tpl ($val | toString) $Global | squote }}
     {{- end }}
     {{ end }}
 
