@@ -79,7 +79,7 @@ class TestFormatHandlers:
             conn_id="conn_id",
         )
         handler = handler_class(datasource_config)
-        register_method = getattr(session_context_mock, f"register_{format}")
+        register_method = getattr(session_context_mock, f"register_{format.name.lower()}")
         register_method.side_effect = Exception("Error")
         with pytest.raises(
             FileFormatRegistrationException, match=f"Failed to register {format} data source:"
