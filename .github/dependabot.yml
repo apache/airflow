@@ -48,9 +48,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -63,9 +69,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -78,9 +90,15 @@ updates:
       ui-plugin-template-package-updates:
         patterns:
           - "*"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "minor"
+          - "patch"
+      ui-plugin-template-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
