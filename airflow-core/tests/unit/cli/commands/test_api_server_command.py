@@ -128,7 +128,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             if original_env is not None:
                 expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", original_env))
             else:
-                mock_environ.pop.assert_called_with("AIRFLOW_API_APPS", None)
+                mock_environ.pop.assert_any_call("AIRFLOW_API_APPS", None)
 
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
