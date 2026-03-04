@@ -150,6 +150,5 @@ Use the following established translations in the Airflow UI:
 
 - **Triggerer** → 觸發者
 - **trigger** → 觸發器
-- **partition** → 分區
 
 Ensure these terms are used consistently across the locale.
