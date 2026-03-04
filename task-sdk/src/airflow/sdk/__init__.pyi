@@ -21,6 +21,10 @@ from airflow.sdk.api.datamodels._generated import (
     TriggerRule as TriggerRule,
     WeightRule as WeightRule,
 )
+from airflow.sdk.bases.branch import (
+    BaseBranchOperator as BaseBranchOperator,
+    BranchMixIn as BranchMixIn,
+)
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
@@ -35,6 +39,7 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
 from airflow.sdk.configuration import AirflowSDKConfigParser
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
@@ -100,11 +105,13 @@ __all__ = [
     "AssetOrTimeSchedule",
     "AssetWatcher",
     "BaseAsyncOperator",
+    "BaseBranchOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BranchMixIn",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -130,6 +137,7 @@ __all__ = [
     "PartitionMapper",
     "QuarterlyMapper",
     "SecretCache",
+    "SkipMixin",
     "TaskGroup",
     "TaskInstanceState",
     "TriggerRule",
