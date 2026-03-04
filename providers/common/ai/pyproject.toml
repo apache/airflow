@@ -59,6 +59,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "apache-airflow-providers-common-compat>=1.13.1",  # use next version
+    "apache-airflow-providers-standard>=1.12.0",  # use next version
     "pydantic-ai-slim>=1.14.0",
 ]
 
@@ -69,9 +71,6 @@ dependencies = [
 "bedrock" = ["pydantic-ai-slim[bedrock]"]
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 "sql" = [
     "apache-airflow-providers-common-sql",
     "sqlglot>=26.0.0",
@@ -87,6 +86,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=26.0.0",
     "apache-airflow-providers-common-sql[datafusion]"
