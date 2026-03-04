@@ -117,9 +117,13 @@ class XComObjectStorageBackend(BaseXCom):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> bytes | str:
-        # We will use this serialized value to write to the object store.
-        s_val = json.dumps(value, cls=XComEncoder)
-        s_val_encoded = s_val.encode("utf-8")
+        if isinstance(value, bytes):
+             # Store raw bytes as-is  
+            s_val_encoded = value
+        else:
+            # Default JSON serialization path 
+            s_val = json.dumps(value, cls=XComEncoder)
+            s_val_encoded = s_val.encode("utf-8")
 
         if compression := _get_compression():
             suffix = f".{_get_compression_suffix(compression)}"
@@ -171,8 +175,10 @@ class XComObjectStorageBackend(BaseXCom):
             return data
         try:
             with path.open(mode="rb", compression="infer") as f:
-                return json.load(f, cls=XComDecoder)
-        except (FileNotFoundError, TypeError, ValueError):
+                data = f.read()
+                # Prefer JSON decoding; fall back to raw bytes if it fails.
+                return json.loads(data, cls=XComDecoder)
+        except (FileNotFoundError, TypeError, ValueError, json.decoder.JSONDecodeError):
             return data
 
     @staticmethod
