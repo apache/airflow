@@ -208,3 +208,27 @@ def test_from_timestamp_fixed_timezone(utc_offset):
     from_ts = timezone.from_timestamp(0, tz=FixedTimezone(utc_offset))
     assert from_ts == pendulum.DateTime(1970, 1, 1, tzinfo=timezone.utc)
     assert from_ts.utcoffset() == datetime.timedelta(seconds=utc_offset)
+
+
+@pytest.mark.parametrize(
+    "tz",
+    [
+        pytest.param(timezone.utc, id="utc-object"),
+        pytest.param("UTC", id="utc-literal"),
+    ],
+)
+def test_from_timestamp_utc_skips_timezone_conversion(tz, monkeypatch):
+    class DummyDateTime:
+        called = False
+
+        def in_timezone(self, _):
+            self.called = True
+            raise AssertionError("UTC inputs should not trigger timezone conversion")
+
+    dummy = DummyDateTime()
+    monkeypatch.setattr(timezone, "coerce_datetime", lambda _: dummy)
+
+    result = timezone.from_timestamp(0, tz=tz)
+
+    assert result is dummy
+    assert dummy.called is False
