@@ -1134,11 +1134,13 @@ class SelectiveChecks:
             else:
                 candidate_test_types.add("Providers")
         elif affected_providers:
+            suspended = set(get_suspended_provider_ids())
+            providers_to_test = [p for p in affected_providers if p not in suspended]
             if split_to_individual_providers:
-                for provider in affected_providers:
+                for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
-                candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+                candidate_test_types.add(f"Providers[{','.join(sorted(providers_to_test))}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected providers test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -1443,7 +1445,8 @@ class SelectiveChecks:
             return None
         if isinstance(affected_providers, AllProvidersSentinel):
             return ""
-        return " ".join(sorted(affected_providers))
+        suspended = set(get_suspended_provider_ids())
+        return " ".join(sorted(p for p in affected_providers if p not in suspended))
 
     def get_job_label(self, event_type: str, branch: str):
         import requests
