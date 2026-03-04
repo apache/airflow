@@ -576,6 +576,7 @@ class TestSmtpHookAsync:
         mock_client = AsyncMock(spec=aiosmtplib.SMTP)
         mock_client.starttls = AsyncMock()
         mock_client.auth_login = AsyncMock()
+        mock_client.auth_xoauth2 = AsyncMock()
         mock_client.sendmail = AsyncMock()
         mock_client.quit = AsyncMock()
         return mock_client
@@ -605,6 +606,7 @@ class TestSmtpHookAsync:
         mock_client = AsyncMock(spec=aiosmtplib.SMTP)
         mock_client.starttls = AsyncMock()
         mock_client.auth_login = AsyncMock()
+        mock_client.auth_xoauth2 = AsyncMock()
         mock_client.sendmail = AsyncMock()
         mock_client.quit = AsyncMock()
         mock_smtp.return_value = mock_client
