@@ -108,9 +108,9 @@ run on the central Airflow instance:
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand.
 
-If you are using multi-team setups, you can assign the worker to a specific team
-using the ``--team-name`` option. See :ref:`edge_executor:multi_team` for more details
-on team-based isolation.
+If your Airflow deployment uses Multi-Team mode, assign the worker to its team with
+the ``--team-name`` option so it only picks up jobs for that team. See
+:ref:`edge_executor:multi_team` for setup details and security considerations.
 
 .. code-block:: bash
 
@@ -256,14 +256,13 @@ instance. The commands are:
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
 - ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker
 
-In multi-team setups, several of these commands accept a ``--team-name`` option to
-target workers belonging to a specific team. Refer to the :doc:`cli-ref` for the
-full list of arguments.
+When using Multi-Team mode, several of these commands accept a ``--team-name``
+option to target workers belonging to a specific team. See the :doc:`cli-ref` for
+the full list of arguments.
 
 .. important::
 
-    If a worker belongs to a team, you **must** specify the correct ``--team-name`` when
-    using worker-related commands or APIs that target it. The worker is identified by the
-    combination of its hostname and team name, so omitting or providing an incorrect team
-    name will cause the command to not find the worker. If the worker does not belong to
-    any team, ``--team-name`` can be omitted.
+    Workers are identified by the combination of hostname **and** team name. When a
+    worker belongs to a team, you must pass the matching ``--team-name`` to any CLI
+    command that targets it — otherwise the command will not find the worker. For
+    workers without a team, ``--team-name`` can be omitted.
