@@ -34,6 +34,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
                 ],
                 "tags": ["ai"],
             },
@@ -74,6 +75,7 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.llm",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
+                    "airflow.providers.common.ai.operators.llm_schema_compare",
                 ],
             }
         ],
@@ -84,5 +86,9 @@ def get_provider_info():
                 "name": "llm_branch",
             },
             {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_schema_compare.llm_schema_compare_task",
+                "name": "llm_schema_compare",
+            },
         ],
     }
