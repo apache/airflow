@@ -25,15 +25,14 @@ from airflow.partition_mappers.base import PartitionMapper
 class ProductMapper(PartitionMapper):
     """Partition mapper that combines multiple mappers into a multi-dimensional key."""
 
-    DELIMITER = "|"
-
-    def __init__(self, mappers: list[PartitionMapper]) -> None:
+    def __init__(self, mappers: list[PartitionMapper], delimiter: str = "|") -> None:
         if len(mappers) < 2:
             raise ValueError("ProductMapper requires at least 2 child mappers")
         self.mappers = mappers
+        self.delimiter = delimiter
 
     def to_downstream(self, key: str) -> str:
-        segments = key.split(self.DELIMITER)
+        segments = key.split(self.delimiter)
         if len(segments) != len(self.mappers):
             raise ValueError(f"Expected {len(self.mappers)} segments in key, got {len(segments)}")
         results: list[str] = []
@@ -45,15 +44,21 @@ class ProductMapper(PartitionMapper):
                     f"but {type(mapper).__name__} returned multiple keys"
                 )
             results.append(result)
-        return self.DELIMITER.join(results)
+        return self.delimiter.join(results)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
 
-        return {"mappers": [encode_partition_mapper(m) for m in self.mappers]}
+        return {
+            "delimiter": self.delimiter,
+            "mappers": [encode_partition_mapper(m) for m in self.mappers],
+        }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         from airflow.serialization.decoders import decode_partition_mapper
 
-        return cls(mappers=[decode_partition_mapper(m) for m in data["mappers"]])
+        return cls(
+            mappers=[decode_partition_mapper(m) for m in data["mappers"]],
+            delimiter=data.get("delimiter", "|"),
+        )

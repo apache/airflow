@@ -46,16 +46,39 @@ class TestProductMapper:
         with pytest.raises(ValueError, match="at least 2"):
             ProductMapper([])
 
+    def test_custom_delimiter(self):
+        pm = ProductMapper([IdentityMapper(), IdentityMapper()], delimiter="::")
+        assert pm.to_downstream("a::b") == "a::b"
+
+    def test_custom_delimiter_wrong_segment_count(self):
+        pm = ProductMapper([IdentityMapper(), IdentityMapper()], delimiter="::")
+        with pytest.raises(ValueError, match="Expected 2 segments"):
+            pm.to_downstream("a::b::c")
+
     def test_serialize(self):
         from airflow.serialization.encoders import encode_partition_mapper
 
         pm = ProductMapper([IdentityMapper(), IdentityMapper()])
         result = pm.serialize()
         assert result == {
+            "delimiter": "|",
             "mappers": [
                 encode_partition_mapper(IdentityMapper()),
                 encode_partition_mapper(IdentityMapper()),
-            ]
+            ],
+        }
+
+    def test_serialize_custom_delimiter(self):
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        pm = ProductMapper([IdentityMapper(), IdentityMapper()], delimiter="::")
+        result = pm.serialize()
+        assert result == {
+            "delimiter": "::",
+            "mappers": [
+                encode_partition_mapper(IdentityMapper()),
+                encode_partition_mapper(IdentityMapper()),
+            ],
         }
 
     def test_deserialize(self):
@@ -64,7 +87,29 @@ class TestProductMapper:
         restored = ProductMapper.deserialize(serialized)
         assert isinstance(restored, ProductMapper)
         assert len(restored.mappers) == 2
+        assert restored.delimiter == "|"
         assert restored.to_downstream("x|y") == "x|y"
+
+    def test_deserialize_custom_delimiter(self):
+        pm = ProductMapper([IdentityMapper(), IdentityMapper()], delimiter="::")
+        serialized = pm.serialize()
+        restored = ProductMapper.deserialize(serialized)
+        assert isinstance(restored, ProductMapper)
+        assert restored.delimiter == "::"
+        assert restored.to_downstream("x::y") == "x::y"
+
+    def test_deserialize_backward_compat(self):
+        """Deserializing data without delimiter field defaults to '|'."""
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        data = {
+            "mappers": [
+                encode_partition_mapper(IdentityMapper()),
+                encode_partition_mapper(IdentityMapper()),
+            ],
+        }
+        restored = ProductMapper.deserialize(data)
+        assert restored.delimiter == "|"
 
     def test_three_mappers(self):
         pm = ProductMapper([IdentityMapper(), IdentityMapper(), IdentityMapper()])

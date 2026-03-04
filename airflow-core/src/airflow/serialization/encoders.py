@@ -411,7 +411,10 @@ class _Serializer:
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
-        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+        return {
+            "delimiter": partition_mapper.delimiter,
+            "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
+        }
 
 
 _serializer = _Serializer()

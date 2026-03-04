@@ -22,7 +22,8 @@ from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 class ProductMapper(PartitionMapper):
     """Partition mapper that combines multiple mappers into a multi-dimensional key."""
 
-    def __init__(self, mappers: list[PartitionMapper]) -> None:
+    def __init__(self, mappers: list[PartitionMapper], delimiter: str = "|") -> None:
         if len(mappers) < 2:
             raise ValueError("ProductMapper requires at least 2 child mappers")
         self.mappers = mappers
+        self.delimiter = delimiter

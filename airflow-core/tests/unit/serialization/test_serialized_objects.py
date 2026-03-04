@@ -835,41 +835,49 @@ def test_decode_partition_mapper_not_exists():
 
 
 def test_encode_product_mapper():
-    from airflow.sdk import IdentityMapper, ProductMapper
+    from airflow.sdk import HourlyMapper, ProductMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper([IdentityMapper(), IdentityMapper()])
+    partition_mapper = ProductMapper([HourlyMapper(), HourlyMapper()])
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
+            "delimiter": "|",
             "mappers": [
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
-                    Encoding.VAR: {},
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.HourlyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
                 },
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
-                    Encoding.VAR: {},
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.HourlyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
                 },
-            ]
+            ],
         },
     }
 
 
 def test_decode_product_mapper():
     from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
-    from airflow.sdk import IdentityMapper, ProductMapper
+    from airflow.sdk import DailyMapper, HourlyMapper, ProductMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper([IdentityMapper(), IdentityMapper()])
+    partition_mapper = ProductMapper([HourlyMapper(), DailyMapper()])
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)
 
     assert isinstance(core_pm, CoreProductMapper)
     assert len(core_pm.mappers) == 2
-    assert core_pm.to_downstream("a|b") == "a|b"
+    assert core_pm.delimiter == "|"
+    assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
 class TestSerializedBaseOperator:
