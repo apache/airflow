@@ -24,7 +24,6 @@ import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
-from uuid import UUID
 
 import structlog
 from natsort import natsorted
@@ -2006,7 +2005,7 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
-        expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
+        expected_try_number_by_ti_id: dict[str, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
             task = ti.task
             if TYPE_CHECKING:
