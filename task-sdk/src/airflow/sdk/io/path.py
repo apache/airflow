@@ -117,7 +117,7 @@ class ObjectStoragePath(ProxyUPath):
         self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
 
-    @classmethod_or_method  # type: ignore[arg-type]
+    @classmethod_or_method
     def _from_upath(cls_or_self, upath, /):
         """Wrap a UPath, propagating conn_id from the calling instance."""
         is_instance = isinstance(cls_or_self, ObjectStoragePath)
