@@ -19,10 +19,14 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import stat
 import subprocess
+import tarfile
+import tempfile
 import threading
 import time
 from collections import deque
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from termcolor import colored
@@ -35,7 +39,7 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import most_recent_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.utils import db
+from airflow.utils import db, download_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
@@ -43,6 +47,12 @@ if TYPE_CHECKING:
 
 FORCE_COLOR = bool(os.environ.get("FORCE_COLOR", ""))
 NO_COLOR = bool(os.environ.get("NO_COLOR", ""))
+
+
+def get_bin_storage_root_path():
+    if configured_location := conf.get("core", "options", "bin", fallback=None):
+        return Path(configured_location)
+    return Path(tempfile.gettempdir(), "airflow", "bin")
 
 
 class StandaloneCommand:
@@ -55,7 +65,7 @@ class StandaloneCommand:
     @classmethod
     def entrypoint(cls, args):
         """CLI entrypoint, called by the main CLI system."""
-        StandaloneCommand().run()
+        StandaloneCommand().run(args.interactive, args.yes)
 
     def __init__(self):
         self.subcommands = {}
@@ -64,7 +74,7 @@ class StandaloneCommand:
         self.ready_delay = 3
 
     @providers_configuration_loaded
-    def run(self):
+    def run(self, interactive: bool, yes: bool):
         self.print_output("standalone", "Starting Airflow Standalone")
         # Silence built-in logging at INFO
         logging.getLogger("").setLevel(logging.WARNING)
@@ -72,7 +82,59 @@ class StandaloneCommand:
         env = self.calculate_env()
         self.find_user_info()
         self.initialize_database()
-        # Set up commands to run
+        if interactive:
+            config_path = Path(tempfile.gettempdir(), "airflow")
+            config_path.mkdir(parents=True, exist_ok=True)
+            config_path = config_path.joinpath("mprocs.yaml")
+            success = self.check_and_perform_interactive_setup(yes, env, config_path)
+            if success:
+                self.setup_mprocs_config(env=env, config_path=config_path)
+                self.run_interactive(config_path=config_path)
+            else:
+                self.print_output("standalone", "Falling back to non-interactive")
+                self.run_non_interactive(env)
+        else:
+            self.run_non_interactive(env)
+
+    def check_and_perform_interactive_setup(self, yes: bool, env: dict[str, str], config_path: Path) -> bool:
+        self.print_output("standalone", "Setting up interactive mode")
+        bin_path = get_bin_storage_root_path()
+        try:
+            if bin_path.exists() and bin_path.joinpath("mprocs").exists():
+                return True
+            if yes or input("This will require downloading mprocs from the internet (y/n)").lower() == "y":
+                bin_path.mkdir(parents=True, exist_ok=True)
+                self.print_output("bin done", bin_path.absolute().as_uri())
+                tar_file = bin_path.joinpath("mprocs.tar.gz")
+                if not download_utils.download_file_from_github(version="v0.8.3", output_file=tar_file):
+                    return False
+                with tarfile.open(tar_file, "r:gz") as tar:
+                    tar.extractall(path=bin_path, members=["mprocs"])
+                output_file = bin_path.joinpath("mprocs")
+                if not output_file.exists():
+                    return False
+                os.chmod(output_file, os.stat(output_file).st_mode | stat.S_IEXEC)
+                return True
+        except Exception as e:
+            self.print_output("standalone", ["Interactive setup failed", e])
+        return False
+
+    def setup_mprocs_config(self, env: dict[str, str], config_path: Path):
+        self.generate_subcomands(env=env)
+
+        config = {"procs": {}}
+        for command in self.subcommands.values():
+            config["procs"][command.as_dict()["name"]] = command.as_dict()
+        with open(config_path, "w") as file:
+            file.write(yaml.dump(config, sort_keys=False))
+
+    def run_interactive(self, config_path: str):
+        self.print_output("standalone", "Run in interactive mode")
+        bin_path = get_bin_storage_root_path()
+        mprocs_path = bin_path.joinpath("mprocs")
+        subprocess.Popen([mprocs_path, "-c", config_path])
+
+    def generate_subcomands(self, env: dict[str, str]):
         self.subcommands["scheduler"] = SubCommand(
             self,
             name="scheduler",
@@ -97,6 +159,9 @@ class StandaloneCommand:
             command=["triggerer"],
             env=env,
         )
+
+    def run_non_interactive(self, env: dict[str, str]):
+        self.generate_subcomands(env=env)
 
         # Run subcommand threads
         for command in self.subcommands.values():
@@ -291,6 +356,16 @@ class SubCommand(threading.Thread):
         self.name = name
         self.command = command
         self.env = env
+
+    def as_dict(self):
+        d = {}
+        if self.name:
+            d["name"] = self.name
+        if self.command:
+            d["cmd"] = ["airflow", *self.command]
+        if self.env:
+            d["env"] = self.env
+        return d
 
     def run(self):
         """Run the actual process and captures it output to a queue."""
