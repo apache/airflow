@@ -1362,6 +1362,7 @@ persistentVolume
 personalizations
 pformat
 PgBouncer
+pgbouncer
 pgvector
 picklable
 pid
@@ -1669,6 +1670,7 @@ ServicePrincipalCredentials
 ServiceResource
 ServicesClient
 SES
+ses
 sessionmaker
 setattr
 setdefault
@@ -1760,6 +1762,7 @@ stackdriver
 stacklevel
 stacktrace
 starttls
+stateful
 StatefulSet
 StatefulSets
 statics
