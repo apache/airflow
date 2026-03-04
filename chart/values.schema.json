@@ -968,7 +968,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.28.0"
+                            "default": "v0.29.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
