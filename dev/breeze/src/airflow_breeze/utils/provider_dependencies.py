@@ -324,9 +324,20 @@ def generate_providers_metadata_for_provider(
             get_console().print(
                 f"[info]Checking provider {provider_id} version {current_provider_version} released on {provider_date_released}"
             )
-        airflow_date_released = airflow_release_dates[all_airflow_releases[0]]
+        # For providers released after May 2025, skip Airflow 2.x constraint files —
+        # those providers only target Airflow 3.  The fab provider 1.5.* series is exempt
+        # because it still ships backport fixes for Airflow 2.
+        skip_airflow_2 = provider_date_released >= "2025-05-01" and not (
+            provider_id == "fab" and current_provider_version.startswith("1.5.")
+        )
+        effective_airflow_releases = (
+            [v for v in all_airflow_releases if not v.startswith("2.")]
+            if skip_airflow_2
+            else all_airflow_releases
+        )
+        airflow_date_released = airflow_release_dates[effective_airflow_releases[0]]
         last_airflow_version = START_AIRFLOW_VERSION_FROM
-        for airflow_version in all_airflow_releases:
+        for airflow_version in effective_airflow_releases:
             airflow_date_released = airflow_release_dates[airflow_version]
             if get_verbose():
                 get_console().print(
@@ -379,7 +390,7 @@ def generate_providers_metadata_for_provider(
         if last_airflow_version == START_AIRFLOW_VERSION_FROM:
             # If we did not find any Airflow version that is associated with this provider version
             # we will add the latest released Airflow version
-            last_airflow_version = all_airflow_releases[-1]
+            last_airflow_version = effective_airflow_releases[-1]
         old_provider_metadata_for_version = old_provider_metadata.get(current_provider_version, {})
         new_provider_metadata_for_version = {
             "associated_airflow_version": last_airflow_version,

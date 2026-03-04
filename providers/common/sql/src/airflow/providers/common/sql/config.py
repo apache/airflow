@@ -36,6 +36,11 @@ class FormatType(str, Enum):
     PARQUET = "parquet"
     CSV = "csv"
     AVRO = "avro"
+    ICEBERG = "iceberg"
+
+
+# TODO: Add delta format support
+TABLE_PROVIDERS: frozenset[str] = frozenset({FormatType.ICEBERG.value})
 
 
 class StorageType(str, Enum):
@@ -50,30 +55,48 @@ class DataSourceConfig:
     """
     Configuration for an input data source.
 
+    **File-based formats** (parquet, csv, avro) require ``uri`` and infer
+    ``storage_type`` automatically.
+
+    **Catalog-managed formats** (iceberg, and in the future delta, etc.) do not
+    require ``uri`` or ``storage_type``; they use ``conn_id`` and format-specific
+    keys in ``options`` (e.g. ``catalog_table_name`` for Iceberg).
+
     :param conn_id: The connection ID to use for accessing the data source.
     :param uri: The URI of the data source (e.g., file path, S3 bucket, etc.).
-    :param format: The format of the data (e.g., 'parquet', 'csv').
-    :param table_name: The name of the table if applicable.
-    :param schema: A dictionary mapping column names to their types.
-    :param db_name: The database name if applicable.
+        Not required for catalog-managed formats.
+    :param format: The format of the data (e.g., 'parquet', 'csv', 'iceberg').
+    :param table_name: The name to register the table under in DataFusion.
+    :param db_name: The namespace for table provider eg: iceberg needs to catalog it to look
     :param storage_type: The type of storage (automatically inferred from URI).
-    :param options: Additional options for the data source. eg: you can set partition columns to any datasource
-        that will be set in while registering the data
+        Not used for catalog-managed formats.
+    :param options: Additional options for the data source. e.g. you can set partition columns
+        for any file-based datasource, or ``catalog_table_name`` for Iceberg.
     """
 
     conn_id: str
-    uri: str
-    format: str | None = None
-    table_name: str | None = None
+    table_name: str
+    uri: str = ""
+    format: str = ""
+    db_name: str | None = None
     storage_type: StorageType | None = None
     options: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def is_table_provider(self) -> bool:
+        """Whether this format is catalog-managed (no object store needed)."""
+        return bool(self.format and self.format.lower() in TABLE_PROVIDERS)
+
     def __post_init__(self):
+        if self.is_table_provider:
+            if self.db_name is None:
+                raise ValueError(f"Database name must be provided for table providers {TABLE_PROVIDERS}")
+            return
 
         if self.storage_type is None:
             self.storage_type = self._extract_storage_type
 
-        if self.storage_type is not None and self.table_name is None:
+        if self.storage_type is not None and (not self.table_name or not self.table_name.strip()):
             raise ValueError("Table name must be provided for storage type")
 
     @property
