@@ -318,6 +318,7 @@ comparator
 compat
 Compute
 compute
+ComputeManagementClient
 Computenodes
 ComputeNodeState
 concat
@@ -482,6 +483,8 @@ dbtapquerycmd
 dbutils
 ddl
 de
+deallocate
+deallocated
 Debounce
 debuggability
 declaratively
