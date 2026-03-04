@@ -133,3 +133,23 @@ To control the log level for that custom name, use :ref:`config:logging__namespa
 
         [logging]
         namespace_levels = sql.big_query=WARNING
+
+
+JSON console output
+-------------------
+
+To emit logs as one JSON object per line (useful for log aggregation systems such as Loki,
+Elasticsearch, or Splunk), enable the ``json_format`` option:
+
+.. code-block:: ini
+
+    [logging]
+    json_format = True
+
+When enabled, each log line is a JSON object containing fields such as ``timestamp``,
+``level``, ``event``, and ``logger``. This replaces the default human-readable console output.
+
+.. note::
+
+   ``json_format`` affects only the Airflow component (scheduler, webserver, triggerer, …) console
+   output. Task logs written to files or remote storage use their own formatting.
