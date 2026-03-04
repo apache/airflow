@@ -3186,7 +3186,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in session.scalars(
+
+            inactive_assets_query = (
                 select(AssetModel)
                 .join(
                     assets_query,
@@ -3200,7 +3201,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
                     ).exists()
                 )
-            ):
+            )
+
+            for asset in session.scalars(inactive_assets_query):
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
                 if existing_uri is not None and existing_uri != asset.uri:
                     yield from _generate_warning_message(asset, "name", existing_uri)
