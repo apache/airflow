@@ -252,6 +252,105 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="Unknown connection type dummy"):
             engine._get_credentials(mock_conn)
 
+    @patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook", autospec=True)
+    def test_get_credentials_google_cloud_platform(self, mock_hook_class):
+        mock_hook = mock_hook_class.return_value
+        mock_hook._get_field.return_value = "/path/to/keyfile.json"
+
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        mock_hook_class.assert_called_once_with(gcp_conn_id="gcp_default")
+        mock_hook._get_field.assert_called_once_with("key_path")
+        assert credentials == {"service_account_path": "/path/to/keyfile.json"}
+        assert extra_config == {}
+
+    @patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook", autospec=True)
+    def test_get_credentials_google_cloud_platform_no_key_path(self, mock_hook_class):
+        mock_hook = mock_hook_class.return_value
+        mock_hook._get_field.return_value = None
+
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {}
+        assert extra_config == {}
+
+    def test_get_credentials_google_missing_provider(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with patch.dict("sys.modules", {"airflow.providers.google.common.hooks.base_google": None}):
+            with pytest.raises(Exception, match="Failed to import GoogleBaseHook"):
+                engine._get_credentials(mock_conn)
+
+    @patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
+    def test_get_credentials_wasb(self, mock_hook_class):
+        mock_hook = mock_hook_class.return_value
+        mock_wasb_conn = MagicMock(spec=Connection)
+        mock_wasb_conn.login = "myaccount"
+        mock_wasb_conn.password = "mykey"
+        mock_wasb_conn.extra_dejson = {}
+        mock_hook.get_connection.return_value = mock_wasb_conn
+
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        mock_hook_class.assert_called_once_with(wasb_conn_id="wasb_default")
+        assert credentials["account"] == "myaccount"
+        assert credentials["access_key"] == "mykey"
+
+    @patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
+    def test_get_credentials_wasb_account_key_from_extra(self, mock_hook_class):
+        mock_hook = mock_hook_class.return_value
+        mock_wasb_conn = MagicMock(spec=Connection)
+        mock_wasb_conn.login = "myaccount"
+        mock_wasb_conn.password = None
+        mock_wasb_conn.extra_dejson = {"account_key": "key_from_extra"}
+        mock_hook.get_connection.return_value = mock_wasb_conn
+
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "myaccount"
+        assert credentials["access_key"] == "key_from_extra"
+
+    def test_get_credentials_azure_missing_provider(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with patch.dict("sys.modules", {"airflow.providers.microsoft.azure.hooks.wasb": None}):
+            with pytest.raises(Exception, match="Failed to import WasbHook"):
+                engine._get_credentials(mock_conn)
+
     def test_get_schema_success(self):
         engine = DataFusionEngine()
         engine.df_ctx = MagicMock(spec=SessionContext)

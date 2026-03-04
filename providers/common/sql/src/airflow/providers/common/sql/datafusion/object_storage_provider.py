@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datafusion.object_store import AmazonS3, LocalFileSystem
+from datafusion.object_store import AmazonS3, GoogleCloud, LocalFileSystem, MicrosoftAzure
 
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
@@ -70,12 +70,75 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         return "file://"
 
 
+class GCSObjectStorageProvider(ObjectStorageProvider):
+    """GCS Object Storage Provider using DataFusion's GoogleCloud."""
+
+    @property
+    def get_storage_type(self) -> StorageType:
+        """Return the storage type."""
+        return StorageType.GCS
+
+    def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
+        """Create a GCS object store using DataFusion's GoogleCloud."""
+        if connection_config is None:
+            raise ValueError("connection_config must be provided for %s", self.get_storage_type)
+
+        try:
+            credentials = connection_config.credentials
+            bucket = self.get_bucket(path)
+
+            gcs_store = GoogleCloud(**credentials, bucket_name=bucket)
+            self.log.info("Created GCS object store for bucket %s", bucket)
+
+            return gcs_store
+
+        except Exception as e:
+            raise ObjectStoreCreationException(f"Failed to create GCS object store: {e}")
+
+    def get_scheme(self) -> str:
+        """Return the scheme for GCS."""
+        return "gs://"
+
+
+class AzureObjectStorageProvider(ObjectStorageProvider):
+    """Azure Blob Storage Object Storage Provider using DataFusion's MicrosoftAzure."""
+
+    @property
+    def get_storage_type(self) -> StorageType:
+        """Return the storage type."""
+        return StorageType.AZURE
+
+    def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
+        """Create an Azure object store using DataFusion's MicrosoftAzure."""
+        if connection_config is None:
+            raise ValueError("connection_config must be provided for %s", self.get_storage_type)
+
+        try:
+            credentials = connection_config.credentials
+            container = self.get_bucket(path)
+
+            azure_store = MicrosoftAzure(
+                **credentials, **connection_config.extra_config, container_name=container
+            )
+            self.log.info("Created Azure object store for container %s", container)
+
+            return azure_store
+
+        except Exception as e:
+            raise ObjectStoreCreationException(f"Failed to create Azure object store: {e}")
+
+    def get_scheme(self) -> str:
+        """Return the scheme for Azure Blob Storage."""
+        return "az://"
+
+
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
     """Get an object storage provider based on the storage type."""
-    # TODO: Add support for GCS, Azure, HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
     providers: dict[StorageType, type] = {
         StorageType.S3: S3ObjectStorageProvider,
         StorageType.LOCAL: LocalObjectStorageProvider,
+        StorageType.GCS: GCSObjectStorageProvider,
+        StorageType.AZURE: AzureObjectStorageProvider,
     }
 
     if storage_type not in providers:

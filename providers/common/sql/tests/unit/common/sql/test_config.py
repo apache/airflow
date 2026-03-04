@@ -34,11 +34,21 @@ class TestDataSourceConfig:
         [
             ("s3://bucket/path", StorageType.S3),
             ("file:///path/to/file", StorageType.LOCAL),
+            ("gs://bucket/path", StorageType.GCS),
+            ("az://container/path", StorageType.AZURE),
         ],
     )
     def test_extract_storage_type(self, uri, expected_type):
         config = DataSourceConfig(conn_id="test", uri=uri, table_name="a_table" if expected_type else None)
         assert config.storage_type == expected_type
+
+    def test_gcs_storage_type_inferred(self):
+        config = DataSourceConfig(conn_id="gcp_conn", uri="gs://my-bucket/data/", table_name="gcs_table")
+        assert config.storage_type == StorageType.GCS
+
+    def test_azure_storage_type_inferred(self):
+        config = DataSourceConfig(conn_id="wasb_conn", uri="az://my-container/data/", table_name="az_table")
+        assert config.storage_type == StorageType.AZURE
 
     def test_invalid_storage_type_raises_error(self):
         with pytest.raises(ValueError, match="Unsupported storage type for URI"):
