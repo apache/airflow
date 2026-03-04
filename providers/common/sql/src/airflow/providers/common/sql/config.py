@@ -48,6 +48,8 @@ class StorageType(str, Enum):
 
     S3 = "s3"
     LOCAL = "local"
+    GCS = "gcs"
+    AZURE = "azure"
 
 
 @dataclass
@@ -106,4 +108,8 @@ class DataSourceConfig:
             return StorageType.S3
         if self.uri.startswith("file://"):
             return StorageType.LOCAL
+        if self.uri.startswith("gs://"):
+            return StorageType.GCS
+        if self.uri.startswith("az://"):
+            return StorageType.AZURE
         raise ValueError(f"Unsupported storage type for URI: {self.uri}")
