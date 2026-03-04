@@ -29,6 +29,7 @@
     "@chakra-ui/react": "^3.20.0",
     "@codemirror/lang-json": "^6.0.2",
     "@emotion/react": "^11.14.0",
+    "@lezer/highlight": "^1.2.3",
     "@guanmingchiu/sqlparser-ts": "^0.61.1",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.90.11",
@@ -130,7 +131,10 @@
       "tar@<=7.5.2": ">=7.5.3",
       "tar@<7.5.8": ">=7.5.8",
       "prismjs@<1.30.0": ">=1.30.0",
-      "rollup@>=4.0.0 <4.59.0": ">=4.59.0"
+      "rollup@>=4.0.0 <4.59.0": ">=4.59.0",
+      "minimatch@>=3.0.0 <3.1.4": ">=3.1.4 <4.0.0",
+      "minimatch@>=9.0.0 <9.0.7": ">=9.0.7 <10.0.0",
+      "minimatch@>=10.0.0 <10.2.3": ">=10.2.3"
     }
   }
 }
