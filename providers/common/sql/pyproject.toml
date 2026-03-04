@@ -88,6 +88,9 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon"
 ]
+"google" = [
+    "apache-airflow-providers-google"
+]
 # DataFusion 52.0.0 crate is not supported at the moment with iceberg-core
 "datafusion" = [
     "datafusion>=50.0.0,<52.0.0",
@@ -98,6 +101,9 @@ dependencies = [
 "apache.iceberg" = [
     "apache-airflow-providers-apache-iceberg"
 ]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure"
+]
 
 [dependency-groups]
 dev = [
@@ -107,6 +113,8 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-apache-iceberg",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-google",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
