@@ -213,7 +213,7 @@ class HttpHook(BaseHook):
         if connection.login:
             return self.auth_type(connection.login, connection.password)
         if self._auth_type:
-            return self.auth_type()
+            return self.auth_type
         return None
 
     def _configure_session_from_extra(
