@@ -65,3 +65,93 @@ class NeptuneGraphAvailableTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+
+class NeptuneGraphPrivateEndpointAvailableTrigger(AwsBaseWaiterTrigger):
+    """
+    Triggers when a Neptune Graph private endpoint is available.
+
+    :param graph_id: Graph Id waiting for the endpoint
+    :param vpc_id: VPC id where endpoint is creating
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region name (example: us-east-1)
+    """
+
+    def __init__(
+        self,
+        *,
+        graph_id: str,
+        vpc_id: str,
+        endpoint_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"graph_id": graph_id, "vpc_id": vpc_id, "endpoint_id": endpoint_id},
+            waiter_name="private_graph_endpoint_available",
+            waiter_args={"graphIdentifier": graph_id, "vpcId": vpc_id},
+            failure_message="Failed to create Neptune graph endpoint",
+            status_message="Status of Neptune graph endpoint is",
+            status_queries=["status"],
+            return_key="endpoint_id",
+            return_value=endpoint_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            **kwargs,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return NeptuneAnalyticsHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+
+
+class NeptuneGraphPrivateEndpointDeletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Triggers when a Neptune Graph private endpoint is deleted.
+
+    :param graph_id: Graph Id of the endpoint
+    :param vpc_id: VPC id where endpoint resides
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region name (example: us-east-1)
+    """
+
+    def __init__(
+        self,
+        *,
+        graph_id: str,
+        vpc_id: str,
+        endpoint_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"graph_id": graph_id, "vpc_id": vpc_id, "endpoint_id": endpoint_id},
+            waiter_name="private_graph_endpoint_deleted",
+            waiter_args={"graphIdentifier": graph_id, "vpcId": vpc_id},
+            failure_message="Failed to delete Neptune graph endpoint",
+            status_message="Status of Neptune graph endpoint is",
+            status_queries=["status"],
+            return_key="endpoint_id",
+            return_value=endpoint_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            **kwargs,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return NeptuneAnalyticsHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
