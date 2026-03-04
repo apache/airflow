@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator
@@ -49,6 +49,7 @@ class SalesforceBulkOperator(BaseOperator):
     """
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
+    template_fields: Sequence[str] = ("payload", "object_name", "operation", "external_id_field", "salesforce_conn_id")
 
     def __init__(
         self,
