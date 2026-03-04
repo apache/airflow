@@ -19,12 +19,12 @@
 
 /**
  * Checks if a string is valid JSON
- * @param string - The string to validate
+ * @param jsonString - The string to validate
  * @returns true if the string is valid JSON, false otherwise
  */
-export const isJsonString = (string: string): boolean => {
+export const isJsonString = (jsonString: string): boolean => {
   try {
-    JSON.parse(string);
+    JSON.parse(jsonString);
   } catch {
     return false;
   }
