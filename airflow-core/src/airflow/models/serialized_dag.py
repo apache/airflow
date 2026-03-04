@@ -599,7 +599,15 @@ class SerializedDagModel(Base):
         has_task_instances: bool = False
         if dag_version:
             has_task_instances = bool(
-                session.scalar(select(exists().where(TaskInstance.dag_version_id == dag_version.id)))
+                session.scalar(
+                    select(
+                        exists().where(
+                            # Using dag_id filter to speed up query via the composite index.
+                            TaskInstance.dag_id == dag.dag_id,
+                            TaskInstance.dag_version_id == dag_version.id,
+                        )
+                    )
+                )
             )
 
         if dag_version and not has_task_instances:

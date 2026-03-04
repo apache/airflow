@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -44,7 +46,7 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 
     if next:
-        login_url += f"?next={next}"
+        login_url += f"?{urlencode({'next': next})}"
 
     return RedirectResponse(login_url)
 
