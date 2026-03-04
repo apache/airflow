@@ -158,7 +158,7 @@ def patch_pool(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
-    ),  # handled by global exception handler
+    ),
     dependencies=[Depends(requires_access_pool(method="POST")), Depends(action_logging())],
 )
 def post_pool(
@@ -166,6 +166,12 @@ def post_pool(
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
+    existing_pool = session.scalar(select(Pool).where(Pool.pool == body.pool).limit(1))
+    if existing_pool:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The Pool with name: `{body.pool}` already exists",
+        )
     pool = Pool(**body.model_dump())
     session.add(pool)
     return pool
