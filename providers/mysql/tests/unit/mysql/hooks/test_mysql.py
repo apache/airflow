@@ -506,15 +506,24 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
-            (
-                "/tmp/file",
-                "IGNORE",
-                """FIELDS TERMINATED BY ';'
-            OPTIONALLY ENCLOSED BY '"'
-            IGNORE 1 LINES""",
-            ),
+            f"LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `{table}` FIELDS TERMINATED BY ';'\n            OPTIONALLY ENCLOSED BY '\"'\n            IGNORE 1 LINES",
+            ("/tmp/file",),
         )
+
+    @pytest.mark.parametrize("duplicate_key_handling", ["IGNORE", "REPLACE"])
+    def test_bulk_load_custom_duplicate_key_not_parameterized(self, duplicate_key_handling):
+        """Verify duplicate_key_handling is interpolated into SQL, not passed as a query parameter."""
+        self.db_hook.bulk_load_custom(
+            "table",
+            "/tmp/file",
+            duplicate_key_handling,
+            "",
+        )
+        executed_sql = self.cur.execute.call_args[0][0]
+        # The keyword must appear literally in the SQL, not as a %s placeholder
+        assert duplicate_key_handling in executed_sql
+        # Only tmp_file should be parameterized
+        assert self.cur.execute.call_args[0][1] == ("/tmp/file",)
 
     @mock.patch("airflow.providers.mysql.hooks.mysql.send_sql_hook_lineage")
     def test_bulk_load_custom_hook_lineage(self, mock_send_lineage):
@@ -527,8 +536,8 @@ class TestMySqlHook:
         mock_send_lineage.assert_called_once()
         call_kw = mock_send_lineage.call_args.kwargs
         assert call_kw["context"] is self.db_hook
-        assert call_kw["sql"] == "LOAD DATA LOCAL INFILE %s %s INTO TABLE `table` %s"
-        assert call_kw["sql_parameters"] == ("/tmp/file", "IGNORE", "FIELDS TERMINATED BY ';'")
+        assert call_kw["sql"] == "LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `table` FIELDS TERMINATED BY ';'"
+        assert call_kw["sql_parameters"] == ("/tmp/file",)
         assert call_kw["cur"] is self.cur
 
     def test_reserved_words(self):
