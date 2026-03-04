@@ -59,11 +59,13 @@ def access_denied(client):
         request: Request,
         dag_id: str = Path(),
         run_id: str = Path(),
-        task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
+        task_id: str | None = None,
+        key: str | None = None,
         token=JWTBearerDep,
     ):
-        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
+        await has_xcom_access(
+            dag_id=dag_id, run_id=run_id, request=request, task_id=task_id, key=key, token=token
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
