@@ -54,6 +54,15 @@ ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUB
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
 
+DEFAULT_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[0].lstrip("v")
+LAST_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[-1].lstrip("v")
+DEFAULT_HELM_K8S_VERSIONS_JSON = json.dumps([DEFAULT_HELM_K8S_VERSION])
+ALL_HELM_K8S_VERSIONS_JSON = json.dumps(
+    [DEFAULT_HELM_K8S_VERSION]
+    if DEFAULT_HELM_K8S_VERSION == LAST_HELM_K8S_VERSION
+    else [DEFAULT_HELM_K8S_VERSION, LAST_HELM_K8S_VERSION]
+)
+
 PYTHON_K8S_COMBO_LENGTH = max(len(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), len(ALLOWED_KUBERNETES_VERSIONS))
 PYTHON_VERSIONS_MAX = (ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
 KUBERNETES_VERSIONS_MAX = (ALLOWED_KUBERNETES_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
@@ -3399,3 +3408,55 @@ dependencies = [
     # Should pass with the skip label
     result = selective_checks.common_compat_changed_without_next_version
     assert result is True
+
+
+@pytest.mark.parametrize(
+    ("files", "pr_labels", "expected_outputs"),
+    [
+        pytest.param(
+            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            (),
+            {
+                "helm-test-kubernetes-versions": DEFAULT_HELM_K8S_VERSIONS_JSON,
+            },
+            id="Default K8s version when no all-versions label",
+        ),
+        pytest.param(
+            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            ("all versions",),
+            {
+                "helm-test-kubernetes-versions": ALL_HELM_K8S_VERSIONS_JSON,
+            },
+            id="First and last K8s versions when all-versions label is set",
+        ),
+        pytest.param(
+            ("INTHEWILD.md",),
+            ("full tests needed", "all versions"),
+            {
+                "helm-test-kubernetes-versions": ALL_HELM_K8S_VERSIONS_JSON,
+                "all-versions": "true",
+            },
+            id="First and last K8s versions when full tests needed with all versions",
+        ),
+        pytest.param(
+            ("INTHEWILD.md",),
+            ("full tests needed",),
+            {
+                "helm-test-kubernetes-versions": DEFAULT_HELM_K8S_VERSIONS_JSON,
+                "all-versions": "false",
+            },
+            id="Default K8s version when full tests needed but no all-versions label",
+        ),
+    ],
+)
+def test_helm_test_kubernetes_versions(
+    files: tuple[str, ...], pr_labels: tuple[str, ...], expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))

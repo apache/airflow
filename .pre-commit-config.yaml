@@ -658,6 +658,7 @@ repos:
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
           ^scripts/ci/prek/upgrade_important_versions.py$|
+          ^scripts/ci/prek/download_k8s_schemas\.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
@@ -953,6 +954,13 @@ repos:
           - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-k8s-schemas-published
+        name: Check K8s schemas are published on airflow.apache.org
+        entry: ./scripts/ci/prek/check_k8s_schemas_published.py
+        language: python
+        pass_filenames: false
+        files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev

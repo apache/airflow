@@ -26,6 +26,9 @@
 `v3-1-test` when creating a PR for the 3.1 branch.
 
 - **Build docs:** `breeze build-docs`
+- **Run Helm chart tests:** `breeze testing helm-tests --use-xdist`
+- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
+- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
