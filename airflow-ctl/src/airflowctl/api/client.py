@@ -47,6 +47,7 @@ from airflowctl.api.operations import (
     PoolsOperations,
     ProvidersOperations,
     ServerResponseError,
+    TaskInstanceOperations,
     VariablesOperations,
     VersionOperations,
     XComOperations,
@@ -375,6 +376,12 @@ class Client(httpx.Client):
     def xcom(self):
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def task_instances(self):
+        """Operations related to task instances."""
+        return TaskInstanceOperations(self)
 
 
 # API Client Decorator for CLI Actions
