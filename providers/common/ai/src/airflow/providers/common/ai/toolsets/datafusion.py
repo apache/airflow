@@ -97,6 +97,8 @@ class DataFusionToolset(AbstractToolset[Any]):
         allow_writes: bool = False,
         max_rows: int = 50,
     ) -> None:
+        if not datasource_configs:
+            raise ValueError("datasource_configs must contain at least one DataSourceConfig")
         self._datasource_configs = datasource_configs
         self._allow_writes = allow_writes
         self._max_rows = max_rows
@@ -158,7 +160,7 @@ class DataFusionToolset(AbstractToolset[Any]):
             engine = self._get_engine()
             tables: list[str] = list(engine.session_context.catalog().schema().table_names())
             return json.dumps(tables)
-        except QueryExecutionException as ex:
+        except Exception as ex:
             log.warning("list_tables failed: %s", ex)
             return json.dumps({"error": str(ex)})
 
@@ -198,6 +200,8 @@ class DataFusionToolset(AbstractToolset[Any]):
                 output["truncated"] = True
                 output["max_rows"] = self._max_rows
             return json.dumps(output, default=str)
-        except (SQLSafetyError, QueryExecutionException) as ex:
-            log.warning("query failed: %s", ex)
+        except SQLSafetyError as ex:
+            log.warning("query failed SQL safety validation: %s", ex)
+            raise
+        except QueryExecutionException as ex:
             return json.dumps({"error": str(ex), "query": sql})

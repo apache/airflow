@@ -21,13 +21,16 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai._run_context import RunContext
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
+from airflow.providers.common.sql.config import DataSourceConfig
 
 
 def _make_mock_datasource_config(table_name: str = "sales_data"):
     """Create a mock DataSourceConfig."""
-    from airflow.providers.common.sql.config import DataSourceConfig
 
     mock = MagicMock(spec=DataSourceConfig)
     mock.table_name = table_name
@@ -79,18 +82,22 @@ class TestDataFusionToolsetInit:
         ts = DataFusionToolset([cfg])
         assert ts.id == "sql_datafusion_orders"
 
+    def test_requires_datasource_configs(self):
+        with pytest.raises(ValueError, match="datasource_configs must contain at least one DataSourceConfig"):
+            DataFusionToolset([])
+
 
 class TestDataFusionToolsetGetTools:
     def test_returns_three_tools(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         assert set(tools.keys()) == {"list_tables", "get_schema", "query"}
 
     def test_tool_definitions_have_descriptions(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         for tool in tools.values():
             assert tool.tool_def.description
 
@@ -103,7 +110,9 @@ class TestDataFusionToolsetListTables:
             registered_tables={"sales": "s3://bucket/sales/", "orders": "s3://bucket/orders/"}
         )
 
-        result = asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+        result = asyncio.run(
+            ts.call_tool("list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+        )
         tables = json.loads(result)
         assert set(tables) == {"sales", "orders"}
 
@@ -117,7 +126,12 @@ class TestDataFusionToolsetGetSchema:
         )
 
         result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "sales_data"}, ctx=MagicMock(), tool=MagicMock())
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
         )
         columns = json.loads(result)
         assert columns == [
@@ -135,7 +149,10 @@ class TestDataFusionToolsetQuery:
 
         result = asyncio.run(
             ts.call_tool(
-                "query", {"sql": "SELECT id, amount FROM sales_data"}, ctx=MagicMock(), tool=MagicMock()
+                "query",
+                {"sql": "SELECT id, amount FROM sales_data"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
             )
         )
         data = json.loads(result)
@@ -149,7 +166,10 @@ class TestDataFusionToolsetQuery:
 
         result = asyncio.run(
             ts.call_tool(
-                "query", {"sql": "SELECT id, name FROM sales_data"}, ctx=MagicMock(), tool=MagicMock()
+                "query",
+                {"sql": "SELECT id, name FROM sales_data"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
             )
         )
         data = json.loads(result)
@@ -164,7 +184,10 @@ class TestDataFusionToolsetQuery:
 
         result = asyncio.run(
             ts.call_tool(
-                "query", {"sql": "SELECT * FROM sales_data WHERE 1=0"}, ctx=MagicMock(), tool=MagicMock()
+                "query",
+                {"sql": "SELECT * FROM sales_data WHERE 1=0"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
             )
         )
         data = json.loads(result)
@@ -176,17 +199,15 @@ class TestDataFusionToolsetQuery:
         ts = DataFusionToolset([cfg])
         ts._engine = _make_mock_engine()
 
-        result = asyncio.run(
-            ts.call_tool(
-                "query",
-                {"sql": "CREATE TABLE new_table (id INT, name TEXT)"},
-                ctx=MagicMock(),
-                tool=MagicMock(),
+        with pytest.raises(SQLSafetyError, match="Statement type 'Create' is not allowed"):
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "CREATE TABLE new_table (id INT, name TEXT)"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
             )
-        )
-        data = json.loads(result)
-        assert "error" in data
-        assert "not allowed" in data["error"]
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()
@@ -197,8 +218,8 @@ class TestDataFusionToolsetQuery:
             ts.call_tool(
                 "query",
                 {"sql": "CREATE TABLE new_table (id INT, name TEXT)"},
-                ctx=MagicMock(),
-                tool=MagicMock(),
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
             )
         )
         data = json.loads(result)
@@ -209,7 +230,9 @@ class TestDataFusionToolsetQuery:
         ts = DataFusionToolset([cfg])
 
         with pytest.raises(ValueError, match="Unknown tool"):
-            asyncio.run(ts.call_tool("bad_tool", {}, ctx=MagicMock(), tool=MagicMock()))
+            asyncio.run(
+                ts.call_tool("bad_tool", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+            )
 
 
 class TestDataFusionToolsetGetSchemaErrors:
@@ -219,7 +242,12 @@ class TestDataFusionToolsetGetSchemaErrors:
         ts._engine = _make_mock_engine(registered_tables={"sales_data": "s3://bucket/sales/"})
 
         result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "nonexistent"}, ctx=MagicMock(), tool=MagicMock())
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "nonexistent"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
         )
         data = json.loads(result)
         assert "error" in data
@@ -231,7 +259,11 @@ class TestDataFusionToolsetGetSchemaErrors:
         ts._engine = _make_mock_engine()
 
         with pytest.raises(KeyError):
-            asyncio.run(ts.call_tool("get_schema", {}, ctx=MagicMock(), tool=MagicMock()))
+            asyncio.run(
+                ts.call_tool(
+                    "get_schema", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool)
+                )
+            )
 
 
 class TestDataFusionToolsetQueryErrors:
@@ -245,7 +277,12 @@ class TestDataFusionToolsetQueryErrors:
         ts._engine = engine
 
         result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT x FROM t"}, ctx=MagicMock(), tool=MagicMock())
+            ts.call_tool(
+                "query",
+                {"sql": "SELECT x FROM t"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
         )
         data = json.loads(result)
         assert "column x not found" in data["error"]
@@ -259,7 +296,14 @@ class TestDataFusionToolsetQueryErrors:
         ts._engine = engine
 
         with pytest.raises(TypeError, match="unexpected error"):
-            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT 1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
 
 
 class TestDataFusionToolsetEngineResolution:
