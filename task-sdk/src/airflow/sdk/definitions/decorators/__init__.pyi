@@ -55,7 +55,7 @@ class TaskDecoratorCollection:
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonDecoratedOperator.
         templates_dict: Mapping[str, Any] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a task.
@@ -67,9 +67,9 @@ class TaskDecoratorCollection:
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
+            logs. Defaults to False, which prevents log output of return value.
+            It can be set to True to show return value in logs, but be cautious when returning large data
+            as it may cause out-of-memory errors.
         """
     # [START mixin_for_typing]
     @overload
@@ -81,7 +81,7 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: bool | None = None,
         templates_dict: Mapping[str, Any] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Aliasing ``python``; signature should match exactly."""
@@ -104,7 +104,7 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         **kwargs,
@@ -143,9 +143,9 @@ class TaskDecoratorCollection:
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
+            logs. Defaults to False, which prevents log output of return value.
+            It can be set to True to show return value in logs, but be cautious when returning large data
+            as it may cause out-of-memory errors.
         :param env_vars: A dictionary containing additional environment variables to set for the virtual
             environment when it is executed.
         :param inherit_env: Whether to inherit the current environment variables when executing the virtual
@@ -164,7 +164,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         **kwargs,
@@ -188,9 +188,9 @@ class TaskDecoratorCollection:
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
+            logs. Defaults to False, which prevents log output of return value.
+            It can be set to True to show return value in logs, but be cautious when returning large data
+            as it may cause out-of-memory errors.
         :param env_vars: A dictionary containing additional environment variables to set for the virtual
             environment when it is executed.
         :param inherit_env: Whether to inherit the current environment variables when executing the virtual
@@ -228,7 +228,7 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -264,9 +264,9 @@ class TaskDecoratorCollection:
             with a checksum of requirements. If not provided the virtual environment will be created and
             deleted in a temp folder for every execution.
         :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
+            logs. Defaults to False, which prevents log output of return value.
+            It can be set to True to show return value in logs, but be cautious when returning large data
+            as it may cause out-of-memory errors.
         """
     @overload
     def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -280,7 +280,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchExternalPythonOperator.
@@ -305,9 +305,9 @@ class TaskDecoratorCollection:
             ``__init__`` and ``execute`` takes place and are made available
             in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
+            logs. Defaults to False, which prevents log output of return value.
+            It can be set to True to show return value in logs, but be cautious when returning large data
+            as it may cause out-of-memory errors.
         """
     @overload
     def branch_external_python(

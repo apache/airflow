@@ -161,9 +161,9 @@ class PythonOperator(BaseAsyncOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :param show_return_value_in_logs: a bool value whether to show return_value
-        logs. Defaults to True, which allows return value log output.
-        It can be set to False to prevent log output of return value when you return huge data
-        such as transmission a large amount of XCom to TaskAPI.
+        logs. Defaults to False, which prevents log output of return value.
+        It can be set to True to show return value in logs, but be cautious when returning large data
+        as it may cause out-of-memory errors.
     """
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
@@ -183,7 +183,7 @@ class PythonOperator(BaseAsyncOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         templates_dict: dict[str, Any] | None = None,
         templates_exts: Sequence[str] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -335,7 +335,7 @@ class TestPythonOperator(BasePythonTest):
     @pytest.mark.parametrize(
         ("show_return_value_in_logs", "should_shown"),
         [
-            pytest.param(NOTSET, True, id="default"),
+            pytest.param(NOTSET, False, id="default"),
             pytest.param(True, True, id="show"),
             pytest.param(False, False, id="hide"),
         ],
