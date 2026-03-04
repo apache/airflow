@@ -779,7 +779,8 @@ export class ConnectionService {
      * @param data.connectionId
      * @param data.requestBody
      * @param data.updateMask
-     * @param data.executor Executor (team) to route the connection test to
+     * @param data.executor Executor to route the connection test to
+     * @param data.queue Queue to route the connection test to
      * @returns ConnectionSaveAndTestResponse Successful Response
      * @throws ApiError
      */
@@ -792,7 +793,8 @@ export class ConnectionService {
             },
             query: {
                 update_mask: data.updateMask,
-                executor: data.executor
+                executor: data.executor,
+                queue: data.queue
             },
             body: data.requestBody,
             mediaType: 'application/json',

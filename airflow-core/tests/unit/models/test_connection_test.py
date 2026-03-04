@@ -63,6 +63,14 @@ class TestConnectionTestModel:
         ct = ConnectionTest(connection_id="test_conn")
         assert ct.executor is None
 
+    def test_queue_parameter(self):
+        ct = ConnectionTest(connection_id="test_conn", queue="my_queue")
+        assert ct.queue == "my_queue"
+
+    def test_queue_defaults_to_none(self):
+        ct = ConnectionTest(connection_id="test_conn")
+        assert ct.queue is None
+
 
 class TestRunConnectionTest:
     def test_successful_connection_test(self):

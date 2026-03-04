@@ -519,6 +519,7 @@ export type ConnectionTestQueuedResponse = {
 export type ConnectionTestRequestBody = {
     connection_id: string;
     executor?: string | null;
+    queue?: string | null;
 };
 
 /**
@@ -2517,9 +2518,13 @@ export type BulkConnectionsResponse = BulkResponse;
 export type PatchConnectionAndTestData = {
     connectionId: string;
     /**
-     * Executor (team) to route the connection test to
+     * Executor to route the connection test to
      */
     executor?: string | null;
+    /**
+     * Queue to route the connection test to
+     */
+    queue?: string | null;
     requestBody: ConnectionBody;
     updateMask?: Array<(string)> | null;
 };

@@ -9616,8 +9616,8 @@ class TestDispatchConnectionTests:
             "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
         },
     )
-    def test_dispatch_executor_matched_to_team_name(self, session):
-        """When executor is specified, the executor whose team_name matches is selected."""
+    def test_dispatch_executor_matched_by_alias(self, session):
+        """When executor is specified, the executor whose name.alias matches is selected."""
         session.execute(delete(ConnectionTest))
         session.commit()
 
@@ -9626,11 +9626,11 @@ class TestDispatchConnectionTests:
         mock_job.max_tis_per_query = 16
 
         executor_a = LocalExecutor()
-        executor_a.team_name = "team_a"
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
         executor_a.queued_connection_tests.clear()
 
         executor_b = LocalExecutor()
-        executor_b.team_name = "team_b"
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
         executor_b.queued_connection_tests.clear()
 
         runner = SchedulerJobRunner.__new__(SchedulerJobRunner)
@@ -9639,7 +9639,46 @@ class TestDispatchConnectionTests:
         runner.executor = executor_a
         runner._log = mock.MagicMock(spec=logging.Logger)
 
-        ct = ConnectionTest(connection_id="team_conn", executor="team_b")
+        ct = ConnectionTest(connection_id="team_conn", executor="executor_b")
+        session.add(ct)
+        session.commit()
+
+        runner._dispatch_connection_tests(session=session)
+
+        assert len(executor_b.queued_connection_tests) == 1
+        assert len(executor_a.queued_connection_tests) == 0
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_executor_matched_by_module_path(self, session):
+        """When executor is specified by module_path, the matching executor is selected."""
+        session.execute(delete(ConnectionTest))
+        session.commit()
+
+        mock_job = mock.MagicMock(spec=Job)
+        mock_job.id = 1
+        mock_job.max_tis_per_query = 16
+
+        executor_a = LocalExecutor()
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
+        executor_a.queued_connection_tests.clear()
+
+        executor_b = LocalExecutor()
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
+        executor_b.queued_connection_tests.clear()
+
+        runner = SchedulerJobRunner.__new__(SchedulerJobRunner)
+        runner.job = mock_job
+        runner.executors = [executor_a, executor_b]
+        runner.executor = executor_a
+        runner._log = mock.MagicMock(spec=logging.Logger)
+
+        ct = ConnectionTest(connection_id="team_conn", executor="path.to.ExecutorB")
         session.add(ct)
         session.commit()
 

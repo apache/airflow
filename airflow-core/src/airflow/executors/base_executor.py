@@ -315,8 +315,7 @@ class BaseExecutor(LoggingMixin):
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
-        if self.supports_connection_test and self.queued_connection_tests:
-            self.trigger_connection_tests()
+        self.trigger_connection_tests()
 
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
@@ -324,7 +323,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_connection_tests(self) -> None:
         """Process queued connection tests."""
-        if not self.queued_connection_tests:
+        if not self.supports_connection_test or not self.queued_connection_tests:
             return
 
         self._process_workloads(list(self.queued_connection_tests.values()))

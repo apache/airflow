@@ -1672,9 +1672,19 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Executor (team) to route the connection test to
+          description: Executor to route the connection test to
           title: Executor
-        description: Executor (team) to route the connection test to
+        description: Executor to route the connection test to
+      - name: queue
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Queue to route the connection test to
+          title: Queue
+        description: Queue to route the connection test to
       requestBody:
         required: true
         content:
@@ -10330,6 +10340,11 @@ components:
           - type: string
           - type: 'null'
           title: Executor
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
       additionalProperties: false
       type: object
       required:

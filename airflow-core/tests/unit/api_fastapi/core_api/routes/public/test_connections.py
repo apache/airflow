@@ -1233,6 +1233,21 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert ct.state == "pending"
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_passes_queue_parameter(self, test_client, session):
+        """POST /connections/test-async passes the queue parameter to the ConnectionTest."""
+        self.create_connection()
+        response = test_client.post(
+            "/connections/test-async",
+            json={"connection_id": TEST_CONN_ID, "queue": "gpu_workers"},
+        )
+        assert response.status_code == 202
+        token = response.json()["token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        assert ct is not None
+        assert ct.queue == "gpu_workers"
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_get_status_returns_pending(self, test_client, session):
         """GET /connections/test-async/{token} returns current status (pending before scheduler dispatch)."""
         self.create_connection()
@@ -1335,6 +1350,25 @@ class TestSaveAndTest(TestConnectionEndpoint):
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         assert ct is not None
         assert ct.executor == "team_a"
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_save_and_test_passes_queue_parameter(self, test_client, session):
+        """PATCH /{connection_id}/test passes the queue parameter to the ConnectionTest."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}/test?queue=gpu_workers",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "queued-host.example.com",
+            },
+        )
+        assert response.status_code == 200
+        token = response.json()["test_token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        assert ct is not None
+        assert ct.queue == "gpu_workers"
 
     def test_save_and_test_403_when_disabled(self, test_client):
         """PATCH /{connection_id}/test returns 403 when test_connection is disabled."""

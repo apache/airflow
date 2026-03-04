@@ -73,7 +73,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
-from airflow.models.connection_test import ConnectionTest, ConnectionTestState, attempt_revert
+from airflow.models.connection_test import ACTIVE_STATES, ConnectionTest, ConnectionTestState, attempt_revert
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -3121,9 +3121,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
 
         active_count = session.scalar(
-            select(func.count(ConnectionTest.id)).where(
-                ConnectionTest.state.in_([ConnectionTestState.QUEUED, ConnectionTestState.RUNNING])
-            )
+            select(func.count(ConnectionTest.id)).where(ConnectionTest.state.in_(ACTIVE_STATES))
         )
         budget = max_concurrency - (active_count or 0)
         if budget <= 0:
@@ -3158,6 +3156,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 connection_test_id=ct.id,
                 connection_id=ct.connection_id,
                 timeout=timeout,
+                queue=ct.queue,
                 generator=executor.jwt_generator,
             )
             executor.queue_workload(workload, session=session)
@@ -3173,7 +3172,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
 
         stale_stmt = select(ConnectionTest).where(
-            ConnectionTest.state.in_([ConnectionTestState.QUEUED, ConnectionTestState.RUNNING]),
+            ConnectionTest.state.in_(ACTIVE_STATES),
             ConnectionTest.updated_at < cutoff,
         )
         stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTest, skip_locked=True)
@@ -3189,10 +3188,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.flush()
 
     def _find_executor_for_connection_test(self, executor_name: str | None) -> BaseExecutor | None:
-        """Find an executor that supports connection testing, optionally matching by team name."""
+        """Find an executor that supports connection testing, optionally matching by name."""
         if executor_name is not None:
             for executor in self.executors:
-                if executor.supports_connection_test and executor.team_name == executor_name:
+                if (
+                    executor.supports_connection_test
+                    and executor.name
+                    and executor_name in (executor.name.alias, executor.name.module_path)
+                ):
                     return executor
             return None
         for executor in self.executors:

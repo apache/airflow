@@ -84,6 +84,7 @@ class ConnectionTestRequestBody(StrictBaseModel):
 
     connection_id: str
     executor: str | None = None
+    queue: str | None = None
 
 
 class ConnectionTestQueuedResponse(BaseModel):
