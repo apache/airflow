@@ -1005,7 +1005,7 @@ components:
           - type: 'null'
           title: Log Path
         ti:
-          $ref: '#/components/schemas/TaskInstance'
+          $ref: '#/components/schemas/TaskInstanceDTO'
         sentry_integration:
           type: string
           title: Sentry Integration
@@ -1151,7 +1151,7 @@ components:
       - log_chunk_data
       title: PushLogsBody
       description: Incremental new log content from worker.
-    TaskInstance:
+    TaskInstanceDTO:
       properties:
         id:
           type: string
@@ -1209,7 +1209,7 @@ components:
       - pool_slots
       - queue
       - priority_weight
-      title: TaskInstance
+      title: TaskInstanceDTO
       description: Schema for TaskInstance with minimal required fields needed for
         Executors and Task SDK.
     TaskInstanceState:

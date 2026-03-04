@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import cache
 from typing import TYPE_CHECKING
@@ -50,6 +49,16 @@ API_ROOT_PATH = urlsplit(API_BASE_URL).path
 # Define the full path on which the potential auth manager fastapi is mounted
 AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
+
+def get_cookie_path() -> str:
+    """
+    Return the path to scope cookies to, derived from ``[api] base_url``.
+
+    Falls back to ``"/"`` when no ``base_url`` is configured.
+    """
+    return API_ROOT_PATH or "/"
+
+
 # Fast API apps mounted under these prefixes are not allowed
 RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
@@ -58,7 +67,6 @@ log = logging.getLogger(__name__)
 
 class _AuthManagerState:
     instance: BaseAuthManager | None = None
-    _lock = threading.Lock()
 
 
 @asynccontextmanager
@@ -139,12 +147,8 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    if _AuthManagerState.instance is not None:
-        return _AuthManagerState.instance
-    with _AuthManagerState._lock:
-        if _AuthManagerState.instance is None:
-            auth_manager_cls = get_auth_manager_cls()
-            _AuthManagerState.instance = auth_manager_cls()
+    auth_manager_cls = get_auth_manager_cls()
+    _AuthManagerState.instance = auth_manager_cls()
     return _AuthManagerState.instance
 
 
