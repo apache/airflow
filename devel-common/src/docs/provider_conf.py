@@ -373,8 +373,8 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     )
     redoc = [
         {
-            "name": "Fab auth manager token API",
-            "page": "api-ref/fab-token-api-ref",
+            "name": "Fab auth manager API",
+            "page": "api-ref/fab-api-ref",
             "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
