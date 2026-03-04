@@ -146,6 +146,64 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
+    def test_git_sync_startup_probe_enabled(self):
+        docs = render_chart(
+            values={
+                "dags": {"gitSync": {"enabled": True, "startupProbe": {"enabled": False}}},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            assert (
+                jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].startupProbe", doc)
+                is None
+            )
+
+    def test_git_sync_startup_probe(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "startupProbe": {
+                            "port": 10,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    }
+                },
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            envs = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", doc)
+            assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
+            assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
+
+            assert jmespath.search(
+                "spec.template.spec.containers[?name=='git-sync'] | [0].startupProbe", doc
+            ) == {
+                "httpGet": {"path": "/", "port": 10},
+                "timeoutSeconds": 11,
+                "initialDelaySeconds": 12,
+                "periodSeconds": 13,
+                "failureThreshold": 14,
+            }
+
     def test_webserver_config_configmap_name_volume_mounts(self):
         configmap_name = "my-configmap"
         docs = render_chart(

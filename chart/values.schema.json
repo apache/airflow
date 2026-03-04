@@ -10477,6 +10477,43 @@
                                 }
                             ]
                         },
+                        "startupProbe": {
+                            "description": "Startup probe configuration for GitSync container.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable GitSync Kubernetes Startup Probe.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "port": {
+                                    "description": "Port used for Git Sync liveness listener configuration.",
+                                    "type": "integer",
+                                    "default": 1234
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before startup probe is initiated.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 10
+                                }
+                            }
+                        },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",

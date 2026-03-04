@@ -108,9 +108,18 @@ class TestGitSyncSchedulerTest:
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                {"name": "GIT_SYNC_HTTP_BIND", "value": ":1234"},
+                {"name": "GITSYNC_HTTP_BIND", "value": ":1234"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "httpGet": {"path": "/", "port": 1234},
+                "timeoutSeconds": 1,
+                "failureThreshold": 10,
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+            },
         }
 
     def test_validate_the_git_sync_container_spec_if_wait_specified(self):
@@ -172,9 +181,18 @@ class TestGitSyncSchedulerTest:
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                {"name": "GIT_SYNC_HTTP_BIND", "value": ":1234"},
+                {"name": "GITSYNC_HTTP_BIND", "value": ":1234"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "httpGet": {"path": "/", "port": 1234},
+                "timeoutSeconds": 1,
+                "failureThreshold": 10,
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+            },
         }
 
     def test_validate_if_ssh_params_are_added(self):

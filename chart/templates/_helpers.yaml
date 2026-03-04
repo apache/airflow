@@ -299,11 +299,26 @@ If release name contains chart name it will be used as a full name.
       value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
+    {{- else }}
+    - name: GIT_SYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.startupProbe.port }}"
+    - name: GITSYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.startupProbe.port }}"
     {{- end }}
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  {{- if and .Values.dags.gitSync.startupProbe.enabled (not .is_init) }}
+  startupProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.startupProbe.port }}
+    timeoutSeconds: {{ .Values.dags.gitSync.startupProbe.timeoutSeconds }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.startupProbe.initialDelaySeconds }}
+    periodSeconds: {{ .Values.dags.gitSync.startupProbe.periodSeconds }}
+    failureThreshold: {{ .Values.dags.gitSync.startupProbe.failureThreshold }}
+  {{- end }}
   {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
   livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
   {{- end }}

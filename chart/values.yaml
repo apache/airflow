@@ -3563,6 +3563,14 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    startupProbe:
+      enabled: true
+      port: 1234
+      timeoutSeconds: 1
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 10
+
     readinessProbe: {}
     livenessProbe: {}
 
