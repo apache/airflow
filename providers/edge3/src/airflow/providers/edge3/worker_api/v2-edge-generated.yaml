@@ -1247,11 +1247,6 @@ components:
         type:
           type: string
           title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
       type: object
       required:
       - loc
@@ -1413,6 +1408,13 @@ components:
           - type: 'null'
           title: Maintenance Comments
           description: Comments about the maintenance state of the worker.
+        concurrency:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Concurrency
+          description: Desired concurrency for the worker set by an administrator.
+            None means no remote override; the worker uses its startup value.
       type: object
       required:
       - state

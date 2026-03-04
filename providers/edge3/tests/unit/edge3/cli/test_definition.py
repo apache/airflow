@@ -234,3 +234,17 @@ class TestEdgeCliDefinition:
         params = ["edge", "shutdown-all-workers", "--yes"]
         args = self.arg_parser.parse_args(params)
         assert args.yes is True
+
+    def test_set_worker_concurrency_args(self):
+        """Test set-worker-concurrency command with required arguments."""
+        params = [
+            "edge",
+            "set-worker-concurrency",
+            "--edge-hostname",
+            "remote-worker-1",
+            "--concurrency",
+            "16",
+        ]
+        args = self.arg_parser.parse_args(params)
+        assert args.edge_hostname == "remote-worker-1"
+        assert args.concurrency == 16
