@@ -41,15 +41,13 @@ def _make_mock_engine(
 ):
     """Create a mock DataFusionEngine with sensible defaults."""
     mock = MagicMock()
-    mock.registered_tables = registered_tables or {"sales_data": "s3://bucket/sales/"}
+    tables = registered_tables or {"sales_data": "s3://bucket/sales/"}
+    mock.registered_tables = tables
+    mock.session_context.catalog().schema().table_names.return_value = list(tables.keys())
 
-    fields = []
-    for name, ftype in schema_fields or [("id", "Int64"), ("amount", "Float64")]:
-        field = MagicMock()
-        field.name = name
-        field.type = ftype
-        fields.append(field)
-    mock.session_context.table.return_value.schema.return_value = fields
+    mock.get_schema.return_value = json.dumps(
+        [{"name": n, "type": t} for n, t in schema_fields or [("id", "Int64"), ("amount", "Float64")]]
+    )
 
     mock.execute_query.return_value = (
         query_result
@@ -67,12 +65,12 @@ class TestDataFusionToolsetInit:
         cfg_a = _make_mock_datasource_config("alpha")
         cfg_b = _make_mock_datasource_config("beta")
         ts = DataFusionToolset([cfg_b, cfg_a])
-        assert ts.id == "sql-datafusion-alpha-beta"
+        assert ts.id == "sql_datafusion_beta_alpha"
 
     def test_single_table_id(self):
         cfg = _make_mock_datasource_config("orders")
         ts = DataFusionToolset([cfg])
-        assert ts.id == "sql-datafusion-orders"
+        assert ts.id == "sql_datafusion_orders"
 
 
 class TestDataFusionToolsetGetTools:
@@ -166,12 +164,99 @@ class TestDataFusionToolsetQuery:
         assert data["rows"] == []
         assert data["count"] == 0
 
+    def test_blocks_create_table_by_default(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query",
+                {"sql": "CREATE TABLE new_table (id INT, name TEXT)"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        data = json.loads(result)
+        assert "error" in data
+        assert "not allowed" in data["error"]
+
+    def test_allows_create_table_when_writes_enabled(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg], allow_writes=True)
+        ts._engine = _make_mock_engine(query_result={})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query",
+                {"sql": "CREATE TABLE new_table (id INT, name TEXT)"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        data = json.loads(result)
+        assert "error" not in data
+
     def test_unknown_tool_raises(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
 
         with pytest.raises(ValueError, match="Unknown tool"):
             asyncio.run(ts.call_tool("bad_tool", {}, ctx=MagicMock(), tool=MagicMock()))
+
+
+class TestDataFusionToolsetGetSchemaErrors:
+    def test_unknown_table_returns_error_json(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine(registered_tables={"sales_data": "s3://bucket/sales/"})
+
+        result = asyncio.run(
+            ts.call_tool("get_schema", {"table_name": "nonexistent"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert "error" in data
+        assert "nonexistent" in data["error"]
+
+    def test_missing_table_name_arg_raises_key_error(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine()
+
+        with pytest.raises(KeyError):
+            asyncio.run(ts.call_tool("get_schema", {}, ctx=MagicMock(), tool=MagicMock()))
+
+
+class TestDataFusionToolsetQueryErrors:
+    def test_execute_query_exception_returns_error_json(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        engine = _make_mock_engine()
+        engine.execute_query.side_effect = RuntimeError("table not found")
+        ts._engine = engine
+
+        result = asyncio.run(
+            ts.call_tool("query", {"sql": "SELECT * FROM bad"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert data["error"] == "table not found"
+        assert data["query"] == "SELECT * FROM bad"
+
+    def test_query_execution_exception_returns_error_json(self):
+        from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
+
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        engine = _make_mock_engine()
+        engine.execute_query.side_effect = QueryExecutionException("execution failed: column x not found")
+        ts._engine = engine
+
+        result = asyncio.run(
+            ts.call_tool("query", {"sql": "SELECT x FROM t"}, ctx=MagicMock(), tool=MagicMock())
+        )
+        data = json.loads(result)
+        assert "column x not found" in data["error"]
+        assert data["query"] == "SELECT x FROM t"
 
 
 class TestDataFusionToolsetEngineResolution:

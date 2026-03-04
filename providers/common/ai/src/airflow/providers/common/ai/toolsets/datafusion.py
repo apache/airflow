@@ -22,6 +22,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 try:
+    from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
     from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -64,7 +65,7 @@ _QUERY_SCHEMA: dict[str, Any] = {
 
 class DataFusionToolset(AbstractToolset[Any]):
     """
-    Curated toolset that gives an LLM agent SQL access to object-storage data vi Apache DataFusion.
+    Curated toolset that gives an LLM agent SQL access to object-storage data via Apache DataFusion.
 
     Provides three tools — ``list_tables``, ``get_schema``, and ``query`` —
     backed by
@@ -78,6 +79,9 @@ class DataFusionToolset(AbstractToolset[Any]):
     Requires the ``datafusion`` extra of ``apache-airflow-providers-common-sql``.
 
     :param datasource_configs: One or more DataFusion data-source configurations.
+    :param allow_writes: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
+        INSERT INTO, etc.). Default ``False`` — only SELECT-family statements
+        are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
         Default ``50``.
     """
@@ -85,17 +89,19 @@ class DataFusionToolset(AbstractToolset[Any]):
     def __init__(
         self,
         datasource_configs: list[DataSourceConfig],
+        allow_writes: bool = False,
         *,
         max_rows: int = 50,
     ) -> None:
         self._datasource_configs = datasource_configs
         self._max_rows = max_rows
         self._engine: DataFusionEngine | None = None
+        self._allow_writes = allow_writes
 
     @property
     def id(self) -> str:
-        table_names = sorted(c.table_name for c in self._datasource_configs)
-        return f"sql-datafusion-{'-'.join(table_names)}"
+        suffix = "_".join(config.table_name.replace("-", "_") for config in self._datasource_configs)
+        return f"sql_datafusion_{suffix}"
 
     def _get_engine(self) -> DataFusionEngine:
         """Lazily create and configure a DataFusionEngine from *datasource_configs*."""
@@ -145,28 +151,35 @@ class DataFusionToolset(AbstractToolset[Any]):
 
     def _list_tables(self) -> str:
         engine = self._get_engine()
-        tables: list[str] = list(engine.registered_tables.keys())
+        tables: list[str] = list(engine.session_context.catalog().schema().table_names())
         return json.dumps(tables)
 
     def _get_schema(self, table_name: str) -> str:
         engine = self._get_engine()
-        arrow_schema = engine.session_context.table(table_name).schema()
-        columns = [{"name": field.name, "type": str(field.type)} for field in arrow_schema]
-        return json.dumps(columns)
+        if table_name not in engine.registered_tables:
+            return json.dumps({"error": f"Table {table_name!r} is not available"})
+        print(engine.get_schema(table_name))
+        return engine.get_schema(table_name)
 
     def _query(self, sql: str) -> str:
-        engine = self._get_engine()
-        pydict = engine.execute_query(sql)
-        col_names = list(pydict.keys())
-        num_rows = len(next(iter(pydict.values()), []))
+        try:
+            if not self._allow_writes:
+                _validate_sql(sql)
 
-        result: list[dict[str, Any]] = [
-            {col: pydict[col][i] for col in col_names} for i in range(min(num_rows, self._max_rows))
-        ]
+            engine = self._get_engine()
+            pydict = engine.execute_query(sql)
+            col_names = list(pydict.keys())
+            num_rows = len(next(iter(pydict.values()), []))
 
-        truncated = num_rows > self._max_rows
-        output: dict[str, Any] = {"rows": result, "count": num_rows}
-        if truncated:
-            output["truncated"] = True
-            output["max_rows"] = self._max_rows
-        return json.dumps(output, default=str)
+            result: list[dict[str, Any]] = [
+                {col: pydict[col][i] for col in col_names} for i in range(min(num_rows, self._max_rows))
+            ]
+
+            truncated = num_rows > self._max_rows
+            output: dict[str, Any] = {"rows": result, "count": num_rows}
+            if truncated:
+                output["truncated"] = True
+                output["max_rows"] = self._max_rows
+            return json.dumps(output, default=str)
+        except Exception as ex:
+            return json.dumps({"error": str(ex), "query": sql})

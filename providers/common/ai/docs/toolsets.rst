@@ -24,7 +24,7 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Two toolsets are included:
+Three toolsets are included:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
@@ -179,6 +179,10 @@ Parameters
 - ``datasource_configs``: One or more
   :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries.
   Requires ``apache-airflow-providers-common-sql[datafusion]``.
+- ``allow_writes``: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
+  INSERT INTO, etc.). Default ``False`` — only SELECT-family statements are
+  permitted. DataFusion on object stores is mostly read-only, but it does
+  support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
 Security
@@ -214,6 +218,11 @@ No single layer is sufficient — they work together.
        ``validate_sql()`` and rejects INSERT, UPDATE, DELETE, DROP, etc.
      - Does not prevent the agent from reading sensitive data that the
        database user has SELECT access to.
+   * - **DataFusionToolset: read-only by default**
+     - ``allow_writes=False`` (default) validates every SQL query through
+       ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT
+       INTO, and other non-SELECT statements.
+     - Does not prevent the agent from reading any registered data source.
    * - **SQLToolset: allowed_tables**
      - Restricts which tables appear in ``list_tables`` and ``get_schema``
        responses, limiting the agent's knowledge of the schema.
