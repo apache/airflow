@@ -1,0 +1,1 @@
+Add ``json_format`` config option to enable JSON console logging
