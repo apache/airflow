@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import tempfile
 from collections.abc import AsyncGenerator
 from functools import cached_property
@@ -57,12 +58,39 @@ if TYPE_CHECKING:
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
+# AWS CLI cache directory that can trigger a race condition (FileExistsError)
+# when multiple processes attempt to create it concurrently during exec-based
+# authentication (e.g. ``aws eks get-token``).  Pre-creating it avoids the race.
+# See: https://github.com/apache/airflow/issues/60943
+#      https://github.com/boto/botocore/commit/f1c1bc90
+_AWS_CLI_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".aws", "cli", "cache")
+
 JOB_FINAL_STATUS_CONDITION_TYPES = {
     "Complete",
     "Failed",
 }
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
+
+
+def _ensure_exec_plugin_cache_dirs() -> None:
+    """Pre-create cache directories used by exec-based authentication plugins.
+
+    When multiple KubernetesPodOperator tasks run concurrently on the same
+    worker, each invokes the exec-based credential plugin (e.g.
+    ``aws eks get-token``) in parallel.  Older versions of the AWS CLI /
+    botocore call ``os.makedirs()`` **without** ``exist_ok=True`` to create
+    ``~/.aws/cli/cache``, which causes a ``FileExistsError`` race condition
+    when two processes attempt the creation simultaneously.
+
+    This function defensively pre-creates the directory so that it already
+    exists by the time any exec plugin runs, eliminating the race regardless
+    of the installed botocore version.
+
+    .. seealso:: https://github.com/apache/airflow/issues/60943
+    .. seealso:: https://github.com/boto/botocore/commit/f1c1bc90
+    """
+    os.makedirs(_AWS_CLI_CACHE_DIR, exist_ok=True)
 
 
 def _load_body_to_dict(body: str) -> dict:
@@ -297,6 +325,11 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             _disable_verify_ssl()
         if disable_tcp_keepalive is not True:
             _enable_tcp_keepalive()
+
+        # Pre-create cache directories used by exec-based auth plugins (e.g. AWS
+        # EKS) to avoid a race condition when multiple tasks authenticate in
+        # parallel on the same worker.  See https://github.com/apache/airflow/issues/60943
+        _ensure_exec_plugin_cache_dirs()
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
