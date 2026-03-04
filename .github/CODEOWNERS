@@ -61,8 +61,10 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
 
-# Calendar/Timetables
-/airflow-core/src/airflow/timetables/ @uranusjr
+# Calendar/Timetables/Assets/Partitions
+/airflow-core/src/airflow/assets @uranusjr @Lee-W
+/airflow-core/src/airflow/partition_mappers @dstandish @Lee-W
+/airflow-core/src/airflow/timetables/ @uranusjr @Lee-W
 /docs/apache-airflow/concepts/timetable.rst @uranusjr
 
 # Task expansion, scheduling, and rendering
