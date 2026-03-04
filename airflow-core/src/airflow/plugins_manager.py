@@ -30,7 +30,13 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppBuilderMenuItemConfig as AppBuilderMenuItemConfig,
+    AppBuilderViewConfig as AppBuilderViewConfig,
+    ExternalViewConfig as ExternalViewConfig,
+    FastAPIAppConfig as FastAPIAppConfig,
+    FastAPIRootMiddlewareConfig as FastAPIRootMiddlewareConfig,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppConfig as ReactAppConfig,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,

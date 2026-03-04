@@ -28,15 +28,18 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
+
+from typing_extensions import NotRequired
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+    from types import ModuleType
+
     if sys.version_info >= (3, 12):
         from importlib import metadata
     else:
         import importlib_metadata as metadata
-    from collections.abc import Generator
-    from types import ModuleType
 
     from ..listeners.listener import ListenerManager
 
@@ -85,21 +88,84 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
+ExternalViewDestination = Literal["nav", "dag", "dag_run", "task", "task_instance"]
+ReactAppDestination = Literal["nav", "dag", "dag_run", "task", "task_instance", "dashboard"]
+
+
+class FastAPIAppConfig(TypedDict):
+    """Configuration for a FastAPI application registered by a plugin."""
+
+    app: Any
+    url_prefix: str
+    name: str
+
+
+class FastAPIRootMiddlewareConfig(TypedDict):
+    """Configuration for a FastAPI root middleware registered by a plugin."""
+
+    middleware: type
+    name: str
+    args: NotRequired[list[Any]]
+    kwargs: NotRequired[dict[str, Any]]
+
+
+class ExternalViewConfig(TypedDict):
+    """Configuration for an external view registered by a plugin."""
+
+    name: str
+    href: str
+    destination: NotRequired[ExternalViewDestination]
+    icon: NotRequired[str]
+    icon_dark_mode: NotRequired[str]
+    url_route: NotRequired[str]
+    category: NotRequired[str]
+
+
+class ReactAppConfig(TypedDict):
+    """Configuration for a React application registered by a plugin."""
+
+    name: str
+    bundle_url: str
+    destination: NotRequired[ReactAppDestination]
+    icon: NotRequired[str]
+    icon_dark_mode: NotRequired[str]
+    url_route: NotRequired[str]
+    category: NotRequired[str]
+
+
+class AppBuilderViewConfig(TypedDict):
+    """Configuration for a Flask AppBuilder view registered by a plugin."""
+
+    name: NotRequired[str]
+    category: NotRequired[str]
+    view: NotRequired[Any]
+    label: NotRequired[str]
+
+
+class AppBuilderMenuItemConfig(TypedDict):
+    """Configuration for a Flask AppBuilder menu item registered by a plugin."""
+
+    name: str
+    href: str
+    category: NotRequired[str]
+    label: NotRequired[str]
+
+
 class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
     name: str | None = None
     source: AirflowPluginSource | None = None
-    macros: list[Any] = []
+    macros: list[Callable] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    fastapi_apps: list[FastAPIAppConfig] = []
+    fastapi_root_middlewares: list[FastAPIRootMiddlewareConfig] = []
+    external_views: list[ExternalViewConfig] = []
+    react_apps: list[ReactAppConfig] = []
     menu_links: list[Any] = []
-    appbuilder_views: list[Any] = []
-    appbuilder_menu_items: list[Any] = []
+    appbuilder_views: list[AppBuilderViewConfig] = []
+    appbuilder_menu_items: list[AppBuilderMenuItemConfig] = []
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the
@@ -117,19 +183,19 @@ class AirflowPlugin:
     operator_extra_links: list[Any] = []
 
     # A list of timetable classes that can be used for Dag scheduling.
-    timetables: list[Any] = []
+    timetables: list[type] = []
 
-    # A list of timetable classes that can be used for Dag scheduling.
-    partition_mappers: list[Any] = []
+    # A list of partition mapper classes that can be used for Dag scheduling.
+    partition_mappers: list[type] = []
 
     # A list of listeners that can be used for tracking task and Dag states.
     listeners: list[ModuleType | object] = []
 
     # A list of hook lineage reader classes that can be used for reading lineage information from a hook.
-    hook_lineage_readers: list[Any] = []
+    hook_lineage_readers: list[type] = []
 
     # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
-    priority_weight_strategies: list[Any] = []
+    priority_weight_strategies: list[type] = []
 
     @classmethod
     def validate(cls):
