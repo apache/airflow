@@ -1362,6 +1362,7 @@ persistentVolume
 personalizations
 pformat
 PgBouncer
+pgbouncer
 pgvector
 picklable
 pid
@@ -1760,6 +1761,7 @@ stackdriver
 stacklevel
 stacktrace
 starttls
+stateful
 StatefulSet
 StatefulSets
 statics
