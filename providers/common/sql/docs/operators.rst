@@ -244,8 +244,7 @@ The example below shows how to instantiate the SQLInsertRowsOperator task.
 Generic Transfer
 ~~~~~~~~~~~~~~~~
 
-Use the :class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` to transfer data between
-between two connections.
+Use the :class:`GenericTransfer`
 
 .. exampleinclude:: /../tests/system/common/sql/example_generic_transfer.py
     :language: python
