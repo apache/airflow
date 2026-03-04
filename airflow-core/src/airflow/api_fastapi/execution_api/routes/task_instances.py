@@ -30,7 +30,7 @@ import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
-from sqlalchemy import func, or_, tuple_, update
+from sqlalchemy import exists, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
@@ -241,12 +241,18 @@ def ti_run(
                 xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
             xcom_keys = list(session.scalars(xcom_query))
-        task_reschedule_count = (
-            session.scalar(
-                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
+
+        has_reschedules = session.scalar(select(exists().where(TaskReschedule.ti_id == task_instance_id)))
+
+        if has_reschedules:
+            task_reschedule_count = (
+                session.scalar(
+                    select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
+                )
+                or 0
             )
-            or 0
-        )
+        else:
+            task_reschedule_count = 0
 
         context = TIRunContext(
             dag_run=dr,
