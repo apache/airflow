@@ -29,6 +29,18 @@ class TestSalesforceBulkOperator:
     Test class for SalesforceBulkOperator
     """
 
+    def test_template_fields(self):
+        """
+        Test that template_fields are correctly defined.
+        """
+        operator = SalesforceBulkOperator(
+            task_id="test_template_fields",
+            operation="insert",
+            object_name="Account",
+            payload=[],
+        )
+        assert operator.template_fields == ("operation", "object_name", "payload", "external_id_field")
+
     def test_execute_missing_operation(self):
         """
         Test execute missing operation
@@ -40,13 +52,14 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
+        operator = SalesforceBulkOperator(
+            task_id="missing_operation",
+            operation="operation",
+            object_name="Account",
+            payload=[],
+        )
         with pytest.raises(ValueError, match="Operation 'operation' not found!"):
-            SalesforceBulkOperator(
-                task_id="missing_operation",
-                operation="operation",
-                object_name="Account",
-                payload=[],
-            )
+            operator.execute(context={})
 
     def test_execute_missing_object_name(self):
         """
@@ -59,15 +72,16 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
+        operator = SalesforceBulkOperator(
+            task_id="missing_object_name",
+            operation="insert",
+            object_name="",
+            payload=[],
+        )
         with pytest.raises(
             ValueError, match="The required parameter 'object_name' cannot have an empty value."
         ):
-            SalesforceBulkOperator(
-                task_id="missing_object_name",
-                operation="insert",
-                object_name="",
-                payload=[],
-            )
+            operator.execute(context={})
 
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_insert(self, mock_get_conn):
