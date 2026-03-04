@@ -59,8 +59,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
 .. code-block:: python
 
     from datetime import datetime, timedelta
-    from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -296,9 +295,8 @@ A **custom synchronous callback** might look like this:
 
     from deadline_callbacks import custom_sync_callback
 
-    from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import DeadlineAlert, DeadlineReference, SyncCallback
+    from airflow.sdk import DAG, DeadlineAlert, DeadlineReference, SyncCallback
 
     with DAG(
         dag_id="custom_sync_deadline_alert",
@@ -348,9 +346,8 @@ A **custom asynchronous callback** might look like this:
 
     from deadline_callbacks import custom_async_callback
 
-    from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_deadline_alert",
@@ -466,8 +463,7 @@ Once registered [see notes below], use your custom references in Dag definitions
 .. code-block:: python
 
     from datetime import timedelta
-    from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_reference_example",
@@ -490,8 +486,7 @@ of reference points and callback types (sync or async).
 .. code-block:: python
 
     from datetime import timedelta
-    from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference, SyncCallback
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference, SyncCallback
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
