@@ -780,7 +780,7 @@ class TestACIOperator:
             deferrable=True,
             remove_on_error=False,
         )
-        with pytest.raises(AirflowException, match="Container group failed"):
+        with pytest.raises(RuntimeError, match="Container group failed"):
             aci.execute_complete(
                 context=None,
                 event={
@@ -810,7 +810,7 @@ class TestACIOperator:
             deferrable=True,
             remove_on_error=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             aci.execute_complete(
                 context=None,
                 event={
@@ -829,7 +829,7 @@ class TestACIOperator:
         autospec=True,
     )
     def test_execute_complete_none_event_raises(self, aci_mock):
-        """execute_complete raises AirflowException when event is None."""
+        """execute_complete raises ValueError when event is None."""
         aci = AzureContainerInstancesOperator(
             ci_conn_id="azure_default",
             registry_conn_id=None,
@@ -840,7 +840,7 @@ class TestACIOperator:
             task_id="task",
             deferrable=True,
         )
-        with pytest.raises(AirflowException, match="event is None"):
+        with pytest.raises(ValueError, match="event is None"):
             aci.execute_complete(context=None, event=None)
 
     @mock.patch(
