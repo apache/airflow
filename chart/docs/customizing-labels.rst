@@ -16,44 +16,46 @@
    under the License.
 
 Customizing Labels for Pods
----------------------------
+===========================
 
-The Helm chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart, as well as component-specific labels for individual Airflow components.
+The Helm Chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart, as well as component-specific labels for individual Airflow components.
 
 Global Labels
-~~~~~~~~~~~~~
+-------------
 
 Global labels can be set using the ``labels`` parameter in your values file. These labels will be applied to all Airflow objects and pods defined in the chart:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-    labels:
-      environment: production
+   labels:
+     environment: production
 
 Component-Specific Labels
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to override them as needed.
 
 For example, to add specific labels to different components:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-    # Global labels applied to all pods
-    labels:
-      environment: production
+   # Global labels applied to all pods
+   labels:
+     environment: production
 
-    # Scheduler specific labels
-    scheduler:
-      labels:
-        role: scheduler
+   # Scheduler specific labels
+   scheduler:
+     labels:
+       role: scheduler
 
-    # Worker specific labels
-    workers:
-      labels:
-        role: worker
+   # Worker specific labels
+   workers:
+     labels:
+       role: worker
 
-    # Webserver specific labels
-    webserver:
-      labels:
-        role: ui
+   # API Server specific labels
+   apiServer:
+     labels:
+       role: ui

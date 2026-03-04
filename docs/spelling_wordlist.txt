@@ -1362,6 +1362,7 @@ persistentVolume
 personalizations
 pformat
 PgBouncer
+pgbouncer
 pgvector
 picklable
 pid
