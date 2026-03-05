@@ -2025,17 +2025,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            queued_adrqs = list(
-                session.scalars(
-                    with_row_locks(
-                        select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
-                        of=AssetDagRunQueue,
-                        skip_locked=True,
-                        key_share=False,
-                        session=session,
-                    )
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
                 )
-            )
+            ).all()
             # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
             if not queued_adrqs:
                 self.log.debug(
