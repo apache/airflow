@@ -49,15 +49,14 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
     )
 
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.executors import workloads
+        from airflow.providers.cncf.kubernetes.pod_generator import WORKLOAD_JSON_PATH
 
-        workload = workloads.ExecuteTask.make(ti)
         rendered_args = [
             "python",
             "-m",
             "airflow.sdk.execution_time.execute_workload",
-            "--json-string",
-            workload.model_dump_json(),
+            "--json-path",
+            WORKLOAD_JSON_PATH,
         ]
     else:
         rendered_args = [

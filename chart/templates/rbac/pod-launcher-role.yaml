@@ -77,4 +77,11 @@ rules:
     verbs:
       - "list"
       - "watch"
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "create"
+      - "patch"
 {{- end }}

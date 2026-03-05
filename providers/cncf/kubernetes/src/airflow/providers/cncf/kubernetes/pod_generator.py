@@ -54,28 +54,25 @@ from airflow.version import version as airflow_version
 if TYPE_CHECKING:
     import datetime
 
-    from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
 
+WORKLOAD_SECRET_VOLUME_NAME = "airflow-workload"
+WORKLOAD_SECRET_NAME_PREFIX = "airflow-workload"
+WORKLOAD_SECRET_MOUNT_PATH = "/run/secrets/airflow-workload"
+WORKLOAD_JSON_PATH = "/run/secrets/airflow-workload/workload.json"
 
-def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
-    """
-    Convert a workload object to Task SDK command arguments.
 
-    :param workload: The ExecuteTask workload to convert
-    :return: List of command arguments for the Task SDK
-    """
-    ser_input = workload.model_dump_json()
+def workload_to_command_args_json_path() -> list[str]:
     return [
         "python",
         "-m",
         "airflow.sdk.execution_time.execute_workload",
-        "--json-string",
-        ser_input,
+        "--json-path",
+        WORKLOAD_JSON_PATH,
     ]
 
 
@@ -85,14 +82,10 @@ def generate_pod_command_args(task_instance: TaskInstance) -> list[str]:
 
     This function handles backwards compatibility between Airflow 2.x and 3.x:
     - In Airflow 2.x: Uses the existing ``command_as_list()`` method
-    - In Airflow 3.x: Uses the Task SDK workload approach with serialized workload
+    - In Airflow 3.x: Uses the Task SDK workload approach with the workload read from a file
     """
     if AIRFLOW_V_3_0_PLUS:
-        # In Airflow 3+, use the Task SDK workload approach
-        from airflow.executors import workloads
-
-        workload = workloads.ExecuteTask.make(task_instance)
-        return workload_to_command_args(workload)
+        return workload_to_command_args_json_path()
     # In Airflow 2.x, use the existing method
     return task_instance.command_as_list()
 
@@ -375,6 +368,7 @@ class PodGenerator:
         map_index: int = -1,
         *,
         with_mutation_hook: bool = False,
+        workload_secret_name: str | None = None,
     ) -> k8s.V1Pod:
         """
         Create a Pod.
@@ -450,6 +444,25 @@ class PodGenerator:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)
         except Exception as e:
             raise PodReconciliationError from e
+
+        if workload_secret_name:
+            if pod.spec.volumes is None:
+                pod.spec.volumes = []
+            pod.spec.volumes.append(
+                k8s.V1Volume(
+                    name=WORKLOAD_SECRET_VOLUME_NAME,
+                    secret=k8s.V1SecretVolumeSource(secret_name=workload_secret_name),
+                )
+            )
+            if pod.spec.containers[0].volume_mounts is None:
+                pod.spec.containers[0].volume_mounts = []
+            pod.spec.containers[0].volume_mounts.append(
+                k8s.V1VolumeMount(
+                    name=WORKLOAD_SECRET_VOLUME_NAME,
+                    mount_path=WORKLOAD_SECRET_MOUNT_PATH,
+                    read_only=True,
+                )
+            )
 
         if with_mutation_hook:
             from airflow.settings import pod_mutation_hook

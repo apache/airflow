@@ -19,7 +19,9 @@ from __future__ import annotations
 import random
 import re
 import string
+import uuid
 from datetime import datetime
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -52,6 +54,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
     get_logs_task_metadata,
 )
+from airflow.providers.cncf.kubernetes.pod_generator import WORKLOAD_JSON_PATH
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -67,6 +70,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
+    from airflow.executors.workloads import BundleInfo, ExecuteTask, TaskInstance as WorkloadTaskInstance
 else:
     LOGICAL_DATE_KEY = "execution_date"
 
@@ -601,6 +605,122 @@ class TestKubernetesExecutor:
                 assert kubernetes_executor.task_queue.empty()
                 assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
                 assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == fail_msg
+            finally:
+                kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="ExecuteTask workload is only available in Airflow 3")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_run_next_creates_workload_secret_for_execute_task(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_run_pod_async, data_file
+    ):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock_get_kube_client.return_value
+
+        workload = ExecuteTask(
+            token="test-token",
+            ti=WorkloadTaskInstance(
+                id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                dag_version_id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                task_id="test_task",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
+            ),
+            dag_rel_path=Path("test_dag.py"),
+            bundle_info=BundleInfo(name="test", version="1.0"),
+            log_path="test.log",
+        )
+
+        mock_run_pod_async.return_value.metadata.name = "test-pod-name"
+        mock_run_pod_async.return_value.metadata.uid = "test-pod-uid"
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
+            kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.start()
+            try:
+                kubernetes_executor.execute_async(key=workload.ti.key, queue=None, command=[workload])
+                kubernetes_executor.sync()
+
+                mock_kube_client.create_namespaced_secret.assert_called_once()
+                secret_body = mock_kube_client.create_namespaced_secret.call_args[1]["body"]
+                assert "workload.json" in secret_body.string_data
+                labels = secret_body.metadata.labels
+                assert labels["airflow-workload-secret"] == "true"
+                assert labels["dag_id"] == "test_dag"
+                assert labels["task_id"] == "test_task"
+                assert labels["run_id"] == "test_run"
+                assert labels["try_number"] == "1"
+                assert labels["ti_id"] == "4d828a62-a417-4936-a7a6-2b3fabacecab"
+                assert "map_index" not in labels
+
+                mock_run_pod_async.assert_called_once()
+                pod = mock_run_pod_async.call_args[0][0]
+                assert "--json-path" in pod.spec.containers[0].args
+                assert WORKLOAD_JSON_PATH in pod.spec.containers[0].args
+
+                mock_kube_client.patch_namespaced_secret.assert_called_once_with(
+                    name=secret_body.metadata.name,
+                    namespace="default",
+                    body=mock.ANY,
+                )
+            finally:
+                kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="ExecuteTask workload is only available in Airflow 3")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_run_next_deletes_secret_if_pod_creation_fails(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_run_pod_async, data_file
+    ):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock_get_kube_client.return_value
+        # mock pod creation failure here
+        mock_run_pod_async.side_effect = ApiException(status=500, reason="Internal Server Error")
+
+        workload = ExecuteTask(
+            token="test-token",
+            ti=WorkloadTaskInstance(
+                id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                dag_version_id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                task_id="test_task",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
+            ),
+            dag_rel_path=Path("test_dag.py"),
+            bundle_info=BundleInfo(name="test", version="1.0"),
+            log_path="test.log",
+        )
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
+            kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.start()
+            try:
+                kubernetes_executor.execute_async(key=workload.ti.key, queue=None, command=[workload])
+                kubernetes_executor.sync()
+
+                mock_kube_client.create_namespaced_secret.assert_called_once()
+                secret_name = mock_kube_client.create_namespaced_secret.call_args[1]["body"].metadata.name
+                mock_kube_client.delete_namespaced_secret.assert_called_once_with(secret_name, "default")
             finally:
                 kubernetes_executor.end()
 

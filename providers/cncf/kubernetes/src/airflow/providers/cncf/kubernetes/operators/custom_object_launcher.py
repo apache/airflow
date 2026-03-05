@@ -364,5 +364,5 @@ class CustomObjectLauncher(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if str(e.status) != "404":
+            if e.status != 404:
                 raise

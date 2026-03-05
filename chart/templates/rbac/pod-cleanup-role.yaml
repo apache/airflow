@@ -41,4 +41,11 @@ rules:
     verbs:
       - "list"
       - "delete"
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "list"
+      - "delete"
 {{- end }}
