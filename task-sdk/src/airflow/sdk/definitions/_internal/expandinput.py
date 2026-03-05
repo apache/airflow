@@ -30,8 +30,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
 
-ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
-
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
 OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, Any]]
@@ -79,8 +77,37 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+class ExpandInput(ResolveMixin):
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        raise NotImplementedError()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        raise NotImplementedError()
+
+
+class DecoratedExpandInput(ExpandInput):
+    def __init__(self, expand_input: ExpandInput):
+        self.delegate = expand_input
+
+    @property
+    def value(self):
+        return self.delegate.value
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return self.delegate.iter_references()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        return map(
+            lambda value: {"op_kwargs": value},
+            self.delegate.iter_values(context=context),
+        )
+
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        return self.delegate.resolve(context=context)
+
+
 @attrs.define(kw_only=True)
-class MappedArgument(ResolveMixin):
+class MappedArgument(ExpandInput):
     """
     Stand-in stub for task-group-mapping arguments.
 
@@ -101,13 +128,16 @@ class MappedArgument(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        return self._input.iter_values(context)
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         data, _ = self._input.resolve(context)
         return data[self._key]
 
 
 @attrs.define()
-class DictOfListsExpandInput(ResolveMixin):
+class DictOfListsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -184,6 +214,19 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        for key, value in self.value.items():
+            if isinstance(value, XComArg):
+                value = value.iter_values(context=context)
+
+            if not isinstance(value, (Sequence, Iterable)) or isinstance(
+                    value, str
+            ):
+                yield {key: value}
+            else:
+                for item in value:
+                    yield {key: item}
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -217,7 +260,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define()
-class ListOfDictsExpandInput(ResolveMixin):
+class ListOfDictsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -237,6 +280,11 @@ class ListOfDictsExpandInput(ResolveMixin):
             for x in self.value:
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        if isinstance(self.value, XComArg):
+            return self.value.iter_values(context)
+        return self.value
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index

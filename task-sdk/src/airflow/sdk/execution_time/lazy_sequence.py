@@ -166,6 +166,60 @@ class LazyXComSequence(Sequence[T]):
         return XCom.deserialize_value(_XComWrapper(msg.root))
 
 
+@attrs.define
+class XComIterable(Sequence):
+    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    length: int
+    index: int = 0
+
+    def __iter__(self) -> Iterator:
+        self.index = 0
+        return self
+
+    def __next__(self):
+        if self.index >= self.length:
+            raise StopIteration
+
+        value = self[self.index]
+        self.index += 1
+        return value
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index: int):
+        """Allows direct indexing, making this work like a sequence."""
+        if not (0 <= index < self.length):
+            raise IndexError
+
+        from airflow.sdk.execution_time.xcom import XCom
+
+        return XCom.get_one(
+            key=f"{self.task_id}_{index}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+        )
+
+    def serialize(self):
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "length": self.length,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
 def _coerce_slice_index(value: Any) -> int | None:
     """
     Check slice attribute's type and convert it to int.
