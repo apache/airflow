@@ -39,11 +39,11 @@ from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOpera
 from airflow.sdk.definitions._internal.expandinput import ExpandInput
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.definitions.xcom_arg import XComArg, MapXComArg  # noqa: F401
+from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException
-from airflow.sdk.execution_time.executor import _execute_async_task, HybridExecutor, collect_futures
+from airflow.sdk.execution_time.executor import HybridExecutor, _execute_async_task, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _execute_task, MappedTaskInstance
+from airflow.sdk.execution_time.task_runner import MappedTaskInstance, RuntimeTaskInstance, _execute_task
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -240,9 +240,7 @@ class IterableOperator(BaseOperator):
         self._number_of_tasks += 1
         return self._operator.unmap(mapped_kwargs)
 
-    def _xcom_push(
-        self, context: Context, task: RuntimeTaskInstance, value: Any
-    ) -> None:
+    def _xcom_push(self, context: Context, task: RuntimeTaskInstance, value: Any) -> None:
         self.log.debug("Pushing XCom %s", task.map_index)
 
         context["ti"].xcom_push(key=task.xcom_key, value=value)
@@ -265,9 +263,7 @@ class IterableOperator(BaseOperator):
             with HybridExecutor(loop=loop, max_workers=self.max_workers) as executor:
                 for task in next(chunked_tasks, []):
                     if task.is_async:
-                        future = executor.submit(
-                            self._run_async_operator, context, task
-                        )
+                        future = executor.submit(self._run_async_operator, context, task)
                     else:
                         future = executor.submit(self._run_operator, context, task)
                     futures[future] = task
@@ -304,20 +300,14 @@ class IterableOperator(BaseOperator):
                                 operator=task.task, task_deferred=task_deferred
                             )
                             failed_tasks.append(
-                                self._create_mapped_task(
-                                    task.run_id, task.map_index, operator
-                                )
+                                self._create_mapped_task(task.run_id, task.map_index, operator)
                             )
                         except asyncio.TimeoutError as e:
-                            self.log.warning(
-                                "A timeout occurred for task_id %s", task.task_id
-                            )
+                            self.log.warning("A timeout occurred for task_id %s", task.task_id)
                             if task.next_try_number > self.retries:
                                 exception = AirflowTaskTimeout(e)
                             else:
-                                reschedule_date = min(
-                                    reschedule_date, task.next_retry_datetime()
-                                )
+                                reschedule_date = min(reschedule_date, task.next_retry_datetime())
                                 failed_tasks.append(task)
                         except AirflowRescheduleTaskInstanceException as e:
                             reschedule_date = min(reschedule_date, e.reschedule_date)
@@ -339,13 +329,9 @@ class IterableOperator(BaseOperator):
                     if len(futures) < self.max_workers:
                         for task in next(chunked_tasks, []):
                             if task.is_async:
-                                future = executor.submit(
-                                    self._run_async_operator, context, task
-                                )
+                                future = executor.submit(self._run_async_operator, context, task)
                             else:
-                                future = executor.submit(
-                                    self._run_operator, context, task
-                                )
+                                future = executor.submit(self._run_operator, context, task)
                             futures[future] = task
                     elif not ready_futures and futures:
                         sleep(len(futures) * 0.1)
@@ -390,9 +376,7 @@ class IterableOperator(BaseOperator):
                 }
             )
 
-    async def _run_async_operator(
-        self, context: Context, task_instance: RuntimeTaskInstance
-    ):
+    async def _run_async_operator(self, context: Context, task_instance: RuntimeTaskInstance):
         async with TaskExecutor(task_instance=task_instance) as executor:
             return await executor.arun(
                 context={
@@ -413,13 +397,9 @@ class IterableOperator(BaseOperator):
     ) -> MappedTaskInstance:
         run_id = context["ti"].run_id
         operator = self._unmap_operator(mapped_kwargs)
-        return self._create_mapped_task(
-            run_id=run_id, map_index=map_index, operator=operator
-        )
+        return self._create_mapped_task(run_id=run_id, map_index=map_index, operator=operator)
 
-    def _create_mapped_task(
-        self, run_id: str, map_index: int, operator: BaseOperator
-    ) -> MappedTaskInstance:
+    def _create_mapped_task(self, run_id: str, map_index: int, operator: BaseOperator) -> MappedTaskInstance:
         return MappedTaskInstance.model_construct(
             task_id=operator.task_id,
             dag_id=operator.dag_id,

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
@@ -77,7 +78,15 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
-class ExpandInput(ResolveMixin):
+class ExpandInput(ABC, ResolveMixin):
+    EXPAND_INPUT_TYPE: ClassVar[str]
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The value of the expand input."""
+        ...
+
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         raise NotImplementedError()
 
@@ -90,7 +99,7 @@ class DecoratedExpandInput(ExpandInput):
         self.delegate = expand_input
 
     @property
-    def value(self):
+    def value(self) -> Any:
         return self.delegate.value
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
@@ -117,6 +126,10 @@ class MappedArgument(ExpandInput):
 
     _input: ExpandInput = attrs.field()
     _key: str
+
+    @property
+    def value(self) -> ExpandInput:
+        return self._input
 
     @_input.validator
     def _validate_input(self, _, input):
@@ -219,9 +232,7 @@ class DictOfListsExpandInput(ExpandInput):
             if isinstance(value, XComArg):
                 value = value.iter_values(context=context)
 
-            if not isinstance(value, (Sequence, Iterable)) or isinstance(
-                    value, str
-            ):
+            if not isinstance(value, (Sequence, Iterable)) or isinstance(value, str):
                 yield {key: value}
             else:
                 for item in value:

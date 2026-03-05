@@ -52,9 +52,7 @@ def collect_futures(loop: AbstractEventLoop, futures: list[Any]):
     if async_tasks:
         for task, result in zip(
             async_tasks,
-            loop.run_until_complete(
-                asyncio.gather(*async_tasks, return_exceptions=True)
-            ),
+            loop.run_until_complete(asyncio.gather(*async_tasks, return_exceptions=True)),
         ):
             yield task
 
@@ -115,16 +113,9 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
     outlet_events = context_get_outlet_events(context)
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(
-            context
-        )
-    if (
-        getattr(pre_execute_hook := task.pre_execute, "__func__", None)
-        is not BaseOperator.pre_execute
-    ):
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(
-            context
-        )
+        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
@@ -133,9 +124,7 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
         coro_in_ctx = ctx.run(lambda: coro_func(*args, **kwargs))
 
         if task.execution_timeout:
-            return await asyncio.wait_for(
-                coro_in_ctx, timeout=task.execution_timeout.total_seconds()
-            )
+            return await asyncio.wait_for(coro_in_ctx, timeout=task.execution_timeout.total_seconds())
         return await coro_in_ctx
 
     try:
@@ -145,15 +134,8 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
         raise
 
     if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(
-            context, result
-        )
-    if (
-        getattr(post_execute_hook := task.post_execute, "__func__", None)
-        is not BaseOperator.post_execute
-    ):
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(
-            context
-        )
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result

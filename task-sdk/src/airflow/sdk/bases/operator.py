@@ -1666,7 +1666,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
-
         if next_kwargs is None:
             next_kwargs = {}
 

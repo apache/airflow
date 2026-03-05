@@ -202,7 +202,7 @@ class OperatorPartial:
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> IterableOperator:
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         if isinstance(kwargs, Sequence):
@@ -213,41 +213,31 @@ class OperatorPartial:
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
-    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
         if not mapped_kwargs:
             raise TypeError("no arguments to iterate against")
         validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
-        prevent_duplicates(
-            self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
-        )
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
         expand_input = DictOfListsExpandInput(mapped_kwargs)
-        operator = self._expand(
-            expand_input, strict=False, apply_upstream_relationship=False
-        )
+        operator = self._expand(expand_input, strict=False, apply_upstream_relationship=False)
         return IterableOperator(operator=operator, expand_input=expand_input)
 
-    def iterate_kwargs(
-        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
-    ) -> MappedOperator:
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(
-                        f"expected XComArg or list[dict], not {type(kwargs).__name__}"
-                    )
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
-            raise TypeError(
-                f"expected XComArg or list[dict], not {type(kwargs).__name__}"
-            )
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         expand_input = ListOfDictsExpandInput(kwargs)
-        operator = self._expand(
-            expand_input, strict=strict, apply_upstream_relationship=False
-        )
+        operator = self._expand(expand_input, strict=strict, apply_upstream_relationship=False)
         return IterableOperator(operator=operator, expand_input=expand_input)
 
-    def _expand(self, expand_input: ExpandInput, *, strict: bool, apply_upstream_relationship: bool = True) -> MappedOperator:
+    def _expand(
+        self, expand_input: ExpandInput, *, strict: bool, apply_upstream_relationship: bool = True
+    ) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sdk import BaseSensorOperator
         from airflow.sdk.bases.skipmixin import SkipMixin

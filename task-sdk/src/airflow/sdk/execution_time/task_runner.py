@@ -691,9 +691,7 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         run_id: str | None = None,
     ) -> Any:
         key = f"{self.task_id}_{self.dag_id}_{key}"
-        if map_indexes is not None and (
-            not isinstance(map_indexes, int) or map_indexes >= 0
-        ):
+        if map_indexes is not None and (not isinstance(map_indexes, int) or map_indexes >= 0):
             key += f"_{map_indexes}"
         return self.xcoms.get(key, default)
 
@@ -723,9 +721,7 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(
-                    delay.total_seconds() * (2 ** (self.try_number - 1))
-                )
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(

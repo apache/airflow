@@ -555,9 +555,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("expand", map_kwargs)
-        prevent_duplicates(
-            self.kwargs, map_kwargs, fail_reason="mapping already partial"
-        )
+        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
         if self.is_teardown:
@@ -571,14 +569,10 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(
-                operator=op.operator, expand_input=DecoratedExpandInput(expand_input)
-            )
+            operator=IterableOperator(operator=op.operator, expand_input=DecoratedExpandInput(expand_input))
         )
 
-    def iterate_kwargs(
-        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
-    ) -> XComArg:
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         if (
             self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS
             and not isinstance(kwargs, XComArg)
@@ -597,13 +591,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(
-                        f"expected XComArg or list[dict], not {type(kwargs).__name__}"
-                    )
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
-            raise TypeError(
-                f"expected XComArg or list[dict], not {type(kwargs).__name__}"
-            )
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         expand_input = ListOfDictsExpandInput(kwargs)
         op = self._expand(
             expand_input,
@@ -611,12 +601,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(
-                operator=op.operator, expand_input=DecoratedExpandInput(expand_input)
-            )
+            operator=IterableOperator(operator=op.operator, expand_input=DecoratedExpandInput(expand_input))
         )
 
-    def _expand(self, expand_input: ExpandInput, *, strict: bool, apply_upstream_relationship: bool = True) -> XComArg:
+    def _expand(
+        self, expand_input: ExpandInput, *, strict: bool, apply_upstream_relationship: bool = True
+    ) -> XComArg:
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
