@@ -72,7 +72,7 @@ class ConnectionTest(Base):
     )
     executor: Mapped[str | None] = mapped_column(String(256), nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    connection_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    connection_snapshot: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     reverted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     __table_args__ = (Index("idx_connection_test_state_created_at", state, created_at),)
