@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, Security, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -59,7 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -78,10 +78,10 @@ if TYPE_CHECKING:
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
+    route_class=ExecutionAPIRoute,
     dependencies=[
-        # This checks that the UUID in the url matches the one in the token for us.
-        JWTBearerTIPathDep
-    ]
+        Security(require_auth, scopes=["ti:self"]),
+    ],
 )
 
 
