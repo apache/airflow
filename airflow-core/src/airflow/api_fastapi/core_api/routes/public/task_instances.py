@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -89,6 +89,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -481,7 +482,14 @@ def get_task_instances(
     """
     dag_run = None
     query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+        select(TI)
+        .join(TI.dag_run)
+        .outerjoin(TI.dag_version)
+        .options(
+            contains_eager(TI.dag_run).joinedload(DagRun.dag_model),
+            contains_eager(TI.dag_version).joinedload(DagVersion.bundle),
+            joinedload(TI.task_instance_note),
+        )
     )
     if dag_run_id != "~":
         if dag_id == "~":

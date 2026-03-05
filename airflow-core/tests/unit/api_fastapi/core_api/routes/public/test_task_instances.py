@@ -1514,6 +1514,17 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
 
+    def test_query_count_is_bounded(self, test_client, session):
+        """Regression test for #62027: get_task_instances must not emit duplicate JOINs.
+
+        Expected: 1 auth query + 1 COUNT + 1 main SELECT (dag_run, dag_version,
+        task_instance_note all eager-loaded via JOIN) = 3 queries total.
+        """
+        self.create_task_instances(session)
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances")
+        assert response.status_code == 200
+
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
             "example_python_operator": 1,
