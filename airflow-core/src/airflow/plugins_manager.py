@@ -103,22 +103,15 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
             if plugin_name in loaded_plugins:
                 existing_source = loaded_plugins[plugin_name]
-                duplicate_source_suffix = (
-                    f" from {existing_source}" if existing_source else ""
-                )
+                duplicate_source_suffix = f" from {existing_source}" if existing_source else ""
                 log.warning(
                     "Plugin %r already registered%s, skipping",
                     plugin_name,
                     duplicate_source_suffix,
                 )
                 error_name = plugin_source or plugin_name or ""
-                import_errors[error_name] = (
-                    f"Plugin {plugin_name!r} is already registered"
-                    + (
-                        f" (existing source: {existing_source})"
-                        if existing_source
-                        else ""
-                    )
+                import_errors[error_name] = f"Plugin {plugin_name!r} is already registered" + (
+                    f" (existing source: {existing_source})" if existing_source else ""
                 )
                 continue
 
