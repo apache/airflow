@@ -208,7 +208,7 @@ packages = []
     "apache-airflow-providers-edge3>=1.0.0"
 ]
 "elasticsearch" = [
-    "apache-airflow-providers-elasticsearch>=5.5.2"
+    "apache-airflow-providers-elasticsearch>=6.5.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "exasol" = [
     "apache-airflow-providers-exasol>=4.6.1"
@@ -428,7 +428,7 @@ packages = []
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
     "apache-airflow-providers-edge3>=1.0.0",
-    "apache-airflow-providers-elasticsearch>=5.5.2",
+    "apache-airflow-providers-elasticsearch>=6.5.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
     "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
