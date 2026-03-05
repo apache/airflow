@@ -838,7 +838,7 @@ def test_encode_product_mapper():
     from airflow.sdk import HourlyMapper, IdentityMapper, ProductMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper([IdentityMapper(), HourlyMapper()])
+    partition_mapper = ProductMapper(IdentityMapper(), HourlyMapper())
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
@@ -866,7 +866,7 @@ def test_decode_product_mapper():
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper([HourlyMapper(), DailyMapper()])
+    partition_mapper = ProductMapper(HourlyMapper(), DailyMapper())
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)

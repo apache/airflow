@@ -163,7 +163,7 @@ with DAG(
     dag_id="aggregate_regional_sales",
     schedule=PartitionedAssetTimetable(
         assets=regional_sales,
-        default_partition_mapper=ProductMapper([IdentityMapper(), DailyMapper()]),
+        default_partition_mapper=ProductMapper(IdentityMapper(), DailyMapper()),
     ),
     catchup=False,
     tags=["sales", "aggregation"],

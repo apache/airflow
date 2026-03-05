@@ -26,40 +26,32 @@ from airflow.partition_mappers.temporal import DailyMapper, HourlyMapper
 
 class TestProductMapper:
     def test_to_downstream(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper())
         assert pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00") == "2024-01-15T10|2024-01-15"
 
     def test_to_downstream_wrong_segment_count(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper())
         with pytest.raises(ValueError, match="Expected 2 segments"):
             pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00|extra")
 
     def test_to_downstream_single_segment_for_two_mappers(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper())
         with pytest.raises(ValueError, match="Expected 2 segments"):
             pm.to_downstream("2024-01-15T10:30:00")
 
-    def test_requires_at_least_two_mappers(self):
-        with pytest.raises(ValueError, match="at least 2"):
-            ProductMapper([HourlyMapper()])
-
-    def test_requires_at_least_two_mappers_empty(self):
-        with pytest.raises(ValueError, match="at least 2"):
-            ProductMapper([])
-
     def test_custom_delimiter(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()], delimiter="::")
+        pm = ProductMapper(HourlyMapper(), DailyMapper(), delimiter="::")
         assert pm.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00") == "2024-01-15T10::2024-01-15"
 
     def test_custom_delimiter_wrong_segment_count(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()], delimiter="::")
+        pm = ProductMapper(HourlyMapper(), DailyMapper(), delimiter="::")
         with pytest.raises(ValueError, match="Expected 2 segments"):
             pm.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00::extra")
 
     def test_serialize(self):
         from airflow.serialization.encoders import encode_partition_mapper
 
-        pm = ProductMapper([HourlyMapper(), DailyMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper())
         result = pm.serialize()
         assert result == {
             "delimiter": "|",
@@ -72,7 +64,7 @@ class TestProductMapper:
     def test_serialize_custom_delimiter(self):
         from airflow.serialization.encoders import encode_partition_mapper
 
-        pm = ProductMapper([HourlyMapper(), DailyMapper()], delimiter="::")
+        pm = ProductMapper(HourlyMapper(), DailyMapper(), delimiter="::")
         result = pm.serialize()
         assert result == {
             "delimiter": "::",
@@ -83,7 +75,7 @@ class TestProductMapper:
         }
 
     def test_deserialize(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper())
         serialized = pm.serialize()
         restored = ProductMapper.deserialize(serialized)
         assert isinstance(restored, ProductMapper)
@@ -92,7 +84,7 @@ class TestProductMapper:
         assert restored.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00") == "2024-01-15T10|2024-01-15"
 
     def test_deserialize_custom_delimiter(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper()], delimiter="::")
+        pm = ProductMapper(HourlyMapper(), DailyMapper(), delimiter="::")
         serialized = pm.serialize()
         restored = ProductMapper.deserialize(serialized)
         assert isinstance(restored, ProductMapper)
@@ -115,7 +107,7 @@ class TestProductMapper:
         assert restored.delimiter == "|"
 
     def test_three_mappers(self):
-        pm = ProductMapper([HourlyMapper(), DailyMapper(), IdentityMapper()])
+        pm = ProductMapper(HourlyMapper(), DailyMapper(), IdentityMapper())
         assert (
             pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00|raw") == "2024-01-15T10|2024-01-15|raw"
         )

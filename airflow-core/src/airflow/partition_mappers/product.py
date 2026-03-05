@@ -25,10 +25,15 @@ from airflow.partition_mappers.base import PartitionMapper
 class ProductMapper(PartitionMapper):
     """Partition mapper that combines multiple mappers into a multi-dimensional key."""
 
-    def __init__(self, mappers: list[PartitionMapper], delimiter: str = "|") -> None:
-        if len(mappers) < 2:
-            raise ValueError("ProductMapper requires at least 2 child mappers")
-        self.mappers = mappers
+    def __init__(
+        self,
+        mapper0: PartitionMapper,
+        mapper1: PartitionMapper,
+        /,
+        *mappers: PartitionMapper,
+        delimiter: str = "|",
+    ) -> None:
+        self.mappers = [mapper0, mapper1, *mappers]
         self.delimiter = delimiter
 
     def to_downstream(self, key: str) -> str:
@@ -58,7 +63,5 @@ class ProductMapper(PartitionMapper):
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         from airflow.serialization.decoders import decode_partition_mapper
 
-        return cls(
-            mappers=[decode_partition_mapper(m) for m in data["mappers"]],
-            delimiter=data.get("delimiter", "|"),
-        )
+        mappers = [decode_partition_mapper(m) for m in data["mappers"]]
+        return cls(*mappers, delimiter=data.get("delimiter", "|"))
