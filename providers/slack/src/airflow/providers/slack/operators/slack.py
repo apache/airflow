@@ -126,9 +126,11 @@ class SlackAPIPostOperator(SlackAPIOperator):
         See https://api.slack.com/reference/block-kit/blocks
     :param attachments: (legacy) A list of attachments to send with the message. (templated)
         See https://api.slack.com/docs/attachments
+    :param thread_ts: Provide another message's ``ts`` value to make this message a reply in a
+        thread. See https://api.slack.com/messaging#threading (templated)
     """
 
-    template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
+    template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel", "thread_ts")
     ui_color = "#FFBA40"
 
     def __init__(
@@ -145,6 +147,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         ),
         blocks: list | None = None,
         attachments: list | None = None,
+        thread_ts: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(method="chat.postMessage", **kwargs)
@@ -154,6 +157,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.icon_url = icon_url
         self.attachments = attachments or []
         self.blocks = blocks or []
+        self.thread_ts = thread_ts
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {
@@ -164,6 +168,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
             "attachments": json.dumps(self.attachments),
             "blocks": json.dumps(self.blocks),
         }
+        if self.thread_ts is not None:
+            self.api_params["thread_ts"] = self.thread_ts
 
 
 class SlackAPIFileOperator(SlackAPIOperator):
@@ -215,6 +221,8 @@ class SlackAPIFileOperator(SlackAPIOperator):
         derived from ``filename``. (templated)
     :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
+    :param thread_ts: Provide another message's ``ts`` value to upload the file as a reply in a
+        thread. See https://api.slack.com/messaging#threading (templated)
     """
 
     template_fields: Sequence[str] = (
@@ -226,6 +234,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         "title",
         "display_filename",
         "snippet_type",
+        "thread_ts",
     )
     ui_color = "#44BEDF"
 
@@ -240,6 +249,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         display_filename: str | None = None,
         method_version: Literal["v1", "v2"] | None = None,
         snippet_type: str | None = None,
+        thread_ts: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(method="files.upload", **kwargs)
@@ -252,6 +262,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.display_filename = display_filename
         self.method_version = method_version
         self.snippet_type = snippet_type
+        self.thread_ts = thread_ts
 
         if self.filetype:
             warnings.warn(
@@ -277,4 +288,5 @@ class SlackAPIFileOperator(SlackAPIOperator):
             initial_comment=self.initial_comment,
             title=self.title,
             snippet_type=self.snippet_type,
+            thread_ts=self.thread_ts,
         )

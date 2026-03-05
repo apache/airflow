@@ -23,6 +23,18 @@ import pytest
 from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 class TestLLMDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMDecoratedOperator.custom_operator_name == "@task.llm"
@@ -31,9 +43,7 @@ class TestLLMDecoratedOperator:
     def test_execute_calls_callable_and_returns_output(self, mock_hook_cls):
         """The callable's return value becomes the LLM prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "This is a summary."
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("This is a summary.")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         def my_prompt():
@@ -65,9 +75,7 @@ class TestLLMDecoratedOperator:
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "done"
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("done")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(topic):
