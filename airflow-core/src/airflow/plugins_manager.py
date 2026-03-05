@@ -94,15 +94,35 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
     plugins: list[AirflowPlugin] = []
     import_errors: dict[str, str] = {}
-    loaded_plugins: set[str | None] = set()
+    loaded_plugins: dict[str | None, str | None] = {}
 
     def __register_plugins(plugin_instances: list[AirflowPlugin], errors: dict[str, str]) -> None:
         for plugin_instance in plugin_instances:
-            if plugin_instance.name in loaded_plugins:
-                log.warning("Plugin %r already registered, skipping", plugin_instance.name)
+            plugin_name = plugin_instance.name
+            plugin_source = str(plugin_instance.source) if plugin_instance.source else None
+
+            if plugin_name in loaded_plugins:
+                existing_source = loaded_plugins[plugin_name]
+                duplicate_source_suffix = (
+                    f" from {existing_source}" if existing_source else ""
+                )
+                log.warning(
+                    "Plugin %r already registered%s, skipping",
+                    plugin_name,
+                    duplicate_source_suffix,
+                )
+                error_name = plugin_source or plugin_name or ""
+                import_errors[error_name] = (
+                    f"Plugin {plugin_name!r} is already registered"
+                    + (
+                        f" (existing source: {existing_source})"
+                        if existing_source
+                        else ""
+                    )
+                )
                 continue
 
-            loaded_plugins.add(plugin_instance.name)
+            loaded_plugins[plugin_name] = plugin_source
             try:
                 plugin_instance.on_load()
                 plugins.append(plugin_instance)
