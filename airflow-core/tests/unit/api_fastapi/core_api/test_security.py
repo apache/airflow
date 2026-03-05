@@ -269,7 +269,7 @@ class TestFastApiSecurity:
         session.scalars.return_value.one_or_none.return_value = backfill
 
         request = Mock()
-        request.path_params = {"backfill_id": 42}
+        request.path_params = {"backfill_id": "42"}
         request.json = AsyncMock(return_value={})
 
         user = Mock()
@@ -333,7 +333,7 @@ class TestFastApiSecurity:
         session.scalars.return_value.one_or_none.return_value = backfill
 
         request = Mock()
-        request.path_params = {"backfill_id": 1}
+        request.path_params = {"backfill_id": "1"}
         user = Mock()
 
         inner = requires_access_backfill("GET")
@@ -364,7 +364,7 @@ class TestFastApiSecurity:
         session.scalars.return_value.one_or_none.return_value = None
 
         request = Mock()
-        request.path_params = {"backfill_id": 999}
+        request.path_params = {"backfill_id": "999"}
         request.json = AsyncMock(return_value={"dag_id": "fallback_dag_id"})
 
         user = Mock()
