@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 import attrs
 import structlog
 
+from airflow.sdk.execution_time.xcom import XCom
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -166,37 +168,25 @@ class LazyXComSequence(Sequence[T]):
         return XCom.deserialize_value(_XComWrapper(msg.root))
 
 
-@attrs.define
 class XComIterable(Sequence):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
-    task_id: str
-    dag_id: str
-    run_id: str
-    length: int
-    index: int = 0
+    def __init__(self, task_id: str, dag_id: str, run_id: str, length: int):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.length = length
 
     def __iter__(self) -> Iterator:
-        self.index = 0
-        return self
+        return _XComIterator(self)
 
-    def __next__(self):
-        if self.index >= self.length:
-            raise StopIteration
-
-        value = self[self.index]
-        self.index += 1
-        return value
-
-    def __len__(self):
+    def __len__(self) -> int:
         return self.length
 
     def __getitem__(self, index: int):
         """Allow direct indexing so this works like a sequence."""
         if not (0 <= index < self.length):
-            raise IndexError
-
-        from airflow.sdk.execution_time.xcom import XCom
+            raise IndexError(index)
 
         return XCom.get_one(
             key=f"{self.task_id}_{index}",
@@ -205,7 +195,7 @@ class XComIterable(Sequence):
             run_id=self.run_id,
         )
 
-    def serialize(self):
+    def serialize(self) -> dict:
         """Ensure the object is JSON serializable."""
         return {
             "task_id": self.task_id,
@@ -218,6 +208,25 @@ class XComIterable(Sequence):
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
         return XComIterable(**data)
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value
 
 
 def _coerce_slice_index(value: Any) -> int | None:
