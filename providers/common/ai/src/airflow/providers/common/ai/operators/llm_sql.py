@@ -157,7 +157,7 @@ class LLMSQLQueryOperator(LLMOperator):
         self.log.info("Generated SQL:\n%s", sql)
 
         if self.require_approval:
-            self.defer_for_approval(context, sql)
+            self.defer_for_approval(context, sql)  # type: ignore[misc]
 
         return sql
 
