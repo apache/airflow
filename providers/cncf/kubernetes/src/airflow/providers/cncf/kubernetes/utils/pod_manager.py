@@ -867,14 +867,12 @@ class PodManager(LoggingMixin):
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except ApiException as e:
             if e.status == 404:
-                raise KubernetesApiException(
-                    f"Pod '{pod.metadata.name}' was not found. "
-                    "This can occur if the pod was preempted or deleted by the cluster."
-                ) from e
+                self.log.warning("Pod %s not found (404)", pod.metadata.name)
+                raise
+
             raise KubernetesApiException(
                 f"There was an error reading the kubernetes API: {e}"
             ) from e
-
 
     def await_xcom_sidecar_container_start(
         self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
