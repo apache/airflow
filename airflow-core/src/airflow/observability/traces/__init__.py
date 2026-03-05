@@ -77,7 +77,9 @@ def _get_backcompat_config() -> tuple[str | None, Resource | None]:
             resource = Resource({"service.name": service_name})
 
     endpoint = None
-    if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+    if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") and not os.environ.get(
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+    ):
         # this is only for backcompat!
         host = conf.get("traces", "otel_host", fallback=None)
         port = conf.get("traces", "otel_port", fallback=None)

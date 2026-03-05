@@ -317,7 +317,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_worker_and_scheduler()
+            scheduler_process, apiserver_process = self.start_scheduler()
 
             dag_id = "otel_test_dag"
 
@@ -441,7 +441,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_worker_and_scheduler()
+            scheduler_process, apiserver_process = self.start_scheduler()
 
             dag_id = "otel_test_dag"
 
@@ -513,7 +513,7 @@ class TestOtelIntegration:
             "dag_run.otel_test_dag": None,
         }
 
-    def start_worker_and_scheduler(self):
+    def start_scheduler(self):
         scheduler_process = subprocess.Popen(
             self.scheduler_command_args,
             env=os.environ.copy(),
