@@ -27,6 +27,7 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -462,7 +463,6 @@ class TestLLMSQLQueryOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_defers(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """When require_approval=True, execute() defers after generating and validating SQL."""
-        from airflow.sdk.exceptions import TaskDeferred
 
         mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
             "SELECT id FROM users WHERE active"
@@ -511,7 +511,6 @@ class TestLLMSQLQueryOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_modifications(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """allow_modifications=True passes editable params."""
-        from airflow.sdk.exceptions import TaskDeferred
 
         mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("SELECT 1")
 
@@ -535,7 +534,6 @@ class TestLLMSQLQueryOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_timeout(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """approval_timeout is propagated to the trigger."""
-        from airflow.sdk.exceptions import TaskDeferred
 
         mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("SELECT 1")
         timeout = timedelta(minutes=30)
@@ -574,7 +572,6 @@ class TestLLMSQLQueryOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_strips_code_fences_before_deferring(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """Markdown code fences are stripped from LLM output before deferring."""
-        from airflow.sdk.exceptions import TaskDeferred
 
         mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("```sql\nSELECT 1\n```")
 
