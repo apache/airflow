@@ -369,11 +369,25 @@ export class BackfillPage extends BasePage {
   }
 
   public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {
-    const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/pause`, {
-      timeout: 30_000,
-    });
+    // Retry: the server may not have fully initialized the backfill yet.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/pause`, {
+        timeout: 30_000,
+      });
 
-    return response.ok();
+      if (response.ok()) {
+        return true;
+      }
+
+      // 409 means the backfill already completed — not retriable.
+      if (response.status() === 409) {
+        return false;
+      }
+
+      await this.page.waitForTimeout(2000);
+    }
+
+    return false;
   }
 
   public async selectReprocessBehavior(behavior: ReprocessBehaviorApi): Promise<void> {
