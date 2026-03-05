@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -71,8 +72,8 @@ def _make_plan() -> DQPlan:
     )
 
 
-def _make_operator(**overrides) -> LLMDataQualityOperator:
-    defaults = dict(
+def _make_operator(**overrides: Any) -> LLMDataQualityOperator:
+    defaults: dict[str, Any] = dict(
         task_id="test_dq",
         prompts=_PROMPTS,
         llm_conn_id="pydantic_ai_default",

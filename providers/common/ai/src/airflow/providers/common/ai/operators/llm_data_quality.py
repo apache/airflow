@@ -109,8 +109,8 @@ class LLMDataQualityOperator(LLMOperator):
         validators: dict[str, Callable[[Any], bool]] | None = None,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
-        dry_run: bool = False,
         prompt_version: str | None = None,
+        dry_run: bool = False,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
@@ -124,8 +124,8 @@ class LLMDataQualityOperator(LLMOperator):
         self.validators = validators or {}
         self.dialect = dialect
         self.datasource_config = datasource_config
-        self.dry_run = dry_run
         self.prompt_version = prompt_version
+        self.dq_dry_run = dry_run
 
         self._validate_validator_keys()
 
@@ -159,7 +159,7 @@ class LLMDataQualityOperator(LLMOperator):
 
         plan = self._load_or_generate_plan(planner, schema_ctx)
 
-        if self.dry_run:
+        if self.dq_dry_run:
             self.log.info(
                 "dry_run=True — skipping execution. Plan contains %d group(s), %d check(s).",
                 len(plan.groups),
