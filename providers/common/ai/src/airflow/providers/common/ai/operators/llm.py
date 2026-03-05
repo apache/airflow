@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.mixins.approval import LLMHITLApprovalMixin, LLMApprovalMixin
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseOperator
 
@@ -104,10 +104,11 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         log_run_summary(self.log, result)
         output = result.output
 
+        if self.require_approval:
+            self.defer_for_approval(context, output)
+
         if isinstance(output, BaseModel):
             output = output.model_dump()
 
-        if self.require_approval:
-            self.defer_for_approval(context, output, allow_modifications=self.allow_modifications)
 
         return output

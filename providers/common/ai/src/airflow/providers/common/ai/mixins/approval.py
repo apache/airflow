@@ -17,103 +17,157 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from logging import Logger
+from typing import TYPE_CHECKING, Any, Protocol
+
+from pydantic import BaseModel
+
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
+class ApprovalFailedException(AirflowException):
+    """Failed to approve"""
+    pass
+
+class ApprovalRejectionException(AirflowException):
+    """Rejected by the reviewer"""
+
+class DeferForApprovalProtocol(Protocol):
+    approval_timeout: timedelta | None
+    allow_modifications: bool
+    prompt: str
+    task_id: str
+    defer: Any
+
+class ExecuteCompleteProtocol(Protocol):
+    allow_modifications: bool
+    log: Logger
+
 
 class LLMApprovalMixin:
     """
-    Mixin that pauses an LLM operator for human review before returning output.
+    Mixin that pauses an operator for human review before returning output.
     """
 
     APPROVE = "Approve"
     REJECT = "Reject"
-    allow_modifications: bool = False
-    approval_timeout: timedelta | None = None
-    prompt: str | None = None
 
-    @staticmethod
-    def _approval_subject(task_id: str | None = None) -> str:
-        """Return the headline shown on the Required Actions page."""
-        return f"Review LLM output for task '{task_id}'"
+    def defer_for_approval(
+        self: DeferForApprovalProtocol,
+        context: Context,
+        output: Any,
+        *,
+        subject: str | None = None,
+        body: str | None = None,
+        params: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
+        """
+        Write HITL detail, then defer to HITLTrigger for human review.
 
-
-    def _approval_body(self) -> str:
-        """Return the Markdown body shown below the headline."""
-        return f"\n\nPrompt: {self.prompt}"
-
-    @staticmethod
-    def _approval_params(output: Any) -> dict[str, dict[str, Any]]:
-        """Return editable param definitions for the reviewer form."""
-
-        return {
-            "output": {
-                "value": str(output),
-                "description": "Edit the output before approving (optional).",
-                "schema": {"type": "string"},
-            },
-        }
-
-    def defer_for_approval(self,
-                           context: Context,
-                           output: Any,
-                           allow_modifications: bool = False
-                           ) -> None:
-        """Write HITL detail, then defer to HITLTrigger for human review."""
+        :param context: Airflow task context.
+        :param output: The generated output to present for review.
+        :param subject: Headline showed on the Required Actions page.
+            Defaults to a generic message including the task ID.
+        :param body: Markdown body shown below the headline.
+            Defaults to the prompt and output wrapped in a code block.
+        :param params: Editable param definitions for the reviewer form.
+            Only used when ``allow_modifications=True``. When ``None``,
+            defaults to a single ``"output"`` text field.
+        """
 
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
-        self.allow_modifications = allow_modifications
+        if isinstance(output, BaseModel):
+            output = output.model_dump()
+        else:
+            # Always make string output so that when comparing in the execute_complete matches
+            output = str(output)
+
+
         ti_id = context["task_instance"].id
         timeout_datetime = utcnow() + self.approval_timeout if self.approval_timeout else None
 
+        if subject is None:
+            subject = f"Review output for task `{self.task_id}`"
+
+        if body is None:
+            body = f"```\nPrompt: {self.prompt}\n\n{output}\n```"
+
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:
-            hitl_params = self._approval_params(output)
+            if params is not None:
+
+                # making it standard always so that in the execute_complete we can look for this field and return them.
+                if not params.get("output"):
+                    raise ValueError(
+                        "When `allow_modifications=True`, `params` must contain an `output` field."
+                    )
+
+                hitl_params = params
+            else:
+                hitl_params = {
+                    "output": {
+                        "value": output,
+                        "description": "Edit the output before approving (optional).",
+                        "schema": {"type": "string"},
+                    },
+                }
 
         upsert_hitl_detail(
             ti_id=ti_id,
-            options=[self.APPROVE, self.REJECT],
-            subject=self._approval_subject(task_id=context["task_instance"].task_id),
-            body=self._approval_body(),
+            options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
+            subject=subject,
+            body=body,
+            defaults=None,
+            multiple=False,
             params=hitl_params,
         )
 
-        self.defer(  # type: ignore[attr-defined]
+        self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
-                options=[self.APPROVE, self.REJECT],
+                options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
+                defaults=None,
                 params=hitl_params,
+                multiple=False,
                 timeout_datetime=timeout_datetime,
             ),
             method_name="execute_complete",
-            kwargs={"generated_output": str(output)},
+            kwargs={"generated_output": output, "allow_modifications": self.allow_modifications},
             timeout=self.approval_timeout,
         )
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
-        """
-        Resume after human review.
-        """
+    def execute_complete(self, context: Context, generated_output: str, allow_modifications: bool, event: dict[str, Any]) -> str:
+        """Resume after human review."""
+
         if "error" in event:
             error_type = event.get("error_type", "unknown")
-            error = event.get("error")
             if error_type == "timeout":
-                raise RuntimeError("Approval timed out: %s", error)
-            raise RuntimeError(f"Approval failed: %s", error)
+                raise TimeoutError(f"Approval timed out: {event['error']}")
+            raise ApprovalFailedException(f"Approval failed: {event['error']}")
 
+        responded_by_user = event.get("responded_by_user")
         chosen = event.get("chosen_options", [])
-        approver_details = event.get("responded_by_user")
         if self.APPROVE not in chosen:
-            raise RuntimeError("LLM output was rejected by the reviewer. %s", approver_details)
+            raise ApprovalRejectionException(f"Output was rejected by the reviewer {responded_by_user}.")
 
         output = generated_output
         params_input: dict[str, Any] = event.get("params_input") or {}
-        if self.allow_modifications and params_input:
-            return params_input.get("output")
+
+        if allow_modifications and params_input:
+            modified = params_input.get("output")
+            if not modified:
+                logging.info("No output modified by the reviewer=%s", responded_by_user)
+                return output
+
+            if modified != generated_output:
+                logging.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
+                return modified
+
         return output

@@ -16,10 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
+import pytest
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.mixins.approval import (
+    ApprovalFailedException,
+    ApprovalRejectionException,
+    LLMApprovalMixin,
+)
 from airflow.providers.common.ai.operators.llm import LLMOperator
 
 
@@ -85,3 +93,195 @@ class TestLLMOperator:
             retries=3,
             model_settings={"temperature": 0.9},
         )
+
+
+def _make_context(ti_id=None):
+    ti_id = ti_id or uuid4()
+    ti = MagicMock()
+    ti.id = ti_id
+    return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+class TestLLMOperatorApproval:
+    """Tests for LLMOperator with require_approval=True (LLMApprovalMixin integration)."""
+
+    def test_inherits_llm_approval_mixin(self):
+        assert issubclass(LLMOperator, LLMApprovalMixin)
+
+    def test_default_approval_flags(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        assert op.require_approval is False
+        assert op.allow_modifications is False
+        assert op.approval_timeout is None
+
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_with_approval_defers(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+        """When require_approval=True, execute() defers instead of returning output."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_result = MagicMock(spec=["output"])
+        mock_result.output = "LLM response"
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="approval_test",
+            prompt="Summarize this",
+            llm_conn_id="my_llm",
+            require_approval=True,
+        )
+        ctx = _make_context()
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=ctx)
+
+        assert exc_info.value.method_name == "execute_complete"
+        assert exc_info.value.kwargs["generated_output"] == "LLM response"
+        assert exc_info.value.kwargs["allow_modifications"] is False
+        mock_upsert.assert_called_once()
+
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_with_approval_and_modifications(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+        """allow_modifications=True passes an editable 'output' param."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_result = MagicMock(spec=["output"])
+        mock_result.output = "draft output"
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="mod_test",
+            prompt="Write a draft",
+            llm_conn_id="my_llm",
+            require_approval=True,
+            allow_modifications=True,
+        )
+        ctx = _make_context()
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=ctx)
+
+        assert exc_info.value.kwargs["allow_modifications"] is True
+        upsert_kwargs = mock_upsert.call_args[1]
+        assert "output" in upsert_kwargs["params"]
+
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_with_approval_and_timeout(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+        """approval_timeout is passed to the trigger."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_result = MagicMock(spec=["output"])
+        mock_result.output = "output"
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        timeout = timedelta(hours=1)
+        op = LLMOperator(
+            task_id="timeout_test",
+            prompt="p",
+            llm_conn_id="my_llm",
+            require_approval=True,
+            approval_timeout=timeout,
+        )
+        ctx = _make_context()
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=ctx)
+
+        assert exc_info.value.timeout == timeout
+
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_with_approval_structured_output(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+        """Structured (BaseModel) output is serialized before deferring."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        class Summary(BaseModel):
+            text: str
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_result = MagicMock(spec=["output"])
+        mock_result.output = Summary(text="hello")
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="struct_test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=Summary,
+            require_approval=True,
+        )
+        ctx = _make_context()
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=ctx)
+
+        assert exc_info.value.kwargs["generated_output"] == {"text": "hello"}
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_without_approval_returns_normally(self, mock_hook_cls):
+        """When require_approval=False, execute() returns output directly."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_result = MagicMock(spec=["output"])
+        mock_result.output = "plain output"
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="no_approval", prompt="p", llm_conn_id="my_llm", require_approval=False)
+        result = op.execute(context=MagicMock())
+
+        assert result == "plain output"
+
+    def test_execute_complete_approved(self):
+        """execute_complete returns output when approved."""
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        ctx = MagicMock()
+
+        result = op.execute_complete(ctx, generated_output="the output", allow_modifications=False, event=event)
+
+        assert result == "the output"
+
+    def test_execute_complete_rejected(self):
+        """execute_complete raises ApprovalRejectionException when rejected."""
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        ctx = MagicMock()
+
+        with pytest.raises(ApprovalRejectionException):
+            op.execute_complete(ctx, generated_output="output", allow_modifications=False, event=event)
+
+    def test_execute_complete_with_error(self):
+        """execute_complete raises ApprovalFailedException on error event."""
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        event = {"error": "oops", "error_type": "unknown"}
+        ctx = MagicMock()
+
+        with pytest.raises(ApprovalFailedException, match="oops"):
+            op.execute_complete(ctx, generated_output="output", allow_modifications=False, event=event)
+
+    def test_execute_complete_with_modified_output(self):
+        """execute_complete returns modified output when reviewer edits it."""
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True)
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": "edited"},
+        }
+        ctx = MagicMock()
+
+        result = op.execute_complete(ctx, generated_output="original", allow_modifications=True, event=event)
+
+        assert result == "edited"
