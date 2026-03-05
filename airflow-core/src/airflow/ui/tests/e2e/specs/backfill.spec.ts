@@ -184,14 +184,12 @@ test.describe("Backfill", () => {
     test("verify pause and resume backfill", async () => {
       const dates = FIXED_DATES.controls.resumePause;
 
-      // Setup via API: create + immediately pause to eliminate race with scheduler.
-      const backfillId = await backfillPage.createBackfillViaApi(testDagId, {
+      // Create + pause atomically to eliminate race with scheduler.
+      await backfillPage.createPausedBackfillViaApi(testDagId, {
         fromDate: dates.from,
         reprocessBehavior: "completed",
         toDate: dates.to,
       });
-
-      expect(await backfillPage.pauseBackfillViaApi(backfillId)).toBe(true);
 
       // Navigate to verify UI reflects the paused state, then test toggle cycle.
       await backfillPage.navigateToDagDetail(testDagId);
@@ -207,14 +205,12 @@ test.describe("Backfill", () => {
     test("verify cancel backfill", async () => {
       const dates = FIXED_DATES.controls.cancel;
 
-      // Setup via API: create + immediately pause to eliminate race with scheduler.
-      const backfillId = await backfillPage.createBackfillViaApi(testDagId, {
+      // Create + pause atomically to eliminate race with scheduler.
+      await backfillPage.createPausedBackfillViaApi(testDagId, {
         fromDate: dates.from,
         reprocessBehavior: "completed",
         toDate: dates.to,
       });
-
-      expect(await backfillPage.pauseBackfillViaApi(backfillId)).toBe(true);
 
       await backfillPage.navigateToDagDetail(testDagId);
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 15_000 });
@@ -230,6 +226,7 @@ test.describe("Backfill", () => {
       // Setup via API: create and cancel directly (UI cancel is tested above).
       const backfillId = await backfillPage.createBackfillViaApi(testDagId, {
         fromDate: dates.from,
+        maxActiveRuns: 1,
         reprocessBehavior: "completed",
         toDate: dates.to,
       });

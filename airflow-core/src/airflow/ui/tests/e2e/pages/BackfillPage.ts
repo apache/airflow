@@ -44,6 +44,7 @@ type BackfillRowIdentifier = {
 
 type CreateBackfillOptions = {
   fromDate: string;
+  maxActiveRuns?: number;
   reprocessBehavior?: ReprocessBehaviorApi;
   toDate: string;
 };
@@ -203,14 +204,18 @@ export class BackfillPage extends BasePage {
 
   /** Create a backfill via API. On 409, cancels active backfills and retries once. */
   public async createBackfillViaApi(dagId: string, options: CreateBackfillOptions): Promise<number> {
-    const { fromDate, reprocessBehavior = "none", toDate } = options;
+    const { fromDate, maxActiveRuns, reprocessBehavior = "none", toDate } = options;
 
-    const body = {
+    const body: Record<string, unknown> = {
       dag_id: dagId,
       from_date: fromDate,
       reprocess_behavior: reprocessBehavior,
       to_date: toDate,
     };
+
+    if (maxActiveRuns !== undefined) {
+      body.max_active_runs = maxActiveRuns;
+    }
 
     const response = await this.page.request.post(`${baseUrl}/api/v2/backfills`, {
       data: body,
@@ -235,6 +240,32 @@ export class BackfillPage extends BasePage {
     expect(response.ok()).toBe(true);
 
     return ((await response.json()) as BackfillApiResponse).id;
+  }
+
+  /**
+   * Create a backfill and immediately pause it. Retries the full create+pause
+   * cycle up to 3 times to handle the race where the scheduler completes the
+   * backfill before the pause call lands.
+   */
+  public async createPausedBackfillViaApi(dagId: string, options: CreateBackfillOptions): Promise<number> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const backfillId = await this.createBackfillViaApi(dagId, {
+        ...options,
+        maxActiveRuns: 1,
+      });
+
+      const paused = await this.pauseBackfillViaApi(backfillId);
+
+      if (paused) {
+        return backfillId;
+      }
+
+      // Backfill completed before we could pause — cancel and retry.
+      await this.cancelAllActiveBackfillsViaApi(dagId);
+      await this.waitForNoActiveBackfillViaApi(dagId, 30_000);
+    }
+
+    throw new Error(`Failed to create a paused backfill for ${dagId} after 3 attempts`);
   }
 
   public async findBackfillRowByDateRange(
