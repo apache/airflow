@@ -55,7 +55,7 @@ from airflow.sdk.definitions.mappedoperator import (
     ensure_xcomarg_return_value,
     prevent_duplicates,
 )
-from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (
@@ -569,7 +569,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(operator=op.operator, expand_input=DecoratedExpandInput(expand_input))
+            operator=IterableOperator(operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input))
         )
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
@@ -601,7 +601,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(operator=op.operator, expand_input=DecoratedExpandInput(expand_input))
+            operator=IterableOperator(operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input))
         )
 
     def _expand(

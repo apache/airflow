@@ -50,7 +50,7 @@ def collect_futures(loop: AbstractEventLoop, futures: list[Any]):
     async_tasks = [f for f in futures if isinstance(f, asyncio.Task)]
 
     if async_tasks:
-        for task, result in zip(
+        for task, _ in zip(
             async_tasks,
             loop.run_until_complete(asyncio.gather(*async_tasks, return_exceptions=True)),
         ):

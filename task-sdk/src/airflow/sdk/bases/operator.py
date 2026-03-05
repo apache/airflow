@@ -1746,6 +1746,7 @@ class BaseAsyncOperator(BaseOperator):
 class DecoratedDeferredAsyncOperator(BaseAsyncOperator):
     """
     A decorator operator that wraps another deferred BaseOperator instance.
+
     Implements the async aexecute() method while delegating all other behavior.
     """
 

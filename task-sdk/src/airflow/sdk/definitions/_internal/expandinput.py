@@ -24,11 +24,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-    from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import Operator
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
@@ -90,7 +91,7 @@ class ExpandInput(ABC, ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         raise NotImplementedError()
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+    def iter_values(self, context: Context) -> Iterable[Any]:
         raise NotImplementedError()
 
 
@@ -105,13 +106,13 @@ class DecoratedExpandInput(ExpandInput):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return self.delegate.iter_references()
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+    def iter_values(self, context: Context) -> Iterable[dict]:
         return map(
             lambda value: {"op_kwargs": value},
             self.delegate.iter_values(context=context),
         )
 
-    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context=context)
 
 
@@ -141,10 +142,10 @@ class MappedArgument(ExpandInput):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+    def iter_values(self, context: Context) -> Iterable[Any]:
         return self._input.iter_values(context)
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         data, _ = self._input.resolve(context)
         return data[self._key]
 
@@ -227,18 +228,22 @@ class DictOfListsExpandInput(ExpandInput):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
-        for key, value in self.value.items():
+    def iter_values(self, context: Context) -> Iterable[Any]:
+        def resolve(value: Any) -> Any:
             if isinstance(value, XComArg):
-                value = value.iter_values(context=context)
+                return value.iter_values(context=context)
+            return value
 
-            if not isinstance(value, (Sequence, Iterable)) or isinstance(value, str):
-                yield {key: value}
+        for key, value in self.value.items():
+            resolved_value = resolve(value=value)
+
+            if not isinstance(resolved_value, (Sequence, Iterable)) or isinstance(resolved_value, str):
+                yield {key: resolved_value}
             else:
-                for item in value:
+                for item in resolved_value:
                     yield {key: item}
 
-    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -292,12 +297,12 @@ class ListOfDictsExpandInput(ExpandInput):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+    def iter_values(self, context: Context) -> Iterable[Any]:
         if isinstance(self.value, XComArg):
             return self.value.iter_values(context)
         return self.value
 
-    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")

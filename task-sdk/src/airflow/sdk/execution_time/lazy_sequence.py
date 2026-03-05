@@ -192,7 +192,7 @@ class XComIterable(Sequence):
         return self.length
 
     def __getitem__(self, index: int):
-        """Allows direct indexing, making this work like a sequence."""
+        """Allow direct indexing so this works like a sequence."""
         if not (0 <= index < self.length):
             raise IndexError
 

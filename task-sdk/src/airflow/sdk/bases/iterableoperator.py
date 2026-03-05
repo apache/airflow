@@ -26,7 +26,7 @@ from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
 from math import ceil
 from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from more_itertools import ichunked
 
@@ -36,9 +36,6 @@ from airflow.exceptions import (
 )
 from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
-from airflow.sdk.definitions._internal.expandinput import ExpandInput
-from airflow.sdk.definitions.context import Context
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException
 from airflow.sdk.execution_time.executor import HybridExecutor, _execute_async_task, collect_futures
@@ -46,6 +43,11 @@ from airflow.sdk.execution_time.lazy_sequence import XComIterable
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance, RuntimeTaskInstance, _execute_task
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
 
 class TaskExecutor(LoggingMixin):
