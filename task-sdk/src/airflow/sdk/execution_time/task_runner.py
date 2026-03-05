@@ -679,6 +679,9 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
     def __init__(self, /, **data: Any):
         super().__init__(**data)
 
+        if self.map_index is None or self.map_index < 0:
+            raise ValueError("MappedTaskInstance requires map_index >= 0")
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -690,19 +693,25 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         default: Any = None,
         run_id: str | None = None,
     ) -> Any:
-        key = f"{self.task_id}_{self.dag_id}_{key}"
-        if map_indexes is not None and (not isinstance(map_indexes, int) or map_indexes >= 0):
-            key += f"_{map_indexes}"
-        return self.xcoms.get(key, default)
+        if map_indexes is NOTSET:
+            map_indexes = self.map_index
+
+        base_key = f"{self.task_id}_{self.dag_id}_{key}"
+
+        if isinstance(map_indexes, int):
+            return self.xcoms.get(f"{base_key}_{map_indexes}", default)
+
+        if map_indexes is None:
+            return [v or default for k, v in self.xcoms.items() if k.startswith(base_key)]
+
+        return [self.xcoms.get(f"{base_key}_{index}", default) for index in map_indexes]
 
     def xcom_push(
         self,
         key: str,
         value: Any,
     ):
-        key = f"{self.task_id}_{self.dag_id}_{key}"
-        if self.map_index is not None and self.map_index >= 0:
-            key += f"_{self.map_index}"
+        key = f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"
         self.xcoms[key] = value
 
     def next_retry_datetime(self):
@@ -721,7 +730,9 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+                min_backoff = math.ceil(
+                    delay.total_seconds() * (2 ** (self.try_number - 1))
+                )
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(
