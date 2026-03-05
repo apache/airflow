@@ -83,7 +83,7 @@ const TriggerDAGForm = ({
       dataIntervalMode: "auto",
       dataIntervalStart: "",
       // Default logical date to now, show it in the selected timezone.
-      // For partitioned DAGs, logical date is not applicable.
+      // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
       partitionKey: undefined,
