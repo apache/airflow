@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
-import os
 from asyncio import AbstractEventLoop, Semaphore
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
@@ -32,7 +31,6 @@ from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.context import (
     context_get_outlet_events,
-    context_to_airflow_vars,
 )
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
@@ -105,10 +103,6 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
-
-    # Export context in os.environ to make it available for operators to use.
-    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    os.environ.update(airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
 

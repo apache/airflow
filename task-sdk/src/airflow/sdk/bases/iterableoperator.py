@@ -37,6 +37,7 @@ from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException
+from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.sdk.execution_time.executor import HybridExecutor, _execute_async_task, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance, RuntimeTaskInstance, _execute_task
@@ -259,6 +260,10 @@ class IterableOperator(BaseOperator):
         chunked_tasks = batched(tasks, self.max_workers)
 
         self.log.info("Running tasks with %d workers", self.max_workers)
+
+        # Export context in os.environ to make it available for operators to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        os.environ.update(airflow_context_vars)
 
         with event_loop() as loop:
             with HybridExecutor(loop=loop, max_workers=self.max_workers) as executor:
