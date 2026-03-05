@@ -270,6 +270,7 @@ checksums
 childs
 chmod
 chown
+chunking
 ci
 cid
 Cinimex
@@ -351,6 +352,7 @@ contrib
 copyable
 CoreV
 coroutine
+cosine
 cosmosdb
 coverals
 cp
@@ -827,6 +829,7 @@ gRPC
 grpc
 GSoD
 gsuite
+guardrail
 Gunicorn
 gunicorn
 gz
@@ -834,6 +837,7 @@ Gzip
 gzipped
 hadoop
 hadoopcmd
+hallucination
 hardcode
 hardcoded
 Harenslak
@@ -1108,6 +1112,7 @@ LiteralValue
 Liveness
 liveness
 livy
+LLM
 llm
 loadBalancerIP
 localExecutor
@@ -1435,6 +1440,7 @@ prestocmd
 prestodb
 pretify
 prev
+ProblemMap
 Proc
 proc
 productionalize
@@ -1576,6 +1582,7 @@ reStructuredText
 resultset
 resumable
 retransmits
+retriever
 Reusability
 rfc
 ricard
@@ -2097,6 +2104,7 @@ webservers
 webservice
 Werkzeug
 werkzeug
+WFGY
 whitespace
 whl
 wildcarded
