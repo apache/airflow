@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
@@ -92,6 +93,7 @@ class LLMOperator(BaseOperator):
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         output = result.output
 
         if isinstance(output, BaseModel):

@@ -21,14 +21,18 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
+from airflow.sdk.api.datamodels._generated import WeightRule
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+
+__all__ = ["TaskInstance", "TaskInstanceKey"]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from pydantic import AwareDatetime, JsonValue
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk._shared.logging.types import Logger as Logger
     from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
@@ -37,6 +41,21 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class WeightRuleProtocol(Protocol):
+    """
+    Protocol for custom weight strategy instances.
+
+    Matches objects that implement get_weight(ti).
+    """
+
+    def get_weight(self, ti: SchedulerTaskInstance) -> int:
+        """Return the priority weight for the task instance."""
+        ...
+
+
+WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
 
 
 class TaskInstanceKey(NamedTuple):
@@ -163,6 +182,16 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
+
+
+# Public alias for RuntimeTaskInstanceProtocol
+class TaskInstance(RuntimeTaskInstanceProtocol):
+    """
+    Protocol for TaskInstance available during runtime.
+
+    This class provides the interface for interacting with TaskInstance attributes
+    and methods (like xcom_pull/push) within the Task SDK.
+    """
 
 
 class OutletEventAccessorProtocol(Protocol):

@@ -20,6 +20,23 @@ from __future__ import annotations
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    "SkipMixin": (
+        "airflow.sdk.bases.skipmixin",
+        "airflow.models.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
+    ),
+    "XCOM_SKIPMIXIN_KEY": (
+        "airflow.sdk.bases.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
+    ),
+    "XCOM_SKIPMIXIN_SKIPPED": (
+        "airflow.sdk.bases.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
+    ),
+    "XCOM_SKIPMIXIN_FOLLOWED": (
+        "airflow.sdk.bases.skipmixin",
+        "airflow.providers.standard.utils.skipmixin",
+    ),
     "write_python_script": (
         "airflow.providers.standard.utils.python_virtualenv",
         "airflow.utils.python_virtualenv",

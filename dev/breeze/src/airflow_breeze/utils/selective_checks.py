@@ -65,7 +65,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DEVEL_COMMON_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -1134,11 +1134,13 @@ class SelectiveChecks:
             else:
                 candidate_test_types.add("Providers")
         elif affected_providers:
+            suspended = set(get_suspended_provider_ids())
+            providers_to_test = [p for p in affected_providers if p not in suspended]
             if split_to_individual_providers:
-                for provider in affected_providers:
+                for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
-                candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+                candidate_test_types.add(f"Providers[{','.join(sorted(providers_to_test))}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected providers test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -1348,8 +1350,11 @@ class SelectiveChecks:
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
         if providers_affected:
+            suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
-                packages.append(provider.replace("-", "."))
+                pkg = provider.replace("-", ".")
+                if pkg not in suspended:
+                    packages.append(pkg)
         return " ".join(packages)
 
     @cached_property
@@ -1428,6 +1433,16 @@ class SelectiveChecks:
         return json.dumps(all_helm_test_packages())
 
     @cached_property
+    def helm_test_kubernetes_versions(self) -> str:
+        default = CURRENT_KUBERNETES_VERSIONS[0]
+        if self.all_versions:
+            last = CURRENT_KUBERNETES_VERSIONS[-1]
+            versions = [default] if default == last else [default, last]
+        else:
+            versions = [default]
+        return json.dumps([v.lstrip("v") for v in versions])
+
+    @cached_property
     def selected_providers_list_as_string(self) -> str | None:
         if self._default_branch != "main":
             return None
@@ -1440,7 +1455,8 @@ class SelectiveChecks:
             return None
         if isinstance(affected_providers, AllProvidersSentinel):
             return ""
-        return " ".join(sorted(affected_providers))
+        suspended = set(get_suspended_provider_ids())
+        return " ".join(sorted(p for p in affected_providers if p not in suspended))
 
     def get_job_label(self, event_type: str, branch: str):
         import requests

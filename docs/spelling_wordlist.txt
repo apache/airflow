@@ -1,6 +1,7 @@
 aarch
 abc
 AbstractFileSystem
+AbstractToolset
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -24,6 +25,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentic
 AgentKey
 ai
 aio
@@ -375,6 +377,7 @@ Ctl
 ctl
 ctor
 Ctrl
+ctx
 cubeName
 customDataImportUids
 customizability
@@ -502,6 +505,7 @@ del
 delim
 delitem
 deltalake
+denylist
 dep
 DependencyMixin
 deployable
@@ -830,6 +834,7 @@ Gzip
 gzipped
 hadoop
 hadoopcmd
+hardcode
 hardcoded
 Harenslak
 Hashable
@@ -1357,6 +1362,7 @@ persistentVolume
 personalizations
 pformat
 PgBouncer
+pgbouncer
 pgvector
 picklable
 pid
@@ -1464,6 +1470,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pyiceberg
 pylint
 pyMongo
 pymongo
@@ -1663,6 +1670,7 @@ ServicePrincipalCredentials
 ServiceResource
 ServicesClient
 SES
+ses
 sessionmaker
 setattr
 setdefault
@@ -1726,6 +1734,7 @@ sql
 sqla
 Sqlalchemy
 sqlalchemy
+sqlglot
 Sqlite
 sqlite
 sqlproxy
@@ -1753,6 +1762,7 @@ stackdriver
 stacklevel
 stacktrace
 starttls
+stateful
 StatefulSet
 StatefulSets
 statics
@@ -1762,6 +1772,7 @@ stderr
 stdout
 stmts
 StorageClass
+storages
 StoredInfoType
 storedInfoType
 str
@@ -1803,6 +1814,7 @@ Subpath
 subpath
 subprocess
 subprocesses
+subqueries
 subquery
 SubscriberClient
 subscriptionId
@@ -1913,6 +1925,9 @@ tokopedia
 tolerations
 toml
 toolchain
+toolset
+Toolsets
+toolsets
 Tooltip
 tooltip
 tooltips
@@ -2089,6 +2104,7 @@ winrm
 WIT
 workgroup
 workgroups
+WorkloadKey
 workspaces
 writeable
 wsman
