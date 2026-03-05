@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 
-_HOOK_PATH = "airflow.providers.common.ai.toolsets.mcp.MCPHook"
+_HOOK_PATH = "airflow.providers.common.ai.hooks.mcp.MCPHook"
 
 
 class TestMCPToolsetInit:
