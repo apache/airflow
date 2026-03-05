@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
@@ -309,7 +310,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         )
         self.log.info("Running LLM schema comparison...")
         result = agent.run_sync(self.prompt)
-        self.log.info("LLM schema comparison completed.")
+        log_run_summary(self.log, result)
 
         output_result = result.output.model_dump()
         self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))
