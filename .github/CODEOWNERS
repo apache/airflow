@@ -156,11 +156,11 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /shared/ @ashb @amoghrajesh @potiuk
 
 # Agentic instructions
-/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1
-/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1
-/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1
-/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1
-/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1
+/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93
