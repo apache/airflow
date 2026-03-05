@@ -107,6 +107,7 @@ class AwaitMessageSensor(BaseSensorOperator):
                 poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
+            timeout=self.timeout,
         )
 
     def execute_complete(self, context, event=None):
