@@ -47,7 +47,6 @@ def get_provider_info():
             {
                 "integration-name": "MCP Server",
                 "external-doc-url": "https://modelcontextprotocol.io/",
-                "how-to-guide": ["/docs/apache-airflow-providers-common-ai/toolsets.rst"],
                 "tags": ["ai"],
             },
         ],
