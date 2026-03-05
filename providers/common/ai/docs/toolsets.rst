@@ -24,17 +24,29 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Two toolsets are included:
+Three toolsets are included:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
   4-tool database toolset.
+- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
+  `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
+  connections.
 
-Both implement pydantic-ai's
+All three implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+
+.. note::
+
+    ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
+    just the Airflow-native toolsets above. PydanticAI's own MCP server
+    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
+    and third-party toolsets work too. The Airflow-native toolsets add
+    connection management, secret backend integration, and the connection UI,
+    but you are not locked in.
 
 
 ``HookToolset``
@@ -121,6 +133,160 @@ Parameters
   Default ``False`` — only SELECT-family statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
+``DataFusionToolset``
+---------------------
+
+Curated toolset wrapping
+:class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
+with three tools — ``list_tables``, ``get_schema``, and ``query`` — for
+querying files on object stores (S3, local filesystem, Iceberg) via Apache DataFusion.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_tables``
+     - Lists registered table names
+   * - ``get_schema``
+     - Returns column names and types for a table (Arrow schema)
+   * - ``query``
+     - Executes a SQL query and returns rows as JSON
+
+Each :class:`~airflow.providers.common.sql.config.DataSourceConfig` entry
+registers a table backed by Parquet, CSV, Avro, or Iceberg data. Multiple
+configs can be registered so that SQL queries can join across tables.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+    from airflow.providers.common.sql.config import DataSourceConfig
+
+    toolset = DataFusionToolset(
+        datasource_configs=[
+            DataSourceConfig(
+                conn_id="aws_default",
+                table_name="sales",
+                uri="s3://my-bucket/data/sales/",
+                format="parquet",
+            ),
+            DataSourceConfig(
+                conn_id="aws_default",
+                table_name="returns",
+                uri="s3://my-bucket/data/returns/",
+                format="csv",
+            ),
+        ],
+        max_rows=100,
+    )
+
+The ``DataFusionEngine`` is created lazily on the first tool call. This
+toolset requires the ``datafusion`` extra of
+``apache-airflow-providers-common-sql``.
+
+Parameters
+^^^^^^^^^^
+
+- ``datasource_configs``: One or more
+  :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries.
+  Requires ``apache-airflow-providers-common-sql[datafusion]``.
+- ``allow_writes``: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
+  INSERT INTO, etc.). Default ``False`` — only SELECT-family statements are
+  permitted. DataFusion on object stores is mostly read-only, but it does
+  support DDL for in-memory tables; this guard blocks those by default.
+- ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+
+``LoggingToolset``
+------------------
+
+:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
+``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
+in real time. ``AgentOperator`` applies it automatically (see
+``enable_tool_logging``), but you can also use it directly with any pydantic-ai
+``Agent``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    sql_toolset = SQLToolset(db_conn_id="my_db")
+    logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
+
+Each tool call produces two INFO log lines (name + timing) and optional
+DEBUG-level argument logging. Exceptions are logged and re-raised.
+
+
+``MCPToolset``
+--------------
+
+Connects to an `MCP (Model Context Protocol) <https://modelcontextprotocol.io/>`__
+server configured via an Airflow connection. MCP is an open protocol that lets
+LLMs interact with external tools and data sources through a standardized
+interface.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+
+    toolset = MCPToolset(
+        mcp_conn_id="my_mcp_server",
+        tool_prefix="weather",
+    )
+
+The MCP server is resolved lazily from the Airflow connection on the first
+tool call. See :ref:`howto/connection:mcp` for connection configuration.
+
+Requires the ``mcp`` extra: ``pip install "apache-airflow-providers-common-ai[mcp]"``
+
+Parameters
+^^^^^^^^^^
+
+- ``mcp_conn_id``: Airflow connection ID for the MCP server.
+- ``tool_prefix``: Optional prefix prepended to tool names to avoid
+  collisions when using multiple MCP servers (e.g. ``"weather"`` produces
+  ``"weather_get_forecast"``).
+
+Using Multiple MCP Servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="multi_mcp",
+        prompt="Get the weather in London and run a calculation",
+        llm_conn_id="pydantic_ai_default",
+        toolsets=[
+            MCPToolset(mcp_conn_id="weather_mcp", tool_prefix="weather"),
+            MCPToolset(mcp_conn_id="code_runner_mcp", tool_prefix="code"),
+        ],
+    )
+
+Direct PydanticAI MCP Servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For prototyping or when you want full PydanticAI control, you can pass MCP
+server instances directly — no Airflow connection needed:
+
+.. code-block:: python
+
+    from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+
+    AgentOperator(
+        task_id="direct_mcp",
+        prompt="What tools are available?",
+        llm_conn_id="pydantic_ai_default",
+        toolsets=[
+            MCPServerStreamableHTTP("http://localhost:3001/mcp"),
+            MCPServerStdio("uvx", args=["mcp-run-python"]),
+        ],
+    )
+
+This works because PydanticAI's MCP server classes implement
+``AbstractToolset``. The tradeoff: URLs and credentials are hardcoded in DAG
+code instead of being managed through Airflow connections and secret backends.
+
 
 Security
 --------
@@ -155,6 +321,11 @@ No single layer is sufficient — they work together.
        ``validate_sql()`` and rejects INSERT, UPDATE, DELETE, DROP, etc.
      - Does not prevent the agent from reading sensitive data that the
        database user has SELECT access to.
+   * - **DataFusionToolset: read-only by default**
+     - ``allow_writes=False`` (default) validates every SQL query through
+       ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT
+       INTO, and other non-SELECT statements.
+     - Does not prevent the agent from reading any registered data source.
    * - **SQLToolset: allowed_tables**
      - Restricts which tables appear in ``list_tables`` and ``get_schema``
        responses, limiting the agent's knowledge of the schema.

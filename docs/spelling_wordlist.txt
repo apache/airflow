@@ -836,6 +836,7 @@ hadoop
 hadoopcmd
 hardcode
 hardcoded
+hardcoding
 Harenslak
 Hashable
 Hashicorp
@@ -1362,6 +1363,7 @@ persistentVolume
 personalizations
 pformat
 PgBouncer
+pgbouncer
 pgvector
 picklable
 pid
@@ -1669,6 +1671,7 @@ ServicePrincipalCredentials
 ServiceResource
 ServicesClient
 SES
+ses
 sessionmaker
 setattr
 setdefault
@@ -1767,6 +1770,7 @@ statics
 StatsD
 statsd
 stderr
+stdin
 stdout
 stmts
 StorageClass
@@ -1774,6 +1778,7 @@ storages
 StoredInfoType
 storedInfoType
 str
+Streamable
 StrictUndefined
 Stringified
 stringified
@@ -1933,6 +1938,7 @@ tpt
 traceback
 tracebacks
 tracemalloc
+tradeoff
 TrainingPipeline
 TransferOperation
 TranslationServiceClient
