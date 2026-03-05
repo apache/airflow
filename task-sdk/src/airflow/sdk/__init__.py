@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 __all__ = [
     "__version__",
+    "AllowedKeyMapper",
     "Asset",
     "AssetAlias",
     "AssetAll",
@@ -63,7 +64,6 @@ __all__ = [
     "PokeReturnValue",
     "ProductMapper",
     "QuarterlyMapper",
-    "SequenceMapper",
     "SkipMixin",
     "SyncCallback",
     "TaskGroup",
@@ -122,10 +122,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
-    from airflow.sdk.definitions.partition_mappers.sequence import SequenceMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
         DailyMapper,
         HourlyMapper,
@@ -161,6 +161,7 @@ if TYPE_CHECKING:
     conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
+    "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
@@ -205,7 +206,6 @@ __lazy_imports: dict[str, str] = {
     "ProductMapper": ".definitions.partition_mappers.product",
     "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
-    "SequenceMapper": ".definitions.partition_mappers.sequence",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",

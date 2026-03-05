@@ -217,7 +217,7 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 
-.. autoapiclass:: airflow.sdk.SequenceMapper
+.. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
 I/O Helpers
 -----------

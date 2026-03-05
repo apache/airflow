@@ -19,8 +19,8 @@ from __future__ import annotations
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
-class SequenceMapper(PartitionMapper):
-    """Partition mapper that validates keys against a defined sequence."""
+class AllowedKeyMapper(PartitionMapper):
+    """Partition mapper that validates keys against a set of allowed keys."""
 
-    def __init__(self, sequence: list[str]) -> None:
-        self.sequence = sequence
+    def __init__(self, allowed_keys: list[str]) -> None:
+        self.allowed_keys = allowed_keys
