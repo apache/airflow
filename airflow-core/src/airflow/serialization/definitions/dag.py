@@ -442,8 +442,6 @@ class SerializedDAG:
         DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
         by their ``logical_date`` from earliest to latest.
-
-        # TODO: AIP-76 see issue https://github.com/apache/airflow/issues/60455
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
