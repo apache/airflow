@@ -1270,18 +1270,6 @@ class DagRun(Base, LoggingMixin):
                     msg="success",
                 )
 
-            if dag.deadline:
-                # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
-                deadline_alerts = [
-                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
-                ]
-
-                if any(
-                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
-                    for deadline_alert in deadline_alerts
-                ):
-                    Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
-
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
@@ -1342,6 +1330,19 @@ class DagRun(Base, LoggingMixin):
             )
 
             self.end_dr_span_if_needed()
+
+            if dag.deadline:
+                # The dagrun has reached a terminal state. Prune any pending deadlines
+                # so they don't fire after the run is already finished.
+                deadline_alerts = [
+                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
+                ]
+
+                if any(
+                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
+                    for deadline_alert in deadline_alerts
+                ):
+                    Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
             session.flush()
 
