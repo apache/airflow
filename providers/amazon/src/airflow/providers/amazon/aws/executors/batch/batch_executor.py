@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 
@@ -88,6 +88,7 @@ class AwsBatchExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_callbacks: bool = True
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
@@ -127,26 +128,40 @@ class AwsBatchExecutor(BaseExecutor):
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
 
-        if not isinstance(workload, workloads.ExecuteTask):
+        if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            self.queued_callbacks[workload.callback.id] = workload
+        elif isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+        else:
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
-        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors import workloads as wl
 
         # Airflow V3 version
         for w in workloads:
-            if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
-            command = [w]
-            key = w.ti.key
-            queue = w.ti.queue
-            executor_config = w.ti.executor_config or {}
+            if isinstance(w, wl.ExecuteTask):
+                tcommand = [w]
+                tkey = w.ti.key
+                queue = w.ti.queue
+                executor_config = w.ti.executor_config or {}
 
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
-            self.running.add(key)
+                del self.queued_tasks[tkey]
+                self.execute_async(key=tkey, command=tcommand, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
+                self.running.add(tkey)
+            elif AIRFLOW_V_3_2_PLUS and isinstance(w, wl.ExecuteCallback):
+                ccommand = [w]
+                ckey = w.callback.id
+                queue = None
+                if isinstance(w.callback.data, dict) and "queue" in w.callback.data:
+                    queue = w.callback.data["queue"]
+
+                del self.queued_callbacks[ckey]
+                self.execute_async(key=ckey, command=ccommand, queue=queue)  # type: ignore[arg-type]
+                self.running.add(ckey)
+            else:
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
 
     def check_health(self):
         """Make a test API call to check the health of the Batch Executor."""
@@ -360,7 +375,7 @@ class AwsBatchExecutor(BaseExecutor):
                 job_id = submit_job_response["job_id"]
                 self.active_workers.add_job(
                     job_id=job_id,
-                    airflow_task_key=key,
+                    airflow_workload_key=key,
                     airflow_cmd=cmd,
                     queue=queue,
                     exec_config=exec_config,
@@ -380,15 +395,19 @@ class AwsBatchExecutor(BaseExecutor):
             all_jobs.extend(describe_tasks_response["jobs"])
         return all_jobs
 
-    def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
+    def execute_async(
+        self, key: TaskInstanceKey | str, command: CommandType, queue=None, executor_config=None
+    ):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
 
         if len(command) == 1:
-            from airflow.executors.workloads import ExecuteTask
+            from airflow.executors import workloads
 
-            if isinstance(command[0], ExecuteTask):
+            if isinstance(command[0], workloads.ExecuteTask) or (
+                AIRFLOW_V_3_2_PLUS and isinstance(command[0], workloads.ExecuteCallback)
+            ):
                 workload = command[0]
                 ser_input = workload.model_dump_json()
                 command = [
@@ -447,6 +466,9 @@ class AwsBatchExecutor(BaseExecutor):
         submit_job_api["containerOverrides"]["environment"].append(
             {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
         )
+        if queue:
+            submit_job_api["jobQueue"] = queue
+
         return submit_job_api
 
     def end(self, heartbeat_interval=10):
@@ -500,7 +522,7 @@ class AwsBatchExecutor(BaseExecutor):
                     ti = next(ti for ti in tis if ti.external_executor_id == batch_job.job_id)
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
-                        airflow_task_key=ti.key,
+                        airflow_workload_key=ti.key,
                         airflow_cmd=ti.command_as_list(),
                         queue=ti.queue,
                         exec_config=ti.executor_config,
