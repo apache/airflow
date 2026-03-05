@@ -29,9 +29,15 @@ from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
+from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.models.hitl import HITLDetail
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[
+        # This checks that the UUID in the url matches the one in the token for us.
+        JWTBearerTIPathDep
+    ]
+)
 
 log = structlog.get_logger(__name__)
 
