@@ -836,6 +836,7 @@ hadoop
 hadoopcmd
 hardcode
 hardcoded
+hardcoding
 Harenslak
 Hashable
 Hashicorp
@@ -1769,6 +1770,7 @@ statics
 StatsD
 statsd
 stderr
+stdin
 stdout
 stmts
 StorageClass
@@ -1776,6 +1778,7 @@ storages
 StoredInfoType
 storedInfoType
 str
+Streamable
 StrictUndefined
 Stringified
 stringified
@@ -1935,6 +1938,7 @@ tpt
 traceback
 tracebacks
 tracemalloc
+tradeoff
 TrainingPipeline
 TransferOperation
 TranslationServiceClient

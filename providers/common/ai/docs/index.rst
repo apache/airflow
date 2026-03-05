@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/pydantic_ai>
+    MCP connection <connections/mcp>
     Hooks <hooks/pydantic_ai>
     Toolsets <toolsets>
     Operators <operators/index>
