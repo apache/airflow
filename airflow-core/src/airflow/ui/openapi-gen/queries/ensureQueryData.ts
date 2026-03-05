@@ -898,8 +898,8 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * Get Task Instances
 * Get list of task instances.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-* and DAG runs.
+* Passing `~` for `dag_id` and/or `dag_run_id` disables that path filter and returns task instances across
+* all readable DAGs and/or DAG runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
