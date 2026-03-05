@@ -32,89 +32,62 @@ Much like Operators, Airflow has a large set of pre-built Sensors you can use, b
 
 .. seealso:: :doc:`../authoring-and-scheduling/deferring`
 
-BaseSensorOperator parameters
------------------------------
+BaseSensorOperator
+-------------------
 
-All sensors in Airflow ultimately inherit from ``BaseSensorOperator`` (directly or indirectly).
-This base class defines the common behavior and parameters that control
-how a sensor waits, retries, and manages worker resources.
+All sensors share common functionality through the ``BaseSensorOperator`` class. This base class provides
+standardized parameters that control timing behavior, execution modes, and failure handling across
+every sensor implementation.
 
-As of the Task SDK refactor, ``BaseSensorOperator`` is implemented in the
-Task SDK. Because provider documentation is generated separately, these
-parameters may not always be directly visible on individual provider
-sensor API pages. However, they apply to *all* sensors.
+.. note::
+   In the Task SDK architecture, ``BaseSensorOperator`` is defined in the ``airflow.sdk`` package.
+   Provider documentation is generated separately from the core documentation, so sensor parameters
+   may not always appear in individual provider sensor API reference pages. However, these parameters
+   are universally available to all sensors.
 
-Common parameters
-^^^^^^^^^^^^^^^^^
+Common Sensor Parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following parameters are provided by ``BaseSensorOperator`` and are
-available on all sensors:
+The following parameters control sensor behavior across all implementations:
 
 ``poke_interval``
-    Time in seconds between successive checks. In ``poke`` mode, the sensor
-    sleeps between checks while occupying a worker slot. In ``reschedule``
-    mode, the task is deferred and rescheduled after this interval.
+    Specifies how long to wait (in seconds) between successive checks. In ``poke`` mode, the sensor
+    holds a worker slot while waiting. In ``reschedule`` mode, the task is freed and rescheduled after
+    each interval. Accepts either a ``float`` (seconds) or ``timedelta`` object.
 
 ``timeout``
-    Maximum time in seconds the sensor is allowed to run before failing.
-    This timeout is measured from the first execution attempt, not per poke.
+    Maximum time (in seconds) before the sensor fails due to exceeding its allowed runtime.
+    The timeout is calculated from the first execution attempt, not from individual poke attempts.
+    This differs from ``execution_timeout`` which only measures active task execution time.
+    Accepts either a ``float`` (seconds) or ``timedelta`` object.
 
 ``mode``
-    Determines how the sensor occupies worker resources.
+    Controls how the sensor consumes worker resources:
 
-    * ``poke`` (default): occupies a worker slot for the entire duration
-    * ``reschedule``: releases the worker slot between checks
+    * ``poke`` (default): The sensor occupies a worker slot continuously while waiting
+    * ``reschedule``: The sensor releases the worker slot between checks, freeing resources for other tasks
 
 ``soft_fail``
-    If set to ``True``, the sensor will be marked as ``SKIPPED`` instead of
-    ``FAILED`` when the timeout is reached.
+    When ``True``, timeout causes the sensor to be marked as ``SKIPPED`` instead of ``FAILED``.
+    This is useful when you want non-critical sensors to timeout gracefully without failing the Dag.
 
 ``exponential_backoff``
-    If enabled, the time between checks increases exponentially up to
-    ``max_wait``. This is useful when polling external systems with
-    unpredictable availability.
+    When enabled, increases the wait time between pokes exponentially, rather than using a fixed
+    interval. This is helpful when checking external systems that may have temporary availability
+    issues or rate limiting.
 
 ``max_wait``
-    Upper bound (in seconds) for the delay between checks when
-    ``exponential_backoff`` is enabled.
+    Sets an upper limit on the wait interval when ``exponential_backoff`` is enabled. Prevents
+    excessively long gaps between checks. Accepts either a ``float`` (seconds) or ``timedelta`` object.
 
-For the authoritative API reference, see the Task SDK documentation for
-``BaseSensorOperator``:
+``silent_fail``
+    When ``True``, exceptions during poke (other than timeout-related exceptions) are logged but
+    do not cause sensor failure. The sensor continues checking.
+
+``never_fail``
+    When ``True``, any exception during poke causes the sensor to be marked as ``SKIPPED`` instead of
+    ``FAILED``. Mutually exclusive with ``soft_fail``.
+
+For detailed API documentation, refer to the Task SDK reference:
 
 https://airflow.apache.org/docs/task-sdk/stable/api.html#airflow.sdk.BaseSensorOperator
-
-Example
-^^^^^^^
-
-.. code-block:: python
-
-    BashSensor(
-        task_id="wait_for_file",
-        bash_command="test -f /data/input.csv",
-        poke_interval=60,
-        timeout=60 * 60,
-        mode="reschedule",
-    )
-
-.. tip::
-
-    For waiting on files specifically, consider using
-    :class:`~airflow.providers.standard.sensors.filesystem.FileSensor` from the
-    standard provider. It is purpose-built for detecting files in your local
-    filesystem and supports deferrable mode for better resource efficiency.
-    See :doc:`apache-airflow-providers-standard:sensors/file` for details.
-
-Common sensors
---------------
-
-Airflow provides many sensors out of the box. Here are some commonly used ones
-from the standard provider:
-
-* :class:`~airflow.providers.standard.sensors.filesystem.FileSensor` - Wait for a file to appear in a filesystem
-* :class:`~airflow.providers.standard.sensors.bash.BashSensor` - Wait for a bash command to return true
-* :class:`~airflow.providers.standard.sensors.python.PythonSensor` - Wait for a Python callable to return true
-* :class:`~airflow.providers.standard.sensors.time.TimeSensor` - Wait until a specified time of day
-* :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` - Wait for a specified time duration
-* :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` - Wait for a task in another DAG to complete
-
-For a complete list of available sensors, see the :doc:`../operators-and-hooks-ref`.
