@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import logging
 import warnings
-from contextlib import suppress
+
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from cachetools import TTLCache, cachedmethod
+from cachetools import TTLCache
 from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -99,7 +99,7 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
@@ -286,22 +286,18 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
-    @property
-    def session(self):
-        return self.appbuilder.session
-
-    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        try:
-            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
-        except NoResultFound:
+        # Namespace the cache key to avoid collisions with other entries in the shared cache.
+        user_id = int(token["sub"])
+        cache_key = ("user", user_id)
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        with create_session() as session:
+            user = session.get(User, user_id)
+        if user is None:
             raise ValueError(f"User with id {token['sub']} not found")
-        except SQLAlchemyError:
-            # Discard the poisoned scoped session so the next request gets a
-            # fresh connection from the pool instead of a PendingRollbackError.
-            with suppress(Exception):
-                self.session.remove()
-            raise
+        self.cache[cache_key] = user
+        return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
