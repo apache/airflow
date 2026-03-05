@@ -4989,7 +4989,9 @@ class TestSchedulerJob:
             self.job_runner._create_dagruns_for_dags(session, session)
 
         # Asset-triggered dag run should be created even when use_job_schedule=False
-        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one_or_none()
+        created_run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)
+        ).one_or_none()
         assert created_run is not None
         assert created_run.state == State.QUEUED
 
