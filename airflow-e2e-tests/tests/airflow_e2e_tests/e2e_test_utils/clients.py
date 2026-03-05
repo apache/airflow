@@ -20,6 +20,7 @@ import time
 from datetime import datetime, timezone
 from functools import cached_property
 
+import boto3
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -29,6 +30,17 @@ from airflow_e2e_tests.constants import (
     AIRFLOW_WWW_USER_USERNAME,
     DOCKER_COMPOSE_HOST_PORT,
 )
+
+
+def get_s3_client():
+    """Return a boto3 S3 client configured to use the local LocalStack endpoint."""
+    return boto3.client(
+        "s3",
+        endpoint_url="http://localhost:4566",
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        region_name="us-east-1",
+    )
 
 
 class AirflowClient:
