@@ -117,7 +117,7 @@ class DecoratedExpandInput(ExpandInput):
 
 
 @attrs.define(kw_only=True)
-class MappedArgument(ExpandInput):
+class MappedArgument(ResolveMixin):
     """
     Stand-in stub for task-group-mapping arguments.
 
@@ -128,10 +128,6 @@ class MappedArgument(ExpandInput):
     _input: ExpandInput = attrs.field()
     _key: str
 
-    @property
-    def value(self) -> ExpandInput:
-        return self._input
-
     @_input.validator
     def _validate_input(self, _, input):
         if isinstance(input, DictOfListsExpandInput):
@@ -141,9 +137,6 @@ class MappedArgument(ExpandInput):
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
-
-    def iter_values(self, context: Context) -> Iterable[Any]:
-        return self._input.iter_values(context)
 
     def resolve(self, context: Context) -> Any:
         data, _ = self._input.resolve(context)
