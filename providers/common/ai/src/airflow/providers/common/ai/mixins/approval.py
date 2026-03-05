@@ -171,7 +171,7 @@ class LLMApprovalMixin:
         # If the reviewer provided modified output, return their version
         if params_input:
             modified = params_input.get("output")
-            if modified and modified is not None and modified != generated_output:
+            if modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
                 return modified
 

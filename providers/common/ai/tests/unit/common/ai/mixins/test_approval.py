@@ -276,7 +276,7 @@ class TestDeferForApproval:
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": "editor",
-            "params_input": {"output": ""},
+            "params_input": {"output": "original"},
         }
 
         result = approval_op_with_modifications.execute_complete({}, generated_output="original", event=event)
