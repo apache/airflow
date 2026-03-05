@@ -1433,6 +1433,16 @@ class SelectiveChecks:
         return json.dumps(all_helm_test_packages())
 
     @cached_property
+    def helm_test_kubernetes_versions(self) -> str:
+        default = CURRENT_KUBERNETES_VERSIONS[0]
+        if self.all_versions:
+            last = CURRENT_KUBERNETES_VERSIONS[-1]
+            versions = [default] if default == last else [default, last]
+        else:
+            versions = [default]
+        return json.dumps([v.lstrip("v") for v in versions])
+
+    @cached_property
     def selected_providers_list_as_string(self) -> str | None:
         if self._default_branch != "main":
             return None

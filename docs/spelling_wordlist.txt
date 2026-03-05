@@ -1670,6 +1670,7 @@ ServicePrincipalCredentials
 ServiceResource
 ServicesClient
 SES
+ses
 sessionmaker
 setattr
 setdefault
