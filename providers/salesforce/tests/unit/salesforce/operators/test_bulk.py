@@ -29,6 +29,15 @@ class TestSalesforceBulkOperator:
     Test class for SalesforceBulkOperator
     """
 
+    def test_template_fields(self):
+        """Test that template_fields are defined correctly."""
+        assert SalesforceBulkOperator.template_fields == (
+            "operation",
+            "object_name",
+            "payload",
+            "external_id_field",
+        )
+
     def test_execute_missing_operation(self):
         """
         Test execute missing operation
