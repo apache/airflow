@@ -200,7 +200,7 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              path: {{ if .Values.webserver.livenessProbe.path }}{{- with urlParse (tpl .Values.webserver.livenessProbe.path .) }}{{ .path }}{{ end }}{{ else if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
@@ -214,7 +214,7 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              path: {{ if .Values.webserver.readinessProbe.path }}{{- with urlParse (tpl .Values.webserver.readinessProbe.path .) }}{{ .path }}{{ end }}{{ else if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url }}
               httpHeaders:
@@ -228,7 +228,7 @@ spec:
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              path: {{ if .Values.webserver.startupProbe.path }}{{- with urlParse (tpl .Values.webserver.startupProbe.path .) }}{{ .path }}{{ end }}{{ else if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
