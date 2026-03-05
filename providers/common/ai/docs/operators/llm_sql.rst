@@ -86,7 +86,7 @@ execution step:
     generate_sql = LLMSQLQueryOperator(
         task_id="generate_sql",
         prompt="Find the top 5 products by total sales amount",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         datasource_config=datasource_config,
     )
 
@@ -132,3 +132,11 @@ By default, the operator validates generated SQL using an allowlist approach:
 
 You can disable validation with ``validate_sql=False`` or customize the allowed
 statement types with ``allowed_sql_types``.
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. At DEBUG level, the generated SQL is also
+logged (truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.

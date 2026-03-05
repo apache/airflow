@@ -95,6 +95,7 @@ const createColumns = (
           dagId={original.dag_id}
           latestRunAfter={latestRun?.run_after}
           timetableDescription={original.timetable_description}
+          timetablePartitioned={original.timetable_partitioned}
           timetableSummary={original.timetable_summary}
         />
       );
@@ -314,7 +315,7 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <Box overflow="auto" pb={8}>
+      <Box pb={8}>
         <DataTable
           cardDef={cardDef}
           columns={columns}
