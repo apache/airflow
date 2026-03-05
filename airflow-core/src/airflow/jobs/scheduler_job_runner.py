@@ -1635,8 +1635,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
 
-                    # Dispatch pending connection tests to executors
-                    self._dispatch_connection_tests(session=session)
+                    # Enqueue pending connection tests to executors
+                    self._enqueue_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -3113,8 +3113,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _dispatch_connection_tests(self, *, session: Session) -> None:
-        """Dispatch pending connection tests to executors that support them."""
+    def _enqueue_connection_tests(self, *, session: Session) -> None:
+        """Enqueue pending connection tests to executors that support them."""
         max_concurrency = conf.getint("core", "max_connection_test_concurrency", fallback=4)
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
 
