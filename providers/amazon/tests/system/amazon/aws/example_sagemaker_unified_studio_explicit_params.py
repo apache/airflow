@@ -41,12 +41,11 @@ Prerequisites: The account which runs this test must manually have the following
 3. A project within the SageMaker Unified Studio Domain
 4. A notebook (test_notebook.ipynb) placed in the project's s3 path
 
-This test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
-The setup tasks will set up the project and configure the test runner to emulate an MWAA instance.
-Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
+This test is identical to example_sagemaker_unified_studio, but passes domain_id, project_id,
+and domain_region explicitly as operator parameters instead of relying on environment variables.
 """
 
-DAG_ID = "example_sagemaker_unified_studio"
+DAG_ID = "example_sagemaker_unified_studio_explicit_params"
 
 # Externally fetched variables:
 DOMAIN_ID_KEY = "DOMAIN_ID"
@@ -64,20 +63,9 @@ sys_test_context_task = (
 )
 
 
-def get_mwaa_environment_params(
-    domain_id: str,
-    project_id: str,
-    s3_path: str,
-    region_name: str,
-):
+def get_mwaa_environment_params(s3_path: str):
     AIRFLOW_PREFIX = "AIRFLOW__WORKFLOWS__"
-
-    parameters = {}
-    parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
-    parameters[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
-    parameters[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
-    parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
-    return parameters
+    return {f"{AIRFLOW_PREFIX}PROJECT_S3_PATH": s3_path}
 
 
 @task
@@ -106,20 +94,18 @@ with DAG(
     s3_path = test_context[S3_PATH_KEY]
     region_name = test_context[REGION_NAME_KEY]
 
-    mock_mwaa_environment_params = get_mwaa_environment_params(
-        domain_id,
-        project_id,
-        s3_path,
-        region_name,
-    )
+    mock_mwaa_environment_params = get_mwaa_environment_params(s3_path)
 
     setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
 
-    # [START howto_operator_sagemaker_unified_studio_notebook]
+    # [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
 
     run_notebook = SageMakerNotebookOperator(
         task_id="run-notebook",
+        domain_id=domain_id,
+        project_id=project_id,
+        domain_region=region_name,
         input_config={"input_path": notebook_path, "input_params": {}},
         output_config={"output_formats": ["NOTEBOOK"]},  # optional
         compute={
@@ -145,7 +131,7 @@ with DAG(
             }
         },
     )
-    # [END howto_operator_sagemaker_unified_studio_notebook]
+    # [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
 
     chain(
         # TEST SETUP
