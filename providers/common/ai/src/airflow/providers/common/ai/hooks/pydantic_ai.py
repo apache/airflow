@@ -52,8 +52,8 @@ class PydanticAIHook(BaseHook):
     """
 
     conn_name_attr = "llm_conn_id"
-    default_conn_name = "pydantic_ai_default"
-    conn_type = "pydantic_ai"
+    default_conn_name = "pydanticai_default"
+    conn_type = "pydanticai"
     hook_name = "Pydantic AI"
 
     def __init__(
@@ -135,7 +135,7 @@ class PydanticAIHook(BaseHook):
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
-                "No model specified. Set model_id on the hook or 'model' in the connection's extra JSON."
+                "No model specified. Set model_id on the hook or the Model field on the connection."
             )
 
         api_key: str | None = conn.password or None
