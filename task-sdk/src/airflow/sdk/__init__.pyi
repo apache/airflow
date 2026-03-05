@@ -63,6 +63,7 @@ from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+from airflow.sdk.definitions.partition_mappers.product import ProductMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
     DailyMapper,
     HourlyMapper,
@@ -135,6 +136,7 @@ __all__ = [
     "PokeReturnValue",
     "PartitionedAssetTimetable",
     "PartitionMapper",
+    "ProductMapper",
     "QuarterlyMapper",
     "SecretCache",
     "SkipMixin",

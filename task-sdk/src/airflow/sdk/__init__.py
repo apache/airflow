@@ -61,10 +61,12 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
+    "ProductMapper",
     "QuarterlyMapper",
     "SkipMixin",
     "SyncCallback",
     "TaskGroup",
+    "TaskInstance",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
@@ -121,6 +123,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+    from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
         DailyMapper,
         HourlyMapper,
@@ -151,6 +154,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
+    from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
 
@@ -196,11 +200,13 @@ __lazy_imports: dict[str, str] = {
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
+    "ProductMapper": ".definitions.partition_mappers.product",
     "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
+    "TaskInstance": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
