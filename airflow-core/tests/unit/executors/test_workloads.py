@@ -17,8 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+from uuid import uuid4
+
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO
+from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.task import ExecuteTask
 
 
 def test_task_instance_alias_keeps_backwards_compat():
@@ -28,16 +33,7 @@ def test_task_instance_alias_keeps_backwards_compat():
 
 
 def test_token_excluded_from_workload_repr():
-    """Ensure JWT tokens do not leak into log output via repr().
-
-    Regression test for https://github.com/apache/airflow/issues/62428
-    """
-    from pathlib import PurePosixPath
-    from uuid import uuid4
-
-    from airflow.executors.workloads.base import BundleInfo
-    from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
-
+    """Ensure JWT tokens do not leak into log output via repr()."""
     fake_token = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.secret_payload.signature"
     ti = TaskInstanceDTO(
         id=uuid4(),
@@ -67,4 +63,5 @@ def test_token_excluded_from_workload_repr():
     )
     # But token should still be accessible as an attribute
     assert workload.token == fake_token
+
 
