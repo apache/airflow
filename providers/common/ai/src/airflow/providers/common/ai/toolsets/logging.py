@@ -29,12 +29,14 @@ from pydantic_ai.toolsets.wrapper import WrapperToolset
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
+    from airflow.sdk.types import Logger
+
 
 @dataclass
 class LoggingToolset(WrapperToolset[Any]):
     """Wrap a toolset to log each tool call with timing."""
 
-    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
+    logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     async def call_tool(
         self,

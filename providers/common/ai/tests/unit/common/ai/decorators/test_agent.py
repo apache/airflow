@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -119,7 +120,6 @@ class TestAgentDecoratedOperator:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
         """BaseModel output is serialized with model_dump."""
-        from pydantic import BaseModel
 
         class Summary(BaseModel):
             text: str

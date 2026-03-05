@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from unittest.mock import MagicMock
 
+from pydantic import BaseModel
 from pydantic_ai.messages import (
     ModelResponse,
     ModelResponsePart,
@@ -107,8 +108,6 @@ class TestLogOutputDebug:
         assert any("Output: 'Hello world'" in r.message for r in debug_records)
 
     def test_logs_pydantic_model_dump(self, caplog):
-        from pydantic import BaseModel
-
         class Info(BaseModel):
             name: str
 

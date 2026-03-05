@@ -29,10 +29,12 @@ if TYPE_CHECKING:
     from pydantic_ai.result import AgentRunResult
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
+    from airflow.sdk.types import Logger
+
 _MAX_OUTPUT_LEN = 500
 
 
-def log_run_summary(logger: logging.Logger, result: AgentRunResult[Any]) -> None:
+def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]) -> None:
     """Log model name, token usage, and tool call sequence from an agent run."""
     usage = result.usage()
     model_name = getattr(result.response, "model_name", "unknown")
@@ -55,7 +57,7 @@ def log_run_summary(logger: logging.Logger, result: AgentRunResult[Any]) -> None
     logger.info("::endgroup::")
 
 
-def _log_output_debug(logger: logging.Logger, output: Any) -> None:
+def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
     """Log a truncated representation of the agent output at DEBUG level."""
     if not logger.isEnabledFor(logging.DEBUG):
         return
@@ -82,7 +84,7 @@ def _extract_tool_sequence(result: AgentRunResult[Any]) -> list[str]:
 
 def wrap_toolsets_for_logging(
     toolsets: list[AbstractToolset[Any]],
-    logger: logging.Logger,
+    logger: Logger | logging.Logger,
 ) -> list[AbstractToolset[Any]]:
     """Wrap each toolset in a LoggingToolset."""
     return [LoggingToolset(wrapped=ts, logger=logger) for ts in toolsets]
