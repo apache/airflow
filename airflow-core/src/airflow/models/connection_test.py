@@ -189,6 +189,8 @@ def attempt_revert(ct: ConnectionTest, *, session: Session) -> None:
     pre_snapshot = ct.connection_snapshot["pre"]
     post_snapshot = ct.connection_snapshot["post"]
 
+    ct.connection_snapshot = None
+
     conn = session.scalar(select(Connection).filter_by(conn_id=ct.connection_id))
     if conn is None:
         ct.result_message = (ct.result_message or "") + " | Revert skipped: connection no longer exists."

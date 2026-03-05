@@ -54,6 +54,7 @@ class TestPatchConnectionTest:
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == "success"
         assert ct.result_message == "Connection successfully tested"
+        assert ct.connection_snapshot is None
 
     def test_patch_returns_404_for_nonexistent(self, client):
         """PATCH with unknown id returns 404."""
@@ -130,6 +131,7 @@ class TestPatchConnectionTestRevert:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.reverted is True
+        assert ct.connection_snapshot is None
         conn = session.scalar(select(Connection).filter_by(conn_id="revert_conn"))
         assert conn.host == "old-host.example.com"
         assert conn.login == "old_user"
@@ -164,6 +166,7 @@ class TestPatchConnectionTestRevert:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.reverted is False
+        assert ct.connection_snapshot is None
         conn = session.scalar(select(Connection).filter_by(conn_id="no_revert_conn"))
         assert conn.host == "new-host.example.com"
 
@@ -216,6 +219,7 @@ class TestPatchConnectionTestRevert:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.reverted is False
+        assert ct.connection_snapshot is None
         assert "modified by another user" in ct.result_message
         conn = session.scalar(select(Connection).filter_by(conn_id="concurrent_conn"))
         assert conn.host == "third-party-host.example.com"
