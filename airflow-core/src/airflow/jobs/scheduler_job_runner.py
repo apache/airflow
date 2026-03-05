@@ -3194,7 +3194,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if (
                     executor.supports_connection_test
                     and executor.name
-                    and executor_name in (executor.name.alias, executor.name.module_path)
+                    and executor_name
+                    in (
+                        executor.name.alias,
+                        executor.name.module_path,
+                        executor.name.module_path.split(".")[-1],
+                    )
                 ):
                     return executor
             return None
