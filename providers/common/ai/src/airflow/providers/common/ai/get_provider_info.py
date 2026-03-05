@@ -44,12 +44,18 @@ def get_provider_info():
                 "external-doc-url": "https://ai.pydantic.dev/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "MCP Server",
+                "external-doc-url": "https://modelcontextprotocol.io/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
                 "integration-name": "Pydantic AI",
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
-            }
+            },
+            {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
         ],
         "connection-types": [
             {
@@ -67,7 +73,33 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"]},
                     }
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
+                "connection-type": "mcp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "Auth Token"},
+                    "placeholders": {"host": "http://localhost:3001/mcp (for HTTP/SSE transport)"},
+                },
+                "conn-fields": {
+                    "transport": {
+                        "label": "Transport",
+                        "description": "Transport type: http (default), sse, or stdio",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "command": {
+                        "label": "Command",
+                        "description": "Command to run for stdio transport (e.g. uvx, python)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "args": {
+                        "label": "Arguments",
+                        "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "operators": [
             {

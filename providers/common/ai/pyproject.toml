@@ -71,6 +71,7 @@ dependencies = [
 "bedrock" = ["pydantic-ai-slim[bedrock]"]
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
+"mcp" = ["pydantic-ai-slim[mcp]"]
 "sql" = [
     "apache-airflow-providers-common-sql",
     "sqlglot>=26.0.0",
@@ -89,6 +90,7 @@ dev = [
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=26.0.0",
+    "pydantic-ai-slim[mcp]",
     "apache-airflow-providers-common-sql[datafusion]"
 ]
 
