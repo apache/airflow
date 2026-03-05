@@ -177,6 +177,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
         # END: run param
     ) -> PipelineJob:
@@ -223,6 +224,8 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             Private services access must already be configured for the network. If left unspecified, the
             network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
         :param create_request_timeout: Optional. The timeout for the create request in seconds.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC network 
+            that can be used for this PipelineJob's workload.
         :param experiment: Optional. The Vertex AI experiment name or instance to associate to this
             PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
             metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
@@ -246,6 +249,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             service_account=service_account,
             network=network,
             create_request_timeout=create_request_timeout,
+            reserved_ip_ranges=reserved_ip_ranges,
             experiment=experiment,
         )
         self._pipeline_job.wait()
@@ -271,6 +275,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
         # END: run param
     ) -> PipelineJob:
@@ -320,6 +325,8 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             Private services access must already be configured for the network. If left unspecified, the
             network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
         :param create_request_timeout: Optional. The timeout for the create request in seconds.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC network 
+            that can be used for this PipelineJob's workload.
         :param experiment: Optional. The Vertex AI experiment name or instance to associate to this PipelineJob.
             Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
             to the current Experiment Run. Pipeline parameters will be associated as parameters to
@@ -343,6 +350,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             service_account=service_account,
             network=network,
             create_request_timeout=create_request_timeout,
+            reserved_ip_ranges=reserved_ip_ranges,
             experiment=experiment,
         )
 

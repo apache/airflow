@@ -88,6 +88,8 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Private services access must already be configured for the network. If left unspecified, the
         network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
+    :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC network 
+        that can be used for this PipelineJob's workload.
     :param experiment: Optional. The Vertex AI experiment name or instance to associate to this PipelineJob.
         Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
         to the current Experiment Run. Pipeline parameters will be associated as parameters to
@@ -136,6 +138,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -159,6 +162,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.service_account = service_account
         self.network = network
         self.create_request_timeout = create_request_timeout
+        self.reserved_ip_ranges = reserved_ip_ranges
         self.experiment = experiment
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -190,6 +194,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
             service_account=self.service_account,
             network=self.network,
             create_request_timeout=self.create_request_timeout,
+            reserved_ip_ranges=self.reserved_ip_ranges,
             experiment=self.experiment,
         )
         pipeline_job_id = pipeline_job_obj.job_id
