@@ -22,14 +22,25 @@ import pytest
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+
+
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
 
 
 def _make_mock_agent(output):
     """Create a mock agent that returns the given output."""
-    mock_result = MagicMock(spec=["output"])
-    mock_result.output = output
     mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = mock_result
+    mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
 
 
@@ -77,6 +88,27 @@ class TestAgentOperatorExecute:
             prompt="Do something",
             llm_conn_id="my_llm",
             toolsets=[mock_toolset],
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.return_value.create_agent.call_args
+        passed_toolsets = create_call[1]["toolsets"]
+        assert len(passed_toolsets) == 1
+        assert isinstance(passed_toolsets[0], LoggingToolset)
+        assert passed_toolsets[0].wrapped is mock_toolset
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls):
+        """enable_tool_logging=False passes toolsets through unwrapped."""
+        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("done")
+
+        mock_toolset = MagicMock()
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            toolsets=[mock_toolset],
+            enable_tool_logging=False,
         )
         op.execute(context=MagicMock())
 
