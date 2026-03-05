@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
@@ -51,6 +52,9 @@ class AgentOperator(BaseOperator):
         ``BaseModel`` subclass for structured output.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``).
+    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
+        ``LoggingToolset`` that logs tool calls with timing at INFO level and
+        arguments at DEBUG level. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     """
@@ -72,6 +76,7 @@ class AgentOperator(BaseOperator):
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[AbstractToolset] | None = None,
+        enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -83,6 +88,7 @@ class AgentOperator(BaseOperator):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.toolsets = toolsets
+        self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
 
     @cached_property
@@ -93,7 +99,10 @@ class AgentOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:
-            extra_kwargs["toolsets"] = self.toolsets
+            if self.enable_tool_logging:
+                extra_kwargs["toolsets"] = wrap_toolsets_for_logging(self.toolsets, self.log)
+            else:
+                extra_kwargs["toolsets"] = self.toolsets
         agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
@@ -101,6 +110,7 @@ class AgentOperator(BaseOperator):
         )
 
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         output = result.output
 
         if isinstance(output, BaseModel):

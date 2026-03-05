@@ -23,6 +23,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.standard.operators.branch import BranchMixIn
 
 if TYPE_CHECKING:
@@ -81,6 +82,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             **self.agent_params,
         )
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         output = result.output
 
         branches: str | list[str]

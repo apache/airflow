@@ -30,6 +30,19 @@ from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
+
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 _BASE_KWARGS = dict(task_id="test_task", prompt="test prompt", llm_conn_id="llm_conn")
 
 
@@ -243,8 +256,8 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value.output = SchemaCompareResult(
-            compatible=True, mismatches=[], summary="All good"
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
@@ -319,8 +332,10 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value.output = SchemaCompareResult(
-            compatible=True, mismatches=[], summary="S3 and Postgres schemas are compatible"
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            SchemaCompareResult(
+                compatible=True, mismatches=[], summary="S3 and Postgres schemas are compatible"
+            )
         )
         mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
@@ -395,8 +410,8 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value.output = SchemaCompareResult(
-            compatible=True, mismatches=[], summary="Schemas are compatible"
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="Schemas are compatible")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
@@ -444,10 +459,12 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value.output = SchemaCompareResult(
-            compatible=False,
-            mismatches=[],
-            summary="Timestamp column type differs between Parquet and CSV",
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            SchemaCompareResult(
+                compatible=False,
+                mismatches=[],
+                summary="Timestamp column type differs between Parquet and CSV",
+            )
         )
         mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook

@@ -25,6 +25,18 @@ from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecorate
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 class TestLLMBranchDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMBranchDecoratedOperator.custom_operator_name == "@task.llm_branch"
@@ -36,9 +48,7 @@ class TestLLMBranchDecoratedOperator:
         downstream_enum = Enum("DownstreamTasks", {"positive": "positive", "negative": "negative"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = downstream_enum.positive
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.positive)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "positive"
 
@@ -81,9 +91,7 @@ class TestLLMBranchDecoratedOperator:
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = downstream_enum.task_a
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(ticket_type):

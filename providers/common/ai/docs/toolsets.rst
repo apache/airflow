@@ -185,6 +185,27 @@ Parameters
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
+``LoggingToolset``
+------------------
+
+:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
+``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
+in real time. ``AgentOperator`` applies it automatically (see
+``enable_tool_logging``), but you can also use it directly with any pydantic-ai
+``Agent``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    sql_toolset = SQLToolset(db_conn_id="my_db")
+    logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
+
+Each tool call produces two INFO log lines (name + timing) and optional
+DEBUG-level argument logging. Exceptions are logged and re-raised.
+
+
 Security
 --------
 

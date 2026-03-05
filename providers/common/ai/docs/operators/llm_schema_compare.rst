@@ -162,3 +162,10 @@ Parameters
   catalog-managed sources.
 - ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
   strongly recommended for cross-system comparisons. default is ``full``
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.

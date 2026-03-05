@@ -23,6 +23,18 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.operators.llm import LLMOperator
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 class TestLLMOperator:
     def test_template_fields(self):
         expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params"}
@@ -32,9 +44,7 @@ class TestLLMOperator:
     def test_execute_returns_string_output(self, mock_hook_cls):
         """Default output_type=str returns the LLM string directly."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "Paris is the capital of France."
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("Paris is the capital of France.")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="test", prompt="What is the capital of France?", llm_conn_id="my_llm")
@@ -53,9 +63,7 @@ class TestLLMOperator:
             names: list[str]
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = Entities(names=["Alice", "Bob"])
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["Alice", "Bob"]))
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(

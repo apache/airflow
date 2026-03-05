@@ -25,12 +25,22 @@ from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 def _make_mock_agent(output: str):
     """Create a mock agent that returns the given output string."""
-    mock_result = MagicMock(spec=["output"])
-    mock_result.output = output
     mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = mock_result
+    mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
 
 

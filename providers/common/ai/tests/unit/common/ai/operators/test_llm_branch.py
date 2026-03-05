@@ -25,6 +25,18 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 class TestLLMBranchOperator:
     def test_inherits_from_skipmixin_is_true(self):
         assert LLMBranchOperator.inherits_from_skipmixin is True
@@ -51,9 +63,7 @@ class TestLLMBranchOperator:
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = downstream_enum.task_a
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
 
@@ -80,9 +90,9 @@ class TestLLMBranchOperator:
         )
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = [downstream_enum.task_a, downstream_enum.task_c]
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            [downstream_enum.task_a, downstream_enum.task_c]
+        )
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = ["task_a", "task_c"]
 
@@ -107,9 +117,7 @@ class TestLLMBranchOperator:
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = downstream_enum.task_a
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -134,9 +142,7 @@ class TestLLMBranchOperator:
         )
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = downstream_enum.billing
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.billing)
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
