@@ -4046,7 +4046,6 @@ class TestDataprocCreateBatchOperator:
         )
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_labels_sanitize_underscores_and_dots(self, mock_hook, to_dict_mock):
