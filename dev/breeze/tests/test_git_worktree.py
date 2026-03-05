@@ -85,17 +85,22 @@ class TestGetMainGitDirForWorktree:
     @pytest.mark.parametrize(
         "gitdir_content",
         [
-            "gitdir: /abs/path/.git/worktrees/wt\n",
-            "gitdir: /abs/path/.git/worktrees/wt",
-            "gitdir:  /abs/path/.git/worktrees/wt  \n",
+            "gitdir: {path}/worktrees/wt\n",
+            "gitdir: {path}/worktrees/wt",
+            "gitdir:  {path}/worktrees/wt  \n",
         ],
         ids=["trailing-newline", "no-trailing-newline", "extra-whitespace"],
     )
     def test_strips_whitespace_from_gitdir(self, tmp_path, gitdir_content):
         """Whitespace and trailing newlines are stripped from the gitdir content."""
-        (tmp_path / ".git").write_text(gitdir_content)
+        main_repo = tmp_path / "main-repo"
+        main_git = main_repo / ".git"
+        (main_git / "worktrees" / "wt").mkdir(parents=True)
+
+        content = gitdir_content.format(path=main_git)
+        (tmp_path / ".git").write_text(content)
 
         with mock.patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", tmp_path):
             result = get_main_git_dir_for_worktree()
             assert result is not None
-            assert result == Path("/abs/path/.git")
+            assert result == main_git
