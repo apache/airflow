@@ -2027,7 +2027,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             queued_adrqs = session.scalars(
                 with_row_locks(
-                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
+                    .order_by(AssetDagRunQueue.created_at.desc()),
                     of=AssetDagRunQueue,
                     skip_locked=True,
                     key_share=False,
@@ -2042,9 +2044,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            triggered_date: DateTime = timezone.coerce_datetime(
-                max(record.created_at for record in queued_adrqs)
-            )
+            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
