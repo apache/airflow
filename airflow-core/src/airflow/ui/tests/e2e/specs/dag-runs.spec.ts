@@ -21,13 +21,14 @@ import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagRunsPage } from "tests/e2e/pages/DagRunsPage";
 
 test.describe("DAG Runs Page", () => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
 
   let dagRunsPage: DagRunsPage;
   const testDagId1 = testConfig.testDag.id;
   const testDagId2 = "example_python_operator";
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(3 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";

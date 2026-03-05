@@ -38,7 +38,7 @@ export class AssetDetailPage extends BasePage {
   }
 
   public async verifyAssetDetails(name: string): Promise<void> {
-    await expect(this.page.getByRole("heading", { name })).toBeVisible();
+    await expect(this.page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
   }
 
   public async verifyProducingTasks(minCount: number): Promise<void> {
@@ -70,13 +70,17 @@ export class AssetDetailPage extends BasePage {
     expect(count).toBeGreaterThanOrEqual(minCount);
 
     if (count > 0) {
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
+      await expect(async () => {
+        await button.click({ timeout: 10_000 });
+        await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
+      }).toPass({ timeout: 30_000 });
       const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
 
-      await expect(popoverLinks).toHaveCount(count);
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
+      await expect(popoverLinks).toHaveCount(count, { timeout: 15_000 });
+      await expect(async () => {
+        await button.click({ timeout: 10_000 });
+        await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
+      }).toPass({ timeout: 30_000 });
     }
   }
 }

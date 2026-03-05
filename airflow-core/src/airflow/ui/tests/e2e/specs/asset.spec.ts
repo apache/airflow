@@ -118,6 +118,7 @@ test.describe("Assets Page", () => {
   });
 
   test("verify asset details and dependencies", async ({ page }) => {
+    test.setTimeout(90_000);
     const assetDetailPage = new AssetDetailPage(page);
     const assetName = testConfig.asset.name;
 

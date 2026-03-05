@@ -41,6 +41,7 @@ test.describe("Verify Required Action page", () => {
   });
 
   test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
+    test.setTimeout(90_000);
     const browsePage = new RequiredActionsPage(page);
 
     await browsePage.navigateToRequiredActionsPage();

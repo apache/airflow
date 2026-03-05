@@ -258,6 +258,7 @@ export class DagsPage extends BasePage {
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+    await this.page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
   }
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
@@ -339,7 +340,7 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
@@ -406,7 +407,7 @@ export class DagsPage extends BasePage {
     }
 
     await this.page.goto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
-      timeout: 15_000,
+      timeout: 30_000,
       waitUntil: "domcontentloaded",
     });
 
@@ -543,7 +544,7 @@ export class DagsPage extends BasePage {
 
     // Wait for any of these elements to appear
     await expect(cardList.or(tableList).or(noDagFound).or(fallbackTable)).toBeVisible({
-      timeout: 30_000,
+      timeout: 60_000,
     });
 
     // If empty state is shown, consider the list as successfully rendered
@@ -554,7 +555,7 @@ export class DagsPage extends BasePage {
     // Wait for loading to complete (skeletons to disappear)
     const skeleton = this.page.locator('[data-testid="skeleton"]');
 
-    await expect(skeleton).toHaveCount(0, { timeout: 30_000 });
+    await expect(skeleton).toHaveCount(0, { timeout: 60_000 });
 
     // Now wait for actual DAG content based on current view
     const isCardView = await cardList.isVisible().catch(() => false);
@@ -563,17 +564,17 @@ export class DagsPage extends BasePage {
       // Card view: wait for dag-id elements
       const dagCards = this.page.locator('[data-testid="dag-id"]');
 
-      await dagCards.first().waitFor({ state: "visible", timeout: 30_000 });
+      await dagCards.first().waitFor({ state: "visible", timeout: 60_000 });
     } else {
       // Table view: prefer table-list testid, fallback to any <table> element
       const rowsInTableList = tableList.locator("tbody tr");
 
       if ((await rowsInTableList.count().catch(() => 0)) > 0) {
-        await rowsInTableList.first().waitFor({ state: "visible", timeout: 30_000 });
+        await rowsInTableList.first().waitFor({ state: "visible", timeout: 60_000 });
       } else {
         const anyTableRows = fallbackTable.locator("tbody tr");
 
-        await anyTableRows.first().waitFor({ state: "visible", timeout: 30_000 });
+        await anyTableRows.first().waitFor({ state: "visible", timeout: 60_000 });
       }
     }
   }

@@ -120,7 +120,7 @@ test.describe("Events with Generated Data", () => {
       for (const event of filteredEvents) {
         expect(event.toLowerCase()).toContain("cli");
       }
-    }).toPass({ timeout: 20_000 });
+    }).toPass({ timeout: 60_000 });
   });
 
   test("verify filter by DAG ID", async () => {

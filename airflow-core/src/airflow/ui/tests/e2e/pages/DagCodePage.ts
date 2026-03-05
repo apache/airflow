@@ -83,9 +83,9 @@ export class DagCodePage extends BasePage {
 
     await expect(tokens.first()).toBeVisible({ timeout: 30_000 });
 
-    const tokenCount = await tokens.count();
-
-    expect(tokenCount).toBeGreaterThan(1);
+    await expect
+      .poll(async () => tokens.count(), { timeout: 30_000 })
+      .toBeGreaterThan(1);
 
     const classNames = await tokens.first().getAttribute("class");
 

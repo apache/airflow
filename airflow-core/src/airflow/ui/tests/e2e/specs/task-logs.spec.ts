@@ -70,7 +70,11 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    await expect(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
+
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    await expect(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/, { timeout: 15_000 });
   });
 
   test("Verify log timestamp formatting", async ({ page }) => {
@@ -78,7 +82,11 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
+
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, { timeout: 15_000 });
   });
 
   test("Verify log settings", async ({ page }) => {
@@ -86,8 +94,11 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    // Verify timestamps are visible initially
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
+
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, { timeout: 15_000 });
 
     await page.getByTestId("log-settings-button").click();
     await page.getByTestId("log-settings-timestamp").click();

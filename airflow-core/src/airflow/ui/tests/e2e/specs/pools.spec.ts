@@ -21,6 +21,7 @@ import { AUTH_FILE } from "playwright.config";
 import { PoolsPage } from "tests/e2e/pages/PoolsPage";
 
 test.describe("Pools Page", () => {
+  test.describe.configure({ mode: "serial" });
   test.setTimeout(60_000);
 
   let poolsPage: PoolsPage;
