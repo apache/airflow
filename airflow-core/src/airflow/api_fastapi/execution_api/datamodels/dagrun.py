@@ -32,6 +32,7 @@ class TriggerDAGRunPayload(StrictBaseModel):
     reset_dag_run: bool = False
     partition_key: str | None = None
     note: str | None = None
+    should_raise_on_ci_or_local_commit: str | None = None
 
 
 class DagRunStateResponse(BaseModel):
