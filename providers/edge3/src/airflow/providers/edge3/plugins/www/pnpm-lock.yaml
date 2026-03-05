@@ -5,15 +5,12 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  tar@<=7.5.2: '>=7.5.3'
-  tar@<=7.5.3: '>=7.5.4'
+  tar@<7.5.10: '>=7.5.10'
   lodash-es@>=4.0.0 <=4.17.22: '>=4.17.23'
   lodash@>=4.0.0 <=4.17.22: '>=4.17.23'
-  tar@<7.5.7: '>=7.5.7'
   diff@>=6.0.0 <8.0.3: '>=8.0.3'
   '@isaacs/brace-expansion@<=5.0.0': '>=5.0.1'
   ajv@<8.18.0: '>=8.18.0'
-  tar@<7.5.8: '>=7.5.8'
   minimatch@<10.2.1: '>=10.2.1'
   rollup@>=4.0.0 <4.59.0: '>=4.59.0'
   minimatch@>=10.0.0 <10.2.3: '>=10.2.3'
@@ -2894,8 +2891,8 @@ packages:
     resolution: {integrity: sha512-Bh7QjT8/SuKUIfObSXNHNSK6WHo6J1tHCqJsuaFDP7gP0fkzSfTxI8y85JrppZ0h8l0maIgc2tfuZQ6/t3GtnQ==}
     engines: {node: ^14.18.0 || >=16.0.0}
 
-  tar@7.5.9:
-    resolution: {integrity: sha512-BTLcK0xsDh2+PUe9F6c2TlRp4zOOBMTkoQHQIWSIzI0R7KG46uEwq4OPk2W7bZcprBMsuaeFsqwYr7pjh6CuHg==}
+  tar@7.5.10:
+    resolution: {integrity: sha512-8mOPs1//5q/rlkNSPcCegA6hiHJYDmSLEI8aMH/CdSQJNWztHC9WHNam5zdQlfpTwB9Xp7IBEsHfV5LKMJGVAw==}
     engines: {node: '>=18'}
 
   tinybench@2.9.0:
@@ -5604,7 +5601,7 @@ snapshots:
       node-fetch-native: 1.6.7
       nypm: 0.5.4
       pathe: 2.0.3
-      tar: 7.5.9
+      tar: 7.5.10
 
   glob-parent@5.1.2:
     dependencies:
@@ -6501,7 +6498,7 @@ snapshots:
     dependencies:
       '@pkgr/core': 0.2.9
 
-  tar@7.5.9:
+  tar@7.5.10:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
