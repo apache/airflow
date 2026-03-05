@@ -84,6 +84,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
         "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
         "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@test-xcom-objectstorage-backend\n"
         "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
+        "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
