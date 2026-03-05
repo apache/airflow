@@ -250,7 +250,7 @@ class TestOtelIntegration:
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
         dag_ids = dag_bag.dag_ids
-        assert len(dag_ids) == 1
+        assert len(dag_ids) == 3
 
         dag_dict: dict[str, SerializedDAG] = {}
         with create_session() as session:
@@ -512,9 +512,13 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "sub_span1": "task_run.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
-            "dag_run.otel_test_dag": None,
+            "otel_test_dag": None,
+            "task1": None,
+            "task1_sub_span1": None,
+            "task1_sub_span2": None,
+            "task1_sub_span3": "task1_sub_span2",
+            "task1_sub_span4": None,
+            "task2": None,
         }
 
     def start_worker_and_scheduler(self):
