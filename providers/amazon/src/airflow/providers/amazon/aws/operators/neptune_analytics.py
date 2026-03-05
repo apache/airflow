@@ -284,7 +284,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         vpc_endpoint_id = ""
 
         if event and event.get("status") == "success":
-            vpc_endpoint_id = event.get("endpoint_id")
+            vpc_endpoint_id = event.get("endpoint_id", "")
 
         return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_id, "vpc_id": self.vpc_id}
 
