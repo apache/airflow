@@ -36,13 +36,17 @@ class TestXComObjectStorageBackend:
         """Test that a DAG using XComObjectStorageBackend completes successfully and persists XCom values to S3."""
         self.airflow_client.un_pause_dag(self.dag_id)
 
-        resp = self.airflow_client.trigger_dag(
+        trigger_resp = self.airflow_client.trigger_dag(
             self.dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()}
         )
         state = self.airflow_client.wait_for_dag_run(
             dag_id=self.dag_id,
-            run_id=resp["dag_run_id"],
+            run_id=trigger_resp["dag_run_id"],
         )
+
+        task_logs_resp = self.airflow_client.get_task_logs(dag_id=self.dag_id, task_id="bash_pull", run_id=trigger_resp["dag_run_id"])
+        import pprint
+        pprint.pprint(task_logs_resp)
 
         assert state == "success", f"DAG {self.dag_id} did not complete successfully. Final state: {state}"
 
