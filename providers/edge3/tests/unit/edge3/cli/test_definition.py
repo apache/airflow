@@ -53,8 +53,8 @@ class TestEdgeCliDefinition:
         assert len(commands) == 1
 
     def test_edge_commands_count(self):
-        """Test that EDGE_COMMANDS contains all 13 subcommands."""
-        assert len(EDGE_COMMANDS) == 13
+        """Test that EDGE_COMMANDS contains all 14 subcommands."""
+        assert len(EDGE_COMMANDS) == 14
 
     @pytest.mark.parametrize(
         "command",
