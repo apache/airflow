@@ -458,5 +458,6 @@ def get_main_git_dir_for_worktree() -> Path | None:
                 gitdir = (AIRFLOW_ROOT_PATH / gitdir).resolve()
             # gitdir points to <main-repo>/.git/worktrees/<name>
             # .parent.parent gives us <main-repo>/.git
-            return gitdir.parent.parent
+            main_git_dir = gitdir.parent.parent
+            return main_git_dir if main_git_dir.is_dir() else None
     return None
