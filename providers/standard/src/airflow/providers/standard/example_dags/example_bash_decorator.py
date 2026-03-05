@@ -40,6 +40,7 @@ def example_bash_decorator():
     For details, see the Bash decorator documentation
     [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html).
     """
+
     @task.bash
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
         return f"echo {task_instance_key_str} && sleep {sleep_seconds}"
