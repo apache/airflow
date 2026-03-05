@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.approval import LLMHITLApprovalMixin, LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseOperator
 
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class LLMOperator(BaseOperator):
+class LLMOperator(BaseOperator, LLMApprovalMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -73,6 +75,9 @@ class LLMOperator(BaseOperator):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        allow_modifications: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -82,6 +87,9 @@ class LLMOperator(BaseOperator):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.agent_params = agent_params or {}
+        self.require_approval = require_approval
+        self.approval_timeout = approval_timeout
+        self.allow_modifications = allow_modifications
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -97,5 +105,9 @@ class LLMOperator(BaseOperator):
         output = result.output
 
         if isinstance(output, BaseModel):
-            return output.model_dump()
+            output = output.model_dump()
+
+        if self.require_approval:
+            self.defer_for_approval(context, output, allow_modifications=self.allow_modifications)
+
         return output

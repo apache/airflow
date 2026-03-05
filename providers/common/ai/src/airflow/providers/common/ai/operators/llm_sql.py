@@ -148,6 +148,10 @@ class LLMSQLQueryOperator(LLMOperator):
             _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
 
         self.log.info("Generated SQL:\n%s", sql)
+
+        if self.require_approval:
+            self.defer_for_approval(context, sql, allow_modifications=self.allow_modifications)
+
         return sql
 
     @staticmethod
