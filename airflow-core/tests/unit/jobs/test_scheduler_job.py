@@ -4943,6 +4943,82 @@ class TestSchedulerJob:
         ).one_or_none()
         assert adrq_2 is not None
 
+        assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_asset_triggered_dag_runs_created_when_use_job_schedule_false(self, session, dag_maker):
+        """
+        Test that asset-triggered dag runs are still created when use_job_schedule=False.
+
+        use_job_schedule=False should only disable time-based (cron/interval) scheduling,
+        not asset-triggered scheduling.
+        """
+        asset1 = Asset(uri="test://asset-use-job-schedule", name="asset_use_job_schedule", group="test")
+
+        with dag_maker(dag_id="asset-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
+        dr = dag_maker.create_dagrun(
+            run_id="run1",
+            logical_date=(DEFAULT_DATE + timedelta(days=100)),
+            data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
+        )
+
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+
+        event1 = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="task",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+        session.add(event1)
+
+        with dag_maker(dag_id="asset-consumer", schedule=[asset1]):
+            pass
+        consumer_dag = dag_maker.dag
+
+        session.add(AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag.dag_id))
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        # Asset-triggered dag run should be created even when use_job_schedule=False
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one_or_none()
+        assert created_run is not None
+        assert created_run.state == State.QUEUED
+
+    @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_time_based_dag_runs_not_created_when_use_job_schedule_false(self, session, dag_maker):
+        """
+        Test that time-based dag runs are NOT created when use_job_schedule=False.
+        """
+        with dag_maker(
+            dag_id="time-based-dag",
+            schedule="@daily",
+            start_date=DEFAULT_DATE,
+            session=session,
+        ):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        # Time-based dag run should NOT be created when use_job_schedule=False
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == "time-based-dag")).one_or_none()
+        assert created_run is None
+
+
+
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
         """

@@ -1693,8 +1693,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
-                self._create_dagruns_for_dags(guard, session)
+            self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -1834,7 +1833,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # filter asset partition triggered Dags
             if d.dag_id not in partition_dag_ids
         }
-        self._create_dag_runs(non_asset_dags, session)
+        # Only create time-based dag runs if use_job_schedule is enabled
+        if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
+            self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
