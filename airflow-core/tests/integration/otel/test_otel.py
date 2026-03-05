@@ -387,9 +387,7 @@ class TestOtelIntegration:
             pytest.param(False, False, id="dont_export_legacy_names"),
         ],
     )
-    def test_export_legacy_metric_names(
-        self, legacy_names_on_bool, legacy_names_exported, monkeypatch, capfd, session
-    ):
+    def test_export_legacy_metric_names(self, legacy_names_on_bool, legacy_names_exported, capfd):
         assert isinstance(legacy_names_on_bool, bool)
         os.environ["AIRFLOW__METRICS__LEGACY_NAMES_ON"] = str(legacy_names_on_bool)
         out, dag = self.dag_execution_for_testing_metrics(capfd)
@@ -417,7 +415,7 @@ class TestOtelIntegration:
             if legacy_names_exported:
                 assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
-    def test_export_metrics_during_process_shutdown(self, monkeypatch, capfd, session):
+    def test_export_metrics_during_process_shutdown(self, capfd):
         out, dag = self.dag_execution_for_testing_metrics(capfd)
 
         if self.use_otel != "true":
@@ -436,7 +434,7 @@ class TestOtelIntegration:
             assert set(metrics_to_check).issubset(metrics_dict.keys())
 
     @pytest.mark.execution_timeout(90)
-    def test_dag_execution_succeeds(self, monkeypatch, capfd, session):
+    def test_dag_execution_succeeds(self, capfd):
         """The same scheduler will start and finish the dag processing."""
         scheduler_process = None
         apiserver_process = None
