@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from cachetools import TTLCache
+from cachetools import TTLCache, cachedmethod
 from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
@@ -286,17 +286,12 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
+    @cachedmethod(lambda self: self.cache, key=lambda _, token: ("user", int(token["sub"])))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        # Namespace the cache key to avoid collisions with other entries in the shared cache.
-        user_id = int(token["sub"])
-        cache_key = ("user", user_id)
-        if cache_key in self.cache:
-            return self.cache[cache_key]
         with create_session() as session:
-            user = session.get(User, user_id)
+            user = session.get(User, int(token["sub"]))
         if user is None:
             raise ValueError(f"User with id {token['sub']} not found")
-        self.cache[cache_key] = user
         return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
