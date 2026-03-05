@@ -86,7 +86,7 @@ execution step:
     generate_sql = LLMSQLQueryOperator(
         task_id="generate_sql",
         prompt="Find the top 5 products by total sales amount",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         datasource_config=datasource_config,
     )
 
