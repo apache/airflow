@@ -139,7 +139,7 @@ class LLMSQLQueryOperator(LLMOperator):
             )
         return hook
 
-    def execute(self, context: Context) -> str | None:
+    def execute(self, context: Context) -> str:
         schema_info = self._get_schema_context()
 
         full_system_prompt = self._build_system_prompt(schema_info)
@@ -158,7 +158,6 @@ class LLMSQLQueryOperator(LLMOperator):
 
         if self.require_approval:
             self.defer_for_approval(context, sql)
-            return None
 
         return sql
 

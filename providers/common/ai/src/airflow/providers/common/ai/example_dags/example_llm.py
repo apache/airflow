@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
@@ -119,7 +121,6 @@ example_llm_decorator_structured()
 # [START howto_operator_llm_approval]
 @dag
 def example_llm_operator_approval():
-    from datetime import timedelta
 
     LLMOperator(
         task_id="summarize_with_approval",

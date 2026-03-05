@@ -23,13 +23,13 @@ from uuid import uuid4
 import pytest
 
 from airflow.providers.common.ai.mixins.approval import (
-    ApprovalRejectionException,
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
-from airflow.providers.standard.exceptions import HITLTimeoutError
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 def _make_mock_run_result(output):
@@ -440,6 +440,9 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestLLMSQLQueryOperatorApproval:
     """Tests for LLMSQLQueryOperator with require_approval=True (LLMApprovalMixin integration)."""
 
@@ -598,15 +601,18 @@ class TestLLMSQLQueryOperatorApproval:
         assert result == "SELECT * FROM orders"
 
     def test_execute_complete_rejected(self):
-        """execute_complete raises ApprovalRejectionException when SQL is rejected."""
+        """execute_complete raises HITLRejectException when SQL is rejected."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Reject"], "responded_by_user": "dba"}
+        from airflow.providers.standard.exceptions import HITLRejectException
 
-        with pytest.raises(ApprovalRejectionException, match="dba"):
+        with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer"):
             op.execute_complete({}, generated_output="SELECT 1", event=event)
 
     def test_execute_complete_with_error(self):
         """execute_complete raises on error event."""
+        from airflow.providers.standard.exceptions import HITLTimeoutError
+
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"error": "timeout expired", "error_type": "timeout"}
 

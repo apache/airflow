@@ -23,20 +23,10 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 
-from airflow.providers.common.compat.sdk import AirflowException
-
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
-
-
-class ApprovalFailedException(AirflowException):
-    """Failed to approve."""
-
-
-class ApprovalRejectionException(AirflowException):
-    """Rejected by the reviewer."""
 
 
 class DeferForApprovalProtocol(Protocol):
@@ -154,30 +144,34 @@ class LLMApprovalMixin:
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
             ``params_input``, and ``responded_by_user``.
-        :raises ApprovalRejectionException: If the reviewer rejected the output.
-        :raises ApprovalFailedException: If the trigger reported an error.
+        :raises HITLRejectException: If the reviewer rejected the output.
+        :raises HITLTriggerEventError: If the trigger reported an error.
         :raises HITLTimeoutError: If the approval timed out.
         """
-        from airflow.providers.standard.exceptions import HITLTimeoutError
+        from airflow.providers.standard.exceptions import (
+            HITLRejectException,
+            HITLTimeoutError,
+            HITLTriggerEventError,
+        )
 
         if "error" in event:
             error_type = event.get("error_type", "unknown")
             if error_type == "timeout":
                 raise HITLTimeoutError(f"Approval timed out: {event['error']}")
-            raise ApprovalFailedException(f"Approval failed: {event['error']}")
+            raise HITLTriggerEventError(event)
 
         responded_by_user = event.get("responded_by_user")
-        chosen = event.get("chosen_options", [])
+        chosen = event["chosen_options"]
         if self.APPROVE not in chosen:
-            raise ApprovalRejectionException(f"Output was rejected by the reviewer {responded_by_user}.")
+            raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
 
         output = generated_output
         params_input: dict[str, Any] = event.get("params_input") or {}
 
-        # If params has data means technically its allowed modifying see above defer call
+        # If the reviewer provided modified output, return their version
         if params_input:
             modified = params_input.get("output")
-            if modified and modified != generated_output:
+            if modified and modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
                 return modified
 

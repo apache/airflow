@@ -24,11 +24,11 @@ import pytest
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.mixins.approval import (
-    ApprovalFailedException,
-    ApprovalRejectionException,
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators.llm import LLMOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 def _make_mock_run_result(output):
@@ -102,6 +102,9 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestLLMOperatorApproval:
     """Tests for LLMOperator with require_approval=True (LLMApprovalMixin integration)."""
 
@@ -242,19 +245,23 @@ class TestLLMOperatorApproval:
         assert result == "the output"
 
     def test_execute_complete_rejected(self):
-        """execute_complete raises ApprovalRejectionException when rejected."""
+        """execute_complete raises HITLRejectException when rejected."""
+        from airflow.providers.standard.exceptions import HITLRejectException
+
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
 
-        with pytest.raises(ApprovalRejectionException):
+        with pytest.raises(HITLRejectException):
             op.execute_complete({}, generated_output="output", event=event)
 
     def test_execute_complete_with_error(self):
-        """execute_complete raises ApprovalFailedException on error event."""
+        """execute_complete raises HITLTriggerEventError on error event."""
+        from airflow.providers.standard.exceptions import HITLTriggerEventError
+
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"error": "oops", "error_type": "unknown"}
 
-        with pytest.raises(ApprovalFailedException, match="oops"):
+        with pytest.raises(HITLTriggerEventError, match="oops"):
             op.execute_complete({}, generated_output="output", event=event)
 
     def test_execute_complete_with_modified_output(self):

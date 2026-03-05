@@ -114,7 +114,6 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
 
         if self.require_approval:
             self.defer_for_approval(context, output)
-            return None
 
         if isinstance(output, BaseModel):
             output = output.model_dump()

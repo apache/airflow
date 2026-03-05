@@ -16,18 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
+
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pytest
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.mixins.approval import (
-    ApprovalFailedException,
-    ApprovalRejectionException,
     LLMApprovalMixin,
 )
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
 
 HITL_TRIGGER_PATH = "airflow.providers.standard.triggers.hitl.HITLTrigger"
 UPSERT_HITL_PATH = "airflow.sdk.execution_time.hitl.upsert_hitl_detail"
@@ -207,19 +212,19 @@ class TestDeferForApproval:
     def test_rejected_raises_rejection_exception(self, approval_op):
         event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
 
-        with pytest.raises(ApprovalRejectionException, match="rejected by the reviewer"):
+        with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer admin."):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_empty_chosen_options_raises_rejection(self, approval_op):
         event = {"chosen_options": [], "responded_by_user": "admin"}
 
-        with pytest.raises(ApprovalRejectionException):
+        with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer admin."):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_error_in_event_raises_approval_failed(self, approval_op):
         event = {"error": "something went wrong", "error_type": "unknown"}
 
-        with pytest.raises(ApprovalFailedException, match="something went wrong"):
+        with pytest.raises(HITLTriggerEventError, match="something went wrong"):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_timeout_error_raises_hitl_timeout(self, approval_op):
@@ -300,5 +305,5 @@ class TestDeferForApproval:
     def test_rejection_message_includes_username(self, approval_op):
         event = {"chosen_options": ["Reject"], "responded_by_user": "alice"}
 
-        with pytest.raises(ApprovalRejectionException, match="alice"):
+        with pytest.raises(HITLRejectException, match="alice"):
             approval_op.execute_complete({}, generated_output="output", event=event)
