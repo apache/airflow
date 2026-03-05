@@ -84,7 +84,13 @@ class LLMOperator(BaseOperator):
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
-        """Return PydanticAIHook for the configured LLM connection."""
+        """
+        Return a PydanticAI hook for the configured connection.
+
+        If the connection's type matches a registered subclass (e.g.
+        ``pydanticai_azure``), :meth:`~PydanticAIHook.get_conn` will
+        automatically delegate to that subclass on first use.
+        """
         return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
 
     def execute(self, context: Context) -> Any:

@@ -60,7 +60,41 @@ def get_provider_info():
                         "extra": '{"model": "openai:gpt-5"}',
                     },
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
+                "connection-type": "pydanticai_azure",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
+                    "placeholders": {
+                        "host": "https://<resource>.openai.azure.com",
+                        "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
+                "connection-type": "pydanticai_bedrock",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "bedrock:us.anthropic.claude-opus-4-5", "region_name": "us-east-1"}',
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
+                "connection-type": "pydanticai_vertex",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "google-vertex:gemini-2.0-flash", "project_id": "my-project", "location": "us-central1"}',
+                    },
+                },
+            },
         ],
         "operators": [
             {
