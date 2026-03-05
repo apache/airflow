@@ -71,5 +71,5 @@ def patch_connection_test(
 
     if body.state == ConnectionTestState.FAILED and ct.connection_snapshot:
         attempt_revert(ct, session=session)
-    else:
+    elif body.state == ConnectionTestState.SUCCESS:
         ct.connection_snapshot = None
