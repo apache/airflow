@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.sdk import BaseOperator
@@ -38,6 +39,8 @@ class SalesforceApexRestOperator(BaseOperator):
     :param payload: A dict of parameters to send in a POST / PUT request
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
     """
+
+    template_fields: Sequence[str] = ("endpoint", "method", "payload")
 
     def __init__(
         self,
