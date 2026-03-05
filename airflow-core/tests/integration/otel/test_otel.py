@@ -94,6 +94,29 @@ def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
     )
 
 
+def _terminate_and_wait(process: subprocess.Popen, timeout: int = 30) -> None:
+    """Terminate a process and wait for it to exit, killing it if it doesn't exit in time."""
+    process.terminate()
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        log.warning(
+            "Process %s did not exit within %ds after SIGTERM, sending SIGKILL.", process.pid, timeout
+        )
+        process.kill()
+        process.wait()
+
+
+def _wait_or_kill(process: subprocess.Popen, timeout: int = 30) -> None:
+    """Wait for a process to exit, killing it if it doesn't exit in time."""
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        log.warning("Process %s did not exit within %ds, sending SIGKILL.", process.pid, timeout)
+        process.kill()
+        process.wait()
+
+
 def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
     unpause_command = ["airflow", "dags", "unpause", dag_id]
 
@@ -641,6 +664,7 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
                 print("\n===== END =====\n")
 
 
+@pytest.mark.integration("otel")
 @pytest.mark.integration("redis")
 @pytest.mark.backend("postgres")
 class TestOtelIntegration:
@@ -705,6 +729,7 @@ class TestOtelIntegration:
 
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
         os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
+        os.environ["OTEL_EXPORTER_OTLP_TIMEOUT"] = "1"
         os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
         if cls.use_otel != "true":
             os.environ["OTEL_TRACES_EXPORTER"] = "console"
@@ -868,24 +893,21 @@ class TestOtelIntegration:
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
+            _terminate_and_wait(celery_worker_process)
 
             celery_status = celery_worker_process.poll()
             assert celery_status is not None, (
                 "The celery worker process status is None, which means that it hasn't terminated as expected."
             )
 
-            scheduler_process.terminate()
-            scheduler_process.wait()
+            _terminate_and_wait(scheduler_process)
 
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
+            _terminate_and_wait(apiserver_process)
 
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
@@ -978,24 +1000,21 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
+            _terminate_and_wait(celery_worker_process)
 
             celery_status = celery_worker_process.poll()
             assert celery_status is not None, (
                 "The celery worker process status is None, which means that it hasn't terminated as expected."
             )
 
-            scheduler_process.terminate()
-            scheduler_process.wait()
+            _terminate_and_wait(scheduler_process)
 
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
+            _terminate_and_wait(apiserver_process)
 
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
@@ -1049,24 +1068,21 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
+            _terminate_and_wait(celery_worker_process)
 
             celery_status = celery_worker_process.poll()
             assert celery_status is not None, (
                 "The celery worker process status is None, which means that it hasn't terminated as expected."
             )
 
-            scheduler_process.terminate()
-            scheduler_process.wait()
+            _terminate_and_wait(scheduler_process)
 
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
+            _terminate_and_wait(apiserver_process)
 
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
@@ -1184,16 +1200,12 @@ class TestOtelIntegration:
             os.environ["AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD"] = "15"
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
+            _terminate_and_wait(celery_worker_process)
+            _terminate_and_wait(scheduler_process_1)
+            _terminate_and_wait(apiserver_process)
 
-            scheduler_process_1.terminate()
-            scheduler_process_1.wait()
-
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
-            scheduler_process_2.wait()
+            # scheduler_process_2 was already terminated earlier; just wait for it to exit.
+            _wait_or_kill(scheduler_process_2)
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
@@ -1282,14 +1294,9 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
-
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
-            scheduler_process_2.terminate()
-            scheduler_process_2.wait()
+            _terminate_and_wait(celery_worker_process)
+            _terminate_and_wait(apiserver_process)
+            _terminate_and_wait(scheduler_process_2)
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
@@ -1382,14 +1389,9 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
-
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
-            scheduler_process_2.terminate()
-            scheduler_process_2.wait()
+            _terminate_and_wait(celery_worker_process)
+            _terminate_and_wait(apiserver_process)
+            _terminate_and_wait(scheduler_process_2)
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
@@ -1481,14 +1483,9 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            celery_worker_process.terminate()
-            celery_worker_process.wait()
-
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
-            scheduler_process_2.terminate()
-            scheduler_process_2.wait()
+            _terminate_and_wait(celery_worker_process)
+            _terminate_and_wait(apiserver_process)
+            _terminate_and_wait(scheduler_process_2)
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
