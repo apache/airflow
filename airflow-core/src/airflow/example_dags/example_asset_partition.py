@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from airflow.sdk import (
     DAG,
+    AllowedKeyMapper,
     Asset,
     CronPartitionTimetable,
     DailyMapper,
@@ -28,7 +29,6 @@ from airflow.sdk import (
     IdentityMapper,
     PartitionedAssetTimetable,
     ProductMapper,
-    SequenceMapper,
     YearlyMapper,
     asset,
     task,
@@ -213,7 +213,7 @@ with DAG(
     uri="file://analytics/player-stats/regional-breakdown.csv",
     schedule=PartitionedAssetTimetable(
         assets=region_raw_stats,
-        default_partition_mapper=SequenceMapper(["us", "eu", "apac"]),
+        default_partition_mapper=AllowedKeyMapper(["us", "eu", "apac"]),
     ),
     tags=["player-stats", "regional"],
 )
@@ -221,7 +221,7 @@ def regional_stats_breakdown():
     """
     Aggregate regional player statistics.
 
-    This asset demonstrates SequenceMapper, which validates that upstream partition
-    keys belong to a fixed set of values (``us``, ``eu``, ``apac``) rather than time-based partitions.
+    This asset demonstrates AllowedKeyMapper, which validates that upstream partition
+    keys belong to a fixed set of allowed values (``us``, ``eu``, ``apac``) rather than time-based partitions.
     """
     pass

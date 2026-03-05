@@ -22,20 +22,20 @@ from typing import Any
 from airflow.partition_mappers.base import PartitionMapper
 
 
-class SequenceMapper(PartitionMapper):
-    """Partition mapper that validates keys against a defined sequence."""
+class AllowedKeyMapper(PartitionMapper):
+    """Partition mapper that validates keys against a set of allowed keys."""
 
-    def __init__(self, sequence: list[str]) -> None:
-        self.sequence = sequence
+    def __init__(self, allowed_keys: list[str]) -> None:
+        self.allowed_keys = allowed_keys
 
     def to_downstream(self, key: str) -> str:
-        if key not in self.sequence:
-            raise ValueError(f"Key {key!r} not in sequence {self.sequence}")
+        if key not in self.allowed_keys:
+            raise ValueError(f"Key {key!r} not in allowed keys {self.allowed_keys}")
         return key
 
     def serialize(self) -> dict[str, Any]:
-        return {"sequence": self.sequence}
+        return {"allowed_keys": self.allowed_keys}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        return cls(sequence=data["sequence"])
+        return cls(allowed_keys=data["allowed_keys"])

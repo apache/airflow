@@ -18,31 +18,31 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.partition_mappers.sequence import SequenceMapper
+from airflow.partition_mappers.allowed_key import AllowedKeyMapper
 
 
-class TestSequenceMapper:
+class TestAllowedKeyMapper:
     def test_to_downstream(self):
-        pm = SequenceMapper(["us", "eu", "apac"])
+        pm = AllowedKeyMapper(["us", "eu", "apac"])
         assert pm.to_downstream("us") == "us"
         assert pm.to_downstream("eu") == "eu"
 
     def test_to_downstream_invalid_key(self):
-        pm = SequenceMapper(["us", "eu"])
-        with pytest.raises(ValueError, match="not in sequence"):
+        pm = AllowedKeyMapper(["us", "eu"])
+        with pytest.raises(ValueError, match="not in allowed keys"):
             pm.to_downstream("apac")
 
     def test_serialize(self):
-        pm = SequenceMapper(["a", "b", "c"])
-        assert pm.serialize() == {"sequence": ["a", "b", "c"]}
+        pm = AllowedKeyMapper(["a", "b", "c"])
+        assert pm.serialize() == {"allowed_keys": ["a", "b", "c"]}
 
     def test_deserialize(self):
-        pm = SequenceMapper.deserialize({"sequence": ["x", "y"]})
-        assert isinstance(pm, SequenceMapper)
-        assert pm.sequence == ["x", "y"]
+        pm = AllowedKeyMapper.deserialize({"allowed_keys": ["x", "y"]})
+        assert isinstance(pm, AllowedKeyMapper)
+        assert pm.allowed_keys == ["x", "y"]
 
-    def test_empty_sequence(self):
-        pm = SequenceMapper([])
-        assert pm.serialize() == {"sequence": []}
-        with pytest.raises(ValueError, match="not in sequence"):
+    def test_empty_allowed_keys(self):
+        pm = AllowedKeyMapper([])
+        assert pm.serialize() == {"allowed_keys": []}
+        with pytest.raises(ValueError, match="not in allowed keys"):
             pm.to_downstream("any")
