@@ -835,21 +835,18 @@ def test_decode_partition_mapper_not_exists():
 
 
 def test_encode_product_mapper():
-    from airflow.sdk import HourlyMapper, ProductMapper
+    from airflow.sdk import HourlyMapper, IdentityMapper, ProductMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper([HourlyMapper(), HourlyMapper()])
+    partition_mapper = ProductMapper([IdentityMapper(), HourlyMapper()])
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
             "delimiter": "|",
             "mappers": [
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.HourlyMapper",
-                    Encoding.VAR: {
-                        "input_format": "%Y-%m-%dT%H:%M:%S",
-                        "output_format": "%Y-%m-%dT%H",
-                    },
+                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
+                    Encoding.VAR: {},
                 },
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.HourlyMapper",
