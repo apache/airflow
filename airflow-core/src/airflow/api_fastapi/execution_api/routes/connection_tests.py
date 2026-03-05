@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from cadwyn import VersionedAPIRouter
+from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection_test import ConnectionTestResultBody
@@ -29,7 +30,7 @@ from airflow.models.connection_test import (
     attempt_revert,
 )
 
-router = APIRouter()
+router = VersionedAPIRouter()
 
 
 @router.patch(
