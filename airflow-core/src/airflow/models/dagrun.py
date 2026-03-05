@@ -1414,7 +1414,7 @@ class DagRun(Base, LoggingMixin):
         success: bool = True,
         relevant_ti: TI | None = None,
         reason: str = "success",
-        execute=False,
+        execute: bool = False,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
         if not execute:
