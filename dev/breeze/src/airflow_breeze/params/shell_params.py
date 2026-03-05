@@ -544,8 +544,7 @@ class ShellParams:
             )
             generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml"
             generated_compose_file.write_text(
-                f"""
----
+                f"""---
 services:
   airflow:
     volumes:
