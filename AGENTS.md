@@ -17,14 +17,18 @@
 - **Run a Python script:** `breeze run python dev/my_script.py`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint/format (runs on host):** `prek run --ref-from <target_branch>`
-- **Lint with ruff only:** `prek run ruff --ref-from <target_branch>`
-- **Format with ruff only:** `prek run ruff-format --ref-from <target_branch>`
+- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --hook-stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --hook-stage manual`
 
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be
 `v3-1-test` when creating a PR for the 3.1 branch.
 
 - **Build docs:** `breeze build-docs`
+- **Run Helm chart tests:** `breeze testing helm-tests --use-xdist`
+- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
+- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
@@ -90,13 +94,13 @@ Add a newsfragment for user-visible changes:
 **Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
 directly to `main`.
 
-Before pushing, determine the GitHub username with `gh api user -q .login` and identify the
-user's fork remote from the existing remotes. Run `git remote -v` and look for a remote
-pointing to `github.com:<GITHUB_USER>/airflow.git` where `<GITHUB_USER>` is **not** `apache`.
-That is the user's fork remote. If no such remote exists, create the fork and add it:
+Before pushing, determine the fork remote. Check `git remote -v` — if `origin` does **not**
+point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
+`apache/airflow`, look for another remote that points to the user's fork. If no fork remote
+exists, create one:
 
 ```bash
-gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
+gh repo fork apache/airflow --remote --remote-name fork
 ```
 
 Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
@@ -110,15 +114,17 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
-4. Run static checks (`prek run --ref-from <target_branch>`) and fix any failures.
-5. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
-6. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --hook-stage pre-commit`)
+   and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --hook-stage manual`) and fix any failures.
+6. Run relevant tests (`breeze run pytest <path> -xvs`) and confirm they pass.
+7. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
-Then push the branch to the user's fork remote and open the PR creation page in the browser
+Then push the branch to the fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
 ```bash
-git push -u <GITHUB_USER> <branch-name>
+git push -u <fork-remote> <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
 Brief description of the changes.
 

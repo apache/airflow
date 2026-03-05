@@ -62,6 +62,12 @@ class Team(Base):
 
     @classmethod
     @provide_session
+    def get_name_if_exists(cls, name: str, *, session: Session = NEW_SESSION) -> str | None:
+        """Return name if a Team row with that name exists, otherwise None."""
+        return session.scalar(select(cls.name).where(cls.name == name))
+
+    @classmethod
+    @provide_session
     def get_all_team_names(cls, session: Session = NEW_SESSION) -> set[str]:
         """
         Return a set of all team names from the database.
