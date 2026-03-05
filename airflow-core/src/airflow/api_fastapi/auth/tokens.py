@@ -382,11 +382,12 @@ def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
 
 
 def _generate_kid(gen) -> str:
-    if not gen._private_key:
-        return "not-used"
-
+    # Always check config first — both symmetric and asymmetric keys can have a configured kid
     if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
         return kid
+
+    if not gen._private_key:
+        return "not-used"
 
     # Generate it from the thumbprint of the private key
     info = key_to_jwk_dict(gen._private_key)
@@ -467,8 +468,7 @@ class JWTGenerator:
         if extras is not None:
             claims = extras | claims
         headers = {"alg": self.algorithm, **(headers or {})}
-        if self._private_key:
-            headers["kid"] = self.kid
+        headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
 
 

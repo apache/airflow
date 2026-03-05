@@ -136,6 +136,30 @@ def test_with_secret_key():
     assert generator.signing_arg == "abc"
 
 
+def test_secret_key_token_includes_kid_in_header():
+    """Symmetric (secret_key) tokens must include 'kid' in the JWT header so the validator accepts them."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = generator.generate({"sub": "user"})
+    header = jwt.get_unverified_header(token)
+    assert "kid" in header, "kid must always be present in the JWT header"
+    assert header["kid"] == "not-used"
+
+
+def test_secret_key_with_configured_kid():
+    """When jwt_kid is configured, symmetric key generators should use it."""
+    from unittest.mock import patch
+
+    with patch.dict(
+        "os.environ",
+        {"AIRFLOW__API_AUTH__JWT_KID": "my-custom-kid"},
+    ):
+        generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+        assert generator.kid == "my-custom-kid"
+        token = generator.generate({"sub": "user"})
+        header = jwt.get_unverified_header(token)
+        assert header["kid"] == "my-custom-kid"
+
+
 @pytest.fixture
 def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
     key = ed25519_private_key
