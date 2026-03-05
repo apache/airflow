@@ -154,7 +154,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
         return {"graph_id": self.graph_id}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         graph_id = ""
 
         if event:
