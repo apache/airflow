@@ -3,5 +3,16 @@
 import { type QueryClient } from "@tanstack/react-query";
 import { SimpleAuthManagerLoginService } from "../requests/services.gen";
 import * as Common from "./common";
+/**
+* Create Token All Admins
+* Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
+* @returns LoginResponse Successful Response
+* @throws ApiError
+*/
 export const ensureUseSimpleAuthManagerLoginServiceCreateTokenAllAdminsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(), queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins() });
+/**
+* Login All Admins
+* Login the user with no credentials.
+* @throws ApiError
+*/
 export const ensureUseSimpleAuthManagerLoginServiceLoginAllAdminsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(), queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins() });
