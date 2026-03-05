@@ -90,6 +90,14 @@ class ConnectionTest(Base):
     def __repr__(self) -> str:
         return f"<ConnectionTest id={self.id!r} connection_id={self.connection_id!r} state={self.state}>"
 
+    def get_executor_name(self) -> str | None:
+        """Return the executor name for scheduler routing."""
+        return self.executor
+
+    def get_dag_id(self) -> None:
+        """Return None — connection tests are not associated with any DAG."""
+        return None
+
 
 def run_connection_test(*, conn: Connection) -> tuple[bool, str]:
     """
@@ -116,7 +124,6 @@ _SNAPSHOT_FIELDS = (
     "_extra",
     "is_encrypted",
     "is_extra_encrypted",
-    "team_name",
 )
 
 
