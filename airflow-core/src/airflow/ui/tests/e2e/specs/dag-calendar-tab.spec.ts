@@ -33,10 +33,6 @@ test.describe("DAG Calendar Tab", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    await page.request.patch(`/api/v2/dags/${dagId}`, {
-      data: { is_paused: false },
-    });
-
     const now = dayjs();
     const yesterday = now.subtract(1, "day");
     const baseDate = yesterday.isSame(now, "month") ? yesterday : now;
@@ -69,11 +65,23 @@ test.describe("DAG Calendar Tab", () => {
       const data = (await response.json()) as { dag_run_id: string };
       const dagRunId = data.dag_run_id;
 
-      await page.request.patch(`/api/v2/dags/${dagId}/dagRuns/${dagRunId}`, { data: { state } });
+      const patchResp = await page.request.patch(`/api/v2/dags/${dagId}/dagRuns/${dagRunId}`, {
+        data: { state },
+      });
+
+      if (!patchResp.ok()) {
+        const body = await patchResp.text();
+
+        throw new Error(`State patch to "${state}" failed: ${patchResp.status()} ${body}`);
+      }
     }
 
     await createRun(`cal_success_${Date.now()}`, successIso, "success");
     await createRun(`cal_failed_${Date.now()}`, failedIso, "failed");
+
+    await page.request.patch(`/api/v2/dags/${dagId}`, {
+      data: { is_paused: false },
+    });
 
     await context.close();
   });
