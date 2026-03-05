@@ -23,8 +23,11 @@ from airflow.sdk import (
     DAG,
     Asset,
     CronPartitionTimetable,
+    DailyMapper,
     HourlyMapper,
+    IdentityMapper,
     PartitionedAssetTimetable,
+    ProductMapper,
     YearlyMapper,
     asset,
     task,
@@ -137,3 +140,47 @@ with DAG(
         pass
 
     check_partition_alignment()
+
+
+regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_sales")
+
+with DAG(
+    dag_id="ingest_regional_sales",
+    schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    tags=["sales", "ingestion"],
+):
+    """Produce hourly regional sales data with composite partition keys."""
+
+    @task(outlets=[regional_sales])
+    def ingest_sales():
+        """Ingest regional sales data partitioned by region and time."""
+        pass
+
+    ingest_sales()
+
+
+with DAG(
+    dag_id="aggregate_regional_sales",
+    schedule=PartitionedAssetTimetable(
+        assets=regional_sales,
+        default_partition_mapper=ProductMapper(IdentityMapper(), DailyMapper()),
+    ),
+    catchup=False,
+    tags=["sales", "aggregation"],
+):
+    """
+    Aggregate regional sales using ProductMapper.
+
+    The ProductMapper splits the composite key "region|timestamp" and applies
+    IdentityMapper to the region segment and DailyMapper to the timestamp segment,
+    aligning hourly partitions to daily granularity per region.
+    """
+
+    @task
+    def aggregate_sales(dag_run=None):
+        """Aggregate sales data for the matched region-day partition."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    aggregate_sales()
