@@ -125,8 +125,59 @@ Parameters
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   etc.).
+- ``enable_tool_logging``: Wrap each toolset in
+  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
+  every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+
+
+Logging
+-------
+
+All AI operators automatically log a post-run summary after ``run_sync()``
+completes. ``AgentOperator`` additionally wraps toolsets for real-time
+per-tool-call logging (controlled by ``enable_tool_logging``).
+
+**Real-time tool call logging** (AgentOperator only) — each tool call is
+logged as it happens:
+
+.. code-block:: text
+
+    INFO - Tool call: list_tables
+    INFO - Tool list_tables returned in 0.12s
+    INFO - Tool call: get_schema
+    INFO - Tool get_schema returned in 0.08s
+    INFO - Tool call: query
+    INFO - Tool query returned in 0.34s
+
+Tool arguments are logged at DEBUG level to avoid leaking sensitive data at
+the default log level.
+
+**Post-run summary** (all operators) — after the LLM run finishes, a summary
+is logged with model name, token usage, and the full tool call sequence:
+
+.. code-block:: text
+
+    INFO - LLM run complete: model=gpt-5, requests=4, tool_calls=3, input_tokens=2847, output_tokens=512, total_tokens=3359
+    INFO - Tool call sequence: list_tables -> get_schema -> query
+
+At DEBUG level, the LLM output is also logged (truncated to 500 characters).
+
+Both layers use Airflow's ``::group::`` / ``::endgroup::`` log markers, which
+render as collapsible sections in the Airflow UI task log viewer.
+
+To disable real-time tool logging while keeping the post-run summary:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="my_agent",
+        prompt="...",
+        llm_conn_id="my_llm",
+        toolsets=[SQLToolset(db_conn_id="my_db")],
+        enable_tool_logging=False,
+    )
 
 
 Security
