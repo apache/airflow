@@ -41,6 +41,49 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.qdrant.hooks.qdrant.QdrantHook",
                 "connection-type": "qdrant",
+                "conn-fields": {
+                    "url": {
+                        "label": "URL",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "description": "Optional. Qualified URL of the Qdrant instance. Example: https://xyz-example.eu-central.aws.cloud.qdrant.io:6333",
+                        },
+                    },
+                    "grpc_port": {
+                        "label": "GRPC Port",
+                        "schema": {
+                            "type": ["integer", "null"],
+                            "default": 6334,
+                            "description": "Optional. Port of the gRPC interface.",
+                        },
+                    },
+                    "prefer_gprc": {
+                        "label": "Prefer GRPC",
+                        "schema": {
+                            "type": ["boolean", "null"],
+                            "default": False,
+                            "description": "Optional. Whether to use gPRC interface whenever possible in custom methods.",
+                        },
+                    },
+                    "https": {
+                        "label": "HTTPS",
+                        "schema": {
+                            "type": ["boolean", "null"],
+                            "description": "Optional. Whether to use HTTPS(SSL) protocol.",
+                        },
+                    },
+                    "prefix": {
+                        "label": "Prefix",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "description": "Optional. Prefix to the REST URL path. Example: service/v1 will result in http://localhost:6333/service/v1/{qdrant-endpoint} for REST API.",
+                        },
+                    },
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "extra"],
+                    "relabeling": {"password": "API Key"},
+                },
             }
         ],
         "operators": [
