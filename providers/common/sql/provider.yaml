@@ -129,3 +129,5 @@ sensors:
 task-decorators:
   - class-name: airflow.providers.common.sql.decorators.sql.sql_task
     name: sql
+  - class-name: airflow.providers.common.sql.decorators.analytics.analytics_task
+    name: analytics

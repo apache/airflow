@@ -22,6 +22,7 @@ import pytest
 
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
+from airflow.providers.common.sql.config import DataSourceConfig
 
 
 def _make_mock_agent(output: str):
@@ -212,6 +213,169 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
             schema_context="My custom schema info",
         )
         assert op._get_schema_context() == "My custom schema info"
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        autospec=True,
+    )
+    def test_introspect_object_storage_schema(self, mock_engine_cls):
+        """_introspect_object_storage_schema registers datasource and returns schema."""
+        mock_engine = mock_engine_cls.return_value
+        schema_text = "cust_id: int64\nname: string\namount: float64"
+        mock_engine.get_schema.return_value = schema_text
+
+        ds_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="sales",
+            uri="s3://bucket/data/",
+            format="parquet",
+        )
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            datasource_config=ds_config,
+        )
+        result = op._introspect_object_storage_schema()
+
+        mock_engine.register_datasource.assert_called_once_with(ds_config)
+        mock_engine.get_schema.assert_called_once_with("sales")
+        assert result == schema_text
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        autospec=True,
+    )
+    def test_introspect_schemas_with_db_and_datasource_config(self, mock_engine_cls):
+        """_introspect_schemas includes both db table and object storage schema."""
+        mock_engine = mock_engine_cls.return_value
+        object_schema = "col_a: int64\ncol_b: string"
+        mock_engine.get_schema.return_value = object_schema
+
+        ds_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="remote_table",
+            uri="s3://bucket/path/",
+            format="csv",
+        )
+        mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
+        mock_db_hook.get_table_schema.return_value = [
+            {"name": "id", "type": "INTEGER"},
+        ]
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            db_conn_id="pg_default",
+            table_names=["local_table"],
+            datasource_config=ds_config,
+        )
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=mock_db_hook):
+            result = op._introspect_schemas()
+
+        assert "Table: local_table" in result
+        assert "id INTEGER" in result
+        assert "Table: remote_table" in result
+        assert object_schema in result
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        autospec=True,
+    )
+    def test_introspect_schemas_datasource_config_without_db_tables(self, mock_engine_cls):
+        """_introspect_schemas works when only datasource_config is provided (no db tables)."""
+        mock_engine = mock_engine_cls.return_value
+        mock_engine.get_schema.return_value = "ts: TIMESTAMP\nvalue: DOUBLE"
+
+        ds_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="s3_data",
+            uri="s3://bucket/metrics/",
+            format="parquet",
+        )
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            db_conn_id="pg_default",
+            table_names=[],
+            datasource_config=ds_config,
+        )
+        mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
+        mock_db_hook.get_table_schema.return_value = []
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=mock_db_hook):
+            result = op._introspect_schemas()
+
+        assert "Table: s3_data" in result
+        assert "ts: TIMESTAMP\nvalue: DOUBLE" in result
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        autospec=True,
+    )
+    def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self, mock_engine_cls):
+        """ValueError is raised when no db tables return schema and no datasource_config is set."""
+        mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
+        mock_db_hook.get_table_schema.return_value = []
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            db_conn_id="pg_default",
+            table_names=["missing_table"],
+        )
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=mock_db_hook):
+            with pytest.raises(ValueError, match="None of the requested tables"):
+                op._introspect_schemas()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        autospec=True,
+    )
+    def test_execute_with_datasource_config_and_db_tables(self, mock_engine_cls, mock_hook_cls):
+        """Full execute flow with both db tables and object storage datasource."""
+        mock_engine = mock_engine_cls.return_value
+        mock_engine.get_schema.return_value = "event: TEXT\nts: TIMESTAMP"
+
+        mock_agent = _make_mock_agent("SELECT u.id, e.event FROM users u JOIN events e ON u.id = e.user_id")
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        ds_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="events",
+            uri="s3://bucket/events/",
+            format="parquet",
+        )
+        mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
+        mock_db_hook.get_table_schema.return_value = [
+            {"name": "id", "type": "INTEGER"},
+            {"name": "name", "type": "VARCHAR"},
+        ]
+        mock_db_hook.dialect_name = "postgresql"
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="Join users with events",
+            llm_conn_id="my_llm",
+            db_conn_id="pg_default",
+            table_names=["users"],
+            datasource_config=ds_config,
+        )
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=mock_db_hook):
+            result = op.execute(context=MagicMock())
+
+        assert "SELECT" in result
+        instructions = mock_hook_cls.return_value.create_agent.call_args[1]["instructions"]
+        assert "users" in instructions
+        assert "events" in instructions
+        assert "event: TEXT\nts: TIMESTAMP" in instructions
 
 
 class TestLLMSQLQueryOperatorDialect:

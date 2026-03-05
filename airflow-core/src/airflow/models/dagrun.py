@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import os
 import re
 from collections import defaultdict
@@ -227,6 +228,7 @@ class DagRun(Base, LoggingMixin):
     """
 
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -330,6 +332,7 @@ class DagRun(Base, LoggingMixin):
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
         note: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
@@ -372,6 +375,7 @@ class DagRun(Base, LoggingMixin):
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
             )
         self.partition_key = partition_key
+        self.partition_date = partition_date
         super().__init__()
 
     def __repr__(self):
@@ -467,7 +471,7 @@ class DagRun(Base, LoggingMixin):
 
     def set_state(self, state: DagRunState) -> None:
         """
-        Change the state of the DagRan.
+        Change the state of the DagRun.
 
         Changes to attributes are implemented in accordance with the following table
         (rows represent old states, columns represent new states):
@@ -2058,9 +2062,19 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
+        debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
+        expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
             if ti.is_schedulable:
                 schedulable_ti_ids.append(ti.id)
+                if debug_try_number_check:
+                    expected_try_number_by_ti_id[ti.id] = (
+                        ti.try_number
+                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
+                        else ti.try_number + 1,
+                        ti.try_number,
+                        ti.state,
+                    )
             # Check "start_trigger_args" to see whether the operator supports
             # start execution from triggerer. If so, we'll check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
@@ -2105,6 +2119,38 @@ class DagRun(Base, LoggingMixin):
                     .execution_options(synchronize_session=False)
                 )
                 count += getattr(result, "rowcount", 0)
+                if debug_try_number_check:
+                    rows = session.execute(
+                        select(TI.id, TI.try_number, TI.state).where(TI.id.in_(id_chunk))
+                    ).all()
+                    rows_by_ti_id = {
+                        ti_id: (db_try_number, db_state) for ti_id, db_try_number, db_state in rows
+                    }
+                    for ti_id in id_chunk:
+                        expected = expected_try_number_by_ti_id.get(ti_id)
+                        if expected is None:
+                            continue
+                        db_row = rows_by_ti_id.get(ti_id)
+                        if db_row is None:
+                            continue
+                        expected_try_number, pre_update_try_number, pre_update_state = expected
+                        db_try_number, db_state = db_row
+                        if db_try_number != expected_try_number:
+                            self.log.warning(
+                                "schedule_tis: try_number mismatch after scheduling for ti_id=%s "
+                                "dag_run=%s/%s scheduler_job_id=%s "
+                                "pre_state=%s pre_try_number=%d expected_try_number=%d "
+                                "db_state=%s db_try_number=%d",
+                                ti_id,
+                                self.dag_id,
+                                self.run_id,
+                                self.scheduled_by_job_id,
+                                pre_update_state,
+                                pre_update_try_number,
+                                expected_try_number,
+                                db_state,
+                                db_try_number,
+                            )
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if empty_ti_ids:

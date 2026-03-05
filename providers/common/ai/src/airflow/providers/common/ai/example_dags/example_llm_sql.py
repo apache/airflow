@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.sql.config import DataSourceConfig
 
 
 # [START howto_operator_llm_sql_basic]
@@ -28,7 +29,7 @@ def example_llm_sql_basic():
     LLMSQLQueryOperator(
         task_id="generate_sql",
         prompt="Find the top 10 customers by total revenue",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         schema_context=(
             "Table: customers\n"
             "Columns: id INT, name TEXT, email TEXT\n\n"
@@ -49,7 +50,7 @@ def example_llm_sql_schema_introspection():
     LLMSQLQueryOperator(
         task_id="generate_sql",
         prompt="Calculate monthly revenue for 2024",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_id="postgres_default",
         table_names=["orders", "customers"],
         dialect="postgres",
@@ -65,7 +66,7 @@ example_llm_sql_schema_introspection()
 @dag
 def example_llm_sql_decorator():
     @task.llm_sql(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         schema_context="Table: users\nColumns: id INT, name TEXT, signup_date DATE",
     )
     def build_churn_query(ds=None):
@@ -84,7 +85,7 @@ example_llm_sql_decorator()
 def example_llm_sql_expand():
     LLMSQLQueryOperator.partial(
         task_id="generate_sql",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         schema_context=(
             "Table: orders\nColumns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
         ),
@@ -100,3 +101,26 @@ def example_llm_sql_expand():
 # [END howto_operator_llm_sql_expand]
 
 example_llm_sql_expand()
+
+
+# [START howto_operator_llm_sql_with_object_storage]
+@dag
+def example_llm_sql_with_object_storage():
+    datasource_config = DataSourceConfig(
+        conn_id="aws_default",
+        table_name="sales_data",
+        uri="s3://my-bucket/data/sales/",
+        format="parquet",
+    )
+
+    LLMSQLQueryOperator(
+        task_id="generate_sql",
+        prompt="Find the top 5 products by total sales amount",
+        llm_conn_id="pydanticai_default",
+        datasource_config=datasource_config,
+    )
+
+
+# [END howto_operator_llm_sql_with_object_storage]
+
+example_llm_sql_with_object_storage()

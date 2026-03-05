@@ -18,6 +18,46 @@
 Common AI Operators
 ===================
 
+Choosing the right operator
+---------------------------
+
+The common-ai provider ships four operators (and matching ``@task`` decorators). Use this table
+to pick the one that fits your use case:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Need
+     - Operator
+     - Decorator
+   * - Single prompt → text or structured output
+     - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+     - ``@task.llm``
+   * - LLM picks which downstream task runs
+     - :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
+     - ``@task.llm_branch``
+   * - Natural-language → SQL generation (no execution)
+     - :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator`
+     - ``@task.llm_sql``
+   * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
+     - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
+     - ``@task.agent``
+
+**LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
+summarization, extraction, or any prompt that produces one response. Supports structured output
+via a ``response_format`` Pydantic model.
+
+**AgentOperator / @task.agent** — multi-turn tool-calling loop. The model decides which tools to
+invoke and when to stop. Use this when the LLM needs to take actions (query databases, call APIs,
+read files) to produce its answer. You configure available tools through ``toolsets``.
+
+AgentOperator *works* without toolsets — pydantic-ai supports tool-less agents for multi-turn
+reasoning — but if you don't need tools, ``LLMOperator`` is simpler and more explicit.
+
+Operator guides
+---------------
+
 .. toctree::
     :maxdepth: 1
     :glob:
