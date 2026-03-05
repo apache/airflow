@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
@@ -64,8 +65,10 @@ RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
 log = logging.getLogger(__name__)
 
-app: FastAPI | None = None
-auth_manager: BaseAuthManager | None = None
+
+class _AuthManagerState:
+    instance: BaseAuthManager | None = None
+    _lock = threading.Lock()
 
 
 @asynccontextmanager
@@ -149,11 +152,14 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 
 def create_auth_manager() -> BaseAuthManager:
-    """Create the auth manager."""
-    global auth_manager
+    """Create the auth manager, cached as a thread-safe singleton."""
     auth_manager_cls = get_auth_manager_cls()
-    auth_manager = auth_manager_cls()
-    return auth_manager
+    if _AuthManagerState.instance is not None and isinstance(_AuthManagerState.instance, auth_manager_cls):
+        return _AuthManagerState.instance
+    with _AuthManagerState._lock:
+        if _AuthManagerState.instance is None or not isinstance(_AuthManagerState.instance, auth_manager_cls):
+            _AuthManagerState.instance = auth_manager_cls()
+    return _AuthManagerState.instance
 
 
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
