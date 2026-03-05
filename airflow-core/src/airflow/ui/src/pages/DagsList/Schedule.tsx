@@ -30,6 +30,7 @@ type Props = {
   readonly dagId: string;
   readonly latestRunAfter?: string;
   readonly timetableDescription?: string | null;
+  readonly timetablePartitioned: boolean | null;
   readonly timetableSummary: string | null;
 };
 
@@ -38,6 +39,7 @@ export const Schedule = ({
   dagId,
   latestRunAfter,
   timetableDescription,
+  timetablePartitioned,
   timetableSummary,
 }: Props) => {
   const { t: translate } = useTranslation("dags");
@@ -48,6 +50,7 @@ export const Schedule = ({
         assetExpression={assetExpression}
         dagId={dagId}
         latestRunAfter={latestRunAfter}
+        timetablePartitioned={timetablePartitioned}
         timetableSummary={timetableSummary}
       />
     ) : (
