@@ -1743,7 +1743,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             except IntegrityError as e:
                 self.session.rollback()
                 if self._is_permission_assigned_to_role(role_id=role.id, permission_view_id=permission.id):
-                    log.debug("Permission '%s' already assigned to role '%s'", permission, role.name)
+                    log.info("Permission '%s' already assigned to role '%s'", permission, role.name)
                 else:
                     log.error(
                         const.LOGMSG_ERR_SEC_ADD_PERMROLE,

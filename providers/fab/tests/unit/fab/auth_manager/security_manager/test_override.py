@@ -22,7 +22,12 @@ from unittest.mock import Mock, call
 import pytest
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from airflow.providers.fab.auth_manager.models import (
+    Permission,
+    Role,
+)
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
@@ -37,10 +42,10 @@ class TestFabAirflowSecurityManagerOverride:
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
         sm = EmptySecurityManager()
-        role = Mock(id=1, name="test_admin", permissions=[])
-        permission = Mock(id=2)
+        role = Mock(spec=Role, id=1, name="test_admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
 
-        mock_session = Mock()
+        mock_session = Mock(spec=Session)
         mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
 
         sm._is_permission_assigned_to_role = Mock(return_value=True)
@@ -55,10 +60,10 @@ class TestFabAirflowSecurityManagerOverride:
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
         sm = EmptySecurityManager()
-        role = Mock(id=1, name="Admin", permissions=[])
-        permission = Mock(id=2)
+        role = Mock(spec=Role, id=1, name="Admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
 
-        mock_session = Mock()
+        mock_session = Mock(spec=Session)
         mock_error = IntegrityError("stmt", {}, Exception("duplicate key"))
         mock_session.commit.side_effect = mock_error
 
