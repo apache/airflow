@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-04T15:50:45.877606
+# This constraints file was automatically generated on 2026-03-05T04:52:07.010713
 # via `uv sync --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -106,7 +106,7 @@ sqlparse==0.5.5
 starlette==0.48.0
 structlog==25.5.0
 svcs==25.1.0
-tabulate==0.9.0
+tabulate==0.10.0
 tenacity==9.1.4
 termcolor==3.3.0
 text-unidecode==1.3
