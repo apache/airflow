@@ -4858,9 +4858,6 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
         self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
         kwargs = mock_create.call_args.kwargs
-        # todo: AIP-76 let's add partition_date to dag run
-        #  and we should probably have something on DagRun that can return the DagRunInfo for
-        #  that dag run. See https://github.com/apache/airflow/issues/61167
         actual = DagRunInfo(
             run_after=kwargs["run_after"],
             data_interval=kwargs["data_interval"],

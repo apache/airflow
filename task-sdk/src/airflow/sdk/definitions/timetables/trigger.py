@@ -170,7 +170,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
         # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
-        # super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
         if not isinstance(run_offset, (int, NoneType)):
             # todo: AIP-76 implement timedelta / relative delta?
             raise ValueError("Run offset other than integer not supported yet.")

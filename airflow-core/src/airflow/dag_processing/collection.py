@@ -173,15 +173,15 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        # Skip these queries entirely if no Dags can be scheduled to save time.
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
         if dag.timetable.partitioned:
-            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Gag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
