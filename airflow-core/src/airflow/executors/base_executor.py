@@ -548,13 +548,24 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
+        """Number of new workloads (tasks, callbacks, and connection tests) this executor instance can accept."""
+        return (
+            self.parallelism
+            - len(self.running)
+            - len(self.queued_tasks)
+            - len(self.queued_callbacks)
+            - len(self.queued_connection_tests)
+        )
 
     @property
     def slots_occupied(self):
-        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
+        """Number of workloads (tasks, callbacks, and connection tests) this executor instance is currently managing."""
+        return (
+            len(self.running)
+            + len(self.queued_tasks)
+            + len(self.queued_callbacks)
+            + len(self.queued_connection_tests)
+        )
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""

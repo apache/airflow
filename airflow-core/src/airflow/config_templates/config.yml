@@ -2567,14 +2567,6 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
-    connection_test_dispatch_interval:
-      description: |
-        How often (in seconds) the scheduler should check for pending
-        connection tests and dispatch them to an executor.
-      version_added: 3.2.0
-      type: float
-      example: ~
-      default: "2.0"
     connection_test_reaper_interval:
       description: |
         How often (in seconds) the scheduler should check for stale

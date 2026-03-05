@@ -9596,10 +9596,10 @@ class TestDispatchConnectionTests:
         """Tests requesting an executor no team serves are failed immediately."""
         with mock.patch.object(
             scheduler_job_runner_for_connection_tests,
-            "_find_executor_for_connection_test",
+            "_try_to_load_executor",
             return_value=None,
         ):
-            ct = ConnectionTest(connection_id="test_conn", executor="nonexistent_queue")
+            ct = ConnectionTest(connection_id="test_conn", executor="nonexistent_executor")
             session.add(ct)
             session.commit()
 
@@ -9608,7 +9608,7 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
-        assert "nonexistent_queue" in ct.result_message
+        assert "nonexistent_executor" in ct.result_message
 
     @mock.patch.dict(
         os.environ,
@@ -9719,6 +9719,56 @@ class TestDispatchConnectionTests:
 
         assert len(executor_b.queued_connection_tests) == 1
         assert len(executor_a.queued_connection_tests) == 0
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+            "AIRFLOW__CORE__PARALLELISM": "1",
+        },
+    )
+    def test_dispatch_respects_parallelism_budget(self, scheduler_job_runner_for_connection_tests, session):
+        """Connection tests are not dispatched when core.parallelism is exhausted."""
+        executor = scheduler_job_runner_for_connection_tests.executor
+        # Simulate 1 running task so all parallelism slots are occupied
+        executor.running = {"fake_task_key"}
+
+        ct = ConnectionTest(connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.PENDING
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONNECTION_TEST_CONCURRENCY": "4",
+            "AIRFLOW__CORE__CONNECTION_TEST_TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_fails_when_executor_does_not_support_connection_test(
+        self, scheduler_job_runner_for_connection_tests, session
+    ):
+        """When the resolved executor does not support connection tests, the test is failed gracefully."""
+        executor = scheduler_job_runner_for_connection_tests.executor
+        executor.supports_connection_test = False
+
+        ct = ConnectionTest(connection_id="test_conn")
+        session.add(ct)
+        session.commit()
+
+        scheduler_job_runner_for_connection_tests._dispatch_connection_tests(session=session)
+
+        session.expire_all()
+        ct = session.get(ConnectionTest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert ct.connection_snapshot is None
+        assert "No executor supports connection testing" in ct.result_message
 
 
 class TestReapStaleConnectionTests:

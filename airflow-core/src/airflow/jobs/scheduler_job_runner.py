@@ -1587,10 +1587,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         timers.call_regular_interval(
-            delay=conf.getfloat("scheduler", "connection_test_dispatch_interval", fallback=2.0),
-            action=self._dispatch_connection_tests,
-        )
-        timers.call_regular_interval(
             delay=conf.getfloat("scheduler", "connection_test_reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
         )
@@ -1638,6 +1634,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
+
+                    # Dispatch pending connection tests to executors
+                    self._dispatch_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -3114,16 +3113,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    @provide_session
-    def _dispatch_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
+    def _dispatch_connection_tests(self, *, session: Session) -> None:
         """Dispatch pending connection tests to executors that support them."""
         max_concurrency = conf.getint("core", "max_connection_test_concurrency", fallback=4)
         timeout = conf.getint("core", "connection_test_timeout", fallback=60)
 
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
+        parallelism_budget = conf.getint("core", "parallelism") - num_occupied_slots
+        if parallelism_budget <= 0:
+            return
+
         active_count = session.scalar(
             select(func.count(ConnectionTest.id)).where(ConnectionTest.state.in_(ACTIVE_STATES))
         )
-        budget = max_concurrency - (active_count or 0)
+        concurrency_budget = max_concurrency - (active_count or 0)
+        budget = min(concurrency_budget, parallelism_budget)
         if budget <= 0:
             return
 
@@ -3140,7 +3144,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         for ct in pending_tests:
-            executor = self._find_executor_for_connection_test(ct.executor)
+            executor = self._try_to_load_executor(ct, session)
+            if executor is not None and not executor.supports_connection_test:
+                executor = None
             if executor is None:
                 reason = (
                     f"No executor matches '{ct.executor}'"
@@ -3187,27 +3193,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 attempt_revert(ct, session=session)
 
         session.flush()
-
-    def _find_executor_for_connection_test(self, executor_name: str | None) -> BaseExecutor | None:
-        """Find an executor that supports connection testing, optionally matching by name."""
-        if executor_name is not None:
-            for executor in self.executors:
-                if (
-                    executor.supports_connection_test
-                    and executor.name
-                    and executor_name
-                    in (
-                        executor.name.alias,
-                        executor.name.module_path,
-                        executor.name.module_path.split(".")[-1],
-                    )
-                ):
-                    return executor
-            return None
-        for executor in self.executors:
-            if executor.supports_connection_test:
-                return executor
-        return None
 
     def _executor_to_workloads(
         self,

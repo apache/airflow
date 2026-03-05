@@ -1337,7 +1337,7 @@ class TestSaveAndTest(TestConnectionEndpoint):
         """PATCH /{connection_id}/test passes the executor parameter to the ConnectionTest."""
         self.create_connection()
         response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}/test?executor=team_a",
+            f"/connections/{TEST_CONN_ID}/test?executor=my_executor",
             json={
                 "connection_id": TEST_CONN_ID,
                 "conn_type": TEST_CONN_TYPE,
@@ -1349,7 +1349,7 @@ class TestSaveAndTest(TestConnectionEndpoint):
 
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         assert ct is not None
-        assert ct.executor == "team_a"
+        assert ct.executor == "my_executor"
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_save_and_test_passes_queue_parameter(self, test_client, session):
