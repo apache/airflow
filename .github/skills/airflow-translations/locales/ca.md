@@ -1,3 +1,7 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+https://www.apache.org/licenses/LICENSE-2.0 -->
+
+# Catalan (ca) Translation Guidelines
 # Catalan (ca) Translation Guidelines
 
 This document provides basic guidelines for translating Apache Airflow UI content into Catalan (ca).  
