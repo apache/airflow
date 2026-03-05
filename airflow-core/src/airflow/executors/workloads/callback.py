@@ -125,6 +125,8 @@ def execute_callback_workload(
     :param log: Logger instance for recording execution
     :return: Tuple of (success: bool, error_message: str | None)
     """
+    from airflow.models.callback import _accepts_context  # circular import
+
     callback_path = callback.data.get("path")
     callback_kwargs = callback.data.get("kwargs", {})
 
@@ -137,15 +139,19 @@ def execute_callback_workload(
         module_path, function_name = callback_path.rsplit(".", 1)
         module = import_module(module_path)
         callback_callable = getattr(module, function_name)
+        context = callback_kwargs.pop("context", None)
 
         log.debug("Executing callback %s(%s)...", callback_path, callback_kwargs)
 
         # If the callback is a callable, call it.  If it is a class, instantiate it.
-        result = callback_callable(**callback_kwargs)
+        # Rather than forcing all custom callbacks to accept context, conditionally provide it only if supported.
+        if _accepts_context(callback_callable) and context is not None:
+            result = callback_callable(**callback_kwargs, context=context)
+        else:
+            result = callback_callable(**callback_kwargs)
 
         # If the callback is a class then it is now instantiated and callable, call it.
         if callable(result):
-            context = callback_kwargs.get("context", {})
             log.debug("Calling result with context for %s", callback_path)
             result = result(context)
 

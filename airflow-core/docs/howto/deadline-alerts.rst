@@ -237,6 +237,13 @@ Triggerer's system path.
       Nested callables are not currently supported.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
+.. note::
+    **Airflow ``context``:** When a deadline is missed, Airflow automatically provides a ``context``
+    kwarg into the callback containing information about the Dag run and the deadline. To receive it,
+    accept ``**kwargs`` in your callback and access ``kwargs["context"]``, or add a named ``context``
+    parameter. Callbacks that don't need the context can omit it — Airflow will only pass kwargs that
+    the callable accepts. The ``context`` keyword is reserved and cannot be used in the ``kwargs``
+    parameter of a ``Callback``; attempting to do so will raise a ``ValueError`` at DAG parse time.
 
 A **custom asynchronous callback** might look like this:
 
