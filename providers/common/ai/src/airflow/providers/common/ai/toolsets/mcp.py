@@ -20,18 +20,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Self
-
-try:
-    from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio, MCPServerStreamableHTTP
-except ImportError as e:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
-
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-
-from airflow.providers.common.compat.sdk import BaseHook
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
@@ -42,12 +32,13 @@ class MCPToolset(AbstractToolset[Any]):
     Toolset that connects to an MCP server configured via an Airflow connection.
 
     Reads MCP server transport type, URL, command, and credentials from the
-    connection and creates the appropriate PydanticAI MCP server instance.
+    connection via :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook` and
+    creates the appropriate PydanticAI MCP server instance.
     All ``AbstractToolset`` methods delegate to the underlying MCP server.
 
     This is the recommended way to use MCP servers in Airflow — it stores
     server configuration in Airflow connections (and secret backends) rather
-    than hardcoding URLs and credentials in DAG code.
+    than hard-coding URLs and credentials in DAG code.
 
     If you prefer full PydanticAI control, you can pass MCP server instances
     directly to ``AgentOperator(toolsets=[...])``, since
@@ -68,51 +59,18 @@ class MCPToolset(AbstractToolset[Any]):
     ) -> None:
         self._mcp_conn_id = mcp_conn_id
         self._tool_prefix = tool_prefix
-        self._server: MCPServerStreamableHTTP | MCPServerSSE | MCPServerStdio | None = None
+        self._server: Any = None
 
     @property
     def id(self) -> str:
         return f"mcp-{self._mcp_conn_id}"
 
-    def _get_server(self) -> MCPServerStreamableHTTP | MCPServerSSE | MCPServerStdio:
+    def _get_server(self) -> Any:
         if self._server is None:
-            conn = BaseHook.get_connection(self._mcp_conn_id)
-            extra = conn.extra_dejson
-            transport = extra.get("transport", "http")
-            headers = {"Authorization": f"Bearer {conn.password}"} if conn.password else None
+            from airflow.providers.common.ai.hooks.mcp import MCPHook
 
-            if transport == "http":
-                if not conn.host:
-                    raise ValueError(
-                        f"Connection {self._mcp_conn_id!r} requires a host URL for HTTP transport."
-                    )
-                self._server = MCPServerStreamableHTTP(
-                    conn.host, headers=headers, tool_prefix=self._tool_prefix
-                )
-            elif transport == "sse":
-                if not conn.host:
-                    raise ValueError(
-                        f"Connection {self._mcp_conn_id!r} requires a host URL for SSE transport."
-                    )
-                self._server = MCPServerSSE(conn.host, headers=headers, tool_prefix=self._tool_prefix)
-            elif transport == "stdio":
-                command = extra.get("command")
-                if not command:
-                    raise ValueError(
-                        f"Connection {self._mcp_conn_id!r} requires 'command' in extra for stdio transport."
-                    )
-                args = extra.get("args", [])
-                if isinstance(args, str):
-                    args = [args]
-                timeout = extra.get("timeout", 10)
-                self._server = MCPServerStdio(
-                    command, args=args, timeout=timeout, tool_prefix=self._tool_prefix
-                )
-            else:
-                raise ValueError(
-                    f"Unknown transport {transport!r} in connection {self._mcp_conn_id!r}. "
-                    "Supported: 'http', 'sse', 'stdio'."
-                )
+            hook = MCPHook(mcp_conn_id=self._mcp_conn_id, tool_prefix=self._tool_prefix)
+            self._server = hook.get_conn()
         return self._server
 
     async def __aenter__(self) -> Self:

@@ -37,6 +37,8 @@ class MCPHook(BaseHook):
         - **Extra.timeout**: Connection timeout in seconds for stdio (default: 10)
 
     :param mcp_conn_id: Airflow connection ID for the MCP server.
+    :param tool_prefix: Optional prefix prepended to tool names
+        (e.g. ``"weather"`` → ``"weather_get_forecast"``).
     """
 
     conn_name_attr = "mcp_conn_id"
@@ -47,10 +49,12 @@ class MCPHook(BaseHook):
     def __init__(
         self,
         mcp_conn_id: str = default_conn_name,
+        tool_prefix: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.mcp_conn_id = mcp_conn_id
+        self.tool_prefix = tool_prefix
         self._server: Any = None
 
     @staticmethod
@@ -95,11 +99,11 @@ class MCPHook(BaseHook):
         if transport == "http":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for HTTP transport.")
-            self._server = MCPServerStreamableHTTP(conn.host, headers=headers)
+            self._server = MCPServerStreamableHTTP(conn.host, headers=headers, tool_prefix=self.tool_prefix)
         elif transport == "sse":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for SSE transport.")
-            self._server = MCPServerSSE(conn.host, headers=headers)
+            self._server = MCPServerSSE(conn.host, headers=headers, tool_prefix=self.tool_prefix)
         elif transport == "stdio":
             command = extra.get("command")
             if not command:
@@ -110,7 +114,7 @@ class MCPHook(BaseHook):
             if isinstance(args, str):
                 args = [args]
             timeout = extra.get("timeout", 10)
-            self._server = MCPServerStdio(command, args=args, timeout=timeout)
+            self._server = MCPServerStdio(command, args=args, timeout=timeout, tool_prefix=self.tool_prefix)
         else:
             raise ValueError(
                 f"Unknown transport {transport!r} in connection {self.mcp_conn_id!r}. "

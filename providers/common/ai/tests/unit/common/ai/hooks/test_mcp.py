@@ -24,6 +24,12 @@ import pytest
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.mcp import MCPHook
 
+# The hook imports MCP classes lazily inside get_conn(), so we must patch
+# them at their source in pydantic_ai.mcp rather than on the hook module.
+_MCP_HTTP = "pydantic_ai.mcp.MCPServerStreamableHTTP"
+_MCP_SSE = "pydantic_ai.mcp.MCPServerSSE"
+_MCP_STDIO = "pydantic_ai.mcp.MCPServerStdio"
+
 
 class TestMCPHookInit:
     def test_default_conn_id(self):
@@ -34,9 +40,13 @@ class TestMCPHookInit:
         hook = MCPHook(mcp_conn_id="my_mcp")
         assert hook.mcp_conn_id == "my_mcp"
 
+    def test_tool_prefix(self):
+        hook = MCPHook(mcp_conn_id="my_mcp", tool_prefix="weather")
+        assert hook.tool_prefix == "weather"
+
 
 class TestMCPHookGetConn:
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStreamableHTTP", autospec=True)
+    @patch(_MCP_HTTP)
     def test_http_transport(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -47,10 +57,10 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             result = hook.get_conn()
 
-        mock_server_cls.assert_called_once_with("http://localhost:3001/mcp", headers=None)
+        mock_server_cls.assert_called_once_with("http://localhost:3001/mcp", headers=None, tool_prefix=None)
         assert result is mock_server_cls.return_value
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStreamableHTTP", autospec=True)
+    @patch(_MCP_HTTP)
     def test_http_is_default_transport(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -61,9 +71,9 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_server_cls.assert_called_once_with("http://localhost:3001/mcp", headers=None)
+        mock_server_cls.assert_called_once_with("http://localhost:3001/mcp", headers=None, tool_prefix=None)
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStreamableHTTP", autospec=True)
+    @patch(_MCP_HTTP)
     def test_http_with_auth_token(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -76,10 +86,27 @@ class TestMCPHookGetConn:
             hook.get_conn()
 
         mock_server_cls.assert_called_once_with(
-            "http://localhost:3001/mcp", headers={"Authorization": "Bearer my-secret-token"}
+            "http://localhost:3001/mcp",
+            headers={"Authorization": "Bearer my-secret-token"},
+            tool_prefix=None,
         )
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerSSE", autospec=True)
+    @patch(_MCP_HTTP)
+    def test_passes_tool_prefix(self, mock_server_cls):
+        hook = MCPHook(mcp_conn_id="test_conn", tool_prefix="weather")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            host="http://localhost:3001/mcp",
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_server_cls.assert_called_once_with(
+            "http://localhost:3001/mcp", headers=None, tool_prefix="weather"
+        )
+
+    @patch(_MCP_SSE)
     def test_sse_transport(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -91,10 +118,10 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             result = hook.get_conn()
 
-        mock_server_cls.assert_called_once_with("http://localhost:3001/sse", headers=None)
+        mock_server_cls.assert_called_once_with("http://localhost:3001/sse", headers=None, tool_prefix=None)
         assert result is mock_server_cls.return_value
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStdio", autospec=True)
+    @patch(_MCP_STDIO)
     def test_stdio_transport(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -105,10 +132,10 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             result = hook.get_conn()
 
-        mock_server_cls.assert_called_once_with("uvx", args=["mcp-run-python"], timeout=10)
+        mock_server_cls.assert_called_once_with("uvx", args=["mcp-run-python"], timeout=10, tool_prefix=None)
         assert result is mock_server_cls.return_value
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStdio", autospec=True)
+    @patch(_MCP_STDIO)
     def test_stdio_custom_timeout(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -121,7 +148,20 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_server_cls.assert_called_once_with("python", args=["-m", "server"], timeout=30)
+        mock_server_cls.assert_called_once_with("python", args=["-m", "server"], timeout=30, tool_prefix=None)
+
+    @patch(_MCP_STDIO)
+    def test_args_string_converted_to_list(self, mock_server_cls):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": "mcp-run-python"}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_server_cls.assert_called_once_with("uvx", args=["mcp-run-python"], timeout=10, tool_prefix=None)
 
     def test_http_without_host_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")
@@ -163,7 +203,7 @@ class TestMCPHookGetConn:
             with pytest.raises(ValueError, match="Unknown transport"):
                 hook.get_conn()
 
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStreamableHTTP", autospec=True)
+    @patch(_MCP_HTTP)
     def test_caches_server(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
@@ -176,7 +216,7 @@ class TestMCPHookGetConn:
 
 
 class TestMCPHookTestConnection:
-    @patch("airflow.providers.common.ai.hooks.mcp.MCPServerStreamableHTTP", autospec=True)
+    @patch(_MCP_HTTP)
     def test_successful_config(self, mock_server_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
