@@ -703,6 +703,43 @@ def ti_patch_rendered_map_index(
         )
 
 
+@ti_id_router.patch(
+    "/{task_instance_id}/note",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
+    },
+)
+def ti_patch_note(
+    task_instance_id: UUID,
+    note: Annotated[str, Body()],
+    session: SessionDep,
+):
+    """Update note for a task instance, sent by the worker during task execution."""
+    ti_id_str = str(task_instance_id)
+    bind_contextvars(ti_id=ti_id_str)
+
+    if not note:
+        log.error("note cannot be empty")
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="note cannot be empty",
+        )
+
+    log.debug("Updating note", length=len(note))
+
+    ti = session.get(TI, ti_id_str, with_for_update=True)
+    if not ti:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task Instance not found",
+        )
+
+    ti.note = note
+    session.flush()
+
+
 @ti_id_router.get(
     "/{task_instance_id}/previous-successful-dagrun",
     status_code=status.HTTP_200_OK,

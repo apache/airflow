@@ -1272,6 +1272,7 @@ class TestTriggererMessageTypes:
             "RescheduleTask",
             "RetryTask",
             "SetRenderedFields",
+            "SetTaskInstanceNote",
             "SkipDownstreamTasks",
             "SucceedTask",
             "ValidateInletsAndOutlets",
