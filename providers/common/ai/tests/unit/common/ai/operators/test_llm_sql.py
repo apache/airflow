@@ -29,6 +29,7 @@ from airflow.providers.common.ai.mixins.approval import (
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
+from airflow.providers.standard.exceptions import HITLTimeoutError
 
 
 def _make_mock_run_result(output):
@@ -609,7 +610,7 @@ class TestLLMSQLQueryOperatorApproval:
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"error": "timeout expired", "error_type": "timeout"}
 
-        with pytest.raises(TimeoutError, match="timeout expired"):
+        with pytest.raises(HITLTimeoutError, match="Approval timed out"):
             op.execute_complete({}, generated_output="SELECT 1", event=event)
 
     def test_execute_complete_with_modified_sql(self):

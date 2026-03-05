@@ -122,9 +122,7 @@ class TestLLMOperatorApproval:
         from airflow.sdk.exceptions import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "LLM response"
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
@@ -150,9 +148,7 @@ class TestLLMOperatorApproval:
         from airflow.sdk.exceptions import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "draft output"
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("draft output")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
@@ -178,9 +174,7 @@ class TestLLMOperatorApproval:
         from airflow.sdk.exceptions import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "output"
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("output")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         timeout = timedelta(hours=1)
@@ -209,9 +203,7 @@ class TestLLMOperatorApproval:
             text: str
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = Summary(text="hello")
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="hello"))
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
@@ -226,15 +218,13 @@ class TestLLMOperatorApproval:
         with pytest.raises(TaskDeferred) as exc_info:
             op.execute(context=ctx)
 
-        assert exc_info.value.kwargs["generated_output"] == {"text": "hello"}
+        assert exc_info.value.kwargs["generated_output"] == '{"text":"hello"}'
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_without_approval_returns_normally(self, mock_hook_cls):
         """When require_approval=False, execute() returns output directly."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "plain output"
-        mock_agent.run_sync.return_value = mock_result
+        mock_agent.run_sync.return_value = _make_mock_run_result("plain output")
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="no_approval", prompt="p", llm_conn_id="my_llm", require_approval=False)

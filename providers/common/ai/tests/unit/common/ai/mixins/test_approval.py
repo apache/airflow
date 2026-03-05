@@ -104,7 +104,7 @@ class TestDeferForApproval:
         approval_op.defer_for_approval(context, output)
 
         defer_kwargs = approval_op.defer.call_args[1]
-        assert defer_kwargs["kwargs"]["generated_output"] == {"text": "Paris", "confidence": 0.95}
+        assert defer_kwargs["kwargs"]["generated_output"] == '{"text":"Paris","confidence":0.95}'
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -222,10 +222,12 @@ class TestDeferForApproval:
         with pytest.raises(ApprovalFailedException, match="something went wrong"):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
-    def test_timeout_error_raises_timeout(self, approval_op):
+    def test_timeout_error_raises_hitl_timeout(self, approval_op):
+        from airflow.providers.standard.exceptions import HITLTimeoutError
+
         event = {"error": "timed out waiting", "error_type": "timeout"}
 
-        with pytest.raises(TimeoutError, match="timed out waiting"):
+        with pytest.raises(HITLTimeoutError, match="timed out waiting"):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_approved_with_modified_output(self, approval_op_with_modifications):

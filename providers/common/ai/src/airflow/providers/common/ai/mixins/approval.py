@@ -95,8 +95,8 @@ class LLMApprovalMixin:
         from airflow.sdk.timezone import utcnow
 
         if isinstance(output, BaseModel):
-            output = output.model_dump()
-        else:
+            output = output.model_dump_json()
+        if not isinstance(output, str):
             # Always make string output so that when comparing in the execute_complete matches
             output = str(output)
 
@@ -156,12 +156,14 @@ class LLMApprovalMixin:
             ``params_input``, and ``responded_by_user``.
         :raises ApprovalRejectionException: If the reviewer rejected the output.
         :raises ApprovalFailedException: If the trigger reported an error.
-        :raises TimeoutError: If the approval timed out.
+        :raises HITLTimeoutError: If the approval timed out.
         """
+        from airflow.providers.standard.exceptions import HITLTimeoutError
+
         if "error" in event:
             error_type = event.get("error_type", "unknown")
             if error_type == "timeout":
-                raise TimeoutError(f"Approval timed out: {event['error']}")
+                raise HITLTimeoutError(f"Approval timed out: {event['error']}")
             raise ApprovalFailedException(f"Approval failed: {event['error']}")
 
         responded_by_user = event.get("responded_by_user")
@@ -175,11 +177,7 @@ class LLMApprovalMixin:
         # If params has data means technically its allowed modifying see above defer call
         if params_input:
             modified = params_input.get("output")
-            if not modified:
-                log.info("No output modified by the reviewer=%s ", responded_by_user)
-                return output
-
-            if modified != generated_output:
+            if modified and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
                 return modified
 
