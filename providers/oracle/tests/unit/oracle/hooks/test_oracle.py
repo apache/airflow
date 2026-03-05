@@ -145,7 +145,7 @@ class TestOracleHookConn:
     def test_get_conn_schema_as_service_name(self, mock_connect):
         """When service_name and sid are not in extras, conn.schema should be used as service_name."""
         self.connection.schema = "MY_SERVICE"
-        self.connection.extra = json.dumps({"thick_mode": True, "thick_mode_lib_dir": "/opt/oracle/lib"})
+        self.connection.extra = json.dumps({})
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
