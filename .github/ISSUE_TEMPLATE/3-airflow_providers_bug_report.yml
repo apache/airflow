@@ -77,7 +77,7 @@ body:
         - grpc
         - hashicorp
         - http
-        - ibm-mq
+        - ibm
         - imap
         - influxdb
         - informatica

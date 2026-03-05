@@ -22,6 +22,6 @@ from __future__ import annotations
 
 import os
 
-os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-ibm-mq"
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-ibm"
 
 from docs.provider_conf import *  # noqa: F403

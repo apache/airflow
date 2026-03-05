@@ -23,7 +23,7 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-ibm-mq
+Package apache-airflow-providers-ibm
 ------------------------------------------------------
 
 `IBM MQ  <https://www.ibm.com/products/mq/>`__

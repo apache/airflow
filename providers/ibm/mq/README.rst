@@ -21,7 +21,7 @@
 .. IF YOU WANT TO MODIFY TEMPLATE FOR THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
    ``PROVIDER_README_TEMPLATE.rst.jinja2`` IN the ``dev/breeze/src/airflow_breeze/templates`` DIRECTORY
 
-Package ``apache-airflow-providers-ibm-mq``
+Package ``apache-airflow-providers-ibm``
 
 Release: ``0.1.0``
 
@@ -36,14 +36,14 @@ This is a provider package for ``ibm.mq`` provider. All classes for this provide
 are in ``airflow.providers.ibm.mq`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ibm-mq/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ibm/0.1.0/>`_.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-ibm-mq``
+``pip install apache-airflow-providers-ibm``
 
 The package supports the following python versions: 3.9,3.10,3.11,3.12
 

@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-ibm-mq``
+``apache-airflow-providers-ibm``
 ===================================
 
 
@@ -47,7 +47,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-ibm-mq/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-ibm/>
     Example Dags <https://github.com/apache/airflow/tree/providers-ibm-mq/|version|/providers/ibm/mq/tests/system/ibm/mq>
     Installing from sources <installing-providers-from-sources>
 
@@ -69,7 +69,7 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-ibm-mq package
+apache-airflow-providers-ibm package
 ---------------------------------------
 
 `IBM MQ  <https://www.ibm.com/products/mq/>`__
@@ -89,7 +89,7 @@ Installation
 This provider requires the `IBM MQ Redistributable Client <https://www.ibm.com/docs/en/ibm-mq/9.4.x?topic=overview-redistributable-mq-clients/>`_ to be installed.
 
 You can install this package on top of an existing Airflow installation via
-``pip install apache-airflow-providers-ibm-mq``.
+``pip install apache-airflow-providers-ibm``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 
@@ -121,5 +121,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ibm-mq 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ibm-mq 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ibm 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ibm 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_mq-0.1.0-py3-none-any.whl.sha512>`__)

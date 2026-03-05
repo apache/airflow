@@ -240,8 +240,8 @@ packages = []
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
 ]
-"ibm.mq" = [
-    "apache-airflow-providers-ibm-mq>=0.1.0"
+"ibm" = [
+    "apache-airflow-providers-ibm>=0.1.0"
 ]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
@@ -442,7 +442,7 @@ packages = []
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
-    "apache-airflow-providers-ibm-mq>=0.1.0",
+    "apache-airflow-providers-ibm>=0.1.0",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py

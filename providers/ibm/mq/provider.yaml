@@ -16,7 +16,7 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-ibm-mq
+package-name: apache-airflow-providers-ibm
 name: IBM MQ
 
 state: ready

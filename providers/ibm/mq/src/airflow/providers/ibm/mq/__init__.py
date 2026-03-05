@@ -35,5 +35,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.11.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-ibm-mq:{__version__}` needs Apache Airflow 2.11.0+"
+        f"The package `apache-airflow-providers-ibm:{__version__}` needs Apache Airflow 2.11.0+"
     )

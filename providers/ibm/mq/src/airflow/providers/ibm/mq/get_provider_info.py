@@ -23,7 +23,7 @@
 
 def get_provider_info():
     return {
-        "package-name": "apache-airflow-providers-ibm-mq",
+        "package-name": "apache-airflow-providers-ibm",
         "name": "IBM MQ",
         "description": "`IBM MQ  <https://www.ibm.com/products/mq/>`__\n",
         "integrations": [
