@@ -29,10 +29,9 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
-from sqlalchemy.engine import URL
 from typing_extensions import overload
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
@@ -47,6 +46,7 @@ from airflow.utils.helpers import as_flattened_list
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    from sqlalchemy.engine import URL
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
@@ -1140,6 +1140,13 @@ class HiveServer2Hook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URL. "
+                "Install it with: pip install 'apache-airflow-providers-apache-hive[sqlalchemy]'"
+            )
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 

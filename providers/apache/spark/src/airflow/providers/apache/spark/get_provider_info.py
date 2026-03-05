@@ -40,6 +40,7 @@ def get_provider_info():
                 "integration-name": "Apache Spark",
                 "python-modules": [
                     "airflow.providers.apache.spark.operators.spark_jdbc",
+                    "airflow.providers.apache.spark.operators.spark_pipelines",
                     "airflow.providers.apache.spark.operators.spark_sql",
                     "airflow.providers.apache.spark.operators.spark_submit",
                     "airflow.providers.apache.spark.operators.spark_pyspark",
@@ -53,6 +54,7 @@ def get_provider_info():
                     "airflow.providers.apache.spark.hooks.spark_connect",
                     "airflow.providers.apache.spark.hooks.spark_jdbc",
                     "airflow.providers.apache.spark.hooks.spark_jdbc_script",
+                    "airflow.providers.apache.spark.hooks.spark_pipelines",
                     "airflow.providers.apache.spark.hooks.spark_sql",
                     "airflow.providers.apache.spark.hooks.spark_submit",
                 ],
