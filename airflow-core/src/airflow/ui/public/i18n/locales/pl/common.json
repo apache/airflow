@@ -173,6 +173,17 @@
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
   },
+  "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
+  "partitionedDagRun_many": "Partycjonowanych wykonań Dagów",
+  "partitionedDagRun_one": "Partycjonowane wykonanie Daga",
+  "partitionedDagRun_other": "Partycjonowane wykonania Dagów",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
+  },
+  "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
+  "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
+  "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
+  "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {

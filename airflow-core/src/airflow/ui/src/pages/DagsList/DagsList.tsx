@@ -95,6 +95,7 @@ const createColumns = (
           dagId={original.dag_id}
           latestRunAfter={latestRun?.run_after}
           timetableDescription={original.timetable_description}
+          timetablePartitioned={original.timetable_partitioned}
           timetableSummary={original.timetable_summary}
         />
       );
