@@ -252,7 +252,7 @@ class IterableOperator(BaseOperator):
         context: Context,
         tasks: Iterable[RuntimeTaskInstance],
     ) -> None:
-        exception: BaseException | None = None
+        exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
         futures: dict[Future, RuntimeTaskInstance] = {}
@@ -311,7 +311,7 @@ class IterableOperator(BaseOperator):
                         except asyncio.TimeoutError as e:
                             self.log.warning("A timeout occurred for task_id %s", task.task_id)
                             if task.next_try_number > self.retries:
-                                exception = AirflowTaskTimeout(e)
+                                exceptions.append(AirflowTaskTimeout(e))
                             else:
                                 reschedule_date = min(reschedule_date, task.next_retry_datetime())
                                 failed_tasks.append(task)
@@ -330,7 +330,7 @@ class IterableOperator(BaseOperator):
                                 task.task_id,
                                 task.map_index,
                             )
-                            exception = e
+                            exceptions.append(e)
 
                     if len(futures) < self.max_workers:
                         for task in next(chunked_tasks, []):
@@ -343,8 +343,8 @@ class IterableOperator(BaseOperator):
                         sleep(len(futures) * 0.1)
 
         if not failed_tasks:
-            if exception:
-                raise exception
+            if exceptions:
+                raise ExceptionGroup("Multiple sub-task failures", exceptions)
             if self.do_xcom_push:
                 return XComIterable(
                     task_id=self.task_id,
