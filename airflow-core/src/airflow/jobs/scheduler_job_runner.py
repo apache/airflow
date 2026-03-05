@@ -3149,6 +3149,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 ct.state = ConnectionTestState.FAILED
                 ct.result_message = reason
+                ct.connection_snapshot = None
                 self.log.warning("Failing connection test %s: %s", ct.id, reason)
                 continue
 

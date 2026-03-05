@@ -187,6 +187,7 @@ class TestAttemptRevert:
         session.flush()
 
         assert ct.reverted is True
+        assert ct.connection_snapshot is None
         session.refresh(conn)
         assert conn.host == "old-host.example.com"
         assert conn.login == "old_user"
@@ -222,6 +223,7 @@ class TestAttemptRevert:
         attempt_revert(ct, session=session)
 
         assert ct.reverted is False
+        assert ct.connection_snapshot is None
         assert "modified by another user" in ct.result_message
         assert conn.host == "third-party-host.example.com"
 
@@ -253,6 +255,7 @@ class TestAttemptRevert:
         attempt_revert(ct, session=session)
 
         assert ct.reverted is False
+        assert ct.connection_snapshot is None
         assert "modified by another user" in ct.result_message
         session.refresh(conn)
         assert conn.password == "third_party_secret"
@@ -283,4 +286,5 @@ class TestAttemptRevert:
         attempt_revert(ct, session=session)
 
         assert ct.reverted is False
+        assert ct.connection_snapshot is None
         assert "no longer exists" in ct.result_message

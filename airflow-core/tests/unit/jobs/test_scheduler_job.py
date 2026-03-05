@@ -9493,6 +9493,7 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
+        assert ct.connection_snapshot is None
         assert "No executor supports connection testing" in ct.result_message
 
     @mock.patch.dict(
@@ -9789,6 +9790,7 @@ class TestReapStaleConnectionTests:
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
         assert ct.reverted is True
+        assert ct.connection_snapshot is None
         conn = session.scalar(select(Connection).filter_by(conn_id="reaper_conn"))
         assert conn.host == "old-host.example.com"
 
