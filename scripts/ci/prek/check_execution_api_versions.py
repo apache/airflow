@@ -41,8 +41,8 @@ def get_changed_files_ci() -> list[str]:
     fetch_result = subprocess.run(
         ["git", "fetch", "origin", target_branch],
         capture_output=True,
-        check=True,
         text=True,
+        check=False,
     )
     if fetch_result.returncode != 0:
         console.print(
@@ -52,8 +52,35 @@ def get_changed_files_ci() -> list[str]:
         ["git", "diff", "--name-only", f"origin/{target_branch}...HEAD"],
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        # Shallow clone (fetch-depth: 1) may not have enough history to compute the
+        # merge base required by the three-dot diff.  Deepen the fetch and retry once.
+        console.print(
+            f"[yellow]WARNING: git diff against origin/{target_branch} failed (exit {result.returncode}), "
+            "retrying with deeper fetch...[/]"
+        )
+        subprocess.run(
+            ["git", "fetch", "--deepen=50", "origin", target_branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", f"origin/{target_branch}...HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            console.print(f"[bold red]ERROR:[/] git diff failed (exit {e.returncode})")
+            if e.stdout:
+                console.print(f"[dim]stdout:[/]\n{e.stdout.strip()}")
+            if e.stderr:
+                console.print(f"[dim]stderr:[/]\n{e.stderr.strip()}")
+            raise
     return [f for f in result.stdout.strip().splitlines() if f]
 
 
