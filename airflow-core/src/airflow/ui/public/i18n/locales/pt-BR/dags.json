@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{count}} de {{total}} ativos atualizados",
+  "dagActions": {
+    "delete": {
+      "button": "Excluir Dag",
+      "warning": "Isso removerá todas as metadados relacionados ao Dag, incluindo Execuções e Tarefas."
+    }
+  },
+  "favoriteDag": "Dag Favorito",
+  "filters": {
+    "allRunTypes": "Todos os Tipos de Execução",
+    "allStates": "Todos os Estados",
+    "favorite": {
+      "all": "Todos",
+      "favorite": "Favorito",
+      "unfavorite": "Remover dos Favoritos"
+    },
+    "paused": {
+      "active": "Ativo",
+      "all": "Todos",
+      "paused": "Pausado"
+    },
+    "runIdPatternFilter": "Pesquisar Execuções de Dag"
+  },
+  "ownerLink": "Link do Proprietário para {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Nenhuma tarefa encontrada.",
+      "title": "Tarefas Afetadas: {{count}}"
+    },
+    "clear": {
+      "button": "Limpar {{type}}",
+      "buttonTooltip": "Pressione shift+c para limpar",
+      "error": "Falha ao limpar {{type}}",
+      "title": "Limpar {{type}}"
+    },
+    "delete": {
+      "button": "Excluir {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Excluir {{type}}",
+        "warning": "Isso removerá todas as metadados relacionados ao {{type}}."
+      },
+      "error": "Erro ao excluir {{type}}",
+      "success": {
+        "description": "A solicitação de exclusão do {{type}} foi bem-sucedida.",
+        "title": "{{type}} Excluído com Sucesso"
+      }
+    },
+    "markAs": {
+      "button": "Marcar {{type}} como...",
+      "buttonTooltip": {
+        "failed": "Pressione shift+f para marcar como falha",
+        "success": "Pressione shift+s para marcar como sucesso"
+      },
+      "title": "Marcar {{type}} como {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "Limpar tarefas existentes",
+      "future": "Futuro",
+      "onlyFailed": "Limpar somente tarefas falhadas",
+      "past": "Passado",
+      "queueNew": "Enfileirar novas tarefas",
+      "runOnLatestVersion": "Executar com a versão mais recente do pacote",
+      "upstream": "Upstream"
+    }
+  },
+  "search": {
+    "advanced": "Pesquisa Avançada",
+    "clear": "Limpar pesquisa",
+    "dags": "Pesquisar Dags",
+    "hotkey": "+K",
+    "tasks": "Pesquisar Tarefas"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Ordenar por Nome (A-Z)",
+      "desc": "Ordenar por Nome (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Ordenar por Data de Início da Última Execução (Mais Antiga-Mais Recente)",
+      "desc": "Ordenar por Data de Início da Última Execução (Mais Recente-Mais Antiga)"
+    },
+    "lastRunState": {
+      "asc": "Ordenar por Estado da Última Execução (A-Z)",
+      "desc": "Ordenar por Estado da Última Execução (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Ordenar por Próxima Execução do Dag (Mais Antiga-Mais Recente)",
+      "desc": "Ordenar por Próxima Execução do Dag (Mais Recente-Mais Antiga)"
+    },
+    "placeholder": "Ordenar por"
+  },
+  "unfavoriteDag": "Remover Dag dos Favoritos"
+}
