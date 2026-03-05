@@ -1646,7 +1646,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def next_callable(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+    def next_callable(self, next_method: str, next_kwargs: dict[str, Any] | None):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
         from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 
@@ -1662,14 +1662,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 raise TaskDeferralTimeout(error)
             raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
-        return getattr(self, next_method)
+        execute_callable = getattr(self, next_method)
+        if next_kwargs:
+            return partial(execute_callable, **next_kwargs)
+        return execute_callable
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
         if next_kwargs is None:
             next_kwargs = {}
 
-        execute_callable = self.next_callable(next_method, next_kwargs, context)
+        execute_callable = self.next_callable(next_method, next_kwargs)
         return execute_callable(context, **next_kwargs)
 
     def dry_run(self) -> None:

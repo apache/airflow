@@ -24,11 +24,10 @@ import time
 from collections import deque
 from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
+from itertools import batched
 from math import ceil
 from time import sleep
 from typing import TYPE_CHECKING, Any
-
-from more_itertools import ichunked
 
 from airflow.exceptions import (
     AirflowTaskTimeout,
@@ -257,7 +256,7 @@ class IterableOperator(BaseOperator):
         prev_futures_count = 0
         futures: dict[Future, RuntimeTaskInstance] = {}
         failed_tasks: deque[RuntimeTaskInstance] = deque()
-        chunked_tasks = ichunked(tasks, self.max_workers)
+        chunked_tasks = batched(tasks, self.max_workers)
 
         self.log.info("Running tasks with %d workers", self.max_workers)
 
