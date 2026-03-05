@@ -56,6 +56,14 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
         for the full list.
+    :param require_approval: If ``True``, the task defers after generating
+        output and waits for a human reviewer to approve or reject via the
+        HITL interface.  Default ``False``.
+    :param approval_timeout: Maximum time to wait for a review.  When
+        exceeded, the task fails with ``TimeoutError``.
+    :param allow_modifications: If ``True``, the reviewer can edit the output
+        before approving.  The modified value is returned as the task result.
+        Default ``False``.
     """
 
     template_fields: Sequence[str] = (
@@ -109,6 +117,5 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
 
         if isinstance(output, BaseModel):
             output = output.model_dump()
-
 
         return output

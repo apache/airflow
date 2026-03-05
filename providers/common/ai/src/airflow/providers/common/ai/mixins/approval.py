@@ -19,38 +19,54 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from logging import Logger
 from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 
 from airflow.providers.common.compat.sdk import AirflowException
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
+
 class ApprovalFailedException(AirflowException):
-    """Failed to approve"""
-    pass
+    """Failed to approve."""
+
 
 class ApprovalRejectionException(AirflowException):
-    """Rejected by the reviewer"""
+    """Rejected by the reviewer."""
+
 
 class DeferForApprovalProtocol(Protocol):
+    """Protocol for defer for approval mixin."""
+
     approval_timeout: timedelta | None
     allow_modifications: bool
     prompt: str
     task_id: str
     defer: Any
 
-class ExecuteCompleteProtocol(Protocol):
-    allow_modifications: bool
-    log: Logger
-
 
 class LLMApprovalMixin:
     """
     Mixin that pauses an operator for human review before returning output.
+
+    When ``require_approval=True`` on the operator, the generated output is
+    presented to a human reviewer via the Airflow Human-in-the-Loop (HITL)
+    interface.  The task defers until the reviewer approves or rejects.
+
+    If ``allow_modifications=True``, the reviewer can also edit the output
+    before approving.  The (possibly modified) output is then returned as the
+    task result.
+
+    Operators that use this mixin must set the following attributes:
+
+    - ``require_approval`` (``bool``)
+    - ``allow_modifications`` (``bool``)
+    - ``approval_timeout`` (``timedelta | None``)
+    - ``prompt`` (``str``)
     """
 
     APPROVE = "Approve"
@@ -63,22 +79,17 @@ class LLMApprovalMixin:
         *,
         subject: str | None = None,
         body: str | None = None,
-        params: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         """
         Write HITL detail, then defer to HITLTrigger for human review.
 
         :param context: Airflow task context.
         :param output: The generated output to present for review.
-        :param subject: Headline showed on the Required Actions page.
-            Defaults to a generic message including the task ID.
+        :param subject: Headline shown on the Required Actions page.
+            Defaults to ``"Review output for task `<task_id>`"``.
         :param body: Markdown body shown below the headline.
             Defaults to the prompt and output wrapped in a code block.
-        :param params: Editable param definitions for the reviewer form.
-            Only used when ``allow_modifications=True``. When ``None``,
-            defaults to a single ``"output"`` text field.
         """
-
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
@@ -88,7 +99,6 @@ class LLMApprovalMixin:
         else:
             # Always make string output so that when comparing in the execute_complete matches
             output = str(output)
-
 
         ti_id = context["task_instance"].id
         timeout_datetime = utcnow() + self.approval_timeout if self.approval_timeout else None
@@ -101,23 +111,13 @@ class LLMApprovalMixin:
 
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:
-            if params is not None:
-
-                # making it standard always so that in the execute_complete we can look for this field and return them.
-                if not params.get("output"):
-                    raise ValueError(
-                        "When `allow_modifications=True`, `params` must contain an `output` field."
-                    )
-
-                hitl_params = params
-            else:
-                hitl_params = {
-                    "output": {
-                        "value": output,
-                        "description": "Edit the output before approving (optional).",
-                        "schema": {"type": "string"},
-                    },
-                }
+            hitl_params = {
+                "output": {
+                    "value": output,
+                    "description": "Edit the output before approving (optional).",
+                    "schema": {"type": "string"},
+                },
+            }
 
         upsert_hitl_detail(
             ti_id=ti_id,
@@ -139,13 +139,25 @@ class LLMApprovalMixin:
                 timeout_datetime=timeout_datetime,
             ),
             method_name="execute_complete",
-            kwargs={"generated_output": output, "allow_modifications": self.allow_modifications},
+            kwargs={"generated_output": output},
             timeout=self.approval_timeout,
         )
 
-    def execute_complete(self, context: Context, generated_output: str, allow_modifications: bool, event: dict[str, Any]) -> str:
-        """Resume after human review."""
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+        """
+        Resume after human review.
 
+        Called automatically by Airflow when the HITL trigger fires.
+        Returns the original or reviewer-modified output on approval.
+
+        :param context: Airflow task context.
+        :param generated_output: The output that was deferred for review.
+        :param event: Trigger event payload containing ``chosen_options``,
+            ``params_input``, and ``responded_by_user``.
+        :raises ApprovalRejectionException: If the reviewer rejected the output.
+        :raises ApprovalFailedException: If the trigger reported an error.
+        :raises TimeoutError: If the approval timed out.
+        """
         if "error" in event:
             error_type = event.get("error_type", "unknown")
             if error_type == "timeout":
@@ -160,14 +172,15 @@ class LLMApprovalMixin:
         output = generated_output
         params_input: dict[str, Any] = event.get("params_input") or {}
 
-        if allow_modifications and params_input:
+        # If params has data means technically its allowed modifying see above defer call
+        if params_input:
             modified = params_input.get("output")
             if not modified:
-                logging.info("No output modified by the reviewer=%s", responded_by_user)
+                log.info("No output modified by the reviewer=%s ", responded_by_user)
                 return output
 
             if modified != generated_output:
-                logging.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
+                log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
                 return modified
 
         return output

@@ -140,7 +140,6 @@ class TestLLMOperatorApproval:
 
         assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs["generated_output"] == "LLM response"
-        assert exc_info.value.kwargs["allow_modifications"] is False
         mock_upsert.assert_called_once()
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
@@ -165,10 +164,9 @@ class TestLLMOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(TaskDeferred):
             op.execute(context=ctx)
 
-        assert exc_info.value.kwargs["allow_modifications"] is True
         upsert_kwargs = mock_upsert.call_args[1]
         assert "output" in upsert_kwargs["params"]
 
@@ -240,7 +238,7 @@ class TestLLMOperatorApproval:
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="no_approval", prompt="p", llm_conn_id="my_llm", require_approval=False)
-        result = op.execute(context=MagicMock())
+        result = op.execute(context={})
 
         assert result == "plain output"
 
@@ -248,9 +246,8 @@ class TestLLMOperatorApproval:
         """execute_complete returns output when approved."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
-        ctx = MagicMock()
 
-        result = op.execute_complete(ctx, generated_output="the output", allow_modifications=False, event=event)
+        result = op.execute_complete({}, generated_output="the output", event=event)
 
         assert result == "the output"
 
@@ -258,19 +255,17 @@ class TestLLMOperatorApproval:
         """execute_complete raises ApprovalRejectionException when rejected."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
-        ctx = MagicMock()
 
         with pytest.raises(ApprovalRejectionException):
-            op.execute_complete(ctx, generated_output="output", allow_modifications=False, event=event)
+            op.execute_complete({}, generated_output="output", event=event)
 
     def test_execute_complete_with_error(self):
         """execute_complete raises ApprovalFailedException on error event."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"error": "oops", "error_type": "unknown"}
-        ctx = MagicMock()
 
         with pytest.raises(ApprovalFailedException, match="oops"):
-            op.execute_complete(ctx, generated_output="output", allow_modifications=False, event=event)
+            op.execute_complete({}, generated_output="output", event=event)
 
     def test_execute_complete_with_modified_output(self):
         """execute_complete returns modified output when reviewer edits it."""
@@ -280,8 +275,7 @@ class TestLLMOperatorApproval:
             "responded_by_user": "editor",
             "params_input": {"output": "edited"},
         }
-        ctx = MagicMock()
 
-        result = op.execute_complete(ctx, generated_output="original", allow_modifications=True, event=event)
+        result = op.execute_complete({}, generated_output="original", event=event)
 
         assert result == "edited"

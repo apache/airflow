@@ -35,6 +35,7 @@ UTCNOW_PATH = "airflow.sdk.timezone.utcnow"
 
 
 class FakeOperator(LLMApprovalMixin):
+    """Minimal concrete class satisfying both mixin protocols."""
 
     def __init__(
         self,
@@ -71,10 +72,9 @@ def context():
 
 
 class TestDeferForApproval:
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_defers_with_string_output(self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context):
+    def test_defers_with_string_output(self, mock_upsert, mock_trigger_cls, approval_op, context):
         ti_id = context["task_instance"].id
 
         approval_op.defer_for_approval(context, "some LLM output")
@@ -91,12 +91,10 @@ class TestDeferForApproval:
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["method_name"] == "execute_complete"
         assert defer_kwargs["kwargs"]["generated_output"] == "some LLM output"
-        assert defer_kwargs["kwargs"]["allow_modifications"] is False
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_defers_with_pydantic_output(self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context):
+    def test_defers_with_pydantic_output(self, mock_upsert, mock_trigger_cls, approval_op, context):
         class Answer(BaseModel):
             text: str
             confidence: float
@@ -108,22 +106,20 @@ class TestDeferForApproval:
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == {"text": "Paris", "confidence": 0.95}
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
     def test_non_string_non_pydantic_output_is_stringified(
-        self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context
+        self, mock_upsert, mock_trigger_cls, approval_op, context
     ):
         approval_op.defer_for_approval(context, 42)
 
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == "42"
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
     def test_allow_modifications_creates_default_output_param(
-        self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op_with_modifications, context
+        self, mock_upsert, mock_trigger_cls, approval_op_with_modifications, context
     ):
         approval_op_with_modifications.defer_for_approval(context, "draft text")
 
@@ -133,49 +129,9 @@ class TestDeferForApproval:
         assert param["value"] == "draft text"
         assert param["schema"] == {"type": "string"}
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_allow_modifications_with_custom_params(
-        self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op_with_modifications, context
-    ):
-        custom_params = {
-            "output": {
-                "value": "custom val",
-                "description": "Custom desc",
-                "schema": {"type": "string"},
-            },
-            "extra_field": {
-                "value": "extra",
-                "description": "Extra",
-                "schema": {"type": "string"},
-            },
-        }
-
-        approval_op_with_modifications.defer_for_approval(context, "draft text", params=custom_params)
-
-        call_kwargs = mock_upsert.call_args[1]
-        assert call_kwargs["params"] == custom_params
-
-    @patch(UTCNOW_PATH)
-    @patch(HITL_TRIGGER_PATH, autospec=True)
-    @patch(UPSERT_HITL_PATH)
-    def test_allow_modifications_custom_params_missing_output_key_raises(
-        self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op_with_modifications, context
-    ):
-        bad_params = {
-            "some_field": {"value": "v", "description": "d", "schema": {"type": "string"}},
-        }
-
-        with pytest.raises(ValueError, match="must contain an `output` field"):
-            approval_op_with_modifications.defer_for_approval(context, "draft", params=bad_params)
-
-    @patch(UTCNOW_PATH)
-    @patch(HITL_TRIGGER_PATH, autospec=True)
-    @patch(UPSERT_HITL_PATH)
-    def test_no_modifications_params_empty(
-        self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context
-    ):
+    def test_no_modifications_params_empty(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output")
 
         call_kwargs = mock_upsert.call_args[1]
@@ -200,10 +156,9 @@ class TestDeferForApproval:
         defer_kwargs = op.defer.call_args[1]
         assert defer_kwargs["timeout"] == timeout
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_no_timeout_passes_none(self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context):
+    def test_no_timeout_passes_none(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output")
 
         trigger_call_kwargs = mock_trigger_cls.call_args[1]
@@ -212,20 +167,18 @@ class TestDeferForApproval:
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["timeout"] is None
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_custom_subject_and_body(self, mock_upsert, mock_trigger_cls, mock_utcnow, approval_op, context):
+    def test_custom_subject_and_body(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output", subject="Custom Subject", body="Custom **body**")
 
         call_kwargs = mock_upsert.call_args[1]
         assert call_kwargs["subject"] == "Custom Subject"
         assert call_kwargs["body"] == "Custom **body**"
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_default_subject_includes_task_id(self, mock_upsert, mock_trigger_cls, mock_utcnow, context):
+    def test_default_subject_includes_task_id(self, mock_upsert, mock_trigger_cls, context):
         op = FakeOperator(task_id="my_fancy_task")
 
         op.defer_for_approval(context, "output")
@@ -233,10 +186,9 @@ class TestDeferForApproval:
         call_kwargs = mock_upsert.call_args[1]
         assert "my_fancy_task" in call_kwargs["subject"]
 
-    @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_default_body_includes_prompt_and_output(self, mock_upsert, mock_trigger_cls, mock_utcnow, context):
+    def test_default_body_includes_prompt_and_output(self, mock_upsert, mock_trigger_cls, context):
         op = FakeOperator(prompt="Tell me about Paris")
 
         op.defer_for_approval(context, "Paris is the capital of France.")
@@ -245,14 +197,10 @@ class TestDeferForApproval:
         assert "Tell me about Paris" in call_kwargs["body"]
         assert "Paris is the capital of France." in call_kwargs["body"]
 
-
-class TestExecuteComplete:
     def test_approved_returns_generated_output(self, approval_op):
         event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
 
-        result = approval_op.execute_complete(
-            {}, generated_output="hello world", allow_modifications=False, event=event
-        )
+        result = approval_op.execute_complete({}, generated_output="hello world", event=event)
 
         assert result == "hello world"
 
@@ -260,33 +208,25 @@ class TestExecuteComplete:
         event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
 
         with pytest.raises(ApprovalRejectionException, match="rejected by the reviewer"):
-            approval_op.execute_complete(
-                {}, generated_output="output", allow_modifications=False, event=event
-            )
+            approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_empty_chosen_options_raises_rejection(self, approval_op):
         event = {"chosen_options": [], "responded_by_user": "admin"}
 
         with pytest.raises(ApprovalRejectionException):
-            approval_op.execute_complete(
-                {}, generated_output="output", allow_modifications=False, event=event
-            )
+            approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_error_in_event_raises_approval_failed(self, approval_op):
         event = {"error": "something went wrong", "error_type": "unknown"}
 
         with pytest.raises(ApprovalFailedException, match="something went wrong"):
-            approval_op.execute_complete(
-                {}, generated_output="output", allow_modifications=False, event=event
-            )
+            approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_timeout_error_raises_timeout(self, approval_op):
         event = {"error": "timed out waiting", "error_type": "timeout"}
 
         with pytest.raises(TimeoutError, match="timed out waiting"):
-            approval_op.execute_complete(
-                {}, generated_output="output", allow_modifications=False, event=event
-            )
+            approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_approved_with_modified_output(self, approval_op_with_modifications):
         event = {
@@ -296,7 +236,7 @@ class TestExecuteComplete:
         }
 
         result = approval_op_with_modifications.execute_complete(
-            {}, generated_output="original output", allow_modifications=True, event=event
+            {}, generated_output="original output", event=event
         )
 
         assert result == "modified output"
@@ -309,7 +249,7 @@ class TestExecuteComplete:
         }
 
         result = approval_op_with_modifications.execute_complete(
-            {}, generated_output="same output", allow_modifications=True, event=event
+            {}, generated_output="same output", event=event
         )
 
         assert result == "same output"
@@ -321,9 +261,7 @@ class TestExecuteComplete:
             "params_input": None,
         }
 
-        result = approval_op_with_modifications.execute_complete(
-            {}, generated_output="original", allow_modifications=True, event=event
-        )
+        result = approval_op_with_modifications.execute_complete({}, generated_output="original", event=event)
 
         assert result == "original"
 
@@ -334,31 +272,26 @@ class TestExecuteComplete:
             "params_input": {"output": ""},
         }
 
-        result = approval_op_with_modifications.execute_complete(
-            {}, generated_output="original", allow_modifications=True, event=event
-        )
+        result = approval_op_with_modifications.execute_complete({}, generated_output="original", event=event)
 
         assert result == "original"
 
-    def test_approved_modifications_disabled_ignores_params_input(self, approval_op):
+    def test_approved_no_modifications_ignores_params_input(self, approval_op):
+        """When allow_modifications=False, params will be empty so params_input is empty too."""
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": "editor",
-            "params_input": {"output": "should be ignored"},
+            "params_input": {},
         }
 
-        result = approval_op.execute_complete(
-            {}, generated_output="original", allow_modifications=False, event=event
-        )
+        result = approval_op.execute_complete({}, generated_output="original", event=event)
 
         assert result == "original"
 
     def test_event_missing_responded_by_user(self, approval_op):
         event = {"chosen_options": ["Approve"]}
 
-        result = approval_op.execute_complete(
-            {}, generated_output="output", allow_modifications=False, event=event
-        )
+        result = approval_op.execute_complete({}, generated_output="output", event=event)
 
         assert result == "output"
 
@@ -366,6 +299,4 @@ class TestExecuteComplete:
         event = {"chosen_options": ["Reject"], "responded_by_user": "alice"}
 
         with pytest.raises(ApprovalRejectionException, match="alice"):
-            approval_op.execute_complete(
-                {}, generated_output="output", allow_modifications=False, event=event
-            )
+            approval_op.execute_complete({}, generated_output="output", event=event)

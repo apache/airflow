@@ -23,7 +23,6 @@ from uuid import uuid4
 import pytest
 
 from airflow.providers.common.ai.mixins.approval import (
-    ApprovalFailedException,
     ApprovalRejectionException,
     LLMApprovalMixin,
 )
@@ -447,7 +446,9 @@ class TestLLMSQLQueryOperatorApproval:
         assert issubclass(LLMSQLQueryOperator, LLMApprovalMixin)
 
     def test_approval_flags_default_values(self):
-        op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
+        op = LLMSQLQueryOperator(
+            task_id="t", prompt="generate top 5 customer scores", llm_conn_id="pydantic_default"
+        )
         assert op.require_approval is False
         assert op.allow_modifications is False
         assert op.approval_timeout is None
@@ -477,13 +478,14 @@ class TestLLMSQLQueryOperatorApproval:
 
         assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs["generated_output"] == "SELECT id FROM users WHERE active"
-        assert exc_info.value.kwargs["allow_modifications"] is False
         mock_upsert.assert_called_once()
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_with_approval_validates_before_deferring(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+    def test_execute_with_approval_validates_before_deferring(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls
+    ):
         """SQL validation runs before defer_for_approval; unsafe SQL is blocked."""
         mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("DROP TABLE users")
 
@@ -518,10 +520,9 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(TaskDeferred):
             op.execute(context=ctx)
 
-        assert exc_info.value.kwargs["allow_modifications"] is True
         upsert_kwargs = mock_upsert.call_args[1]
         assert "output" in upsert_kwargs["params"]
 
@@ -590,11 +591,8 @@ class TestLLMSQLQueryOperatorApproval:
         """execute_complete returns SQL when approved."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
-        ctx = MagicMock()
 
-        result = op.execute_complete(
-            ctx, generated_output="SELECT * FROM orders", allow_modifications=False, event=event
-        )
+        result = op.execute_complete({}, generated_output="SELECT * FROM orders", event=event)
 
         assert result == "SELECT * FROM orders"
 
@@ -602,19 +600,17 @@ class TestLLMSQLQueryOperatorApproval:
         """execute_complete raises ApprovalRejectionException when SQL is rejected."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"chosen_options": ["Reject"], "responded_by_user": "dba"}
-        ctx = MagicMock()
 
         with pytest.raises(ApprovalRejectionException, match="dba"):
-            op.execute_complete(ctx, generated_output="SELECT 1", allow_modifications=False, event=event)
+            op.execute_complete({}, generated_output="SELECT 1", event=event)
 
     def test_execute_complete_with_error(self):
-        """execute_complete raises ApprovalFailedException on error event."""
+        """execute_complete raises on error event."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {"error": "timeout expired", "error_type": "timeout"}
-        ctx = MagicMock()
 
         with pytest.raises(TimeoutError, match="timeout expired"):
-            op.execute_complete(ctx, generated_output="SELECT 1", allow_modifications=False, event=event)
+            op.execute_complete({}, generated_output="SELECT 1", event=event)
 
     def test_execute_complete_with_modified_sql(self):
         """execute_complete returns modified SQL when reviewer edits it."""
@@ -624,26 +620,32 @@ class TestLLMSQLQueryOperatorApproval:
             "responded_by_user": "dba",
             "params_input": {"output": "SELECT id, name FROM users LIMIT 10"},
         }
-        ctx = MagicMock()
 
-        result = op.execute_complete(
-            ctx, generated_output="SELECT * FROM users", allow_modifications=True, event=event
-        )
+        result = op.execute_complete({}, generated_output="SELECT * FROM users", event=event)
 
         assert result == "SELECT id, name FROM users LIMIT 10"
 
-    def test_execute_complete_modifications_disabled_ignores_edits(self):
-        """When allow_modifications=False, reviewer edits are ignored."""
+    def test_execute_complete_revalidates_modified_sql(self):
+        """execute_complete re-validates SQL when the reviewer modifies it."""
+        op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True)
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "john",
+            "params_input": {"output": "DROP TABLE users"},
+        }
+
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            op.execute_complete({}, generated_output="SELECT 1", event=event)
+
+    def test_execute_complete_no_modifications_ignores_edits(self):
+        """When allow_modifications=False, params will be empty so params_input is empty too."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "dba",
-            "params_input": {"output": "SELECT 999"},
+            "responded_by_user": "john",
+            "params_input": {},
         }
-        ctx = MagicMock()
 
-        result = op.execute_complete(
-            ctx, generated_output="SELECT 1", allow_modifications=False, event=event
-        )
+        result = op.execute_complete({}, generated_output="SELECT 1", event=event)
 
         assert result == "SELECT 1"
