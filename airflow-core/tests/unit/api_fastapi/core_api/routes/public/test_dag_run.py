@@ -1461,11 +1461,17 @@ class TestBulkDagRuns:
         ]
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={})
+        response = unauthenticated_test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"actions": [{"action": "delete", "entities": [DAG1_RUN1_ID]}]},
+        )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={})
+        response = unauthorized_test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"actions": [{"action": "delete", "entities": [DAG1_RUN1_ID]}]},
+        )
         assert response.status_code == 403
 
     def test_should_respond_422(self, test_client):
