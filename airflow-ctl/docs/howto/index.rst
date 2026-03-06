@@ -114,6 +114,35 @@ This parameter is useful when you want to manage multiple Airflow environments.
 Useful when there's no keyring available in the system where airflowctl is running.
 Set ``AIRFLOW_CLI_TOKEN`` or use the ``--api-token`` flag for next commands.
 
+
+Use Airflow Ctl (airflowctl) as SDK
+'''''''''''''''''''''''''''''''''''
+airflowctl can also be used as a Python SDK to interact with the Airflow API programmatically.
+You can import the necessary modules and use the functions provided by airflowctl to perform various operations on the Airflow API.
+
+
+.. code-block:: python
+
+  import httpx
+  from airflow_ctl.api.client import Client, Credentials, ServerResponseError
+  from airflowctl.api.datamodels.generated import DAGPatchBody
+
+  # Reusable API Client until token expires
+  api_client = Client(
+      base_url="AIRFLOW_API_URL",
+      limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
+      token="TOKEN",
+  )
+
+  # Example: Pausing a DAG
+  dag_id = "EXAMPLE_DAG_ID"
+  try:
+      api_client.dags.update(dag_id=dag_id, dag_body=DAGPatchBody(is_paused="pause"))
+  except ServerResponseError as e:
+      # Handle error
+      pass
+
+
 More Usage and Help Pictures
 ''''''''''''''''''''''''''''
 For more information use
