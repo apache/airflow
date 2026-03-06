@@ -3326,10 +3326,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if _executor.name and workload.get_executor_name() in (
                     _executor.name.alias,
                     _executor.name.module_path,
+                    _executor.name.module_path.split(".")[-1],
                 ):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor
+                        break
 
         if executor is not None:
             self.log.debug(
