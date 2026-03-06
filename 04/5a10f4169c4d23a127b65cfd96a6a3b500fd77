@@ -1,0 +1,23 @@
+airflow/www/package.json
+  586ed8f308fd71c9 10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "045a10f4169c4d23a127b65cfd96a6a3b500fd77",
+  "prompts": {
+    "586ed8f308fd71c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d159f828-2194-4b4a-873d-05619e9f031b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 31,
+      "total_deletions": 13,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
