@@ -355,7 +355,7 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
 
 class TestXComArg:
     @pytest.mark.parametrize(
-        "xcom_value, expected",
+        ("actual", "expected"),
         [
             (1, [1]),  # scalar
             ("hello", ["hello"]),  # string

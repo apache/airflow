@@ -24,7 +24,7 @@ from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 
 class TestExpandInput:
     @pytest.mark.parametrize(
-        "actual, expected",
+        ("actual", "expected"),
         [
             ({"a": 1}, [{"a": 1}]),
             ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
@@ -39,7 +39,7 @@ class TestExpandInput:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "actual, expected",
+        ("actual", "expected"),
         [
             ([{"a": 1}, {"a": 2}], [{"a": 1}, {"a": 2}]),
             ([{"a": 1, "b": 2}], [{"a": 1, "b": 2}]),
