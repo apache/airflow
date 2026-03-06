@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import pytest
+from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
-
-from task_sdk.definitions.conftest import make_xcom_arg
 
 
 class TestExpandInput:
