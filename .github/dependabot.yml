@@ -131,6 +131,9 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: npm
     cooldown:
@@ -144,6 +147,9 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
