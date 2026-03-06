@@ -36,14 +36,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import (
-    TYPE_CHECKING,
-    BinaryIO,
-    ClassVar,
-    NoReturn,
-    TextIO,
-    cast,
-)
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -898,17 +891,29 @@ def _remote_logging_conn(client: Client):
     # Fetch connection details on-demand without caching the entire API client instance
     conn = _fetch_remote_logging_conn(conn_id, client)
 
-    if conn:
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-        os.environ[key] = conn.get_uri()
+    if not conn:
         try:
             yield
         finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
+            # Ensure we don't leak the caller's client when no connection was fetched.
+            del conn
+            del client
+        return
+
+    key = f"AIRFLOW_CONN_{conn_id.upper()}"
+    old = os.getenv(key)
+    os.environ[key] = conn.get_uri()
+    try:
+        yield
+    finally:
+        if old is None:
+            del os.environ[key]
+        else:
+            os.environ[key] = old
+
+        # Explicitly drop local references so the caller's client can be garbage collected.
+        del conn
+        del client
 
 
 @attrs.define(kw_only=True)

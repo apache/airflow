@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -197,8 +198,11 @@ async def _async_get_connection(conn_id: str) -> Connection:
     for secrets_backend in backends:
         try:
             # Use async method if available, otherwise wrap sync method
-            if hasattr(secrets_backend, "aget_connection"):
-                conn = await secrets_backend.aget_connection(conn_id)  # type: ignore[assignment]
+            # getattr avoids triggering AsyncMock coroutine creation under Python 3.13
+            async_method = getattr(secrets_backend, "aget_connection", None)
+            if async_method is not None:
+                maybe_awaitable = async_method(conn_id)
+                conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
                 conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
 
