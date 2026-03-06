@@ -94,6 +94,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 permissions:
+  actions: read
   contents: read
 jobs:
   build-ci-images:
