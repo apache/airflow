@@ -27,8 +27,7 @@ class TestFileTaskHandlerLogServer:
     """Tests for _read_from_logs_server 404 handling."""
 
     def setup_method(self):
-        self.handler = FileTaskHandler(base_log_folder="/tmp/test_logs", filename_template="{{ ti.dag_id }}")
-        self.handler.local_base = "/tmp/test_logs"
+        self.handler = FileTaskHandler(base_log_folder="/tmp/test_logs")
 
         self.ti = MagicMock()
         self.ti.hostname = "worker-1"
