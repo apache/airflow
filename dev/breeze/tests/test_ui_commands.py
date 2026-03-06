@@ -70,11 +70,15 @@ class TestPluralHandling:
         assert "error_other" not in expanded
 
     def test_expand_plural_keys_expands_when_en_has_count_placeholder(self):
+        # Polish has 4 plural forms (_one, _few, _many, _other). Input has only _one and _other;
+        # expansion must add _few and _many so the test verifies the expansion logic ran.
         keys = {"warning_one", "warning_other"}
         en_key_to_value = {"warning_one": "1 Warning", "warning_other": "{{count}} Warnings"}
-        expanded = expand_plural_keys(keys, "pt", en_key_to_value)
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
         assert "warning_one" in expanded
         assert "warning_other" in expanded
+        assert "warning_few" in expanded
+        assert "warning_many" in expanded
 
 
 class TestFlattenKeys:

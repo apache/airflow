@@ -372,7 +372,7 @@ def count_todos(obj) -> int:
     return 0
 
 
-def print_translation_progress(locale_files, missing_counts, summary):
+def print_translation_progress(locale_files, summary):
     console = get_console()
     from rich.table import Table
 
@@ -440,11 +440,12 @@ def print_translation_progress(locale_files, missing_counts, summary):
                 file_translated = 0
                 file_todos = 0
             file_coverage = 100 * file_translated / total_req if total_req else 100.0
-            style = (
-                "bold green"
-                if file_missing == 0 and file_unused == 0 and file_todos == 0
-                else ("yellow" if file_missing > 0 or file_todos > 0 or file_unused > 0 else "red")
-            )
+            if file_missing > 0:
+                style = "red"
+            elif file_todos > 0 or file_unused > 0:
+                style = "yellow"
+            else:
+                style = "bold green"
             table.add_row(
                 f"[bold reverse]{filename}[/bold reverse]",
                 str(required_base_en),
@@ -558,8 +559,8 @@ def remove_unused_translations(language: str, summary: dict[str, LocaleSummary])
     """
     console = get_console()
     for filename, diff in summary.items():
-        extra_keys = set(diff.unused_keys.get(language, []))
-        if not extra_keys:
+        unused_keys = set(diff.unused_keys.get(language, []))
+        if not unused_keys:
             continue
         lang_path = LOCALES_DIR / language / filename
         try:
@@ -568,12 +569,12 @@ def remove_unused_translations(language: str, summary: dict[str, LocaleSummary])
             console.print(f"[yellow]Failed to load {language} file {lang_path}: {e}[/yellow]")
             continue
 
-        # Helper to recursively remove extra keys
+        # Helper to recursively remove unused keys
         def remove_keys(dst, prefix=""):
             keys_to_remove = []
             for k, v in list(dst.items()):
                 full_key = f"{prefix}.{k}" if prefix else k
-                if full_key in extra_keys:
+                if full_key in unused_keys:
                     keys_to_remove.append(k)
                 elif isinstance(v, dict):
                     remove_keys(v, full_key)
@@ -594,7 +595,7 @@ def remove_unused_translations(language: str, summary: dict[str, LocaleSummary])
         with open(lang_path, "w", encoding="utf-8") as f:
             json.dump(lang_data, f, ensure_ascii=False, indent=2)
             f.write("\n")  # Ensure newline at the end of the file
-        console.print(f"[green]Removed {len(extra_keys)} unused translations from {lang_path}[/green]")
+        console.print(f"[green]Removed {len(unused_keys)} unused translations from {lang_path}[/green]")
 
 
 @click.group(cls=BreezeGroup, name="ui", help="Tools for UI development and maintenance")
@@ -691,7 +692,6 @@ def check_translation_completeness(
         found_difference = found_difference or lang_diff
     has_todos, coverage_per_language = print_translation_progress(
         [lf for lf in locale_files if language is None or lf.locale == language],
-        missing_counts,
         summary,
     )
     if not found_difference and not has_todos:
