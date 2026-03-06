@@ -18,7 +18,14 @@
  */
 import { handlers as configHandlers } from "./config";
 import { handlers as dagHandlers } from "./dag";
+import { handlers as dagRunsHandlers } from "./dag_runs";
 import { handlers as dagsHandlers } from "./dags";
 import { handlers as logHandlers } from "./log";
 
-export const handlers = [...configHandlers, ...dagHandlers, ...dagsHandlers, ...logHandlers];
+export const handlers = [
+  ...configHandlers,
+  ...dagHandlers,
+  ...dagRunsHandlers,
+  ...dagsHandlers,
+  ...logHandlers,
+];

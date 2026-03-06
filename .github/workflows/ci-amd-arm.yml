@@ -40,7 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.10.7"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.10.8"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -81,6 +81,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
+      helm-test-kubernetes-versions: ${{ steps.selective-checks.outputs.helm-test-kubernetes-versions }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       individual-providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
@@ -392,6 +393,7 @@ jobs:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
+      helm-test-kubernetes-versions: ${{ needs.build-info.outputs.helm-test-kubernetes-versions }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >

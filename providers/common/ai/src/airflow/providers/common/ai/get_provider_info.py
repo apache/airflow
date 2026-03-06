@@ -31,6 +31,7 @@ def get_provider_info():
                 "integration-name": "Common AI",
                 "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
                 "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
@@ -43,12 +44,18 @@ def get_provider_info():
                 "external-doc-url": "https://ai.pydantic.dev/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "MCP Server",
+                "external-doc-url": "https://modelcontextprotocol.io/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
                 "integration-name": "Pydantic AI",
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
-            }
+            },
+            {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
         ],
         "connection-types": [
             {
@@ -66,12 +73,39 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"]},
                     }
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
+                "connection-type": "mcp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "Auth Token"},
+                    "placeholders": {"host": "http://localhost:3001/mcp (for HTTP/SSE transport)"},
+                },
+                "conn-fields": {
+                    "transport": {
+                        "label": "Transport",
+                        "description": "Transport type: http (default), sse, or stdio",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "command": {
+                        "label": "Command",
+                        "description": "Command to run for stdio transport (e.g. uvx, python)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "args": {
+                        "label": "Arguments",
+                        "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "operators": [
             {
                 "integration-name": "Common AI",
                 "python-modules": [
+                    "airflow.providers.common.ai.operators.agent",
                     "airflow.providers.common.ai.operators.llm",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
@@ -80,6 +114,7 @@ def get_provider_info():
             }
         ],
         "task-decorators": [
+            {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_branch.llm_branch_task",
