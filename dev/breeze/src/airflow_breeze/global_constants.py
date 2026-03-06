@@ -87,7 +87,6 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
-    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
