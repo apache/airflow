@@ -803,9 +803,9 @@ class TestDagRun:
 
         dagrun = self.create_dag_run(dag, session=session)
         # The hook should have been called during TI creation with run_id set
-        assert any(rid is not None for rid in observed_run_ids), (
-            f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
-        )
+        assert any(
+            rid is not None for rid in observed_run_ids
+        ), f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
 
     @pytest.mark.parametrize(
         "prev_ti_state, is_ti_success",
