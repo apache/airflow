@@ -131,7 +131,6 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
 
 def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
     """Build a select statement to retrieve the last partitioned run for each Dag."""
-    # todo: AIP-76 we should add a partition date field
     latest_run_id = (
         select(DagRun.id)
         .where(
@@ -144,7 +143,7 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             ),
             DagRun.partition_key.is_not(None),
         )
-        .order_by(DagRun.id.desc())  # todo: AIP-76 add partition date and sort by it here
+        .order_by(DagRun.partition_date.is_(None), DagRun.partition_date.desc())
         .limit(1)
         .scalar_subquery()
     )
