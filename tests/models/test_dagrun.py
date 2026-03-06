@@ -801,7 +801,7 @@ class TestDagRun:
         )
         dag.add_task(EmptyOperator(task_id="mutated_task", owner="test"))
 
-        dagrun = self.create_dag_run(dag, session=session)
+        self.create_dag_run(dag, session=session)
         # The hook should have been called during TI creation with run_id set
         assert any(
             rid is not None for rid in observed_run_ids
