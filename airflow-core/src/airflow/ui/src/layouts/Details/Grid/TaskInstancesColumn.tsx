@@ -24,14 +24,12 @@ import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
 import type { GridTask } from "./utils";
 
 type Props = {
-  readonly isStreaming?: boolean;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
@@ -43,7 +41,6 @@ type Props = {
 const ROW_HEIGHT = 20;
 
 export const TaskInstancesColumn = ({
-  isStreaming,
   nodes,
   onCellClick,
   run,
@@ -54,24 +51,12 @@ export const TaskInstancesColumn = ({
   const { dagId = "", runId } = useParams();
   const isSelected = runId === run.run_id;
 
-  // Only fall back to the individual per-run fetch when the stream is not in
-  // progress.  While streaming, tiSummaries starts as undefined but will be
-  // populated progressively — triggering N per-run fetches here would recreate
-  // the N+1 pattern we are trying to eliminate.
-  const { data: fetchedSummaries } = useGridTiSummaries({
-    dagId,
-    enabled: tiSummaries === undefined && !isStreaming,
-    isSelected,
-    runId: run.run_id,
-    state: run.state,
-  });
-
   const { hoveredRunId, setHoveredRunId } = useHover();
 
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstances = (tiSummaries ?? fetchedSummaries)?.task_instances ?? [];
+  const taskInstances = tiSummaries?.task_instances ?? [];
   const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
   for (const ti of taskInstances) {

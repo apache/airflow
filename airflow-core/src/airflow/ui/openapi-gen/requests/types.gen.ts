@@ -3653,13 +3653,6 @@ export type GetGridRunsData = {
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
 
-export type GetGridTiSummariesData = {
-    dagId: string;
-    runId: string;
-};
-
-export type GetGridTiSummariesResponse = GridTISummaries;
-
 export type GetGridTiSummariesStreamData = {
     dagId: string;
     runIds?: Array<(string)>;
@@ -6928,29 +6921,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: Array<GridRunsResponse>;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/grid/ti_summaries/{dag_id}/{run_id}': {
-        get: {
-            req: GetGridTiSummariesData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: GridTISummaries;
                 /**
                  * Bad Request
                  */

@@ -567,9 +567,9 @@ class TestGetGridDataEndpoint:
 
         # Also verify that TI summaries include a leaf entry for the removed task
         with assert_queries_count(4):
-            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
+            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}?run_ids=run_3")
         assert ti_resp.status_code == 200
-        ti_payload = ti_resp.json()
+        [ti_payload] = self._parse_ndjson(ti_resp)
         assert ti_payload["dag_id"] == DAG_ID_3
         assert ti_payload["run_id"] == "run_3"
         # Find the removed task summary; it should exist even if not in current serialized DAG structure
@@ -698,9 +698,9 @@ class TestGetGridDataEndpoint:
         session.commit()
 
         with assert_queries_count(4):
-            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}?run_ids={run_id}")
         assert response.status_code == 200
-        actual = response.json()
+        [actual] = self._parse_ndjson(response)
         expected = {
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
@@ -798,9 +798,9 @@ class TestGetGridDataEndpoint:
         session.commit()
 
         with assert_queries_count(4):
-            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids={run_id}")
         assert response.status_code == 200
-        data = response.json()
+        [data] = self._parse_ndjson(response)
         actual = data["task_instances"]
 
         def sort_dict(in_dict):
@@ -1143,22 +1143,6 @@ class TestGetGridDataEndpoint:
         for summary in summaries:
             assert summary["dag_id"] == DAG_ID
             assert len(summary["task_instances"]) > 0
-
-    def test_grid_ti_summaries_stream_matches_individual(self, session, test_client):
-        """Each streamed line matches the corresponding individual endpoint response."""
-        session.commit()
-
-        run_id = "run_1"
-        individual = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
-        assert individual.status_code == 200
-
-        stream = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids={run_id}")
-        assert stream.status_code == 200
-
-        individual_tis = sorted(individual.json()["task_instances"], key=lambda x: x["task_id"])
-        [streamed_summary] = self._parse_ndjson(stream)
-        stream_tis = sorted(streamed_summary["task_instances"], key=lambda x: x["task_id"])
-        assert individual_tis == stream_tis
 
     def test_grid_ti_summaries_stream_skips_missing_runs(self, session, test_client):
         """Streaming endpoint silently skips run_ids that have no task instances."""

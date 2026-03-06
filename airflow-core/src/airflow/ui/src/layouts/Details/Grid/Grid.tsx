@@ -96,7 +96,7 @@ export const Grid = ({
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  const { isStreaming, summariesByRunId } = useGridTiSummariesStream({
+  const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
     runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
     states: gridRuns?.map((dr: GridRunsResponse) => dr.state),
@@ -227,7 +227,6 @@ export const Grid = ({
           <Flex flexDirection="row-reverse" flexShrink={0}>
             {gridRuns?.map((dr: GridRunsResponse) => (
               <TaskInstancesColumn
-                isStreaming={isStreaming}
                 key={dr.run_id}
                 nodes={flatNodes}
                 onCellClick={handleCellClick}
