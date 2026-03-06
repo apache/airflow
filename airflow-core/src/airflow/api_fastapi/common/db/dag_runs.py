@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.interfaces import LoaderOption
 
 from airflow.models.dag import DagModel
@@ -41,7 +41,8 @@ dagruns_select_with_state_count = (
 
 
 def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
-    """Construct the eager loading options necessary for a DagRunResponse object.
+    """
+    Construct the eager loading options necessary for a DagRunResponse object.
 
     For the list endpoint (get_dag_runs), loading all task instance columns is
     wasteful because we only need the dag_version_id FK to traverse to DagVersion.
