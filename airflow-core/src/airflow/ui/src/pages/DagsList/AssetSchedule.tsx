@@ -34,7 +34,6 @@ import { PartitionScheduleModal } from "./PartitionScheduleModal";
 type Props = {
   readonly assetExpression?: ExpressionType | null;
   readonly dagId: string;
-  readonly latestRunAfter?: string;
   readonly timetablePartitioned: boolean | null;
   readonly timetableSummary: string | null;
 };
@@ -60,31 +59,20 @@ const PartitionSchedule = ({ dagId, isLoading, pendingCount }: PartitionSchedule
   );
 };
 
-export const AssetSchedule = ({
-  assetExpression,
-  dagId,
-  latestRunAfter,
-  timetablePartitioned,
-  timetableSummary,
-}: Props) => {
+export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, timetableSummary }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
 
   const { data: nextRun, isLoading: isNextRunLoading } = useAssetServiceNextRunAssets({ dagId });
-  const {
-    data: queuedEventsData,
-    error: queuedEventsError,
-    isLoading: isQueuedEventsLoading,
-  } = useAssetServiceGetDagAssetQueuedEvents({ dagId }, undefined, { enabled: !timetablePartitioned });
+  const { data: queuedEventsData, isLoading: isQueuedEventsLoading } = useAssetServiceGetDagAssetQueuedEvents(
+    { dagId },
+    undefined,
+    { enabled: !timetablePartitioned },
+  );
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
-  const queuedEventsErrorStatus =
-    typeof queuedEventsError === "object" && queuedEventsError !== null && "status" in queuedEventsError
-      ? (queuedEventsError as { status?: number }).status
-      : undefined;
-  const hasQueuedEventsError = Boolean(queuedEventsError) && queuedEventsErrorStatus !== 404;
   const queuedAssetEvents = new Map<number, string>();
 
-  if (!timetablePartitioned && !hasQueuedEventsError) {
+  if (!timetablePartitioned) {
     for (const event of queuedEventsData?.queued_events ?? []) {
       // Keep a single event timestamp per asset, using the latest one when duplicates exist.
       const existingEventDate = queuedAssetEvents.get(event.asset_id);
@@ -98,14 +86,6 @@ export const AssetSchedule = ({
   const pendingEvents = nextRunEvents.flatMap((event) => {
     if (timetablePartitioned) {
       return event.lastUpdate === null ? [] : [event];
-    }
-
-    if (hasQueuedEventsError) {
-      if (event.lastUpdate === null) {
-        return [];
-      }
-
-      return latestRunAfter !== undefined && dayjs(event.lastUpdate).isAfter(latestRunAfter) ? [event] : [];
     }
 
     const queuedAt = queuedAssetEvents.get(event.id);
