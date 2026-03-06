@@ -292,14 +292,13 @@ class ListOfDictsExpandInput(ExpandInput):
 
     def iter_values(self, context: Context) -> Iterable[Any]:
         if isinstance(self.value, XComArg):
-            resolved = self.value.resolve(context)
-            for item in resolved:
+            for item in self.value.resolve(context):
                 yield item
         else:
             for item in self.value:
                 if isinstance(item, XComArg):
                     for resolved_item in item.resolve(context):
-                        yield resolved_item
+                        yield from resolved_item
                 else:
                     yield item
 
