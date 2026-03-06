@@ -46,7 +46,7 @@ class DagProcessorInfoResponse(BaseInfoResponse):
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
 
-    metadatabase: BaseInfoResponse
-    scheduler: SchedulerInfoResponse
-    triggerer: TriggererInfoResponse
+    metadatabase: BaseInfoResponse | None = None
+    scheduler: SchedulerInfoResponse | None = None
+    triggerer: TriggererInfoResponse | None = None
     dag_processor: DagProcessorInfoResponse | None = None

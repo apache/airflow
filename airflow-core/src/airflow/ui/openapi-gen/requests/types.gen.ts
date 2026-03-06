@@ -1073,9 +1073,9 @@ export type HTTPValidationError = {
  * Health serializer for responses.
  */
 export type HealthInfoResponse = {
-    metadatabase: BaseInfoResponse;
-    scheduler: SchedulerInfoResponse;
-    triggerer: TriggererInfoResponse;
+    metadatabase?: BaseInfoResponse | null;
+    scheduler?: SchedulerInfoResponse | null;
+    triggerer?: TriggererInfoResponse | null;
     dag_processor?: DagProcessorInfoResponse | null;
 };
 
