@@ -359,9 +359,6 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
-    should_raise_on_ci_or_local_commit: Annotated[
-        str | None, Field(title="Should Raise On Ci Or Local Commit")
-    ] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
