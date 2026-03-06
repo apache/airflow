@@ -1852,16 +1852,20 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.behavior", docs[0]) == {"scaleDown": {"selectPolicy": "Max"}}
 
-    def test_overwrite_kerberos_sidecar_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_celery_values",
+        [
+            {"enableDefault": False, "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}]},
+            {
+                "kerberosSidecar": {"enabled": False},
+                "enableDefault": False,
+                "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
             },
+        ],
+    )
+    def test_overwrite_kerberos_sidecar_enabled(self, workers_celery_values):
+        docs = render_chart(
+            values={"workers": {"celery": workers_celery_values}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1936,6 +1940,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "resources": {
+                            "requests": {"cpu": "10m", "memory": "20Mi"},
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "resources": {
+                                    "limits": {"cpu": "3m", "memory": "4Mi"},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_resources(self, values):
@@ -1990,6 +2015,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "securityContexts": {
+                            "container": {"allowPrivilegeEscalation": False},
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "securityContexts": {
+                                    "container": {"runAsUser": 10},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_security_context_container(self, values):
@@ -2026,6 +2072,25 @@ class TestWorkerSets:
                     "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
                 },
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
+                    },
                     "enableDefault": False,
                     "sets": [
                         {
