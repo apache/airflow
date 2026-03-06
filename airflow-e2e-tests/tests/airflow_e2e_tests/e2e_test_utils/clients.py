@@ -43,19 +43,31 @@ def get_s3_client():
     )
 
 
+def create_request_session_with_retries(status_forcelist: list[int]):
+    """Create a requests Session with retry logic for handling transient errors."""
+    Retry.DEFAULT_BACKOFF_MAX = 32
+    retry_strategy = Retry(
+        total=10,
+        backoff_factor=1,
+        status_forcelist=status_forcelist,
+    )
+    session = requests.Session()
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
 class AirflowClient:
     """Client for interacting with the Airflow REST API."""
 
     def __init__(self):
-        self.session = requests.Session()
+        # add 404 since some resources like XCom or Task logs might not be immediately available after DAG run completion, and we want to retry in that case
+        self.session = create_request_session_with_retries(status_forcelist=[404, 429])
 
     @cached_property
     def token(self):
-        Retry.DEFAULT_BACKOFF_MAX = 32
-        retry = Retry(total=10, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-        session = requests.Session()
-        session.mount("http://", HTTPAdapter(max_retries=retry))
-        session.mount("https://", HTTPAdapter(max_retries=retry))
+        session = create_request_session_with_retries(status_forcelist=[429, 500, 502, 503, 504])
 
         api_server_url = DOCKER_COMPOSE_HOST_PORT
         if not api_server_url.startswith(("http://", "https://")):
@@ -133,11 +145,23 @@ class AirflowClient:
             run_id=resp["dag_run_id"],
         )
 
-    def get_task_logs(self, dag_id: str, run_id: str, task_id: str, try_number: int = 1):
-        """Get task logs via API."""
+    def get_task_instances(self, dag_id: str, run_id: str):
+        """Get task instances for a given DAG run."""
         return self._make_request(
             method="GET",
-            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+        )
+
+    def get_task_logs(
+        self, dag_id: str, run_id: str, task_id: str, try_number: int = 1, map_index: int | None = None
+    ):
+        """Get task logs via API."""
+        endpoint = f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}"
+        if map_index is not None:
+            endpoint += f"?map_index={map_index}"
+        return self._make_request(
+            method="GET",
+            endpoint=endpoint,
         )
 
 
