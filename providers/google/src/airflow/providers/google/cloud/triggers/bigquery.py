@@ -25,7 +25,11 @@ from aiohttp.client_exceptions import ClientResponseError
 from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
+from airflow.providers.google.cloud.hooks.bigquery import (
+    BigQueryAsyncHook,
+    BigQueryHook,
+    BigQueryTableAsyncHook,
+)
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
@@ -806,3 +810,149 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
         if records:
             records = [row[0] for row in records]
             return self.partition_id in records
+
+
+class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
+    """
+    Trigger that periodically checks if a BigQuery table's streaming buffer is empty.
+
+    This trigger continuously polls a BigQuery table to determine if its streaming buffer
+    has been fully processed and is now empty. It's particularly useful before running
+    DML operations (UPDATE, DELETE, MERGE) on tables populated via streaming inserts.
+
+    :param project_id: The Google Cloud Project in which to look for the table.
+    :param dataset_id: The dataset ID of the table to check.
+    :param table_id: The table ID of the table to check.
+    :param gcp_conn_id: Reference to Google Cloud connection ID.
+    :param hook_params: Additional parameters for hook initialization.
+    :param poll_interval: Polling period in seconds to check the streaming buffer status.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
+    def __init__(
+        self,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str,
+        hook_params: dict[str, Any],
+        poll_interval: float = 30.0,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.hook_params = hook_params
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize BigQueryStreamingBufferEmptyTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger",
+            {
+                "project_id": self.project_id,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "hook_params": self.hook_params,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    def _get_sync_hook(self) -> BigQueryHook:
+        """Get the synchronous BigQueryHook (same SDK used by the sensor's poke())."""
+        return BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """
+        Continuously check if the streaming buffer is empty.
+
+        Yields a TriggerEvent when the streaming buffer becomes empty or if an error occurs.
+        """
+        try:
+            hook = self._get_sync_hook()
+            while True:
+                self.log.info(
+                    "Checking streaming buffer for table %s.%s.%s",
+                    self.project_id,
+                    self.dataset_id,
+                    self.table_id,
+                )
+
+                is_buffer_empty = await self._is_streaming_buffer_empty(
+                    hook=hook,
+                    project_id=self.project_id,
+                    dataset_id=self.dataset_id,
+                    table_id=self.table_id,
+                )
+
+                if is_buffer_empty:
+                    table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+                    message = f"Streaming buffer is empty for table: {table_uri}"
+                    self.log.info(message)
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": message,
+                        }
+                    )
+                    return
+                else:
+                    self.log.info(
+                        "Streaming buffer still has data. Sleeping for %s seconds.",
+                        self.poll_interval,
+                    )
+                    await asyncio.sleep(self.poll_interval)
+
+        except Exception as e:
+            self.log.exception(
+                "Exception occurred while checking streaming buffer for table %s.%s.%s",
+                self.project_id,
+                self.dataset_id,
+                self.table_id,
+            )
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    async def _is_streaming_buffer_empty(
+        self,
+        hook: BigQueryHook,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+    ) -> bool:
+        """
+        Check if the streaming buffer is empty for the specified table.
+
+        Uses the synchronous google-cloud-bigquery SDK (same as the sensor's
+        ``poke()`` method) wrapped with ``sync_to_async`` so it can run inside
+        the async trigger loop without blocking the event-loop thread.
+
+        :param hook: BigQueryHook instance.
+        :param project_id: The Google Cloud Project ID.
+        :param dataset_id: The dataset ID containing the table.
+        :param table_id: The table ID to check.
+        :return: True if streaming buffer is empty or doesn't exist, False otherwise.
+        """
+        table_ref = f"{project_id}.{dataset_id}.{table_id}"
+        try:
+            client = hook.get_client(project_id=project_id)
+            table = await sync_to_async(client.get_table)(table_ref)
+            return table.streaming_buffer is None
+        except Exception as err:
+            if "not found" in str(err).lower():
+                raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} not found") from err
+            raise

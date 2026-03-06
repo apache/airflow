@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
+    BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
@@ -88,9 +89,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 )
             else:
                 kwargs["poke_interval"] = 5
-
         super().__init__(**kwargs)
-
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -256,3 +255,123 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
+
+
+class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
+    """
+    Sensor for checking whether the streaming buffer in a BigQuery table is empty.
+
+    The BigQueryStreamingBufferEmptySensor waits for the streaming buffer in a specified
+    BigQuery table to be empty before proceeding. It can be used in ETL pipelines to ensure
+    that recent streamed data has been processed before continuing downstream tasks.
+
+    :param project_id: The Google Cloud project ID where the BigQuery table resides.
+    :param dataset_id: The ID of the dataset containing the BigQuery table.
+    :param table_id: The ID of the BigQuery table to monitor.
+    :param gcp_conn_id: The Airflow connection ID for GCP. Defaults to "google_cloud_default".
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run sensor in deferrable mode. Defaults to False.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "impersonation_chain",
+    )
+
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 30
+
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger if deferrable."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryStreamingBufferEmptyTrigger(
+                        project_id=self.project_id,
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """
+        Act as a callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
+        if event:
+            if event["status"] == "success":
+                return event["message"]
+            raise RuntimeError(event["message"])
+
+        message = "No event received in trigger callback"
+        raise RuntimeError(message)
+
+    def poke(self, context: Context) -> bool:
+        """
+        Check if the BigQuery streaming buffer is empty for the specified table.
+
+        This method periodically checks the status of the BigQuery table's streaming buffer
+        to determine if it is empty. It is useful for ensuring that recent streamed data
+        has been fully processed before continuing with downstream tasks.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
+
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            client = hook.get_client(project_id=self.project_id)
+            table_ref = f"{self.project_id}.{self.dataset_id}.{self.table_id}"
+            table = client.get_table(table_ref)
+            return table.streaming_buffer is None
+        except Exception as err:
+            if "not found" in str(err).lower():
+                raise ValueError(
+                    f"Table {self.project_id}.{self.dataset_id}.{self.table_id} not found"
+                ) from err
+            raise
