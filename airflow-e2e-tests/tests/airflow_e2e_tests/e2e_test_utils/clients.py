@@ -62,8 +62,7 @@ class AirflowClient:
     """Client for interacting with the Airflow REST API."""
 
     def __init__(self):
-        # add 404 since some resources like XCom or Task logs might not be immediately available after DAG run completion, and we want to retry in that case
-        self.session = create_request_session_with_retries(status_forcelist=[404, 429])
+        self.session = create_request_session_with_retries(status_forcelist=[429])
 
     @cached_property
     def token(self):

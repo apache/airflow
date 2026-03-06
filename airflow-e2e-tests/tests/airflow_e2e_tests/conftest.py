@@ -79,7 +79,9 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
-        # for XComObjectStorageBackend, we need to set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for the `universal-path` package
+        # XComObjectStorageBackend requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY as env vars
+        # because `universal-path` uses boto3's native S3 client, which relies on environment variables
+        # for authentication rather than parsing credentials from the connection URI
         "AWS_ACCESS_KEY_ID=test\n"
         "AWS_SECRET_ACCESS_KEY=test\n"
         "AWS_DEFAULT_REGION=us-east-1\n"
