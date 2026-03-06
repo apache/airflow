@@ -1126,7 +1126,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'otel', 'redis']",
-                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
+                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
@@ -2760,12 +2760,6 @@ def test_runner_type_schedule(mock_get):
     [
         # Test integrations disabled for all CI environments
         pytest.param(
-            "elasticsearch",
-            PUBLIC_AMD_RUNNERS,
-            True,
-            id="elasticsearch_disabled_on_amd",
-        ),
-        pytest.param(
             "mssql",
             PUBLIC_AMD_RUNNERS,
             True,
@@ -2881,9 +2875,9 @@ def test_testable_core_integrations_excludes_disabled():
     """Test that testable_core_integrations excludes disabled integrations."""
     with patch(
         "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
-        ["postgres", "elasticsearch", "kerberos"],
+        ["postgres", "kerberos"],
     ):
-        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        # Test with AMD runner
         selective_checks_amd = SelectiveChecks(
             files=("airflow-core/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
@@ -2895,7 +2889,6 @@ def test_testable_core_integrations_excludes_disabled():
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
             assert "kerberos" in result
-            assert "elasticsearch" not in result
 
 
 def test_testable_core_integrations_excludes_arm_disabled_on_arm():
