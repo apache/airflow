@@ -754,7 +754,7 @@ class DecoratedMappedOperator(MappedOperator):
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
-    def _get_unmap_kwargs(self, mapped_kwargs:Context, *, strict: bool) -> dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Context, *, strict: bool) -> dict[str, Any]:
         partial_op_kwargs = self.partial_kwargs["op_kwargs"]
         mapped_op_kwargs = mapped_kwargs["op_kwargs"]
 
