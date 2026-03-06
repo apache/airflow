@@ -1652,7 +1652,7 @@ COPY <<"EOF" /clean-logs.sh
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
 readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
@@ -1678,7 +1678,7 @@ fi
 retention_days="${RETENTION}"
 
 while true; do
-  total_retention_minutes=$(( (RETENTION_DAYS * 1440) + RETENTION_MINUTES ))
+  total_retention_minutes=$(( (retention_days * 1440) + RETENTION_MINUTES ))
   echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
 
   find "${DIRECTORY}"/logs \
