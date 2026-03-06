@@ -1062,13 +1062,17 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
         assert jmespath.search("spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
 
-    def test_workers_priority_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"priorityClassName": "test-priority"},
+            {"kubernetes": {"priorityClassName": "test-priority"}},
+            {"priorityClassName": "test", "kubernetes": {"priorityClassName": "test-priority"}},
+        ],
+    )
+    def test_workers_priority_class_name(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "priorityClassName": "test-priority",
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

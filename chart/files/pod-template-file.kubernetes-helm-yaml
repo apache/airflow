@@ -216,8 +216,8 @@ spec:
     {{- if .Values.workers.extraContainers }}
       {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
     {{- end }}
-  {{- if .Values.workers.priorityClassName }}
-  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- if or .Values.workers.kubernetes.priorityClassName .Values.workers.priorityClassName }}
+  priorityClassName: {{ .Values.workers.kubernetes.priorityClassName | default .Values.workers.priorityClassName }}
   {{- end }}
   {{- if .Values.workers.runtimeClassName }}
   runtimeClassName: {{ .Values.workers.runtimeClassName }}
