@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunCreateServiceOperator,
@@ -163,7 +163,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Some tasks failed execution" in str(exception.value)
@@ -176,7 +176,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Some tasks failed execution" in str(exception.value)
@@ -189,7 +189,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Not all tasks finished execution" in str(exception.value)
@@ -202,7 +202,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(RuntimeError) as exception:
             operator.execute(context=mock.MagicMock())
 
         assert "Not all tasks finished execution" in str(exception.value)
@@ -224,7 +224,7 @@ class TestCloudRunExecuteJobOperator:
 
         event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(TimeoutError) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
         assert "Operation timed out" in str(e.value)
@@ -245,7 +245,7 @@ class TestCloudRunExecuteJobOperator:
             "job_name": JOB_NAME,
         }
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(RuntimeError) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
         assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
@@ -271,6 +271,50 @@ class TestCloudRunExecuteJobOperator:
             use_regional_endpoint=False,
         )
         assert result["name"] == JOB_NAME
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_cancelled(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        # Simulate a cancelled job: not all tasks finished
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 3,
+            "succeeded_count": 1,
+            "failed_count": 0,
+        }
+
+        with pytest.raises(RuntimeError) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Not all tasks finished execution" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_failed_tasks(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        # Simulate failed tasks
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 3,
+            "succeeded_count": 1,
+            "failed_count": 2,
+        }
+
+        with pytest.raises(RuntimeError) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Some tasks failed execution" in str(e.value)
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides(self, hook_mock):
@@ -316,7 +360,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -331,7 +375,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -346,7 +390,7 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=mock.MagicMock())
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
@@ -450,7 +494,7 @@ class TestCloudRunListJobsOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
         limit = -1
-        with pytest.raises(expected_exception=AirflowException):
+        with pytest.raises(expected_exception=RuntimeError):
             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
 
 

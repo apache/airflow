@@ -87,16 +87,55 @@ class TestCloudBatchJobFinishedTrigger:
             operation.name = "name"
             operation.error = Any()
             operation.error.ParseFromString(b"")
+            operation.response = None
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
         generator = trigger.run()
-        actual = await generator.asend(None)  # type:ignore[attr-defined]
+        actual = await generator.asend(None)  # type: ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
                     "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
+                }
+            )
+            == actual
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
+    async def test_trigger_on_operation_completed_with_execution_details(
+        self, mock_hook, trigger: CloudRunJobFinishedTrigger
+    ):
+        """
+        Tests the CloudRunJobFinishedTrigger includes execution details in the event.
+        """
+
+        async def _mock_operation(operation_name, location, use_regional_endpoint):
+            operation = mock.MagicMock()
+            operation.done = True
+            operation.name = "name"
+            operation.error = Any()
+            operation.error.ParseFromString(b"")
+            operation.response = mock.MagicMock()
+            operation.response.HasField = lambda field: field == "task_count"
+            operation.response.task_count = 3
+            operation.response.succeeded_count = 3
+            operation.response.failed_count = 0
+            return operation
+
+        mock_hook.return_value.get_operation = _mock_operation
+        generator = trigger.run()
+        actual = await generator.asend(None)  # type: ignore[attr-defined]
+        assert (
+            TriggerEvent(
+                {
+                    "status": RunJobStatus.SUCCESS.value,
+                    "job_name": JOB_NAME,
+                    "task_count": 3,
+                    "succeeded_count": 3,
+                    "failed_count": 0,
                 }
             )
             == actual
@@ -121,7 +160,7 @@ class TestCloudBatchJobFinishedTrigger:
         mock_hook.return_value.get_operation = _mock_operation
         generator = trigger.run()
 
-        actual = await generator.asend(None)  # type:ignore[attr-defined]
+        actual = await generator.asend(None)  # type: ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
@@ -152,7 +191,7 @@ class TestCloudBatchJobFinishedTrigger:
         mock_hook.return_value.get_operation = _mock_operation
 
         generator = trigger.run()
-        actual = await generator.asend(None)  # type:ignore[attr-defined]
+        actual = await generator.asend(None)  # type: ignore[attr-defined]
 
         assert (
             TriggerEvent(

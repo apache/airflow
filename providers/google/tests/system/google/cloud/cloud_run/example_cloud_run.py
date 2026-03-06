@@ -131,6 +131,66 @@ def _assert_jobs(ti):
     assert job5_exists
 
 
+def _test_job_cancellation_scenario():
+    """
+    Test CloudRunExecuteJobOperator with deferrable=True when a job is cancelled.
+
+    This test demonstrates how to verify that the operator correctly fails when
+    a Cloud Run Job is cancelled (not all tasks finished execution).
+
+    To test this against a real Cloud Run instance:
+    1. Create a job with task_count > 1
+    2. Execute the job with deferrable=True
+    3. Manually cancel the job via Cloud Run API during execution
+    4. Verify the operator fails with "Not all tasks finished execution" error
+
+    Example job configuration for cancellation test:
+    ```
+    job = Job()
+    container = k8s_min.Container()
+    container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
+    container.args = ["sleep", "600"]  # Long-running to allow cancellation
+    job.template.template.containers.append(container)
+    job.template.task_count = 10  # Multiple tasks
+    ```
+
+    After job execution starts, cancel via:
+    ```
+    gcloud run jobs cancel <job_name> --region=<region>
+    ```
+
+    The operator with deferrable=True should fail with RuntimeError:
+    "Not all tasks finished execution"
+    """
+
+
+def _test_job_failure_scenario():
+    """
+    Test CloudRunExecuteJobOperator with deferrable=True when tasks fail.
+
+    This test demonstrates how to verify that the operator correctly fails when
+    some tasks in a Cloud Run Job fail.
+
+    To test this against a real Cloud Run instance:
+    1. Create a job with a container that exits with non-zero code
+    2. Execute the job with deferrable=True
+    3. Verify the operator fails with "Some tasks failed execution" error
+
+    Example job configuration for failure test:
+    ```
+    job = Job()
+    container = k8s_min.Container()
+    container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
+    container.args = ["sh", "-c", "exit 1"]  # Non-zero exit code
+    job.template.template.containers.append(container)
+    job.template.task_count = 5  # Multiple tasks
+    ```
+
+    The operator with deferrable=True should fail with RuntimeError:
+    "Some tasks failed execution"
+    """
+
+
 def _assert_one_job(ti):
     job_list = ti.xcom_pull(list_jobs_limit_task_name)
     assert len(job_list) == 1

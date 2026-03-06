@@ -24,7 +24,7 @@ import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.run_v2 import Job, Service
 
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -259,7 +259,7 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         self.limit = limit
         self.use_regional_endpoint = use_regional_endpoint
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise RuntimeError("The limit for the list jobs request should be greater or equal to zero")
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
@@ -361,7 +361,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         )
 
         if self.operation is None:
-            raise AirflowException("Operation is None")
+            raise RuntimeError("Operation is None")
 
         if self.operation.metadata.log_uri:
             CloudRunJobLoggingLink.persist(
@@ -398,14 +398,26 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         status = event["status"]
 
         if status == RunJobStatus.TIMEOUT.value:
-            raise AirflowException("Operation timed out")
+            raise TimeoutError("Operation timed out")
 
         if status == RunJobStatus.FAIL.value:
             error_code = event["operation_error_code"]
             error_message = event["operation_error_message"]
-            raise AirflowException(
+            raise RuntimeError(
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
+
+        # Validate execution status when operation completes successfully
+        if "task_count" in event:
+            task_count = event["task_count"]
+            succeeded_count = event["succeeded_count"]
+            failed_count = event["failed_count"]
+
+            if succeeded_count + failed_count != task_count:
+                raise RuntimeError("Not all tasks finished execution")
+
+            if failed_count > 0:
+                raise RuntimeError("Some tasks failed execution")
 
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -427,17 +439,17 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         failed_count = execution.failed_count
 
         if succeeded_count + failed_count != task_count:
-            raise AirflowException("Not all tasks finished execution")
+            raise RuntimeError("Not all tasks finished execution")
 
         if failed_count > 0:
-            raise AirflowException("Some tasks failed execution")
+            raise RuntimeError("Some tasks failed execution")
 
     def _wait_for_operation(self, operation: operation.Operation):
         try:
             return operation.result(timeout=self.timeout_seconds)
         except Exception:
             error = operation.exception(timeout=self.timeout_seconds)
-            raise AirflowException(error)
+            raise RuntimeError(error)
 
 
 class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
@@ -487,7 +499,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
     def _validate_inputs(self):
         missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
         if not self.project_id or not self.region or not self.service_name:
-            raise AirflowException(
+            raise RuntimeError(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
                 "keyword parameter or as extra field in Airflow connection definition. Both are not set!"
             )
@@ -569,7 +581,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
     def _validate_inputs(self):
         missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
         if not self.project_id or not self.region or not self.service_name:
-            raise AirflowException(
+            raise RuntimeError(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
                 "keyword parameter or as extra field in Airflow connection definition. Both are not set!"
             )
