@@ -17,10 +17,10 @@
  * under the License.
  */
 import { HStack, Text, Link } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
+import dayjs from "dayjs";
 
 import { useAssetServiceGetDagAssetQueuedEvents, useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
@@ -31,48 +31,32 @@ import { Button, Popover } from "src/components/ui";
 type Props = {
   readonly assetExpression?: ExpressionType | null;
   readonly dagId: string;
-  readonly latestRunAfter?: string;
   readonly timetableSummary: string | null;
 };
 
-export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetableSummary }: Props) => {
+
+export const AssetSchedule = ({ assetExpression, dagId, timetableSummary }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
 
   const { data: nextRun, isLoading: isNextRunLoading } = useAssetServiceNextRunAssets({ dagId });
-  const {
-    data: queuedEventsData,
-    error: queuedEventsError,
-    isLoading: isQueuedEventsLoading,
-  } = useAssetServiceGetDagAssetQueuedEvents({ dagId }, undefined);
+  const { data: queuedEventsData, isLoading: isQueuedEventsLoading } = useAssetServiceGetDagAssetQueuedEvents(
+    { dagId },
+    undefined,
+    { enabled: true },
+  );
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
-  const queuedEventsErrorStatus =
-    typeof queuedEventsError === "object" && queuedEventsError !== null && "status" in queuedEventsError
-      ? (queuedEventsError as { status?: number }).status
-      : undefined;
-  const hasQueuedEventsError = Boolean(queuedEventsError) && queuedEventsErrorStatus !== 404;
   const queuedAssetEvents = new Map<number, string>();
 
-  if (!hasQueuedEventsError) {
-    for (const event of queuedEventsData?.queued_events ?? []) {
-      // Keep a single event timestamp per asset, using the latest one when duplicates exist.
-      const existingEventDate = queuedAssetEvents.get(event.asset_id);
+  for (const event of queuedEventsData?.queued_events ?? []) {
+    // Keep a single event timestamp per asset, using the latest one when duplicates exist.
+    const existingEventDate = queuedAssetEvents.get(event.asset_id);
 
-      if (existingEventDate === undefined || dayjs(event.created_at).isAfter(existingEventDate)) {
-        queuedAssetEvents.set(event.asset_id, event.created_at);
-      }
+    if (existingEventDate === undefined || dayjs(event.created_at).isAfter(existingEventDate)) {
+      queuedAssetEvents.set(event.asset_id, event.created_at);
     }
   }
-
   const pendingEvents = nextRunEvents.flatMap((event) => {
-    if (hasQueuedEventsError) {
-      if (event.lastUpdate === null) {
-        return [];
-      }
-
-      return latestRunAfter !== undefined && dayjs(event.lastUpdate).isAfter(latestRunAfter) ? [event] : [];
-    }
-
     const queuedAt = queuedAssetEvents.get(event.id);
 
     return queuedAt === undefined ? [] : [{ ...event, lastUpdate: event.lastUpdate ?? queuedAt }];

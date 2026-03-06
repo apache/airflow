@@ -28,7 +28,6 @@ import { AssetSchedule } from "./AssetSchedule";
 type Props = {
   readonly assetExpression: ExpressionType | null | undefined;
   readonly dagId: string;
-  readonly latestRunAfter?: string;
   readonly timetableDescription?: string | null;
   readonly timetableSummary: string | null;
 };
@@ -36,7 +35,6 @@ type Props = {
 export const Schedule = ({
   assetExpression,
   dagId,
-  latestRunAfter,
   timetableDescription,
   timetableSummary,
 }: Props) => {
@@ -47,7 +45,6 @@ export const Schedule = ({
       <AssetSchedule
         assetExpression={assetExpression}
         dagId={dagId}
-        latestRunAfter={latestRunAfter}
         timetableSummary={timetableSummary}
       />
     ) : (
