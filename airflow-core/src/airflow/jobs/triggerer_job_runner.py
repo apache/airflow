@@ -322,9 +322,9 @@ class TriggerLoggingFactory:
         self.bound_logger = logger
         return logger
 
-    def __del__(self):
-        # Explicitly close the file descriptor when the logger is garbage collected.
-        if hasattr(self, "_filehandle") and self._filehandle:
+    def close(self):
+        # Explicitly close the file descriptor.
+        if hasattr(self, "_filehandle") and self._filehandle and not self._filehandle.closed:
             self._filehandle.close()
 
     def upload_to_remote(self):
@@ -433,6 +433,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
+                    factory.close()
 
             response = messages.TriggerStateSync(
                 to_create=[],

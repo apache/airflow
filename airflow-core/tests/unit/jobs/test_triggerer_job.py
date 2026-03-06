@@ -42,6 +42,7 @@ from airflow.jobs.triggerer_job_runner import (
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
+    TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
     messages,
@@ -301,6 +302,19 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     assert f"{watcher_count} watchers currently running" in stdout
 
     trigger_runner_supervisor.kill(force=False)
+
+
+def test_trigger_logger_close():
+    logger = TriggerLoggingFactory(log_path="/tmp/test.log", ti=MagicMock())
+
+    mock_fh = MagicMock()
+    mock_fh.closed = False
+
+    logger._filehandle = mock_fh
+
+    logger.close()
+
+    mock_fh.close.assert_called_once()
 
 
 def test_trigger_logger_fd_closed_when_removed(session):
