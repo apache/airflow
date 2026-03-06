@@ -46,6 +46,33 @@ class EdgeDBManager(BaseDBManager):
     supports_table_dropping = True
     revision_heads_map = _REVISION_HEADS_MAP
 
+    def initdb(self):
+        """
+        Initialize the database, handling pre-alembic installations.
+
+        If the edge3 tables already exist but the alembic version table does not
+        (e.g. created via create_all before the migration chain was introduced),
+        stamp to the first revision and run upgradedb() so every incremental
+        migration is applied rather than jumping straight to head.
+        """
+        db_exists = self.get_current_revision()
+        if db_exists:
+            self.upgradedb()
+        else:
+            from airflow import settings
+
+            existing_tables = set(inspect(settings.engine).get_table_names())
+            if any(table in existing_tables for table in self.metadata.tables):
+                script = self.get_script_object()
+                base_revision = next(r.revision for r in script.walk_revisions() if r.down_revision is None)
+                config = self.get_alembic_config()
+                from alembic import command
+
+                command.stamp(config, base_revision)
+                self.upgradedb()
+            else:
+                self.create_db_from_orm()
+
     def drop_tables(self, connection):
         """Drop only edge3 tables in reverse dependency order."""
         if not self.supports_table_dropping:
