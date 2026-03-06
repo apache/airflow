@@ -3294,8 +3294,8 @@ class TestDagRunTracing:
         span = spans[0]
 
         assert span.name == f"dag_run.{dr.dag_id}"
-        assert span.attributes["dag_id"] == dr.dag_id
-        assert span.attributes["run_id"] == dr.run_id
+        assert span.attributes["airflow.dag_id"] == dr.dag_id
+        assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
