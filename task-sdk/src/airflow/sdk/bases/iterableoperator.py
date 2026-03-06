@@ -163,7 +163,7 @@ class TaskExecutor(LoggingMixin):
 class IterableOperator(BaseOperator):
     """Object representing an iterable operator in a DAG."""
 
-    _operator: MappedOperator
+    _operator: BaseOperator | MappedOperator
     expand_input: ExpandInput
     partial_kwargs: dict[str, Any]
     # each operator should override this class attr for shallow copy attrs.
@@ -177,7 +177,7 @@ class IterableOperator(BaseOperator):
     def __init__(
         self,
         *,
-        operator: MappedOperator,
+        operator: BaseOperator | MappedOperator,
         expand_input: ExpandInput,
         **kwargs,
     ):
