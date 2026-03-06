@@ -429,10 +429,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
-                # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
-                # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
+                    # Need to close the FD explicitly, as it is not closed when logger is removed.
                     factory.close()
 
             response = messages.TriggerStateSync(
