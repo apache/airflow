@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-06T12:44:40.201108
+# This constraints file was automatically generated on 2026-03-06T17:10:26.884552
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -296,7 +296,7 @@ httpcore==1.0.9
 httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.5.0
+huggingface_hub==1.6.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -651,7 +651,7 @@ tornado==6.5.4
 towncrier==25.8.0
 tqdm==4.67.3
 traitlets==5.14.3
-trino==0.336.0
+trino==0.337.0
 trove-classifiers==2026.1.14.14
 twine==6.2.0
 typer-slim==0.23.1
