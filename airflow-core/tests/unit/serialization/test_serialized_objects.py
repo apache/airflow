@@ -888,9 +888,7 @@ class TestSerializedBaseOperator:
         # leaking a lot of state). Only assert on the operator's logger so other loggers (e.g. OTLP trace
         # export errors in CI) do not affect the test.
         operator_logger_prefix = "airflow.task.operators"
-        operator_messages = [
-            r.message for r in caplog.records if r.name.startswith(operator_logger_prefix)
-        ]
+        operator_messages = [r.message for r in caplog.records if r.name.startswith(operator_logger_prefix)]
         assert operator_messages == ["test"]
 
     def test_resume_execution(self):
