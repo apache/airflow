@@ -893,9 +893,27 @@ class FileTaskHandler(logging.Handler):
                     "See more at https://airflow.apache.org/docs/apache-airflow/"
                     "stable/configurations-ref.html#secret-key"
                 )
+            elif response.status_code == 404:
+                # Log file not found on the worker's log server.
+                # This typically happens when a task retried on a different worker
+                # and the original worker's logs are no longer accessible.
+                # Fall back to local filesystem read if available.
+                worker_log_full_path = Path(self.local_base, worker_log_rel_path)
+                fallback_sources, fallback_streams = self._read_from_local(worker_log_full_path)
+                if fallback_sources:
+                    sources.extend(fallback_sources)
+                    log_streams.extend(fallback_streams)
+                else:
+                    sources.append(
+                        f"Log file not found on worker '{ti.hostname}'. "
+                        f"This attempt may have run on a different worker whose logs "
+                        f"are no longer accessible. "
+                        f"Consider configuring remote logging (S3, GCS, etc.) for log persistence."
+                    )
             else:
                 # Check if the resource was properly fetched
                 response.raise_for_status()
+
                 if int(response.headers.get("Content-Length", 0)) > 0:
                     sources.append(url)
                     log_streams.append(
