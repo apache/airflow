@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from time import sleep
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG
 
 
-def sleep_task():
-    sleep(1)
+def empty_task():
+    pass
 
 
 with DAG(
@@ -34,4 +33,4 @@ with DAG(
     catchup=False,
     max_active_runs=1,
 ) as dag:
-    task_b = PythonOperator(task_id="bear", python_callable=sleep_task)
+    task_b = PythonOperator(task_id="bear", python_callable=empty_task)
