@@ -279,7 +279,6 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_group = split_arn[6]
         self.region_name = split_arn[3]
         self.closed = False
-        self.ti: TaskInstance | None = None
         self.log_relative_path: str = ""
 
         self.io = CloudWatchRemoteLogIO(
@@ -317,7 +316,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
         if self.handler is not None:
             self.handler.close()
-        if self.log_relative_path:
+        if hasattr(self, "ti"):
             try:
                 self.io.upload(self.log_relative_path, self.ti)
             except Exception:

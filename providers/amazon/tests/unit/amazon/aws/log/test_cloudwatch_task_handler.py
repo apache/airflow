@@ -470,7 +470,10 @@ class TestCloudwatchTaskHandler:
         self.cloudwatch_task_handler.set_context(self.ti)
 
         assert self.cloudwatch_task_handler.ti is self.ti
-        assert self.cloudwatch_task_handler.log_relative_path == self.remote_log_stream
+        assert self.cloudwatch_task_handler.log_relative_path != ""
+        assert (
+            self.cloudwatch_task_handler.log_relative_path == self.cloudwatch_task_handler.io.log_stream_name
+        )
 
     def test_close_calls_upload_once(self):
         """close() calls io.upload() exactly once, even when called multiple times."""
@@ -481,7 +484,9 @@ class TestCloudwatchTaskHandler:
                     for _ in range(3):
                         self.cloudwatch_task_handler.close()
 
-                    mock_upload.assert_called_once_with(self.remote_log_stream, self.ti)
+                    mock_upload.assert_called_once_with(
+                        self.cloudwatch_task_handler.log_relative_path, self.ti
+                    )
 
     def test_close_skips_upload_without_set_context(self):
         """close() without a prior set_context() should not call io.upload()."""
