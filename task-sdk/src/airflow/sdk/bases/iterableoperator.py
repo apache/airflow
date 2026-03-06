@@ -24,12 +24,18 @@ import time
 from collections import deque
 from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
-from itertools import batched
 from math import ceil
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
 try:
+    # Python 3.12+
+    from itertools import batched
+except ImportError:
+    from more_itertools import batched
+
+try:
+    # Python 3.11+
     ExceptionGroup
 except NameError:
     from exceptiongroup import ExceptionGroup
