@@ -131,6 +131,25 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+    schedule:
+      interval: daily
+    target-branch: v3-1-test
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
