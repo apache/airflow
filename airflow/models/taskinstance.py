@@ -1949,6 +1949,7 @@ class TaskInstance(Base, LoggingMixin):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
+        self.run_id = run_id
         self.map_index = map_index
         self.refresh_from_task(task)
         if TYPE_CHECKING:
