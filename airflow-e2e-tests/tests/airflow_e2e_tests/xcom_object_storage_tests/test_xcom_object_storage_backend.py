@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
+from pprint import pprint
+from uuid import uuid4
 
 import pytest
 
+from airflow_e2e_tests.constants import XCOM_BUCKET
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient, get_s3_client
-
-XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
 
 class TestXComObjectStorageBackend:
@@ -37,16 +38,32 @@ class TestXComObjectStorageBackend:
         self.airflow_client.un_pause_dag(self.dag_id)
 
         trigger_resp = self.airflow_client.trigger_dag(
-            self.dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()}
+            self.dag_id,
+            json={
+                "dag_run_id": f"test_xcom_object_storage_backend_{uuid4()}",
+                "logical_date": datetime.now(timezone.utc).isoformat(),
+            },
         )
+        dag_run_id = trigger_resp["dag_run_id"]
         state = self.airflow_client.wait_for_dag_run(
             dag_id=self.dag_id,
-            run_id=trigger_resp["dag_run_id"],
+            run_id=dag_run_id,
         )
 
-        task_logs_resp = self.airflow_client.get_task_logs(dag_id=self.dag_id, task_id="bash_pull", run_id=trigger_resp["dag_run_id"])
-        import pprint
-        pprint.pprint(task_logs_resp)
+        # try to get all the logs to help debugging
+        if state != "success":
+            task_instances_resp = self.airflow_client.get_task_instances(self.dag_id, dag_run_id)
+            for task_instance in task_instances_resp["task_instances"]:
+                task_id = task_instance["task_id"]
+                try_number = task_instance["try_number"]
+                try:
+                    print(f"\nLogs for task {task_id} (try {try_number}):")
+                    task_logs_resp = self.airflow_client.get_task_logs(
+                        dag_id=self.dag_id, task_id="bash_pull", run_id=dag_run_id, try_number=try_number
+                    )
+                    pprint(task_logs_resp)
+                except Exception as e:
+                    print(f"Could not get logs for task {task_id} (try {try_number}): {e}")
 
         assert state == "success", f"DAG {self.dag_id} did not complete successfully. Final state: {state}"
 

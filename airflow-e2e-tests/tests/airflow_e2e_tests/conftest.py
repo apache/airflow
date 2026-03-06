@@ -36,6 +36,7 @@ from airflow_e2e_tests.constants import (
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
+    XCOM_BUCKET,
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
@@ -78,11 +79,14 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
+        # for XComObjectStorageBackend, we need to set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for the `universal-path` package
+        "AWS_ACCESS_KEY_ID=test\n"
+        "AWS_SECRET_ACCESS_KEY=test\n"
         "AWS_DEFAULT_REGION=us-east-1\n"
         "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
         "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
         "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
-        "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@test-xcom-objectstorage-backend\n"
+        f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
         "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
         "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
     )
