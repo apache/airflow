@@ -29,7 +29,6 @@ from lazy_object_proxy import Proxy
 
 from airflow.sdk import XComArg
 from airflow.sdk.api.datamodels._generated import DagAttributeTypes
-from airflow.sdk.bases.iterableoperator import IterableOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -61,6 +60,7 @@ if TYPE_CHECKING:
     import pendulum
 
     from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule
+    from airflow.sdk.bases.iterableoperator import IterableOperator
     from airflow.sdk.definitions._internal.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
@@ -217,6 +217,8 @@ class OperatorPartial:
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
         if not mapped_kwargs:
             raise TypeError("no arguments to iterate against")
+        from airflow.sdk.bases.iterableoperator import IterableOperator
+
         validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         # Since the input is already checked at parse time, we can set strict
@@ -232,6 +234,8 @@ class OperatorPartial:
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        from airflow.sdk.bases.iterableoperator import IterableOperator
+
         expand_input = ListOfDictsExpandInput(kwargs)
         operator = self._expand(expand_input, strict=strict, apply_upstream_relationship=False)
         return IterableOperator(operator=operator, expand_input=expand_input)

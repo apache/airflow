@@ -30,7 +30,6 @@ import attr
 import typing_extensions
 
 from airflow.sdk import TriggerRule, timezone
-from airflow.sdk.bases.iterableoperator import IterableOperator
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -554,6 +553,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             )
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
+        from airflow.sdk.bases.iterableoperator import IterableOperator
+
         self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
@@ -594,6 +595,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        from airflow.sdk.bases.iterableoperator import IterableOperator
+
         expand_input = ListOfDictsExpandInput(kwargs)
         op = self._expand(
             expand_input,
