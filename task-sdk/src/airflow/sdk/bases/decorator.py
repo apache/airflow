@@ -571,7 +571,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         return XComArg(
             operator=IterableOperator(
-                operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input)
+                operator=cast("PlainXComArg", op).operator, expand_input=DecoratedExpandInput(expand_input)
             )
         )
 
@@ -607,7 +607,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         return XComArg(
             operator=IterableOperator(
-                operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input)
+                operator=cast("PlainXComArg", op).operator, expand_input=DecoratedExpandInput(expand_input)
             )
         )
 
