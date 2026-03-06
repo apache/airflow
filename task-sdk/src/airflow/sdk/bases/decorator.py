@@ -54,7 +54,7 @@ from airflow.sdk.definitions.mappedoperator import (
     ensure_xcomarg_return_value,
     prevent_duplicates,
 )
-from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
+from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 
 class ExpandableFactory(Protocol):
