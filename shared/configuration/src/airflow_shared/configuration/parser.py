@@ -300,9 +300,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from provider fallback defaults."""
-        if self.get_from_provider_cfg_config_fallback_defaults(section, key) is not None:
-            # no expansion needed
-            return self.get_from_provider_cfg_config_fallback_defaults(section, key, **kwargs)
+        value = self.get_from_provider_cfg_config_fallback_defaults(section, key, **kwargs)
+        if value is not None:
+            return value
         return VALUE_NOT_FOUND_SENTINEL
 
     def _get_option_from_provider_metadata_config_fallbacks(
@@ -316,9 +316,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from provider metadata fallback defaults."""
-        if self.get_from_provider_metadata_config_fallback_defaults(section, key) is not None:
-            # no expansion needed
-            return self.get_from_provider_metadata_config_fallback_defaults(section, key, **kwargs)
+        value = self.get_from_provider_metadata_config_fallback_defaults(section, key, **kwargs)
+        if value is not None:
+            return value
         return VALUE_NOT_FOUND_SENTINEL
 
     def get_from_provider_cfg_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
@@ -1579,17 +1579,6 @@ class AirflowConfigParser(ConfigParser):
         :return:
         """
         return optionstr
-
-    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
-        """
-        Get list of config sources to use in as_dict().
-
-        Both core and SDK need provider configs.
-        """
-        return [
-            ("default", self._default_values),
-            ("airflow.cfg", self),
-        ]
 
     def as_dict(
         self,

@@ -64,9 +64,6 @@ def check_file_for_prohibited_imports(file_path: Path) -> list[tuple[int, str]]:
 
     for node in ast.walk(tree):
         if id(node) in type_checking_ids:
-            console.print(
-                f"[blue]Skipping node on line {getattr(node, 'lineno', 'unknown')} due to TYPE_CHECKING guard[/blue]"
-            )
             continue
         # Check `from airflow.x import y` statements
         if isinstance(node, ast.ImportFrom):
