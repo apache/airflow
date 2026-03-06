@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.execution_time.comms import ErrorResponse
-    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
 class AirflowException(Exception):
@@ -165,7 +165,7 @@ class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
     :param task: The task instance that should be rescheduled
     """
 
-    def __init__(self, task: RuntimeTaskInstance):
+    def __init__(self, task: MappedTaskInstance):
         super().__init__(reschedule_date=task.next_retry_datetime())
         self.task = task
 

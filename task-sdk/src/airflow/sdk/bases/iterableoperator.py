@@ -60,7 +60,7 @@ class TaskExecutor(LoggingMixin):
 
     def __init__(
         self,
-        task_instance: RuntimeTaskInstance,
+        task_instance: MappedTaskInstance,
     ):
         super().__init__()
         self._task_instance = task_instance
@@ -68,7 +68,7 @@ class TaskExecutor(LoggingMixin):
         self._start_time: float | None = None
 
     @property
-    def task_instance(self) -> RuntimeTaskInstance:
+    def task_instance(self) -> MappedTaskInstance:
         return self._task_instance
 
     @property
@@ -255,13 +255,13 @@ class IterableOperator(BaseOperator):
     def _run_tasks(
         self,
         context: Context,
-        tasks: Iterable[RuntimeTaskInstance],
+        tasks: Iterable[MappedTaskInstance],
     ) -> None:
         exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
-        futures: dict[Future, RuntimeTaskInstance] = {}
-        failed_tasks: deque[RuntimeTaskInstance] = deque()
+        futures: dict[Future, MappedTaskInstance] = {}
+        failed_tasks: deque[MappedTaskInstance] = deque()
         chunked_tasks = batched(tasks, self.max_workers)
 
         self.log.info("Running tasks with %d workers", self.max_workers)
@@ -374,7 +374,7 @@ class IterableOperator(BaseOperator):
 
         return self._run_tasks(context=context, tasks=list(failed_tasks))
 
-    def _run_operator(self, context: Context, task_instance: RuntimeTaskInstance):
+    def _run_operator(self, context: Context, task_instance: MappedTaskInstance):
         with TaskExecutor(task_instance=task_instance) as executor:
             return executor.run(
                 context={
@@ -387,7 +387,7 @@ class IterableOperator(BaseOperator):
                 }
             )
 
-    async def _run_async_operator(self, context: Context, task_instance: RuntimeTaskInstance):
+    async def _run_async_operator(self, context: Context, task_instance: MappedTaskInstance):
         async with TaskExecutor(task_instance=task_instance) as executor:
             return await executor.arun(
                 context={
