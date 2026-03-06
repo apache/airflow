@@ -73,6 +73,12 @@
     "navigation": "Navegação: Shift+{{arrow}}",
     "toggleGroup": "Alternar grupo: Espaço"
   },
+  "notFound": {
+    "back": "Voltar",
+    "backToDags": "Voltar aos DAGs",
+    "message": "O DAG \"{{dagId}}\" não existe.",
+    "title": "DAG não encontrado"
+  },
   "overview": {
     "buttons": {
       "failedRun_many": "Execuções Falhadas",
@@ -122,6 +128,35 @@
     },
     "graphDirection": {
       "label": "Direção do Gráfico"
+    },
+    "showVersionIndicator": {
+      "label": "Mostrar indicador de versão",
+      "options": {
+        "hideAll": "Ocultar tudo",
+        "showAll": "Mostrar tudo",
+        "showBundleVersion": "Mostrar versão do bundle",
+        "showDagVersion": "Mostrar versão do DAG"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtro ativo",
+      "clearFilter": "Limpar filtro",
+      "clickTask": "Clique em uma tarefa para selecioná-la como raiz do filtro",
+      "depth": "Profundidade",
+      "direction": "Direção",
+      "label": "Filtro",
+      "mode": "Modo",
+      "modes": {
+        "static": "Estático",
+        "traverse": "Percorrer"
+      },
+      "modeTooltip": "O modo estático mantém a visualização atual ao navegar entre tarefas; o modo percorrer atualiza o filtro ativo para a tarefa clicada para facilitar a navegação no DAG.",
+      "options": {
+        "both": "Upstream e downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Tarefa selecionada"
     }
   },
   "paramsFailed": "Falha ao carregar parâmetros",
