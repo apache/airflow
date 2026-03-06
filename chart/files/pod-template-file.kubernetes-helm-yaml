@@ -17,7 +17,7 @@
  under the License.
 */}}
 ---
-{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector := or .Values.workers.kubernetes.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
