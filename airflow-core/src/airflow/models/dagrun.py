@@ -1021,7 +1021,7 @@ class DagRun(Base, LoggingMixin):
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes = {
-                "airflow.dag.dag_id": str(self.dag_id),
+                "airflow.dag_id": str(self.dag_id),
                 "airflow.dag_run.run_id": self.run_id,
             }
             if self.logical_date:
