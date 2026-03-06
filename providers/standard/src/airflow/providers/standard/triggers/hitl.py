@@ -22,12 +22,12 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
-import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from uuid import UUID
 
+import anyio
 from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import ParamValidationError
@@ -223,6 +223,8 @@ class HITLTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the Human-in-the-loop response received or timeout reached."""
+        response_ready = anyio.Event()
+
         while True:
             if self.timeout_datetime and self.timeout_datetime < utcnow():
                 event = await self._handle_timeout()
@@ -234,4 +236,6 @@ class HITLTrigger(BaseTrigger):
                 yield event
                 return
 
-            await asyncio.sleep(self.poke_interval)
+            # Sleep for a bit, or exit early if stop is requested
+            with anyio.move_on_after(self.poke_interval):
+                await response_ready.wait()
