@@ -26,10 +26,18 @@ class TestSalesforceApexRestOperator:
     Test class for SalesforceApexRestOperator
     """
 
+    def test_template_fields(self):
+        """Test that template_fields are defined correctly."""
+        assert SalesforceApexRestOperator.template_fields == (
+            "endpoint",
+            "method",
+            "payload",
+        )
+
     @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
-    def test_execute_salesforce_apex_rest(self, mock_get_conn):
+    def test_execute_salesforce_apex_rest_post(self, mock_get_conn):
         """
-        Test execute apex rest
+        Test execute apex rest with POST method
         """
 
         endpoint = "User/Activity"
@@ -44,6 +52,138 @@ class TestSalesforceApexRestOperator:
 
         operator.execute(context={})
 
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method=method, data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_salesforce_apex_rest_get(self, mock_get_conn):
+        """
+        Test execute apex rest with GET method
+        """
+
+        endpoint = "User/Activity"
+        method = "GET"
+        payload = {"user": "12345"}
+
+        mock_get_conn.return_value.apexecute = Mock()
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, method=method, payload=payload
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method=method, data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_salesforce_apex_rest_put(self, mock_get_conn):
+        """
+        Test execute apex rest with PUT method
+        """
+
+        endpoint = "User/Activity"
+        method = "PUT"
+        payload = {"user": "12345", "action": "replace page"}
+
+        mock_get_conn.return_value.apexecute = Mock()
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, method=method, payload=payload
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method=method, data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_salesforce_apex_rest_delete(self, mock_get_conn):
+        """
+        Test execute apex rest with DELETE method
+        """
+
+        endpoint = "User/Activity"
+        method = "DELETE"
+        payload = {"user": "12345"}
+
+        mock_get_conn.return_value.apexecute = Mock()
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, method=method, payload=payload
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method=method, data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_salesforce_apex_rest_patch(self, mock_get_conn):
+        """
+        Test execute apex rest with PATCH method
+        """
+
+        endpoint = "User/Activity"
+        method = "PATCH"
+        payload = {"user": "12345", "action": "partial update"}
+
+        mock_get_conn.return_value.apexecute = Mock()
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, method=method, payload=payload
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method=method, data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_default_method_is_get(self, mock_get_conn):
+        """
+        Test that default method is GET when not specified
+        """
+
+        endpoint = "User/Activity"
+        payload = {"user": "12345"}
+
+        mock_get_conn.return_value.apexecute = Mock()
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, payload=payload
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
+            action=endpoint, method="GET", data=payload
+        )
+
+    @patch("airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn")
+    def test_execute_xcom_push_disabled(self, mock_get_conn):
+        """
+        Test that empty dict is returned when do_xcom_push is False
+        """
+
+        endpoint = "User/Activity"
+        method = "GET"
+        payload = {"user": "12345"}
+
+        mock_get_conn.return_value.apexecute = Mock(return_value={"id": "001"})
+
+        operator = SalesforceApexRestOperator(
+            task_id="task", endpoint=endpoint, method=method, payload=payload, do_xcom_push=False
+        )
+
+        result = operator.execute(context={})
+
+        assert result == {}
         mock_get_conn.return_value.apexecute.assert_called_once_with(
             action=endpoint, method=method, data=payload
         )
