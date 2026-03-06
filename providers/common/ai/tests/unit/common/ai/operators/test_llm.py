@@ -122,7 +122,7 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_defers(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """When require_approval=True, execute() defers instead of returning output."""
-        from airflow.sdk.exceptions import TaskDeferred
+        from airflow.providers.common.compat.sdk import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
@@ -148,7 +148,7 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_modifications(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """allow_modifications=True passes an editable 'output' param."""
-        from airflow.sdk.exceptions import TaskDeferred
+        from airflow.providers.common.compat.sdk import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("draft output")
@@ -174,7 +174,7 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_timeout(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """approval_timeout is passed to the trigger."""
-        from airflow.sdk.exceptions import TaskDeferred
+        from airflow.providers.common.compat.sdk import TaskDeferred
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("output")
@@ -200,7 +200,7 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_structured_output(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """Structured (BaseModel) output is serialized before deferring."""
-        from airflow.sdk.exceptions import TaskDeferred
+        from airflow.providers.common.compat.sdk import TaskDeferred
 
         class Summary(BaseModel):
             text: str
