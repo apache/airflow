@@ -32,11 +32,18 @@ from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
+OVERRIDE_SPAN_ID_KEY = context.create_key("override_span_id")
 OVERRIDE_TRACE_ID_KEY = context.create_key("override_trace_id")
 
 
 class OverrideableRandomIdGenerator(RandomIdGenerator):
-    """Lets you override the trace id used when starting a new span."""
+    """Lets you override the span id."""
+
+    def generate_span_id(self):
+        override = context.get_value(OVERRIDE_SPAN_ID_KEY)
+        if override is not None:
+            return override
+        return super().generate_span_id()
 
     def generate_trace_id(self):
         override = context.get_value(OVERRIDE_TRACE_ID_KEY)
@@ -46,8 +53,9 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
 
 
 @contextmanager
-def override_trace_id(trace_id):
-    ctx = context.set_value(OVERRIDE_TRACE_ID_KEY, trace_id)
+def override_ids(trace_id, span_id, ctx=None):
+    ctx = context.set_value(OVERRIDE_TRACE_ID_KEY, trace_id, context=ctx)
+    ctx = context.set_value(OVERRIDE_SPAN_ID_KEY, span_id, context=ctx)
     token = context.attach(ctx)
     try:
         yield

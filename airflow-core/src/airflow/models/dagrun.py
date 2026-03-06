@@ -75,7 +75,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.traces import override_trace_id
+from airflow.observability.traces import override_ids
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1024,28 +1024,26 @@ class DagRun(Base, LoggingMixin):
 
     def _emit_dagrun_span(self, state: DagRunState):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
-        seed_span_context = trace.get_current_span(context=ctx).get_span_context()
-        attributes = {
-            "dag_id": str(self.dag_id),
-            "run_id": self.run_id,
-        }
-        if self.logical_date:
-            attributes["logical_date"] = str(self.logical_date)
-        if self.partition_key:
-            attributes["partition_key"] = str(self.partition_key)
-        # Override only the trace_id so the dag run span belongs to the same
-        # trace established at DagRun creation; let the generator assign a
-        # fresh span_id so this span has a unique identity.
-        with override_trace_id(seed_span_context.trace_id):
+        span = trace.get_current_span(context=ctx)
+        span_context = span.get_span_context()
+        with override_ids(span_context.trace_id, span_context.span_id):
+            attributes = {
+                "dag_id": str(self.dag_id),
+                "run_id": self.run_id,
+            }
+            if self.logical_date:
+                attributes["logical_date"] = str(self.logical_date)
+            if self.partition_key:
+                attributes["partition_key"] = str(self.partition_key)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
                 context=context.Context(),
             )
-        status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
-        span.set_status(status_code)
-        span.end(end_time=int((self.end_date or timezone.utcnow()).timestamp() * 1e9))
+            status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
+            span.set_status(status_code)
+            span.end()
 
     @provide_session
     def update_state(
