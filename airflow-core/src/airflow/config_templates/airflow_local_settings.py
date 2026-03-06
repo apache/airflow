@@ -282,8 +282,8 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
-        from airflow.providers.elasticsearch.log.es_task_handler import (
-            ElasticsearchRemoteLogIO,  # type: ignore[attr-defined]
+        from airflow.providers.elasticsearch.log.es_task_handler import (  # type: ignore[attr-defined]
+            ElasticsearchRemoteLogIO,
         )
 
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
