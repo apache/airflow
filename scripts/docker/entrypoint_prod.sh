@@ -165,6 +165,24 @@ function create_www_user() {
     fi
 }
 
+function set_pythonpath_for_arbitrary_user() {
+    # Airflow is installed as a local user application in /home/airflow/.local
+    # When the container is run with an arbitrary UID, we need to ensure that
+    # these directories are in PYTHONPATH and PATH even if $HOME is not set
+    # to /home/airflow.
+    local python_major_minor
+    python_major_minor=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    local airflow_local_site_packages="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages"
+    local airflow_local_bin="${AIRFLOW_USER_HOME_DIR}/.local/bin"
+
+    if [[ ! "${PYTHONPATH:-}" =~ ${airflow_local_site_packages} ]]; then
+        export PYTHONPATH="${airflow_local_site_packages}:${PYTHONPATH:-}"
+    fi
+    if [[ ! "${PATH:-}" =~ ${airflow_local_bin} ]]; then
+        export PATH="${airflow_local_bin}:${PATH}"
+    fi
+}
+
 function create_system_user_if_missing() {
     # This is needed in case of OpenShift-compatible container execution. In case of OpenShift random
     # User id is used when starting the image, however group 0 is kept as the user group. Our production
@@ -180,6 +198,7 @@ function create_system_user_if_missing() {
       fi
       export HOME="${AIRFLOW_USER_HOME_DIR}"
     fi
+    set_pythonpath_for_arbitrary_user
 }
 
 function set_pythonpath_for_root_user() {
