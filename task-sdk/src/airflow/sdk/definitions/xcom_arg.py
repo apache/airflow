@@ -97,29 +97,15 @@ class XComArg(ResolveMixin, DependencyMixin):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         raise NotImplementedError()
 
-    def iter_values(self, context: dict) -> Iterable[Any]:
+    def iter_values(self, context: Context) -> Iterable[Any]:
         resolved = self.resolve(context)
 
-        # if isinstance(resolved, (bytes, str, dict)):
-        #     yield resolved
-        # elif isinstance(resolved, Sequence):
-        #     for item in resolved:
-        #         if isinstance(item, Sequence) and not isinstance(item, (str, bytes, dict)):
-        #             yield item
-        #         else:
-        #             yield item
-        # else:
-        #     yield resolved
-
-        # scalar or mapping-like -> yield as-is
         if isinstance(resolved, (str, bytes, dict)):
             yield resolved
-        # iterable (list, tuple, generator, etc.)
         elif isinstance(resolved, Iterable):
             for item in resolved:
-                yield item
+                yield from item
         else:
-            # scalar
             yield resolved
 
     @staticmethod
