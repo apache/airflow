@@ -34,7 +34,7 @@ type ErrorWithStatus = {
 /**
  * Safely extracts the HTTP status code from an error object
  */
-const getErrorStatus = (error: unknown): number | undefined => {
+export const getErrorStatus = (error: unknown): number | undefined => {
   if (typeof error !== "object" || error === null) {
     return undefined;
   }
