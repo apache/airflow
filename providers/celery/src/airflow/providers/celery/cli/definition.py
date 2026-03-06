@@ -101,6 +101,10 @@ ARG_WITHOUT_GOSSIP = Arg(
     help="Don't subscribe to other workers events",
     action="store_true",
 )
+ARG_TEAM = Arg(
+    ("-t", "--team"),
+    help="Team name for team-specific multi-team configuration (requires Airflow 3.2+)",
+)
 ARG_OUTPUT = Arg(
     (
         "-o",
@@ -139,6 +143,7 @@ CELERY_COMMANDS = (
             ARG_QUEUES,
             ARG_CONCURRENCY,
             ARG_CELERY_HOSTNAME,
+            ARG_TEAM,
             ARG_PID,
             ARG_DAEMON,
             ARG_UMASK,
@@ -227,7 +232,7 @@ CELERY_CLI_COMMANDS = [
         help="Celery components",
         description=(
             "Start celery components. Works only when using CeleryExecutor. For more information, "
-            "see https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html"
+            "see https://airflow.apache.org/docs/apache-airflow-providers-celery/stable/celery_executor.html"
         ),
         subcommands=CELERY_COMMANDS,
     ),

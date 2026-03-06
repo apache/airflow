@@ -42,6 +42,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from airflow.providers.common.compat.connection import get_async_connection
+
 if TYPE_CHECKING:
     from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
@@ -52,7 +54,6 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.version_compat import ArgNotSet
 
 
-from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
@@ -90,7 +91,7 @@ def provide_bucket_name(func: Callable) -> Callable:
         if not bound_args.arguments.get("bucket_name"):
             self = args[0]
             if self.aws_conn_id:
-                connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
+                connection = await get_async_connection(self.aws_conn_id)
                 if connection.schema:
                     bound_args.arguments["bucket_name"] = connection.schema
         return bound_args
@@ -1385,6 +1386,8 @@ class S3Hook(AwsBaseHook):
         source_version_id: str | None = None,
         acl_policy: str | None = None,
         meta_data_directive: str | None = None,
+        kms_key_id: str | None = None,
+        kms_encryption_type: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1416,6 +1419,10 @@ class S3Hook(AwsBaseHook):
             object to be copied which is private by default.
         :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
             with metadata that's provided in the request.
+        :param kms_key_id: The ARN, id or alias of the AWS KMS key to use for encrypting the destination object.
+            Required if using KMS-based server-side encryption with a non-default key.
+        :param kms_encryption_type: Type of KMS encryption to use for the object.
+            Can be either "aws:kms" (standard KMS) or "aws:kms:dsse" (double-shielded KMS).
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
@@ -1424,6 +1431,13 @@ class S3Hook(AwsBaseHook):
             kwargs["MetadataDirective"] = meta_data_directive
         if self._requester_pays:
             kwargs["RequestPayer"] = "requester"
+
+        if bool(kms_key_id) != bool(kms_encryption_type):
+            message = "kms_key_id and kms_encryption_type must both be specified. Only one was provided."
+            raise ValueError(message)
+        if kms_key_id and kms_encryption_type:
+            kwargs["SSEKMSKeyId"] = kms_key_id
+            kwargs["ServerSideEncryption"] = kms_encryption_type
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
@@ -1602,6 +1616,7 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
+        file.flush()
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )

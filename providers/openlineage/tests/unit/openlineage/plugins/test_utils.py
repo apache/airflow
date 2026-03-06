@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
-from pkg_resources import parse_version
+from packaging.version import parse as parse_version
 
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import timezone

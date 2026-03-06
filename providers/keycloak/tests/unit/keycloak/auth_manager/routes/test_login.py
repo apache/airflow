@@ -21,7 +21,6 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
-from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 
 class TestLoginRouter:
@@ -83,10 +82,14 @@ class TestLoginRouter:
     @pytest.mark.parametrize(
         ("id_token", "logout_callback_url"),
         [
-            (None, "http://testserver/auth/logout_callback"),
+            (None, "/auth/logout_callback"),
             (
                 "id_token",
-                "logout_url?post_logout_redirect_uri=http://testserver/auth/logout_callback&id_token_hint=id_token",
+                "/auth/logout_callback",
+            ),
+            (
+                "id_token.real.value",
+                "logout_url?post_logout_redirect_uri=/auth/logout_callback&id_token_hint=id_token.real.value",
             ),
         ],
     )
@@ -103,24 +106,3 @@ class TestLoginRouter:
         assert response.status_code == 307
         assert "location" in response.headers
         assert response.headers["location"] == logout_callback_url
-
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    def test_refresh_token(self, mock_get_auth_manager, client):
-        mock_auth_manager = Mock()
-        mock_auth_manager.refresh_user.return_value = KeycloakAuthManagerUser(
-            user_id="user_id",
-            name="name",
-            access_token="new_access_token",
-            refresh_token="new_refresh_token",
-        )
-        mock_auth_manager.generate_jwt.return_value = "token"
-        mock_get_auth_manager.return_value = mock_auth_manager
-
-        response = client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/refresh", follow_redirects=False)
-        assert response.status_code == 303
-        assert "location" in response.headers
-        assert response.headers["location"] == "/"
-        assert "_token" in response.cookies
-        assert response.cookies["_token"] == "token"
-        mock_auth_manager.refresh_user.assert_called_once()
-        mock_auth_manager.generate_jwt.assert_called_once()

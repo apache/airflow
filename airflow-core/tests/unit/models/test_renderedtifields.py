@@ -38,6 +38,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -85,6 +86,11 @@ class LargeStrObject:
 
 
 max_length = conf.getint("core", "max_templated_field_length")
+
+
+def _get_mysql_margin(session) -> int:
+    """Return extra query margin for MySQL (which fetches run_ids separately due to LIMIT subquery limitation)."""
+    return 1 if get_dialect_name(session) == "mysql" else 0
 
 
 class TestRenderedTaskInstanceFields:
@@ -202,8 +208,8 @@ class TestRenderedTaskInstanceFields:
         self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
     ):
         """
-        Test that old records are deleted from rendered_task_instance_fields table
-        for a given task_id and dag_id.
+        Test that RTIF records from older dag runs are deleted, keeping only
+        records from the most recent N dag runs for a given task_id and dag_id.
         """
         with dag_maker("test_delete_old_records") as dag:
             task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
@@ -226,7 +232,7 @@ class TestRenderedTaskInstanceFields:
 
         assert rtif_num == len(result)
 
-        with assert_queries_count(expected_query_count):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin(session)):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.scalars(
             select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
@@ -245,8 +251,8 @@ class TestRenderedTaskInstanceFields:
         self, num_runs, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
     ):
         """
-        Test that old records are deleted from rendered_task_instance_fields table
-        for a given task_id and dag_id with mapped tasks.
+        Test that RTIF records from older dag runs are deleted for mapped tasks,
+        keeping all map_index records together for the most recent N dag runs.
         """
         with dag_maker("test_delete_old_records", session=session, serialized=True) as dag:
             mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
@@ -265,7 +271,7 @@ class TestRenderedTaskInstanceFields:
         result = session.scalars(select(RTIF).where(RTIF.dag_id == dag.dag_id)).all()
         assert len(result) == num_runs * 2
 
-        with assert_queries_count(expected_query_count):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin(session)):
             RTIF.delete_old_records(
                 task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
             )
@@ -276,6 +282,44 @@ class TestRenderedTaskInstanceFields:
         assert len(rtif_num_runs) == remaining_rtifs
         # Check that we have _all_ the data for each row
         assert len(result) == remaining_rtifs * 2
+
+    def test_delete_old_records_sparse_task(self, dag_maker, session):
+        """
+        Test deletion behavior for sparse tasks (tasks that don't run every dag run).
+
+        Retention is based on the N most recent dag runs, not the N most recent
+        task executions. For sparse tasks, this means RTIF records may be deleted
+        even if fewer than N executions exist.
+        """
+        with dag_maker("test_sparse", session=session) as dag:
+            task = BashOperator(task_id="sparse_task", bash_command="echo {{ ds }}")
+
+        # Create 10 dag runs but only add RTIF for runs 0, 3, 6, 9 (every 3rd run)
+        sparse_run_indices = [0, 3, 6, 9]
+        for num in range(10):
+            dr = dag_maker.create_dagrun(
+                run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
+            )
+            if num in sparse_run_indices:
+                ti = dr.task_instances[0]
+                ti.task = task
+                session.add(RTIF(ti, render_templates=False))
+        session.flush()
+
+        # Verify we have 4 RTIF records
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
+        assert len(result) == 4
+
+        # With num_to_keep=5, we keep runs 5-9 (the 5 most recent dag runs).
+        # Only runs 6 and 9 have RTIF records, so 2 should remain.
+        RTIF.delete_old_records(task_id=task.task_id, dag_id=dag.dag_id, num_to_keep=5, session=session)
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
+        assert len(result) == 2
+        assert {r.run_id for r in result} == {"run_6", "run_9"}
 
     def test_write(self, dag_maker):
         """

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import base64
 import time
 import uuid
@@ -41,6 +42,7 @@ from tenacity import (
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -78,10 +80,26 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
     :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param http_request_kwargs: Optional keyword arguments forwarded to ``requests.Session.request`` for synchronous HTTP calls.
+        Request-defining fields (e.g. ``method``, ``url``, ``headers``, ``params``, ``json``)
+        are owned by the hook and must not be provided here.
+
+    :param aiohttp_session_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession`` for asynchronous HTTP calls.
+        Session-owned fields like ``headers`` are managed by the hook
+        and must not be overridden here.
+
+    :param aiohttp_request_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession.request`` for asynchronous HTTP calls.
+        Request identity fields (e.g. ``method``, ``url``, ``headers``,
+        ``params``) are owned by the hook and must not be overridden here.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minute lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+    HTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "headers", "params", "json"}
+    AIOHTTP_SESSION_KWARGS_GUARD_KEYS: set[str] = {"headers"}
+    AIOHTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "params", "headers"}
 
     def __init__(
         self,
@@ -89,6 +107,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         api_retry_args: dict[Any, Any] | None = None,  # Optional retry arguments passed to tenacity.retry
+        http_request_kwargs: dict[str, Any] | None = None,
+        aiohttp_session_kwargs: dict[str, Any] | None = None,
+        aiohttp_request_kwargs: dict[str, Any] | None = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -108,6 +129,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         if api_retry_args:
             self.retry_config.update(api_retry_args)
+
+        self.http_request_kwargs = http_request_kwargs or {}
+        self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
+        self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
@@ -202,6 +227,29 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.query_ids.append(json_response["statementHandle"])
         else:
             raise AirflowException("No statementHandle/statementHandles present in response")
+
+        # Send Hook Level Lineage
+        len_query_ids = len(self.query_ids)
+        if len_query_ids == 1:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                job_id=self.query_ids[0],
+            )
+        else:
+            sql_statements = sql.split(";")
+            if len(sql_statements) == len_query_ids:
+                for single_sql, single_query_id in zip(sql_statements, self.query_ids):
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=single_sql,
+                        job_id=single_query_id,
+                    )
+            else:  # SQL/query ID count mismatch; can't correlate sql with id - send SQL only.
+                send_sql_hook_lineage(
+                    context=self,
+                    sql=sql,
+                )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
@@ -447,10 +495,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             return exception.status in [429, 503, 504]
         if isinstance(
             exception,
-            ConnectionError | Timeout | ClientConnectionError,
+            ConnectionError | Timeout | ClientConnectionError | asyncio.TimeoutError,
         ):
             return True
         return False
+
+    @staticmethod
+    def _should_raise_for_status(status: int) -> bool:
+        # _process_response handles HTTP 422 to provide richer error context.
+        # The response payload must be passed through even when the status is 422.
+        # See https://docs.snowflake.com/en/developer-guide/sql-api/reference
+        return status >= 400 and status != 422
 
     def _make_api_call_with_retries(
         self, method: str, url: str, headers: dict, params: dict | None = None, json: dict | None = None
@@ -468,16 +523,32 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param json: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
+        if method.upper() not in ("GET", "POST"):
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_kwargs: dict[str, Any] = dict(self.http_request_kwargs or {})
+        forbidden: set[str] = self.HTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"http_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+
         with requests.Session() as session:
             for attempt in Retrying(**self.retry_config):  # type: ignore
                 with attempt:
-                    if method.upper() in ("GET", "POST"):
-                        response = session.request(
-                            method=method.lower(), url=url, headers=headers, params=params, json=json
-                        )
-                    else:
-                        raise ValueError(f"Unsupported HTTP method: {method}")
-                    response.raise_for_status()
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "headers": headers,
+                        "params": params,
+                        "json": json,
+                    }
+                    # Order is important
+                    # user first, base second => base wins even if guard misses something
+                    request_kwargs: dict[str, Any] = {**user_kwargs, **base_request_kwargs}
+                    response = session.request(**request_kwargs)
+                    if self._should_raise_for_status(response.status_code):
+                        response.raise_for_status()
                     return response.status_code, response.json()
 
     async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
@@ -493,14 +564,36 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param params: (Optional) The query parameters to include in the API call.
         :return: The response object from the API call.
         """
-        async with aiohttp.ClientSession(headers=headers) as session:
+        if method.upper() != "GET":
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_session_kwargs: dict[str, Any] = dict(self.aiohttp_session_kwargs or {})
+        forbidden = self.AIOHTTP_SESSION_KWARGS_GUARD_KEYS & set(user_session_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_session_kwargs must not override session-owned fields: {sorted(forbidden)}"
+            )
+
+        user_request_kwargs: dict[str, Any] = dict(self.aiohttp_request_kwargs or {})
+        forbidden = self.AIOHTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_request_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+        base_session_kwargs: dict[str, Any] = {"headers": headers}
+        session_kwargs: dict[str, Any] = {**user_session_kwargs, **base_session_kwargs}
+        async with aiohttp.ClientSession(**session_kwargs) as session:
             async for attempt in AsyncRetrying(**self.retry_config):
                 with attempt:
-                    if method.upper() == "GET":
-                        async with session.request(method=method.lower(), url=url, params=params) as response:
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "params": params,
+                    }
+                    request_kwargs: dict[str, Any] = {**user_request_kwargs, **base_request_kwargs}
+                    async with session.request(**request_kwargs) as response:
+                        if self._should_raise_for_status(response.status):
                             response.raise_for_status()
-                            # Return status and json content for async processing
-                            content = await response.json()
-                            return response.status, content
-                    else:
-                        raise ValueError(f"Unsupported HTTP method: {method}")
+                        # Return status and json content for async processing
+                        content = await response.json()
+                        return response.status, content

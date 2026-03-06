@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import dill
 from sqlalchemy import (
@@ -29,15 +30,15 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
+    Uuid,
     func,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy_utils import UUIDType
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
@@ -49,7 +50,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
     UtcDateTime,
-    mapped_column,
 )
 from airflow.utils.state import State, TaskInstanceState
 
@@ -68,21 +68,21 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    task_instance_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    task_instance_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         nullable=False,
         primary_key=True,
     )
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     try_number: Mapped[int] = mapped_column(Integer, nullable=False)
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    max_tries: Mapped[int | None] = mapped_column(Integer, server_default=text("-1"), nullable=True)
+    max_tries: Mapped[int | None] = mapped_column(Integer, server_default="-1", nullable=True)
     hostname: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     unixname: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     pool: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -106,7 +106,7 @@ class TaskInstanceHistory(Base):
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     trigger_timeout: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -115,7 +115,7 @@ class TaskInstanceHistory(Base):
     )
 
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
-    dag_version_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), nullable=True)
+    dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     dag_version = relationship(
         "DagVersion",
@@ -175,7 +175,7 @@ class TaskInstanceHistory(Base):
     )
 
     @property
-    def id(self) -> str:
+    def id(self) -> UUID:
         """Alias for primary key field to support TaskInstance."""
         return self.task_instance_id
 

@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import Field, SecretStr
 
-from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 
@@ -34,6 +35,17 @@ class UserBody(StrictBaseModel):
     password: SecretStr
 
 
+class UserPatchBody(StrictBaseModel):
+    """Incoming payload for updating a user (all fields optional)."""
+
+    username: str | None = Field(default=None, min_length=1)
+    email: str | None = Field(default=None, min_length=1)
+    first_name: str | None = Field(default=None, min_length=1)
+    last_name: str | None = Field(default=None, min_length=1)
+    roles: list[Role] | None = None
+    password: SecretStr | None = None
+
+
 class UserResponse(BaseModel):
     """Outgoing representation of a user (no password)."""
 
@@ -43,8 +55,15 @@ class UserResponse(BaseModel):
     last_name: str
     roles: list[Role] | None = None
     active: bool | None = None
-    last_login: UtcDateTime | None = None
+    last_login: datetime | None = None
     login_count: int | None = None
     fail_login_count: int | None = None
-    created_on: UtcDateTime | None = None
-    changed_on: UtcDateTime | None = None
+    created_on: datetime | None = None
+    changed_on: datetime | None = None
+
+
+class UserCollectionResponse(BaseModel):
+    """Response model for a collection of users."""
+
+    users: list[UserResponse]
+    total_entries: int

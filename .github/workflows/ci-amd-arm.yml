@@ -40,6 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  UV_VERSION: "0.10.8"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -80,6 +81,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
+      helm-test-kubernetes-versions: ${{ steps.selective-checks.outputs.helm-test-kubernetes-versions }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       individual-providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
@@ -117,6 +119,7 @@ jobs:
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
+      run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
@@ -228,6 +231,7 @@ jobs:
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       canary-run: ${{needs.build-info.outputs.canary-run}}
+      run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -246,7 +250,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
       - name: "Verify release calendar"
         run: uv run dev/verify_release_calendar.py
 
@@ -389,6 +393,7 @@ jobs:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
+      helm-test-kubernetes-versions: ${{ needs.build-info.outputs.helm-test-kubernetes-versions }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >

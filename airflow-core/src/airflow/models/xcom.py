@@ -33,11 +33,10 @@ from sqlalchemy import (
     delete,
     func,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -45,7 +44,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
 
@@ -65,9 +64,7 @@ class XComModel(TaskInstanceDependencies):
 
     dag_run_id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
     task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index: Mapped[int] = mapped_column(
-        Integer, primary_key=True, nullable=False, server_default=text("-1")
-    )
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
@@ -146,14 +143,12 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = select(cls).where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
+        # Use bulk delete for efficiency instead of loading and deleting one by one
+        delete_stmt = delete(cls).where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
         if map_index is not None:
-            query = query.where(cls.map_index == map_index)
+            delete_stmt = delete_stmt.where(cls.map_index == map_index)
 
-        for xcom in session.scalars(query):
-            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
-            session.delete(xcom)
-
+        session.execute(delete_stmt)
         session.commit()
 
     @classmethod
@@ -416,9 +411,24 @@ __compat_imports = {
 
 
 def __getattr__(name: str):
+    import importlib
+    import warnings
+
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     try:
         modpath = __compat_imports[name]
     except KeyError:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
-    globals()[name] = value = getattr(__import__(modpath), name)
+
+    warnings.warn(
+        f"Importing {name} from 'airflow.models.xcom' is deprecated and will be removed in a future version. "
+        f"Please import from '{modpath}' instead.",
+        DeprecatedImportWarning,
+        stacklevel=2,
+    )
+
+    mod = importlib.import_module(modpath)
+    value = getattr(mod, name)
+    globals()[name] = value
     return value

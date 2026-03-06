@@ -61,11 +61,11 @@ class TestJWTRefreshMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_invalid_token(self, mock_refresh_user, middleware, mock_request):
         mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token"}
-        call_next = AsyncMock(return_value=Response())
+        call_next = AsyncMock(return_value=Response(status_code=401))
 
         response = await middleware.dispatch(mock_request, call_next)
-        assert response.status_code == 403
-        assert response.body == b'{"detail":"Invalid JWT token"}'
+        assert response.status_code == 401
+        assert '_token=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax' in response.headers.get("set-cookie")
 
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
@@ -130,3 +130,34 @@ class TestJWTRefreshMiddleware:
         mock_auth_manager.generate_jwt.assert_called_once_with(refreshed_user)
         set_cookie_headers = response.headers.get("set-cookie", "")
         assert f"{COOKIE_NAME_JWT_TOKEN}=new_token" in set_cookie_headers
+
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_cookie_path", return_value="/team-a/")
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
+    @pytest.mark.asyncio
+    async def test_dispatch_cookie_uses_subpath(
+        self,
+        mock_conf,
+        mock_resolve_user_from_token,
+        mock_get_auth_manager,
+        mock_cookie_path,
+        middleware,
+        mock_request,
+        mock_user,
+    ):
+        """When a subpath is configured, set_cookie must include it as path=."""
+        refreshed_user = MagicMock(spec=BaseUser)
+        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token"}
+        mock_resolve_user_from_token.return_value = mock_user
+        mock_auth_manager = MagicMock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        mock_conf.get.return_value = ""
+
+        call_next = AsyncMock(return_value=Response())
+        response = await middleware.dispatch(mock_request, call_next)
+
+        set_cookie_headers = response.headers.get("set-cookie", "")
+        assert "Path=/team-a/" in set_cookie_headers

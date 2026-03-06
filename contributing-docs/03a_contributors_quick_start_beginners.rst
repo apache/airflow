@@ -74,10 +74,10 @@ Option A – Breeze on Your Laptop
 .. code-block:: text
 
     # For IntelliJ IDEA and PyCharm
-    uv run setup_idea.py
+    uv run dev/ide_setup/setup_idea.py
 
     # For VS Code
-    uv run setup_vscode.py
+    uv run dev/ide_setup/setup_vscode.py
 
 3.  **Start the development container** (first run builds the image)
 
@@ -148,7 +148,17 @@ Option B – One-Click GitHub Codespaces
     chmod +x ~/.docker/cli-plugins/docker-compose
     docker compose version
 
-4. Install Breeze and start the development container
+4. Verify Docker is accessible
+
+.. code-block:: bash
+
+      docker info
+
+   If ``docker info`` fails, try rebuilding the Codespace container
+   (Command Palette → *Codespaces: Rebuild Container*) or restarting
+   the Codespace from the GitHub Codespaces dashboard.
+
+5. Install Breeze and start the development container
 
 .. code-block:: bash
 
@@ -157,13 +167,13 @@ Option B – One-Click GitHub Codespaces
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
       uv tool install -e ./dev/breeze
-      uv run setup_vscode.py
+      uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 
-5. Edit a file in the editor, save, and commit via the Source Control sidebar.
+6. Edit a file in the editor, save, and commit via the Source Control sidebar.
    Push when prompted.
 
-6. Press **Create pull request** when GitHub offers.
+7. Press **Create pull request** when GitHub offers.
 
 
 

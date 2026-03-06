@@ -51,6 +51,13 @@ if TYPE_CHECKING:
 
     from requests import Response
 
+    from airflow._shared.logging.remote import (
+        LogMessages,
+        LogResponse,
+        LogSourceInfo,
+        RawLogStream,
+        StreamingLogResponse,
+    )
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -66,17 +73,6 @@ Assuming 50 characters per line, an offset of 10,000,000 can represent approxima
 HEAP_DUMP_SIZE = 5000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
-# These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages before 3.0.4"""
-LogSourceInfo: TypeAlias = list[str]
-"""Information _about_ the log fetching process for display to a user"""
-RawLogStream: TypeAlias = Generator[str, None, None]
-"""Raw log stream, containing unparsed log lines."""
-LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
-"""Legacy log response, containing source information and log messages."""
-StreamingLogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
-"""Streaming log response, containing source information, stream of log lines."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
 LogHandlerOutputStream: TypeAlias = (
@@ -93,6 +89,13 @@ LegacyProvidersLogType: TypeAlias = list["StructuredLogMessage"] | str | list[st
 - For Alibaba Cloud: returns a string.
 - For Redis: returns a list of strings.
 """
+
+_STATES_WITH_COMPLETED_ATTEMPT = frozenset(
+    {
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+    }
+)
 
 
 logger = logging.getLogger(__name__)
@@ -648,7 +651,9 @@ class FileTaskHandler(logging.Handler):
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
-        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+        elif (ti.state not in State.unfinished or ti.state in _STATES_WITH_COMPLETED_ATTEMPT) and not (
+            local_logs or remote_logs
+        ):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker

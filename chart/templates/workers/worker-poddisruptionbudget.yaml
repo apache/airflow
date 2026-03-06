@@ -20,11 +20,24 @@
 ################################
 ## Airflow Worker PodDisruptionBudget
 #################################
+{{- $globals := deepCopy . -}}
+{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $_ := unset $mergedWorkers "celery" -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.celery.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
+  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- with $globals -}}
 {{- if .Values.workers.podDisruptionBudget.enabled }}
+---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker-pdb
+  name: {{ include "airflow.fullname" . }}-worker-pdb{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -40,5 +53,10 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- toYaml .Values.workers.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
+{{- end }}
 {{- end }}

@@ -60,7 +60,7 @@ Or for specific provider and its cross-provider dependencies:
 Next: Configure your IDEA project.
 
 3. The fastest way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
-   ``module.xml`` file using the ``setup_idea.py`` script:
+   ``module.xml`` file using the ``dev/ide_setup/setup_idea.py`` script:
 
    To setup the source roots for all the modules that exist in the project, you can run the following command:
    This needs to done on the Airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
@@ -68,7 +68,7 @@ Next: Configure your IDEA project.
 
     .. code-block:: bash
 
-      $ uv run setup_idea.py
+      $ uv run dev/ide_setup/setup_idea.py
 
    Then Restart the PyCharm/IntelliJ IDEA.
 

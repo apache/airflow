@@ -1,0 +1,20 @@
+AuthManager Backfill permissions are now handled by the ``requires_access_dag`` on the ``DagAccessEntity.Run``
+
+``is_authorized_backfill`` of the ``BaseAuthManager`` interface has been removed. Core will no longer call this method and their
+provider counterpart implementation will be marked as deprecated.
+Permissions for backfill operations are now checked against the ``DagAccessEntity.Run`` permission using the existing
+``requires_access_dag`` decorator. In other words, if a user has permission to run a DAG, they can perform backfill operations on it.
+
+Please update your security policies to ensure that users who need to perform backfill operations have the appropriate ``DagAccessEntity.Run`` permissions. (Users
+having the Backfill permissions without having the DagRun ones will no longer be able to perform backfill operations without any update)
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import enum
 import functools
 import itertools
 import json
@@ -67,6 +68,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk.api.datamodels._generated import DagRunType
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -204,6 +206,19 @@ def _convert_access_control(access_control):
         else:
             updated_access_control[role] = perms
     return updated_access_control
+
+
+def _convert_allowed_run_types(
+    val: DagRunType | Collection[DagRunType] | None,
+) -> frozenset[DagRunType] | None:
+    """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
+    if val is None:
+        return None
+    from airflow.sdk.api.datamodels._generated import DagRunType
+
+    if isinstance(val, enum.Enum):
+        val = [val]
+    return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
 
 def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
@@ -396,6 +411,8 @@ class DAG:
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param allowed_run_types: An optional list or single DagRunType specifying which run types are
+        permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
@@ -503,6 +520,9 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
+    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+        default=None, converter=_convert_allowed_run_types
+    )
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
@@ -589,6 +609,29 @@ class DAG:
     def _validate_tags(self, _, tags: Collection[str]):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+
+    @allowed_run_types.validator
+    def _validate_allowed_run_types(self, _, allowed_run_types):
+        if not allowed_run_types:
+            return
+        from airflow.sdk.api.datamodels._generated import DagRunType
+
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
+                )
+        elif self.timetable.can_be_scheduled:
+            if DagRunType.SCHEDULED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include SCHEDULED when the Dag has a schedule defined"
+                )
+        else:
+            if DagRunType.MANUAL not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include MANUAL when the Dag "
+                    "has no schedule defined (schedule=None)"
+                )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):
@@ -775,36 +818,22 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
+        from airflow.sdk.definitions._internal.templater import create_template_env
 
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        # Default values (for backward compatibility)
-        jinja_env_options = {
-            "loader": jinja2.FileSystemLoader(searchpath),
-            "undefined": self.template_undefined,
-            "extensions": ["jinja2.ext.do"],
-            "cache_size": 0,
-        }
-        if self.jinja_environment_kwargs:
-            jinja_env_options.update(self.jinja_environment_kwargs)
-        env: jinja2.Environment
-        if self.render_template_as_native_obj and not force_sandboxed:
-            env = NativeEnvironment(**jinja_env_options)
-        else:
-            env = SandboxedEnvironment(**jinja_env_options)
-
-        # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
-        # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
-        if self.user_defined_macros:
-            env.globals.update(self.user_defined_macros)
-        if self.user_defined_filters:
-            env.filters.update(self.user_defined_filters)
-
-        return env
+        use_native = self.render_template_as_native_obj and not force_sandboxed
+        return create_template_env(
+            native=use_native,
+            searchpath=searchpath,
+            template_undefined=self.template_undefined,
+            jinja_environment_kwargs=self.jinja_environment_kwargs,
+            user_defined_macros=self.user_defined_macros,
+            user_defined_filters=self.user_defined_filters,
+        )
 
     def set_dependency(self, upstream_task_id, downstream_task_id):
         """Set dependency between two tasks that already have been added to the Dag using add_task()."""
@@ -1540,6 +1569,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
+        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:

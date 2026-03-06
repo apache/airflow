@@ -126,7 +126,8 @@ class ADLSListOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ADLSListOperator`
 
-    :param path: The Azure Data Lake path to find the objects. Supports glob strings (templated)
+    :param file_system_name: Name of the file system (container) in ADLS Gen2.
+    :param path: The directory path within the file system to list files from (templated).
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
     """
 
@@ -134,13 +135,24 @@ class ADLSListOperator(BaseOperator):
     ui_color = "#901dd2"
 
     def __init__(
-        self, *, path: str, azure_data_lake_conn_id: str = DEFAULT_AZURE_DATA_LAKE_CONN_ID, **kwargs
+        self,
+        *,
+        file_system_name: str,
+        path: str,
+        azure_data_lake_conn_id: str = DEFAULT_AZURE_DATA_LAKE_CONN_ID,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.file_system_name = file_system_name
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
     def execute(self, context: Context) -> list:
-        hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
-        self.log.info("Getting list of ADLS files in path: %s", self.path)
-        return hook.list(path=self.path)
+        hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
+        self.log.info(
+            "Getting list of ADLS files in file system %s, path: %s", self.file_system_name, self.path
+        )
+        return hook.list_files_directory(
+            file_system_name=self.file_system_name,
+            directory_name=self.path,
+        )

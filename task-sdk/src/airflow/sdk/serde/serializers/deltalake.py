@@ -37,7 +37,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not isinstance(o, DeltaTable):
         return "", "", 0, False
 
-    from airflow.models.crypto import get_fernet
+    from airflow.sdk.crypto import get_fernet
 
     # we encrypt the information here until we have as part of the
     # storage options can have sensitive information
@@ -58,7 +58,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 def deserialize(cls: type, version: int, data: dict):
     from deltalake.table import DeltaTable
 
-    from airflow.models.crypto import get_fernet
+    from airflow.sdk.crypto import get_fernet
 
     if version > __version__:
         raise TypeError("serialized version is newer than class version")

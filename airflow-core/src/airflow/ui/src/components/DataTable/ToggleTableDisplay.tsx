@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ButtonGroup, IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlignJustify, FiGrid } from "react-icons/fi";
+
+import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 
 type Display = "card" | "table";
 
@@ -31,23 +32,15 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <ButtonGroup attached colorPalette="brand" pb={2} size="sm" variant="outline">
-      <IconButton
-        aria-label={translate("toggleCardView")}
-        onClick={() => setDisplay("card")}
-        title={translate("toggleCardView")}
-        variant={display === "card" ? "solid" : "outline"}
-      >
-        <FiGrid />
-      </IconButton>
-      <IconButton
-        aria-label={translate("toggleTableView")}
-        onClick={() => setDisplay("table")}
-        title={translate("toggleTableView")}
-        variant={display === "table" ? "solid" : "outline"}
-      >
-        <FiAlignJustify />
-      </IconButton>
-    </ButtonGroup>
+    <ButtonGroupToggle
+      isIcon
+      onChange={setDisplay}
+      options={[
+        { label: <FiGrid />, title: translate("toggleCardView"), value: "card" },
+        { label: <FiAlignJustify />, title: translate("toggleTableView"), value: "table" },
+      ]}
+      pb={2}
+      value={display}
+    />
   );
 };
