@@ -591,18 +591,43 @@ class TestSecurityContext:
         assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", docs[0])
 
     # Test securityContexts for worker-kerberos main container
-    def test_worker_kerberos_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        docs = render_chart(
-            values={
-                "workers": {
-                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                }
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {"securityContexts": {"container": {"runAsUser": 10}}},
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
                 },
             },
+        ],
+    )
+    def test_worker_kerberos_container_security_context(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.containers[2].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
 
     @pytest.mark.parametrize(
         "workers_values",

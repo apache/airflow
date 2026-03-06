@@ -63,7 +63,6 @@ PIP package                                 Version required
 ``msgpack``                                 ``>=1.0.0; python_version < "3.13"``
 ``flask-sqlalchemy``                        ``>=3.0.5; python_version < "3.13"``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
-``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
 ``jmespath``                                ``>=0.7.0; python_version < "3.13"``
 ``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
 ``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``

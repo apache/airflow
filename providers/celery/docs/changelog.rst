@@ -34,11 +34,14 @@ Features
 ~~~~~~~~
 
 * ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+* ``Executor Synchronous callback workload (#61153)``
+* ``Enable multi-team in Celery executor (#62534)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``docs(celery): fix wrong link in cli (#62460)``
+* ``Fix Celery worker crash on macOS due to unpicklable local function (#62655)``
 
 Misc
 ~~~~
@@ -48,6 +51,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
 
 3.16.0
 ......

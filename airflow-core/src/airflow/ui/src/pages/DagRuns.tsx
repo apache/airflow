@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
@@ -50,6 +52,8 @@ const {
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE_GTE: END_DATE_GTE_PARAM,
   END_DATE_LTE: END_DATE_LTE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
   PARTITION_KEY_PATTERN: PARTITION_KEY_PATTERN_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
@@ -213,6 +217,8 @@ export const DagRuns = () => {
   const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
   const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
   const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
   const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
@@ -234,6 +240,8 @@ export const DagRuns = () => {
       endDateGte: endDateGte ?? undefined,
       endDateLte: endDateLte ?? undefined,
       limit: pageSize,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
       offset: pageIndex * pageSize,
       orderBy,
       partitionKeyPattern: partitionKeyPattern ?? undefined,

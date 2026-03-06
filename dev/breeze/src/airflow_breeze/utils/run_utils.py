@@ -225,12 +225,11 @@ def assert_prek_installed():
     prek_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
     min_prek_version = prek_config["minimum_prek_version"]
 
-    python_executable = sys.executable
-    get_console().print(f"[info]Checking prek installed for {python_executable}[/]")
+    get_console().print(f"[info]Checking prek installed for {sys.executable}[/]")
     need_to_reinstall_prek = False
     try:
         command_result = run_command(
-            ["prek", "--version"],
+            [sys.executable, "-m", "prek", "--version"],
             capture_output=True,
             text=True,
             check=False,
@@ -261,10 +260,7 @@ def assert_prek_installed():
         need_to_reinstall_prek = True
         get_console().print(f"\n[error]Error checking for prek installation: [/]\n{e}\n")
     if need_to_reinstall_prek:
-        get_console().print("[info]Make sure to install prek. For example by running:\n")
-        get_console().print("   uv tool install prek\n")
-        get_console().print("Or if you prefer pipx:\n")
-        get_console().print("   pipx install prek")
+        get_console().print("[info]Reinstall breeze: 'uv tool install -e ./dev/breeze --force'[/]")
         sys.exit(1)
 
 
@@ -537,6 +533,8 @@ def run_compile_ui_assets(
             "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
+        sys.executable,
+        "-m",
         "prek",
         "run",
         "--hook-stage",
