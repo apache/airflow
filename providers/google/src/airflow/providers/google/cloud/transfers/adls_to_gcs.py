@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import posixpath
+import warnings
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -60,7 +61,9 @@ class ADLSToGCSOperator(ADLSListOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :return: List of destination GCS URIs in the format ``gs://bucket/object``
+    :param return_gcs_uris: If True, returns a list of GCS URIs (e.g., ``gs://bucket/path/file.csv``).
+        If False, returns the legacy list of ADLS file paths. Default (None) is equivalent to False
+        but emits a ``FutureWarning`` because the default will change to True in a future release.
 
     **Examples**:
         The following Operator would copy a single file named
@@ -118,6 +121,7 @@ class ADLSToGCSOperator(ADLSListOperator):
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -132,6 +136,16 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.gcp_conn_id = gcp_conn_id
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
+        if return_gcs_uris is None:
+            self.return_gcs_uris = False
+            warnings.warn(
+                "Returning a list of ADLS file paths from ADLSToGCSOperator is deprecated and will "
+                "change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.return_gcs_uris = return_gcs_uris
 
     @staticmethod
     def _validate_kwargs(kwargs: dict) -> dict:
@@ -147,7 +161,7 @@ class ADLSToGCSOperator(ADLSListOperator):
 
     def execute(self, context: Context) -> list[str]:
         # use the super to list all files in an Azure Data Lake path
-        files = super().execute(context)
+        files: list[str] = super().execute(context)
         g_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
@@ -182,4 +196,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         else:
             self.log.info("In sync, no files needed to be uploaded to GCS")
 
-        return destination_uris
+        if self.return_gcs_uris:
+            return destination_uris
+        return files
