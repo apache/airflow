@@ -198,7 +198,7 @@ export const Logs = () => {
                 <Heading mb={2} size="xl">
                   {taskId}
                 </Heading>
-                <TaskLogHeader {...logHeaderProps} />
+                <TaskLogHeader {...logHeaderProps} isFullscreen />
               </Box>
             </Dialog.Header>
 
