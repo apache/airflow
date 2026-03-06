@@ -86,13 +86,14 @@ class LLMOperator(BaseOperator):
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
         """
-        Return a PydanticAI hook for the configured connection.
+        Return the correct PydanticAIHook subclass for the configured connection.
 
-        If the connection's type matches a registered subclass (e.g.
-        ``pydanticai_azure``), :meth:`~PydanticAIHook.get_conn` will
-        automatically delegate to that subclass on first use.
+        Delegates to :meth:`~PydanticAIHook.for_connection` which looks up
+        the connection's ``conn_type`` and instantiates the matching subclass
+        (e.g. :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook`
+        for ``pydanticai_azure`` connections).
         """
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        return PydanticAIHook.for_connection(self.llm_conn_id, model_id=self.model_id)
 
     def execute(self, context: Context) -> Any:
         agent: Agent[None, Any] = self.llm_hook.create_agent(

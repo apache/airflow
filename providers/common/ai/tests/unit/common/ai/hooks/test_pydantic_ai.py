@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,13 +35,26 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
 class TestPydanticAIHookInit:
     def test_default_conn_id(self):
         hook = PydanticAIHook()
-        assert hook.llm_conn_id == "pydanticai_default"
+        assert hook.llm_conn_id == "pydantic_ai_default"
         assert hook.model_id is None
 
     def test_custom_conn_id(self):
         hook = PydanticAIHook(llm_conn_id="my_llm", model_id="openai:gpt-5.3")
         assert hook.llm_conn_id == "my_llm"
         assert hook.model_id == "openai:gpt-5.3"
+
+    def test_azure_hook_uses_own_default_conn_name(self):
+        """Subclass default_conn_name is used, not the base class value."""
+        hook = PydanticAIAzureHook()
+        assert hook.llm_conn_id == "pydantic_ai_default"
+
+    def test_bedrock_hook_uses_own_default_conn_name(self):
+        hook = PydanticAIBedrockHook()
+        assert hook.llm_conn_id == "pydantic_ai_default"
+
+    def test_vertex_hook_uses_own_default_conn_name(self):
+        hook = PydanticAIVertexHook()
+        assert hook.llm_conn_id == "pydantic_ai_default"
 
 
 class TestPydanticAIHookGetConn:
@@ -211,32 +225,18 @@ class TestPydanticAIHookGetConn:
         mock_infer_provider.assert_called_with("google-gla")
         assert result is mock_fallback_provider
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_base_hook_auto_dispatches_to_azure_subclass(self, mock_infer_provider_class, mock_infer_model):
-        """Base PydanticAIHook auto-dispatches when conn_type is pydanticai_azure."""
-        mock_infer_model.return_value = MagicMock(spec=Model)
-        mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
-
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="azure:gpt-4o")
+    def test_for_connection_returns_azure_subclass(self):
+        """for_connection() returns PydanticAIAzureHook for pydanticai_azure connections."""
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai_azure",
-            password="az-secret",
-            host="https://my-resource.openai.azure.com",
-            extra='{"api_version": "2024-07-01-preview"}',
         )
-        with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+        with patch.object(PydanticAIHook, "get_connection", return_value=conn):
+            hook = PydanticAIHook.for_connection("test_conn", model_id="azure:gpt-4o")
 
-        # Provider factory must have been called with azure_endpoint (not base_url)
-        factory = mock_infer_model.call_args[1]["provider_factory"]
-        factory("azure")
-        mock_infer_provider_class.return_value.assert_called_with(
-            api_key="az-secret",
-            azure_endpoint="https://my-resource.openai.azure.com",
-            api_version="2024-07-01-preview",
-        )
+        assert isinstance(hook, PydanticAIAzureHook)
+        assert hook.llm_conn_id == "test_conn"
+        assert hook.model_id == "azure:gpt-4o"
 
 
 class TestPydanticAIHookCreateAgent:
@@ -516,6 +516,52 @@ class TestPydanticAIBedrockHook:
             aws_secret_access_key="secret",
         )
 
+    def test_get_provider_kwargs_bearer_token(self):
+        """api_key in extra maps to BedrockProvider's bearer-token param."""
+        hook = PydanticAIBedrockHook.__new__(PydanticAIBedrockHook)
+        result = hook._get_provider_kwargs(
+            None,
+            None,
+            {
+                "model": "bedrock:us.anthropic.claude-opus-4-5",
+                "api_key": "bearer-token-value",
+                "region_name": "us-east-1",
+            },
+        )
+        assert result["api_key"] == "bearer-token-value"
+        assert result["region_name"] == "us-east-1"
+        assert "aws_access_key_id" not in result
+
+    def test_get_provider_kwargs_base_url(self):
+        """base_url in extra is forwarded to BedrockProvider."""
+        hook = PydanticAIBedrockHook.__new__(PydanticAIBedrockHook)
+        result = hook._get_provider_kwargs(
+            None,
+            None,
+            {
+                "model": "bedrock:us.anthropic.claude-opus-4-5",
+                "base_url": "https://custom-bedrock.example.com",
+            },
+        )
+        assert result["base_url"] == "https://custom-bedrock.example.com"
+
+    def test_get_provider_kwargs_float_timeouts(self):
+        """Timeout values are coerced to float (JSON delivers them as int)."""
+        hook = PydanticAIBedrockHook.__new__(PydanticAIBedrockHook)
+        result = hook._get_provider_kwargs(
+            None,
+            None,
+            {
+                "model": "bedrock:us.anthropic.claude-opus-4-5",
+                "aws_read_timeout": 60,  # int from JSON
+                "aws_connect_timeout": 10.5,  # float already
+            },
+        )
+        assert result["aws_read_timeout"] == 60.0
+        assert isinstance(result["aws_read_timeout"], float)
+        assert result["aws_connect_timeout"] == 10.5
+        assert isinstance(result["aws_connect_timeout"], float)
+
 
 class TestPydanticAIVertexHook:
     """Tests for PydanticAIVertexHook."""
@@ -532,22 +578,126 @@ class TestPydanticAIVertexHook:
         assert "password" in behaviour["hidden_fields"]
 
     def test_get_provider_kwargs_maps_vertex_fields(self):
+        """project and location are passed directly; api_key absent when not in extra."""
         hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
         result = hook._get_provider_kwargs(
             None,
             None,
             {
                 "model": "google-vertex:gemini-2.0-flash",
-                "project_id": "my-project",
+                "project": "my-project",
                 "location": "us-central1",
-                "service_account_file": "/path/to/sa.json",
             },
         )
-        assert result["project_id"] == "my-project"
+        assert result["project"] == "my-project"
         assert result["location"] == "us-central1"
-        assert result["service_account_file"] == "/path/to/sa.json"
         assert "model" not in result
         assert "api_key" not in result
+        assert "project_id" not in result
+
+    def test_get_provider_kwargs_api_key_gla_mode(self):
+        """api_key in extra is forwarded for Generative Language API mode."""
+        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
+        result = hook._get_provider_kwargs(
+            None,
+            None,
+            {"model": "google-gla:gemini-2.0-flash", "api_key": "gla-key"},
+        )
+        assert result["api_key"] == "gla-key"
+
+    def test_get_provider_kwargs_vertexai_flag(self):
+        """vertexai bool is forwarded and coerced to bool."""
+        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
+        result = hook._get_provider_kwargs(
+            None,
+            None,
+            {"model": "google-vertex:gemini-2.0-flash", "api_key": "key", "vertexai": True},
+        )
+        assert result["vertexai"] is True
+
+    def test_get_provider_kwargs_service_account_file_loads_credentials(self):
+        """service_account_file is loaded into a Credentials object."""
+        mock_sa = MagicMock()
+        mock_creds = MagicMock()
+        mock_sa.Credentials.from_service_account_file.return_value = mock_creds
+
+        mock_google_oauth2 = MagicMock()
+        mock_google_oauth2.service_account = mock_sa
+
+        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
+        with patch.dict(
+            sys.modules,
+            {
+                "google": MagicMock(),
+                "google.oauth2": mock_google_oauth2,
+                "google.oauth2.service_account": mock_sa,
+            },
+        ):
+            result = hook._get_provider_kwargs(
+                None,
+                None,
+                {
+                    "model": "google-vertex:gemini-2.0-flash",
+                    "project": "my-project",
+                    "service_account_file": "/path/to/sa.json",
+                },
+            )
+
+        mock_sa.Credentials.from_service_account_file.assert_called_once_with(
+            "/path/to/sa.json",
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        assert result["credentials"] is mock_creds
+        assert result["project"] == "my-project"
+        assert "service_account_file" not in result
+
+    def test_get_provider_kwargs_service_account_info_loads_credentials(self):
+        """service_account_info dict is loaded into a Credentials object."""
+        mock_sa = MagicMock()
+        mock_creds = MagicMock()
+        mock_sa.Credentials.from_service_account_info.return_value = mock_creds
+
+        mock_google_oauth2 = MagicMock()
+        mock_google_oauth2.service_account = mock_sa
+
+        sa_info_dict = {"type": "service_account", "project_id": "my-project", "private_key": "..."}
+        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
+        with patch.dict(
+            sys.modules,
+            {
+                "google": MagicMock(),
+                "google.oauth2": mock_google_oauth2,
+                "google.oauth2.service_account": mock_sa,
+            },
+        ):
+            result = hook._get_provider_kwargs(
+                None,
+                None,
+                {
+                    "model": "google-vertex:gemini-2.0-flash",
+                    "service_account_info": sa_info_dict,
+                },
+            )
+
+        mock_sa.Credentials.from_service_account_info.assert_called_once_with(
+            sa_info_dict,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        assert result["credentials"] is mock_creds
+        assert "service_account_info" not in result
+
+    def test_get_provider_kwargs_raises_if_both_sa_sources_set(self):
+        """Providing both service_account_file and service_account_info raises ValueError."""
+        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
+        with pytest.raises(ValueError, match="not both"):
+            hook._get_provider_kwargs(
+                None,
+                None,
+                {
+                    "service_account_file": "/path/to/sa.json",
+                    "service_account_info": {"type": "service_account"},
+                },
+            )
 
     def test_get_provider_kwargs_returns_empty_for_adc(self):
         """When no keys are in extra, return {} so ADC path is taken."""
@@ -583,7 +733,7 @@ class TestPydanticAIVertexHook:
             extra=json.dumps(
                 {
                     "model": "google-vertex:gemini-2.0-flash",
-                    "project_id": "my-project",
+                    "project": "my-project",
                     "location": "europe-west4",
                 }
             ),
@@ -593,4 +743,4 @@ class TestPydanticAIVertexHook:
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("google-vertex")
-        mock_provider_cls.assert_called_with(project_id="my-project", location="europe-west4")
+        mock_provider_cls.assert_called_with(project="my-project", location="europe-west4")
