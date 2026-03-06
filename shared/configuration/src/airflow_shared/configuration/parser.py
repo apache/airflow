@@ -323,7 +323,11 @@ class AirflowConfigParser(ConfigParser):
 
     def get_from_provider_cfg_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
-        return self._provider_cfg_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
+        raw = kwargs.get("raw", False)
+        vars_ = kwargs.get("vars")
+        return self._provider_cfg_config_fallback_default_values.get(
+            section, key, fallback=None, raw=raw, vars=vars_
+        )
 
     @cached_property
     def _provider_metadata_config_fallback_default_values(self) -> ConfigParser:
@@ -335,8 +339,10 @@ class AirflowConfigParser(ConfigParser):
 
     def get_from_provider_metadata_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider metadata config fallback default values."""
+        raw = kwargs.get("raw", False)
+        vars_ = kwargs.get("vars")
         return self._provider_metadata_config_fallback_default_values.get(
-            section, key, fallback=None, **kwargs
+            section, key, fallback=None, raw=raw, vars=vars_
         )
 
     @property

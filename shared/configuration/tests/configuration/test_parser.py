@@ -37,6 +37,22 @@ from airflow_shared.configuration.parser import (
 )
 
 
+class _NoOpProvidersManager:
+    """Stub providers manager for tests — no providers, no side effects."""
+
+    @property
+    def provider_configs(self):
+        return []
+
+    @property
+    def already_initialized_provider_configs(self):
+        return []
+
+
+def _create_empty_config_parser(desc: dict) -> ConfigParser:
+    return ConfigParser()
+
+
 class AirflowConfigParser(_SharedAirflowConfigParser):
     """Test parser that extends shared parser for testing."""
 
@@ -53,7 +69,15 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         _default_values.add_section("test")
         _default_values.set("test", "key1", "default_value")
         _default_values.set("test", "key2", "123")
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        super().__init__(
+            configuration_description,
+            _default_values,
+            _NoOpProvidersManager,
+            _create_empty_config_parser,
+            "",
+            *args,
+            **kwargs,
+        )
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
@@ -861,7 +885,14 @@ existing_list = one,two,three
                 configure_parser_from_configuration_description(
                     _default_values, configuration_description, {}
                 )
-                _SharedAirflowConfigParser.__init__(self, configuration_description, _default_values)
+                _SharedAirflowConfigParser.__init__(
+                    self,
+                    configuration_description,
+                    _default_values,
+                    _NoOpProvidersManager,
+                    _create_empty_config_parser,
+                    "",
+                )
 
         test_conf = TestConfigParser()
         deprecated_conf_list = [
