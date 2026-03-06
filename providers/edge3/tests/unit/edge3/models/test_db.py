@@ -226,8 +226,9 @@ class TestEdgeDBManager:
 
         # Simulate pre-alembic state: tables exist but no version table and no concurrency column
         with settings.engine.begin() as conn:
-            conn.execute(text("DELETE FROM alembic_version_edge3"))
             inspector = inspect(conn)
+            if inspector.has_table("alembic_version_edge3"):
+                conn.execute(text("DELETE FROM alembic_version_edge3"))
             if "concurrency" in {col["name"] for col in inspector.get_columns("edge_worker")}:
                 from alembic.migration import MigrationContext
                 from alembic.operations import Operations
