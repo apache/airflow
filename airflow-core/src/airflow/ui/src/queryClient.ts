@@ -57,7 +57,7 @@ const handle403Error = (error: unknown) => {
     if (active403ToastId === undefined || !toaster.isActive(active403ToastId)) {
       active403ToastId = toaster.create({
         description: i18n.t("errors.forbidden.description"),
-        title: i18n.t("errors.forbidden.title", "Insufficient Permissions"),
+        title: i18n.t("errors.forbidden.title"),
         type: "error",
       });
     }

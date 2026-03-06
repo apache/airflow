@@ -103,6 +103,12 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Insufficient Permissions"
+    }
+  },
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
