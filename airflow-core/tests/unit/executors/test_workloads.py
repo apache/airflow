@@ -62,4 +62,3 @@ def test_token_excluded_from_workload_repr():
     # But token should still be accessible as an attribute
     assert workload.token == fake_token
 
-
