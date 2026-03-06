@@ -1028,11 +1028,11 @@ class TestDeserializeUserSessionCleanup:
         user = Mock()
         user.id = 99996
         original_exc = OperationalError("connection dropped", None, Exception())
-        second_result = Mock()
-        second_result.one.return_value = user
+        retry_query_result = Mock()
+        retry_query_result.one.return_value = user
 
         mock_session = MagicMock(spec=["scalars", "remove"])
-        mock_session.scalars.side_effect = [original_exc, second_result]
+        mock_session.scalars.side_effect = [original_exc, retry_query_result]
         auth_manager_with_appbuilder.cache.pop(user.id, None)
 
         with self._patched_session(auth_manager_with_appbuilder, mock_session):
