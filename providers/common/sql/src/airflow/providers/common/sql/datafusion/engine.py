@@ -50,12 +50,14 @@ class DataFusionEngine(LoggingMixin):
         if not isinstance(datasource_config, DataSourceConfig):
             raise ValueError("datasource_config must be of type DataSourceConfig")
 
-        if datasource_config.storage_type == StorageType.LOCAL:
-            connection_config = None
-        else:
-            connection_config = self._get_connection_config(datasource_config.conn_id)
+        if not datasource_config.is_table_provider:
+            if datasource_config.storage_type == StorageType.LOCAL:
+                connection_config = None
+            else:
+                connection_config = self._get_connection_config(datasource_config.conn_id)
 
-        self._register_object_store(datasource_config, connection_config)
+            self._register_object_store(datasource_config, connection_config)
+
         self._register_data_source_format(datasource_config)
 
     def _register_object_store(
@@ -89,10 +91,9 @@ class DataFusionEngine(LoggingMixin):
                 f"Table {datasource_config.table_name} already registered for {self.registered_tables[datasource_config.table_name]}, please choose different name"
             )
 
-        format_cls = get_format_handler(datasource_config.format, datasource_config.options)
-        format_cls.register_data_source_format(
-            self.session_context, datasource_config.table_name, datasource_config.uri
-        )
+        format_cls = get_format_handler(datasource_config)
+
+        format_cls.register_data_source_format(self.session_context)
         self.registered_tables[datasource_config.table_name] = datasource_config.uri
         self.log.info(
             "Registered data source format %s for table: %s",
