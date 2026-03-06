@@ -17,10 +17,10 @@
  * under the License.
  */
 import { HStack, Text, Link } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
-import dayjs from "dayjs";
 
 import { useAssetServiceGetDagAssetQueuedEvents, useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
@@ -33,7 +33,6 @@ type Props = {
   readonly dagId: string;
   readonly timetableSummary: string | null;
 };
-
 
 export const AssetSchedule = ({ assetExpression, dagId, timetableSummary }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
