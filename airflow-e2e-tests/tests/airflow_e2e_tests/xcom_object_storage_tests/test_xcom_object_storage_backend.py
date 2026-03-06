@@ -59,7 +59,7 @@ class TestXComObjectStorageBackend:
                 try:
                     print(f"\nLogs for task {task_id} (try {try_number}):")
                     task_logs_resp = self.airflow_client.get_task_logs(
-                        dag_id=self.dag_id, task_id="bash_pull", run_id=dag_run_id, try_number=try_number
+                        dag_id=self.dag_id, task_id=task_id, run_id=dag_run_id, try_number=try_number
                     )
                     pprint(task_logs_resp)
                 except Exception as e:
