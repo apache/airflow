@@ -261,6 +261,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "description": dag.description,
         "timetable_summary": core_timetable.summary,
         "timetable_description": core_timetable.description,
+        "timetable_partitioned": core_timetable.partitioned,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
