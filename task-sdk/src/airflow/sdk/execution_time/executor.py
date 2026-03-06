@@ -96,7 +96,7 @@ class HybridExecutor:
 async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     # set-up
-    task = cast(BaseAsyncOperator, ti.task)
+    task = cast("BaseAsyncOperator", ti.task)
     execute = task.aexecute  # here we must use aexecute instead of execute
 
     # async tasks can't originate from deferred operator, so no need to check next_method
