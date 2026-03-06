@@ -779,6 +779,34 @@ class TestDagRun:
         task = dagrun.get_task_instances()[0]
         assert task.queue == "queue1"
 
+    @mock.patch.object(settings, "task_instance_mutation_hook", autospec=True)
+    def test_task_instance_mutation_hook_has_run_id(self, mock_hook, session):
+        """Test that task_instance_mutation_hook receives a TI with run_id set (not None).
+
+        Regression test for https://github.com/apache/airflow/issues/61945
+        """
+        observed_run_ids = []
+
+        def mutate_task_instance(task_instance):
+            observed_run_ids.append(task_instance.run_id)
+            if task_instance.run_id and task_instance.run_id.startswith("manual__"):
+                task_instance.pool = "manual_pool"
+
+        mock_hook.side_effect = mutate_task_instance
+
+        dag = DAG(
+            "test_mutation_hook_run_id",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        )
+        dag.add_task(EmptyOperator(task_id="mutated_task", owner="test"))
+
+        dagrun = self.create_dag_run(dag, session=session)
+        # The hook should have been called during TI creation with run_id set
+        assert any(rid is not None for rid in observed_run_ids), (
+            f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
+        )
+
     @pytest.mark.parametrize(
         "prev_ti_state, is_ti_success",
         [
