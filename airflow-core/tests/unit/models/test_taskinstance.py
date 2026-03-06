@@ -1576,8 +1576,11 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        assert ti1.get_num_running_task_instances(session=session) == 1
-        assert ti2.get_num_running_task_instances(session=session) == 1
+        # get_num_running_task_instances now counts RUNNING + QUEUED + DEFERRED.
+        # ti1 (RUNNING) and ti2 (QUEUED) share the same dag_id/task_id, so both
+        # see a count of 2.  ti3 is in a different dag, so it sees 1.
+        assert ti1.get_num_running_task_instances(session=session) == 2
+        assert ti2.get_num_running_task_instances(session=session) == 2
         assert ti3.get_num_running_task_instances(session=session) == 1
 
     def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
@@ -1619,15 +1622,50 @@ class TestTaskInstance:
 
         session.commit()
 
-        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        # With QUEUED now counted, task_1 in each dagrun has 2 (1 RUNNING + 1 QUEUED)
+        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 2
+        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 2
         assert tis1[("task_2", 0)].get_num_running_task_instances(session=session) == 2
         assert tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
 
-        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 2
+        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 2
         assert tis2[("task_2", 0)].get_num_running_task_instances(session=session) == 2
         assert tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+
+    def test_get_num_running_task_instances_includes_deferred(self, dag_maker, create_task_instance):
+        """
+        get_num_running_task_instances should count DEFERRED TIs.
+
+        Regression test for https://github.com/apache/airflow/issues/61700
+        """
+        session = settings.Session()
+
+        ti1 = create_task_instance(
+            dag_id="test_get_num_running_task_instances_deferred", task_id="task1", session=session
+        )
+
+        logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        dr = dag_maker.create_dagrun(
+            logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
+            state=None,
+            run_id="2",
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        ti2 = dr.task_instances[0]
+        ti2.task = ti1.task
+
+        ti1.state = TaskInstanceState.RUNNING
+        ti2.state = TaskInstanceState.DEFERRED
+        session.commit()
+
+        # Both RUNNING and DEFERRED should be counted
+        assert ti1.get_num_running_task_instances(session=session) == 2
+        assert ti2.get_num_running_task_instances(session=session) == 2
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
