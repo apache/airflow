@@ -163,7 +163,7 @@ class TrinoHook(DbApiHook):
             raise AirflowException(
                 f"Multiple authentication methods specified: {', '.join(auth_methods)}. Only one is allowed."
             )
-        if db.password:
+        if db.password and db.login:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -183,8 +183,8 @@ class TrinoHook(DbApiHook):
             auth = trino.auth.JWTAuthentication(token=token)
         elif extra.get("auth") == "certs":
             auth = trino.auth.CertificateAuthentication(
-                extra.get("certs__client_cert_path"),
-                extra.get("certs__client_key_path"),
+                extra["certs__client_cert_path"],
+                extra["certs__client_key_path"],
             )
         elif extra.get("auth") == "kerberos":
             auth = trino.auth.KerberosAuthentication(
