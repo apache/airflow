@@ -278,9 +278,9 @@ def _should_retry_api_request(exception: BaseException) -> bool:
 
 
 # API Client Retry Configuration
-API_RETRIES = os.getenv("AIRFLOW_CLI_API_RETRIES") or 3
-API_RETRY_WAIT_MIN = os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN") or 1
-API_RETRY_WAIT_MAX = os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX") or 10
+API_RETRIES = int(os.getenv("AIRFLOW_CLI_API_RETRIES", "3"))
+API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN", "1"))
+API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX", "10"))
 
 
 class Client(httpx.Client):
