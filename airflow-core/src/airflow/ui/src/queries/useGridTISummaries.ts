@@ -16,51 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { useGridServiceGetGridTiSummaries } from "openapi/queries";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-export const useGridTiSummaries = ({
-  dagId,
-  enabled,
-  isSelected,
-  runId,
-  state,
-}: {
-  dagId: string;
-  enabled?: boolean;
-  isSelected?: boolean;
-  runId: string;
-  state?: TaskInstanceState | null | undefined;
-}) => {
-  const baseRefetchInterval = useAutoRefresh({ dagId });
-  const slowRefreshMultiplier = 5;
-  const refetchInterval =
-    typeof baseRefetchInterval === "number"
-      ? baseRefetchInterval * (isSelected ? 1 : slowRefreshMultiplier)
-      : baseRefetchInterval;
-
-  const { data: gridTiSummaries, ...rest } = useGridServiceGetGridTiSummaries(
-    {
-      dagId,
-      runId,
-    },
-    undefined,
-    {
-      enabled: Boolean(runId) && Boolean(dagId) && enabled,
-      placeholderData: (prev) => prev,
-      refetchInterval: (query) =>
-        ((state !== undefined && isStatePending(state)) ||
-          query.state.data?.task_instances.some((ti) => isStatePending(ti.state))) &&
-        refetchInterval,
-    },
-  );
-
-  return { data: gridTiSummaries, ...rest };
-};
 
 /**
  * Streams TI summaries for all grid runs over a single HTTP connection (NDJSON).
@@ -84,14 +44,6 @@ export const useGridTiSummariesStream = ({
   const [summariesByRunId, setSummariesByRunId] = useState<Map<string, GridTISummaries>>(new Map());
   const [isStreaming, setIsStreaming] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
-  // Mutated during render (not inside an effect) so the per-run fallback in
-  // TaskInstancesColumn is suppressed on the very same render that runIds
-  // first becomes non-empty — before useEffect has a chance to fire.
-  const hasRunsRef = useRef(false);
-
-  if (runIds.length > 0) {
-    hasRunsRef.current = true;
-  }
 
   const baseRefetchInterval = useAutoRefresh({ dagId });
   const hasActiveRuns = states?.some((s) => s !== undefined && isStatePending(s)) ?? false;
@@ -169,5 +121,5 @@ export const useGridTiSummariesStream = ({
     return () => clearInterval(timer);
   }, [hasActiveRuns, baseRefetchInterval]);
 
-  return { isStreaming: isStreaming || hasRunsRef.current, summariesByRunId };
+  return { summariesByRunId };
 };
