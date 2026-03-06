@@ -12,6 +12,7 @@
     "maxRuns": "Máximo de Execuções Ativas",
     "missingAndErroredRuns": "Execuções Faltando e com Erro",
     "missingRuns": "Execuções Faltando",
+    "permissionDenied": "Dry run falhou: o usuário não tem permissão para criar backfills.",
     "reprocessBehavior": "Comportamento de Reprocessamento",
     "run": "Executar Backfill",
     "selectDescription": "Executar este Dag para um intervalo de datas",
@@ -55,6 +56,13 @@
     "warning_one": "1 Aviso",
     "warning_other": "{{count}} Avisos",
     "warning_zero": "Nenhum aviso"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Formato de data inválido.",
+      "invalidTimeFormat": "Formato de hora inválido.",
+      "startBeforeEnd": "A data/hora de início deve ser anterior à data/hora de término"
+    }
   },
   "durationChart": {
     "duration": "Duração (segundos)",
@@ -123,22 +131,40 @@
   "sortedDescending": "Ordenado em ordem decrescente",
   "sortedUnsorted": "Não ordenado",
   "taskTries": "Tentativas de Tarefa",
+  "taskTryPlaceholder": "Tentativa da tarefa",
+  "team": {
+    "selector": {
+      "helperText": "Opcional. Restrinja o uso a uma equipe específica.",
+      "label": "Equipe",
+      "placeHolder": "Selecionar uma equipe"
+    }
+  },
   "toggleCardView": "Mostrar visualização de cartão",
   "toggleTableView": "Mostrar visualização de tabela",
   "triggerDag": {
     "button": "Acionar",
+    "dataInterval": "Intervalo de dados",
+    "dataIntervalAuto": "Inferido da data lógica e do cronograma",
+    "dataIntervalManual": "Especificar manualmente",
+    "intervalEnd": "Fim",
+    "intervalStart": "Início",
     "loading": "Carregando informações do Dag...",
     "loadingFailed": "Falha ao carregar informações do Dag. Por favor, tente novamente.",
+    "manualRunDenied": "Execuções manuais não são permitidas para este DAG",
     "runIdHelp": "Opcional - será gerado se não for fornecido",
     "selectDescription": "Acionar uma única execução deste Dag",
     "selectLabel": "Execução Única",
     "title": "Acionar Dag",
     "toaster": {
+      "error": {
+        "title": "Falha ao acionar o DAG"
+      },
       "success": {
         "description": "A execução do Dag foi acionada com sucesso.",
         "title": "Execução do Dag acionada"
       }
     },
+    "triggerAgainWithConfig": "Acionar novamente com esta configuração",
     "unpause": "Despausar {{dagDisplayName}} ao acionar"
   },
   "trimText": {
@@ -154,6 +180,7 @@
     "versionId": "ID da Versão"
   },
   "versionSelect": {
+    "allVersions": "Todas as versões",
     "dagVersion": "Versão do Dag",
     "versionCode": "v{{versionCode}}"
   }

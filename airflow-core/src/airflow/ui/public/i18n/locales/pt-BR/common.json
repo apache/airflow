@@ -28,6 +28,7 @@
   "backfill_zero": "Nenhum backfill",
   "browse": {
     "auditLog": "Log de Auditoria",
+    "jobs": "Jobs",
     "requiredActions": "Ações Necessárias",
     "xcoms": "XComs"
   },
@@ -70,6 +71,8 @@
     "dataIntervalEnd": "Fim do Intervalo de Dados",
     "dataIntervalStart": "Início do Intervalo de Dados",
     "lastSchedulingDecision": "Última Decisão de Agendamento",
+    "mappedPartitionKey": "Chave de partição mapeada",
+    "partitionKey": "Chave de partição",
     "queuedAt": "Enfileirado Em",
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
@@ -85,6 +88,11 @@
   "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
+  "delete": "Excluir",
+  "diff": "Diff",
+  "diffCompareWith": "Comparar com",
+  "diffExit": "Sair do diff",
+  "diffSelectVersionToCompare": "Selecionar versão para comparar",
   "direction": "Direção",
   "docs": {
     "documentation": "Documentação",
@@ -97,11 +105,13 @@
     "tooltip": "Pressione {{hotkey}} para baixar os logs"
   },
   "duration": "Duração",
+  "edit": "Editar",
   "endDate": "Data Final",
   "error": {
     "back": "Voltar",
     "defaultMessage": "Ocorreu um erro inesperado",
     "home": "Início",
+    "invalidUrl": "Página não encontrada. Verifique a URL e tente novamente.",
     "notFound": "Página Não Encontrada",
     "title": "Erro"
   },
@@ -122,22 +132,27 @@
   "filters": {
     "durationFrom": "Duração De",
     "durationTo": "Duração Até",
+    "endTime": "Hora de término",
     "logicalDateFrom": "Data Lógica De",
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
-    "runAfterTo": "Executar Depois Para"
+    "runAfterTo": "Executar Depois Para",
+    "selectDateRange": "Selecionar intervalo de datas",
+    "startTime": "Hora de início"
   },
   "logicalDate": "Data Lógica",
   "logout": "Sair",
   "logoutConfirmation": "Você está prestes a sair do aplicativo.",
   "mapIndex": "Índice do Mapa",
   "modal": {
+    "add": "Adicionar",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Excluir",
       "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
-    }
+    },
+    "save": "Salvar"
   },
   "nav": {
     "admin": "Administração",
@@ -158,6 +173,17 @@
     "placeholder": "Adicionar uma nota...",
     "taskInstance": "Nota da Instância de Tarefa"
   },
+  "partitionedDagRun_many": "Execuções particionadas do DAG",
+  "partitionedDagRun_one": "Execução particionada do DAG",
+  "partitionedDagRun_other": "Execuções particionadas do DAG",
+  "partitionedDagRun_zero": "Nenhuma execução particionada do DAG",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Eventos de asset recebidos"
+  },
+  "pendingDagRun_many": "{{count}} execuções do DAG pendentes",
+  "pendingDagRun_one": "{{count}} execução do DAG pendente",
+  "pendingDagRun_other": "{{count}} execuções do DAG pendentes",
+  "pendingDagRun_zero": "Nenhuma execução do DAG pendente",
   "pools": {
     "deferred": "Deferido",
     "open": "Aberto",
@@ -193,6 +219,7 @@
   },
   "selectLanguage": "Selecionar Idioma",
   "showDetailsPanel": "Mostrar Painel de Detalhes",
+  "signedInAs": "Conectado como",
   "source": {
     "hide": "Ocultar",
     "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
@@ -209,6 +236,7 @@
     "failed": "Falha",
     "no_status": "Sem Status",
     "none": "Sem Status",
+    "open": "Aberto",
     "planned": "Planejado",
     "queued": "Enfileirado",
     "removed": "Removido",
