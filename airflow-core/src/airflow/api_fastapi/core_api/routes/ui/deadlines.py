@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, cast
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -27,18 +28,95 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.deadline import DeadlineCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
+    DeadlineAlertCollectionResponse,
+    DeadlineCollectionResponse,
+    DeadlineWithDagRunCollectionResponse,
+)
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.serialized_dag import SerializedDagModel
 
-deadlines_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines", tags=["Deadlines"])
+deadlines_router = AirflowRouter(tags=["Deadlines"])
 
 
 @deadlines_router.get(
-    "",
+    "/deadlines",
+    dependencies=[
+        Depends(
+            requires_access_dag(
+                method="GET",
+                access_entity=DagAccessEntity.RUN,
+            )
+        ),
+    ],
+)
+def get_deadlines(
+    session: SessionDep,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    readable_dags_filter: ReadableDagsFilterDep,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "deadline_time", "created_at", "missed"],
+                Deadline,
+                to_replace={
+                    "dag_id": DagRun.dag_id,
+                    "dag_run_id": DagRun.run_id,
+                    "alert_name": DeadlineAlert.name,
+                },
+            ).dynamic_depends(default="deadline_time")
+        ),
+    ],
+    dag_id: str | None = Query(default=None),
+    missed: bool | None = Query(default=None),
+    deadline_time_gte: datetime | None = Query(default=None),
+    deadline_time_lte: datetime | None = Query(default=None),
+) -> DeadlineWithDagRunCollectionResponse:
+    """Get all deadlines across DAG runs, with optional filtering."""
+    permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
+
+    query = (
+        select(Deadline)
+        .join(Deadline.dagrun)
+        .outerjoin(Deadline.deadline_alert)
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
+        .options(joinedload(Deadline.dagrun), joinedload(Deadline.deadline_alert))
+    )
+
+    if dag_id is not None:
+        query = query.where(DagRun.dag_id == dag_id)
+
+    if missed is not None:
+        query = query.where(Deadline.missed == missed)
+
+    if deadline_time_gte is not None:
+        query = query.where(Deadline.deadline_time >= deadline_time_gte)
+
+    if deadline_time_lte is not None:
+        query = query.where(Deadline.deadline_time <= deadline_time_lte)
+
+    deadlines_select, total_entries = paginated_select(
+        statement=query,
+        filters=None,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    deadlines = session.scalars(deadlines_select).unique()
+
+    return DeadlineWithDagRunCollectionResponse(deadlines=deadlines, total_entries=total_entries)
+
+
+@deadlines_router.get(
+    "/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -102,3 +180,64 @@ def get_dag_run_deadlines(
     deadlines = session.scalars(deadlines_select)
 
     return DeadlineCollectionResponse(deadlines=deadlines, total_entries=total_entries)
+
+
+@deadlines_router.get(
+    "/dags/{dag_id}/deadlineAlerts",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[
+        Depends(
+            requires_access_dag(
+                method="GET",
+            )
+        ),
+    ],
+)
+def get_dag_deadline_alerts(
+    dag_id: str,
+    session: SessionDep,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "created_at", "name", "interval"],
+                DeadlineAlert,
+            ).dynamic_depends(default="created_at")
+        ),
+    ],
+) -> DeadlineAlertCollectionResponse:
+    """Get all deadline alerts defined on a DAG."""
+    serialized_dag = session.scalar(
+        select(SerializedDagModel)
+        .where(SerializedDagModel.dag_id == dag_id)
+        .order_by(SerializedDagModel.id.desc())
+    )
+
+    if not serialized_dag:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No DAG found with dag_id={dag_id}",
+        )
+
+    query = select(DeadlineAlert).where(
+        DeadlineAlert.serialized_dag_id == serialized_dag.id,
+    )
+
+    alerts_select, total_entries = paginated_select(
+        statement=query,
+        filters=None,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    alerts = session.scalars(alerts_select)
+
+    return DeadlineAlertCollectionResponse(deadline_alerts=alerts, total_entries=total_entries)
