@@ -230,8 +230,7 @@ class DictOfListsExpandInput(ExpandInput):
         keys = list(resolved)
         for items in zip(
             *(
-                v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes))
-                else (v,)
+                v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
                 for v in (resolved[k] for k in keys)
             )
         ):
