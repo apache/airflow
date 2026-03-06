@@ -96,6 +96,8 @@ class ExpandInput(ABC, ResolveMixin):
 
 
 class DecoratedExpandInput(ExpandInput):
+    EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
+
     def __init__(self, expand_input: ExpandInput):
         self.delegate = expand_input
 
@@ -222,19 +224,18 @@ class DictOfListsExpandInput(ExpandInput):
                 yield from x.iter_references()
 
     def iter_values(self, context: Context) -> Iterable[Any]:
-        def resolve(value: Any) -> Any:
-            if isinstance(value, XComArg):
-                return value.iter_values(context=context)
-            return value
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
-        for key, value in self.value.items():
-            resolved_value = resolve(value=value)
-
-            if not isinstance(resolved_value, (Sequence, Iterable)) or isinstance(resolved_value, str):
-                yield {key: resolved_value}
-            else:
-                for item in resolved_value:
-                    yield {key: item}
+        resolved = {k: v.resolve(context) if isinstance(v, XComArg) else v for k, v in self.value.items()}
+        keys = list(resolved)
+        for items in zip(
+            *(
+                v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes))
+                else (v,)
+                for v in (resolved[k] for k in keys)
+            )
+        ):
+            yield dict(zip(keys, items))
 
     def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
@@ -292,8 +293,16 @@ class ListOfDictsExpandInput(ExpandInput):
 
     def iter_values(self, context: Context) -> Iterable[Any]:
         if isinstance(self.value, XComArg):
-            return self.value.iter_values(context)
-        return self.value
+            resolved = self.value.resolve(context)
+            for item in resolved:
+                yield item
+        else:
+            for item in self.value:
+                if isinstance(item, XComArg):
+                    for resolved_item in item.resolve(context):
+                        yield resolved_item
+                else:
+                    yield item
 
     def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
