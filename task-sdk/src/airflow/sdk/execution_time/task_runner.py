@@ -733,9 +733,7 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(
-                    delay.total_seconds() * (2 ** (self.try_number - 1))
-                )
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(
