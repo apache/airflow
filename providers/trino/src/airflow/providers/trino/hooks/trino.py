@@ -148,7 +148,7 @@ class TrinoHook(DbApiHook):
         """Return a connection object."""
         db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
-        auth = None
+        auth: trino.auth.Authentication | None = None
         user = db.login
         auth_methods = []
         if db.password:
