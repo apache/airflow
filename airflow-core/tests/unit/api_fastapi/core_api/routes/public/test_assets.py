@@ -1196,15 +1196,15 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         response = unauthorized_test_client.get("/dags/random/assets/queuedEvents")
         assert response.status_code == 403
 
-    def test_should_respond_404(self, test_client):
+    def test_should_respond_200_empty(self, test_client):
         dag_id = "not_exists"
 
         response = test_client.get(
             f"/dags/{dag_id}/assets/queuedEvents",
         )
 
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
+        assert response.status_code == 200
+        assert response.json() == {"queued_events": [], "total_entries": 0}
 
 
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -1477,10 +1477,10 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         response = unauthorized_test_client.get("/assets/1/queuedEvents")
         assert response.status_code == 403
 
-    def test_should_respond_404(self, test_client):
+    def test_should_respond_200_empty(self, test_client):
         response = test_client.get("/assets/1/queuedEvents")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
+        assert response.status_code == 200
+        assert response.json() == {"queued_events": [], "total_entries": 0}
 
 
 class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):

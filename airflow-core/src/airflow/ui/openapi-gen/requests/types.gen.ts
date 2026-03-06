@@ -3855,10 +3855,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -3933,10 +3929,6 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
