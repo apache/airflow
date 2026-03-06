@@ -1900,6 +1900,19 @@ class BulkCreateActionBulkTaskInstanceBody(BaseModel):
     action_on_existence: BulkActionOnExistence | None = "fail"
 
 
+class BulkCreateActionDAGRunPatchBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[DAGRunPatchBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1911,6 +1924,40 @@ class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
         list[str | BulkTaskInstanceBody],
         Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
     ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionDAGRunPatchBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | DAGRunPatchBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkUpdateActionDAGRunPatchBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[DAGRunPatchBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -2046,6 +2093,20 @@ class BulkBodyBulkTaskInstanceBody(BaseModel):
             BulkCreateActionBulkTaskInstanceBody
             | BulkUpdateActionBulkTaskInstanceBody
             | BulkDeleteActionBulkTaskInstanceBody
+        ],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyDAGRunPatchBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionDAGRunPatchBody
+            | BulkUpdateActionDAGRunPatchBody
+            | BulkDeleteActionDAGRunPatchBody
         ],
         Field(title="Actions"),
     ]

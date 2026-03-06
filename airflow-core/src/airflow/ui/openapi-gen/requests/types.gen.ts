@@ -194,6 +194,10 @@ export type BulkBody_ConnectionBody_ = {
     actions: Array<(BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_)>;
 };
 
+export type BulkBody_DAGRunPatchBody_ = {
+    actions: Array<(BulkCreateAction_DAGRunPatchBody_ | BulkUpdateAction_DAGRunPatchBody_ | BulkDeleteAction_DAGRunPatchBody_)>;
+};
+
 export type BulkBody_PoolBody_ = {
     actions: Array<(BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_)>;
 };
@@ -223,6 +227,18 @@ export type BulkCreateAction_ConnectionBody_ = {
      * A list of entities to be created.
      */
     entities: Array<ConnectionBody>;
+    action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<DAGRunPatchBody>;
     action_on_existence?: BulkActionOnExistence;
 };
 
@@ -271,6 +287,18 @@ export type BulkDeleteAction_ConnectionBody_ = {
      * A list of entity id/key or entity objects to be deleted.
      */
     entities: Array<(string | ConnectionBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | DAGRunPatchBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -361,6 +389,22 @@ export type BulkUpdateAction_ConnectionBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<ConnectionBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_DAGRunPatchBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<DAGRunPatchBody>;
     /**
      * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
      */
@@ -2496,20 +2540,12 @@ export type PatchDagRunData = {
 
 export type PatchDagRunResponse = DAGRunResponse;
 
-export type GetUpstreamAssetEventsData = {
+export type BulkDagRunsData = {
     dagId: string;
-    dagRunId: string;
+    requestBody: BulkBody_DAGRunPatchBody_;
 };
 
-export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
-
-export type ClearDagRunData = {
-    dagId: string;
-    dagRunId: string;
-    requestBody: DAGRunClearBody;
-};
-
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type BulkDagRunsResponse = BulkResponse;
 
 export type GetDagRunsData = {
     confContains?: string;
@@ -2573,6 +2609,21 @@ export type TriggerDagRunData = {
 };
 
 export type TriggerDagRunResponse = DAGRunResponse;
+
+export type GetUpstreamAssetEventsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
+
+export type ClearDagRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: DAGRunClearBody;
+};
+
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type WaitDagRunUntilFinishedData = {
     dagId: string;
@@ -4554,61 +4605,28 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
-        get: {
-            req: GetUpstreamAssetEventsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: AssetEventCollectionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
-        post: {
-            req: ClearDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/api/v2/dags/{dag_id}/dagRuns': {
+        patch: {
+            req: BulkDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
         get: {
             req: GetDagRunsData;
             res: {
@@ -4661,6 +4679,60 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
+        get: {
+            req: GetUpstreamAssetEventsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetEventCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
+        post: {
+            req: ClearDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse | DAGRunResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
