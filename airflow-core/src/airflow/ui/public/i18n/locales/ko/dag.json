@@ -122,7 +122,7 @@
       "label": "그래프 방향"
     },
     "showVersionIndicator": {
-      "label": "버전 정보 표시",
+      "label": "버전 인디케이터 표시",
       "options": {
         "hideAll": "모두 숨기기",
         "showAll": "모두 표시",
