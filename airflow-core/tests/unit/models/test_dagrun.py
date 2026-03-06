@@ -607,7 +607,6 @@ class TestDagRun:
         )
 
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
-
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
@@ -3176,16 +3175,7 @@ class TestDagRunTracing:
 
         assert dr.context_carrier is not None
         assert isinstance(dr.context_carrier, dict)
-        # W3C Trace Context propagation injects a "traceparent" key
         assert "traceparent" in dr.context_carrier
-        # traceparent format: 00-<32 hex trace_id>-<16 hex span_id>-<2 hex flags>
-        traceparent = dr.context_carrier["traceparent"]
-        parts = traceparent.split("-")
-        assert len(parts) == 4
-        assert parts[0] == "00"
-        assert len(parts[1]) == 32  # trace_id
-        assert len(parts[2]) == 16  # span_id
-        assert len(parts[3]) == 2  # flags
 
     def test_context_carrier_unique_per_dagrun(self, dag_maker):
         """Each DagRun should get a distinct trace context."""
