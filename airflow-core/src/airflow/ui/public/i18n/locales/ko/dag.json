@@ -121,6 +121,15 @@
     "graphDirection": {
       "label": "그래프 방향"
     },
+    "showVersionIndicator": {
+      "label": "버전 인디케이터 표시",
+      "options": {
+        "hideAll": "모두 숨기기",
+        "showAll": "모두 표시",
+        "showBundleVersion": "번들 버전 표시",
+        "showDagVersion": "Dag 버전 표시"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "필터 적용하기",
       "clearFilter": "필터 지우기",
