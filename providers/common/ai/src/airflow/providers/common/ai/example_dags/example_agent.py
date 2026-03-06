@@ -34,7 +34,7 @@ def example_agent_operator_sql():
     AgentOperator(
         task_id="analyst",
         prompt="What are the top 5 customers by order count?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt=(
             "You are a SQL analyst. Use the available tools to explore "
             "the schema and answer the question with data."
@@ -69,7 +69,7 @@ def example_agent_operator_hook():
     AgentOperator(
         task_id="api_explorer",
         prompt="What endpoints are available and what does /status return?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are an API explorer. Use the tools to discover and call endpoints.",
         toolsets=[
             HookToolset(
@@ -95,7 +95,7 @@ example_agent_operator_hook()
 @dag
 def example_agent_decorator():
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a data analyst. Use tools to answer questions.",
         toolsets=[
             SQLToolset(
@@ -131,7 +131,7 @@ def example_agent_structured_output():
         row_count: int
 
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a data analyst. Return structured results.",
         output_type=Analysis,
         toolsets=[SQLToolset(db_conn_id="postgres_default")],
@@ -156,7 +156,7 @@ example_agent_structured_output()
 @dag
 def example_agent_chain():
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a SQL analyst.",
         toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["orders"])],
     )
