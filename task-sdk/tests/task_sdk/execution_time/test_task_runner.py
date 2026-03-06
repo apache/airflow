@@ -465,10 +465,10 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
 
     # Span attributes are set correctly.
     attrs = task_spans[0].attributes
-    assert attrs["dag_id"] == "test_dag"
-    assert attrs["task_id"] == "my_task"
-    assert attrs["run_id"] == "test_run"
-    assert attrs["try_number"] == 1
+    assert attrs["airflow.dag_id"] == "test_dag"
+    assert attrs["airflow.task_id"] == "my_task"
+    assert attrs["airflow.dag_run.run_id"] == "test_run"
+    assert attrs["airflow.task_instance.try_number"] == 1
 
 
 def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
