@@ -27,12 +27,9 @@ services:
     ports:
       - "24318:4318"    # OTLP http receiver
       - "28889:8889"    # Prometheus exporter metrics
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    # No healthcheck: the contrib image is distroless and has no wget/curl.
+    # Airflow depends on service_started only; tests use wait_for_otel_collector() to wait for the collector.
+    restart: "on-failure"
 
   prometheus:
     image: prom/prometheus
@@ -87,7 +84,7 @@ services:
 
     depends_on:
       otel-collector:
-        condition: service_healthy
+        condition: service_started
       prometheus:
         condition: service_started
       grafana:
