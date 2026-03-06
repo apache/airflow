@@ -264,7 +264,7 @@ class IterableOperator(BaseOperator):
         self,
         context: Context,
         tasks: Iterable[MappedTaskInstance],
-    ) -> None:
+    ) -> XComIterable:
         exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
