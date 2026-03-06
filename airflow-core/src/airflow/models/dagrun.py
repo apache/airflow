@@ -1282,12 +1282,11 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if dag.has_on_failure_callback:
-                unfinished_non_schedulable = (ti for ti in unfinished.tis if ti not in set(schedulable_tis))
                 finished_task_ids = {ti.task_id for ti in finished_tis}
                 blocking_ti = next(
                     (
                         ti
-                        for ti in unfinished_non_schedulable
+                        for ti in unfinished.tis
                         if ti.task
                         and not (ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids))
                     ),
