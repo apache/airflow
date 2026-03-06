@@ -146,7 +146,7 @@ def _make_task_span(msg: StartupDetails):
     )
     ti = msg.ti
     span_name = f"task_run.{ti.task_id}"
-    if ti.map_index is not None and ti.map_index > 0:
+    if ti.map_index is not None and ti.map_index >= 0:
         span_name += f"_{ti.map_index}"
     with tracer.start_as_current_span(span_name, context=parent_context) as span:
         span.set_attributes(
