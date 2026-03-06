@@ -76,7 +76,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
-                "connection-type": "pydanticai_azure",
+                "connection-type": "pydanticaiazure",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
@@ -97,7 +97,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
-                "connection-type": "pydanticai_bedrock",
+                "connection-type": "pydanticaibedrock",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
@@ -158,7 +158,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
-                "connection-type": "pydanticai_vertex",
+                "connection-type": "pydanticaivertex",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
@@ -188,11 +188,6 @@ def get_provider_info():
                     "api_key": {
                         "label": "API Key",
                         "description": "Google API key for Gen Language API or Vertex AI. Falls back to GOOGLE_API_KEY.",
-                        "schema": {"type": ["string", "null"]},
-                    },
-                    "service_account_file": {
-                        "label": "Service Account File",
-                        "description": "Path to a service account JSON key file. Auto-loaded into google.auth.Credentials.",
                         "schema": {"type": ["string", "null"]},
                     },
                     "service_account_info": {

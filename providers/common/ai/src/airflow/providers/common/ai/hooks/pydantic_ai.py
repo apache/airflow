@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -152,17 +152,7 @@ class PydanticAIHook(BaseHook):
             )
 
             def _provider_factory(pname: str) -> Any:
-                try:
-                    return infer_provider_class(pname)(**_kwargs)
-                except TypeError as exc:
-                    self.log.warning(
-                        "Provider '%s' does not accept the supplied kwargs %s (%s); "
-                        "falling back to environment-variable–based auth.",
-                        pname,
-                        list(_kwargs),
-                        exc,
-                    )
-                    return infer_provider(pname)
+                return infer_provider_class(pname)(**_kwargs)
 
             self._model = infer_model(model_name, provider_factory=_provider_factory)
             return self._model
@@ -205,22 +195,6 @@ class PydanticAIHook(BaseHook):
         except Exception as e:
             return False, str(e)
 
-    @classmethod
-    def for_connection(cls, conn_id: str, model_id: str | None = None) -> PydanticAIHook:
-        """
-        Return the correct :class:`PydanticAIHook` subclass for *conn_id*.
-
-        Looks up the connection's ``conn_type`` in the registered hook map and
-        instantiates the matching subclass.  Falls back to
-        :class:`PydanticAIHook` for unknown types.
-
-        :param conn_id: Airflow connection ID.
-        :param model_id: Optional model override forwarded to the hook.
-        """
-        conn = cls.get_connection(conn_id)
-        hook_cls = _CONN_TYPE_TO_HOOK.get(conn.conn_type or "", cls)
-        return hook_cls(llm_conn_id=conn_id, model_id=model_id)
-
 
 class PydanticAIAzureHook(PydanticAIHook):
     """
@@ -237,7 +211,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
     """
 
-    conn_type = "pydanticai_azure"
+    conn_type = "pydanticaiazure"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
     @staticmethod
@@ -303,7 +277,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"bedrock:us.anthropic.claude-opus-4-5"``.
     """
 
-    conn_type = "pydanticai_bedrock"
+    conn_type = "pydanticaibedrock"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
     @staticmethod
@@ -327,6 +301,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
         base_url: str | None,
         extra: dict[str, Any],
     ) -> dict[str, Any]:
+        # Bedrock reads all config from extra; api_key/base_url from conn.password/host are unused.
         _str_keys = (
             "aws_access_key_id",
             "aws_secret_access_key",
@@ -353,8 +328,8 @@ class PydanticAIVertexHook(PydanticAIHook):
 
     Credentials are resolved in order:
 
-    1. ``service_account_file`` (path string) or ``service_account_info`` (JSON
-       object) in ``extra`` — loaded into a ``google.auth.credentials.Credentials``
+    1. ``service_account_info`` (JSON object) in ``extra``
+       — loaded into a ``google.auth.credentials.Credentials``
        object and passed as ``credentials`` to ``GoogleProvider``.
     2. ``api_key`` in ``extra`` — for Generative Language API (non-Vertex) or
        Vertex API-key auth.
@@ -369,13 +344,12 @@ class PydanticAIVertexHook(PydanticAIHook):
                 "model": "google-vertex:gemini-2.0-flash",
                 "project": "my-gcp-project",
                 "location": "us-central1",
-                "service_account_file": "/path/to/sa.json",
+                "service_account_info": {...},
                 "vertexai": true,
             }
 
-        Use ``"service_account_info"`` instead of ``"service_account_file"`` to
-        embed the service-account JSON directly (as an object, not a string path).
-        Setting both at the same time raises ``ValueError``.
+        Use ``"service_account_info"`` to embed the service-account JSON directly
+        (as an object, not a string path).
 
         Set ``"vertexai": true`` to force Vertex AI mode when only ``api_key`` is
         provided.  Omit ``vertexai`` for the Generative Language API (GLA).
@@ -384,7 +358,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"google-vertex:gemini-2.0-flash"``.
     """
 
-    conn_type = "pydanticai_vertex"
+    conn_type = "pydanticaivertex"
     hook_name = "Pydantic AI (Google Vertex AI)"
 
     @staticmethod
@@ -397,7 +371,7 @@ class PydanticAIVertexHook(PydanticAIHook):
                 "extra": (
                     '{"model": "google-vertex:gemini-2.0-flash", '
                     '"project": "my-project", "location": "us-central1", "vertexai": true}'
-                    "  — add service_account_file (path) or service_account_info (object) for SA auth;"
+                    "  — add service_account_info (object) for SA auth;"
                     " omit both to use Application Default Credentials"
                 ),
             },
@@ -409,13 +383,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         base_url: str | None,
         extra: dict[str, Any],
     ) -> dict[str, Any]:
-        sa_file = extra.get("service_account_file")
         sa_info = extra.get("service_account_info")
-        if sa_file and sa_info:
-            raise ValueError(
-                "Specify 'service_account_file' or 'service_account_info' in the connection extra, not both."
-            )
-
         kwargs: dict[str, Any] = {}
 
         # Direct GoogleProvider scalar kwargs.
@@ -430,14 +398,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
         # Service-account credentials — loaded lazily to avoid importing
         # google-auth on non-Vertex code paths (optional heavy dependency).
-        if sa_file:
-            from google.oauth2 import service_account  # lazy: optional dep
-
-            kwargs["credentials"] = service_account.Credentials.from_service_account_file(
-                sa_file,
-                scopes=["https://www.googleapis.com/auth/cloud-platform"],
-            )
-        elif sa_info:
+        if sa_info:
             from google.oauth2 import service_account  # lazy: optional dep
 
             kwargs["credentials"] = service_account.Credentials.from_service_account_info(
@@ -446,14 +407,3 @@ class PydanticAIVertexHook(PydanticAIHook):
             )
 
         return kwargs
-
-
-# ---------------------------------------------------------------------------
-# Hook registry — maps conn_type → hook class for use by for_connection()
-# ---------------------------------------------------------------------------
-_CONN_TYPE_TO_HOOK: dict[str, type[PydanticAIHook]] = {
-    PydanticAIHook.conn_type: PydanticAIHook,
-    PydanticAIAzureHook.conn_type: PydanticAIAzureHook,
-    PydanticAIBedrockHook.conn_type: PydanticAIBedrockHook,
-    PydanticAIVertexHook.conn_type: PydanticAIVertexHook,
-}

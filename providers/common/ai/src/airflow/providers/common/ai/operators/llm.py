@@ -104,12 +104,12 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         """
         Return the correct PydanticAIHook subclass for the configured connection.
 
-        Delegates to :meth:`~PydanticAIHook.for_connection` which looks up
+        Delegates to :meth:`~PydanticAIHook.get_hook` which looks up
         the connection's ``conn_type`` and instantiates the matching subclass
         (e.g. :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook`
-        for ``pydanticai_azure`` connections).
+        for ``pydanticaiazure`` connections).
         """
-        return PydanticAIHook.for_connection(self.llm_conn_id, model_id=self.model_id)
+        return PydanticAIHook.get_hook(self.llm_conn_id)
 
     def execute(self, context: Context) -> Any:
         agent: Agent[None, Any] = self.llm_hook.create_agent(
