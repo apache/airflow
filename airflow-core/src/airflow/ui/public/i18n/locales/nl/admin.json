@@ -3,6 +3,7 @@
     "description": "Omschrijving",
     "key": "Key",
     "name": "Naam",
+    "team": "Team",
     "value": "Waarde"
   },
   "config": {
@@ -72,13 +73,30 @@
     "modal": {
       "confirmButton": "Ja, verwijder",
       "secondConfirmMessage": "Deze actie is permanent en kan niet ongedaan gemaakt worden.",
-      "thirdConfirmMessage": " Weet je zeker dat je door wilt gaan?"
+      "thirdConfirmMessage": "Weet je zeker dat je door wilt gaan?"
     },
     "selected": "Geselecteerd",
     "tooltip": "Verwijder geselecteerde connecties"
   },
   "formActions": {
     "save": "Opslaan"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor klasse",
+      "hostname": "Hostnaam",
+      "id": "ID",
+      "jobType": "Jobtype",
+      "latestHeartbeat": "Laatste hartslag",
+      "unixname": "Unixnaam"
+    },
+    "filters": {
+      "allStates": "Alle statussen",
+      "allTypes": "Alle types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
   },
   "plugins": {
     "columns": {
