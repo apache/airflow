@@ -2,14 +2,13 @@
 https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # Catalan (ca) Translation Guidelines
-# Catalan (ca) Translation Guidelines
 
 This document provides basic guidelines for translating Apache Airflow UI content into Catalan (ca).  
 The goal is to maintain clarity, consistency, and alignment with existing Airflow terminology.
 
 ## General Principles
 
-- Core technical terms such as **DAG**, **XCom**, **TaskInstance**, and **Operator** should remain in English.
+- Some core technical terms such as Dag or Xcom should remain in English unless otherwise noted in this skill.
 - Avoid translating class names, identifiers, or code-related terminology.
 - Keep translations clear and easy to understand for end users.
 
