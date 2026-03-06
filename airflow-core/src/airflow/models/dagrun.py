@@ -1285,7 +1285,7 @@ class DagRun(Base, LoggingMixin):
                 unfinished_non_schedulable = (ti for ti in unfinished.tis if ti not in set(schedulable_tis))
                 finished_task_ids = {ti.task_id for ti in finished_tis}
                 blocking_ti = next(
-                    iter(
+                    (
                         ti
                         for ti in unfinished_non_schedulable
                         if ti.task
