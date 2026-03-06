@@ -31,7 +31,6 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
@@ -870,6 +869,10 @@ class PodManager(LoggingMixin):
                 self.log.warning("Pod %s not found (404)", pod.metadata.name)
                 raise
 
+            raise KubernetesApiException(
+                f"There was an error reading the kubernetes API: {e}"
+            ) from e
+        except HTTPError as e:  
             raise KubernetesApiException(
                 f"There was an error reading the kubernetes API: {e}"
             ) from e
