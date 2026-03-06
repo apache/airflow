@@ -29,6 +29,11 @@ from math import ceil
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
+try:
+    ExceptionGroup
+except NameError:
+    from exceptiongroup import ExceptionGroup
+
 from airflow.exceptions import (
     AirflowTaskTimeout,
     TaskDeferred,
