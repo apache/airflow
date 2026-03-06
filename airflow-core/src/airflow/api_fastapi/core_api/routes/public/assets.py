@@ -390,7 +390,6 @@ def materialize_asset(
 
 @assets_router.get(
     "/assets/{asset_id}/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_queued_events(
@@ -407,12 +406,6 @@ def get_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-
-    if not adrqs:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Queue event with asset_id: `{asset_id}` was not found",
-        )
 
     queued_events = [
         QueuedEventResponse(
@@ -486,7 +479,6 @@ def get_asset(
 
 @assets_router.get(
     "/dags/{dag_id}/assets/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_events(
@@ -503,8 +495,6 @@ def get_dag_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-    if not adrqs:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
     queued_events = [
         QueuedEventResponse(

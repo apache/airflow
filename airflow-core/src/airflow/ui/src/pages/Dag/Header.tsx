@@ -67,7 +67,6 @@ export const Header = ({
           <Schedule
             assetExpression={dag.asset_expression}
             dagId={dag.dag_id}
-            latestRunAfter={latestRunInfo?.run_after}
             timetableDescription={dag.timetable_description}
             timetableSummary={dag.timetable_summary}
           />

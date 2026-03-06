@@ -28,28 +28,16 @@ import { AssetSchedule } from "./AssetSchedule";
 type Props = {
   readonly assetExpression: ExpressionType | null | undefined;
   readonly dagId: string;
-  readonly latestRunAfter?: string;
   readonly timetableDescription?: string | null;
   readonly timetableSummary: string | null;
 };
 
-export const Schedule = ({
-  assetExpression,
-  dagId,
-  latestRunAfter,
-  timetableDescription,
-  timetableSummary,
-}: Props) => {
+export const Schedule = ({ assetExpression, dagId, timetableDescription, timetableSummary }: Props) => {
   const { t: translate } = useTranslation("dags");
 
   return Boolean(timetableSummary) ? (
     Boolean(assetExpression) || timetableSummary === translate("schedule.asset") ? (
-      <AssetSchedule
-        assetExpression={assetExpression}
-        dagId={dagId}
-        latestRunAfter={latestRunAfter}
-        timetableSummary={timetableSummary}
-      />
+      <AssetSchedule assetExpression={assetExpression} dagId={dagId} timetableSummary={timetableSummary} />
     ) : (
       <Tooltip content={timetableDescription}>
         <Text fontSize="sm">
