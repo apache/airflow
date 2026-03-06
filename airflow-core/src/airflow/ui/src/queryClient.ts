@@ -56,9 +56,7 @@ const handle403Error = (error: unknown) => {
     // when multiple mutations fail simultaneously
     if (active403ToastId === undefined || !toaster.isActive(active403ToastId)) {
       active403ToastId = toaster.create({
-        description: i18n.t(
-          "errors.forbidden.description",
-        ),
+        description: i18n.t("errors.forbidden.description"),
         title: i18n.t("errors.forbidden.title", "Insufficient Permissions"),
         type: "error",
       });

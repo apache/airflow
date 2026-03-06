@@ -25,26 +25,14 @@ import {
   UseDagSourceServiceGetDagSourceKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dag");
 
   const onError = (error: unknown) => {
-    // Get status from error
-    const status =
-      (error as { status?: number }).status ?? (error as { response?: { status?: number } }).response?.status;
-
-    // Skip 403 errors as they are handled by MutationCache
-    if (status === 403) {
-      return;
-    }
-
-    toaster.create({
-      description: translate("parse.toaster.error.description"),
-      title: translate("parse.toaster.error.title"),
-      type: "error",
-    });
+    createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate);
   };
 
   const onSuccess = async () => {
