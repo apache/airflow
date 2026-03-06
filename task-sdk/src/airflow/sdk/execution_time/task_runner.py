@@ -704,6 +704,9 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         if map_indexes is None:
             return [v or default for k, v in self.xcoms.items() if k.startswith(base_key)]
 
+        if isinstance(map_indexes, ArgNotSet):
+            raise ValueError("map_indexes cannot be ArgNotSet here")
+
         return [self.xcoms.get(f"{base_key}_{index}", default) for index in map_indexes]
 
     def xcom_push(
