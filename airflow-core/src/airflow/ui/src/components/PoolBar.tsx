@@ -65,15 +65,17 @@ export const PoolBar = ({
     };
   });
 
+  const displayedSlots = preparedSlots.filter(
+    (slot) => barSlots.includes(slot.slotType) && slot.slotValue > 0,
+  );
+  const usedSlots = displayedSlots
+    .filter((s) => s.slotType !== "open")
+    .reduce((sum, s) => sum + s.slotValue, 0);
+
   return (
     <VStack align="stretch" gap={1} w="100%">
       <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        {preparedSlots
-          .filter((slot) => barSlots.includes(slot.slotType) && slot.slotValue > 0)
-          .map((slot) => {
-            const usedSlots = preparedSlots
-              .filter((s) => barSlots.includes(s.slotType) && s.slotValue > 0 && s.slotType !== "open")
-              .reduce((sum, s) => sum + s.slotValue, 0);
+        {displayedSlots.map((slot) => {
             const flexValue = isUnlimited
               ? slot.slotType === "open"
                 ? Math.max(1, usedSlots) // open takes at least as much space as all used slots combined
