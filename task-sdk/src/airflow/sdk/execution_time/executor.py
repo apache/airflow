@@ -23,8 +23,7 @@ import inspect
 from asyncio import AbstractEventLoop, Semaphore
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.sdk import BaseAsyncOperator, BaseOperator
 from airflow.sdk.bases.operator import ExecutorSafeguard
@@ -38,6 +37,8 @@ from airflow.sdk.execution_time.task_runner import (
 )
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     from airflow.sdk import Context
 
 
@@ -95,7 +96,7 @@ class HybridExecutor:
 async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     # set-up
-    task: BaseOperator | BaseAsyncOperator = ti.task
+    task = cast(BaseAsyncOperator, ti.task)
     execute = task.aexecute  # here we must use aexecute instead of execute
 
     # async tasks can't originate from deferred operator, so no need to check next_method
