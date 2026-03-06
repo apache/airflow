@@ -151,8 +151,8 @@ def _make_task_span(msg: StartupDetails):
     with tracer.start_as_current_span(span_name, context=parent_context) as span:
         span.set_attributes(
             {
-                "airflow.dag.dag_id": ti.dag_id,
-                "airflow.task.task_id": ti.task_id,
+                "airflow.dag_id": ti.dag_id,
+                "airflow.task_id": ti.task_id,
                 "airflow.dag_run.run_id": ti.run_id,
                 "airflow.task_instance.try_number": ti.try_number,
                 "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
