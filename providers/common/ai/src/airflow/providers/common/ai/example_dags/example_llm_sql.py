@@ -124,3 +124,29 @@ def example_llm_sql_with_object_storage():
 # [END howto_operator_llm_sql_with_object_storage]
 
 example_llm_sql_with_object_storage()
+
+
+# [START howto_operator_llm_sql_approval]
+@dag
+def example_llm_sql_approval():
+    from datetime import timedelta
+
+    LLMSQLQueryOperator(
+        task_id="generate_sql_with_approval",
+        prompt="Find the top 10 customers by total revenue in the last quarter",
+        llm_conn_id="pydanticai_default",
+        schema_context=(
+            "Table: customers\n"
+            "Columns: id INT, name TEXT\n\n"
+            "Table: orders\n"
+            "Columns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
+        ),
+        require_approval=True,
+        approval_timeout=timedelta(hours=1),
+        allow_modifications=True,
+    )
+
+
+# [END howto_operator_llm_sql_approval]
+
+example_llm_sql_approval()
