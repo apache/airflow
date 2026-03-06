@@ -125,7 +125,7 @@ class TestPluginsManager:
         assert "Failed to load plugin" in received_logs
         assert "testplugin.py" in received_logs
 
-    def test_duplicate_plugin_name_does_not_prevent_loading_subsequent_plugins(self):
+    def test_duplicate_plugin_name_is_reported_and_does_not_prevent_loading_subsequent_plugins(self):
         from airflow import plugins_manager
 
         class PluginA(AirflowPlugin):
@@ -160,7 +160,7 @@ class TestPluginsManager:
         assert "plugin_b" in plugin_names
         assert "plugin_c" in plugin_names
         assert len(plugins) == 3
-        assert not import_errors
+        assert import_errors == {"plugin_b": "Plugin 'plugin_b' is already registered"}
 
     def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
