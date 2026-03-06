@@ -1,5 +1,14 @@
 {
+  "additional_data": "Dados Adicionais",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "asset_zero": "Nenhum asset",
   "consumingDags": "Consumindo Dags",
+  "consumingTasks": "Tarefas Consumidoras",
+  "extra": "Extra",
+  "scheduling": "Agendamento",
+  "taskDependencies": "Dependências de Tarefas",
   "createEvent": {
     "button": "Criar Evento",
     "manual": {

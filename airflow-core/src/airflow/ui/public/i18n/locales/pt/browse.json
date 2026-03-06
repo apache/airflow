@@ -12,11 +12,35 @@
     "title": "Log de Auditoria"
   },
   "xcom": {
+    "add": {
+      "error": "Falha ao adicionar XCom",
+      "errorTitle": "Erro",
+      "success": "XCom adicionado com sucesso",
+      "successTitle": "XCom Adicionado",
+      "title": "Adicionar XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Chave",
       "value": "Valor"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Falha ao excluir XCom",
+      "errorTitle": "Erro",
+      "success": "XCom excluído com sucesso",
+      "successTitle": "XCom Excluído",
+      "title": "Excluir XCom",
+      "warning": "Tem certeza que deseja excluir este XCom? Esta ação não pode ser desfeita."
+    },
+    "edit": {
+      "error": "Falha ao atualizar XCom",
+      "errorTitle": "Erro",
+      "success": "XCom atualizado com sucesso",
+      "successTitle": "XCom Atualizado",
+      "title": "Editar XCom"
+    },
+    "key": "Chave",
+    "title": "XCom",
+    "value": "Valor"
   }
 }

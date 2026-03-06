@@ -3,6 +3,7 @@
     "description": "Descrição",
     "key": "Chave",
     "name": "Nome",
+    "team": "Equipa",
     "value": "Valor"
   },
   "config": {
@@ -55,6 +56,12 @@
     "searchPlaceholder": "Pesquisar Conexões",
     "test": "Testar Conexão",
     "testDisabled": "A funcionalidade de teste de conexão está desativada. Por favor, contate um administrador para ativá-la.",
+    "testError": {
+      "title": "Teste de Conexão Falhou"
+    },
+    "testSuccess": {
+      "title": "Teste de Conexão Bem-Sucedido"
+    },
     "typeMeta": {
       "error": "Falha ao recuperar Meta do Tipo de Conexão",
       "standardFields": {
@@ -79,6 +86,23 @@
   },
   "formActions": {
     "save": "Salvar"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Classe do Executor",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Tipo de Tarefa",
+      "latestHeartbeat": "Último Heartbeat",
+      "unixname": "Nome Unix"
+    },
+    "filters": {
+      "allStates": "Todos os Estados",
+      "allTypes": "Todos os Tipos",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
   },
   "plugins": {
     "columns": {
