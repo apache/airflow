@@ -107,30 +107,30 @@ class AirflowPlugin:
         *Deprecated.* Legacy Flask-Admin views.
     flask_blueprints : list[Any]
         Flask ``Blueprint`` instances to register with the web UI.
-    fastapi_apps : list[dict | FastAPIAppConfig]
+    fastapi_apps : list[dict]
         FastAPI sub-applications to mount on the Airflow API.  Each item
         must contain ``app`` (a ``FastAPI`` instance), ``url_prefix``
         (non-empty string), and ``name``.
-    fastapi_root_middlewares : list[dict | FastAPIRootMiddlewareConfig]
+    fastapi_root_middlewares : list[dict]
         Root-level ASGI middlewares.  Each item must contain
         ``middleware`` (class/factory) and ``name``.
-    external_views : list[dict | ExternalViewConfig]
+    external_views : list[dict]
         External views rendered as iframes.  Expected keys: ``name``,
         ``href``, ``url_route``, ``icon``, ``icon_dark_mode``,
         ``category``, ``destination``.
-    react_apps : list[dict | ReactAppConfig]
+    react_apps : list[dict]
         React micro-frontends.  Expected keys: ``name``,
         ``bundle_url``, ``url_route``, ``icon``, ``destination``,
         ``category``.
     menu_links : list[Any]
         *Deprecated.* Legacy Flask-Admin menu links.
-    appbuilder_views : list[dict | AppBuilderViewConfig]
+    appbuilder_views : list[dict]
         Flask AppBuilder views.  Each item should contain ``view``
         (a ``BaseView`` instance), ``name``, ``category``, and
         optionally ``label``.
-    appbuilder_menu_items : list[dict | AppBuilderMenuItemConfig]
+    appbuilder_menu_items : list[dict]
         Flask AppBuilder menu items.  Each item must contain ``name``,
-        ``href``, and optionally ``category`` and ``label``.
+        ``href``, and optionally ``category``.
     global_operator_extra_links : list[Any]
         Operator extra link instances available on **all** operator task
         pages.  Can be overridden per-operator.

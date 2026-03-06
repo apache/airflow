@@ -253,13 +253,13 @@ class TestPluginsManager:
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_a' has an external view that is not a dictionary. "
+                "Plugin 'test_plugin_a' has an external view that is not a dictionary or valid config object. "
                 "The view will not be loaded.",
             ),
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_a' has a React App that is not a dictionary. "
+                "Plugin 'test_plugin_a' has a React App that is not a dictionary or valid config object. "
                 "The React App will not be loaded.",
             ),
         ]
@@ -428,16 +428,16 @@ class TestPluginConfigModels:
     def test_external_view_config_minimal(self):
         from airflow.plugins_manager import ExternalViewConfig
 
-        cfg = ExternalViewConfig(name="Min View")
+        cfg = ExternalViewConfig(name="Min View", href="https://example.com")
         assert cfg.name == "Min View"
-        assert cfg.href is None
+        assert cfg.href == "https://example.com"
         assert cfg.destination == "nav"
 
     def test_external_view_config_custom_destination(self):
         from airflow.plugins_manager import ExternalViewConfig
 
         # Custom destination strings are accepted (validated at API response layer instead)
-        cfg = ExternalViewConfig(name="Custom", destination="custom_place")
+        cfg = ExternalViewConfig(name="Custom", href="https://example.com", destination="custom_place")
         assert cfg.destination == "custom_place"
 
     def test_external_view_config_missing_name(self):
@@ -451,7 +451,7 @@ class TestPluginConfigModels:
     def test_external_view_config_extra_fields(self):
         from airflow.plugins_manager import ExternalViewConfig
 
-        cfg = ExternalViewConfig(name="Extra", custom_key="custom_value")
+        cfg = ExternalViewConfig(name="Extra", href="https://example.com", custom_key="custom_value")
         assert cfg.name == "Extra"
         assert cfg.custom_key == "custom_value"
 
@@ -537,7 +537,7 @@ class TestPluginConfigModels:
     def test_react_app_config_dashboard_destination(self):
         from airflow.plugins_manager import ReactAppConfig
 
-        cfg = ReactAppConfig(name="App", destination="dashboard")
+        cfg = ReactAppConfig(name="App", bundle_url="https://example.com/bundle.js", destination="dashboard")
         assert cfg.destination == "dashboard"
 
     # --- Dict-to-model conversion via model_validate ---
@@ -585,7 +585,7 @@ class TestValidatePluginAttributes:
     def test_model_passthrough(self):
         from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
 
-        model = ExternalViewConfig(name="V")
+        model = ExternalViewConfig(name="V", href="https://example.com")
         plugin = self._make_plugin(external_views=[model])
         errors = validate_plugin_attributes(plugin)
         assert errors == []
@@ -616,7 +616,7 @@ class TestValidatePluginAttributes:
 
         plugin = self._make_plugin(
             external_views=[
-                {"name": "Good"},
+                {"name": "Good", "href": "https://example.com"},
                 12345,  # bad type
             ]
         )
@@ -648,7 +648,7 @@ class TestValidatePluginAttributes:
         from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
 
         plugin = self._make_plugin(
-            external_views=[{"name": "V", "my_custom_field": 42}]
+            external_views=[{"name": "V", "href": "https://example.com", "my_custom_field": 42}]
         )
         errors = validate_plugin_attributes(plugin)
         assert errors == []
@@ -719,7 +719,7 @@ class TestGetAttrAndToDict:
     def test_get_attr_from_model(self):
         from airflow.plugins_manager import ExternalViewConfig, _get_attr
 
-        cfg = ExternalViewConfig(name="V")
+        cfg = ExternalViewConfig(name="V", href="https://example.com")
         assert _get_attr(cfg, "name") == "V"
         assert _get_attr(cfg, "nonexistent", "fallback") == "fallback"
 
@@ -742,3 +742,106 @@ class TestGetAttrAndToDict:
         from airflow.plugins_manager import _to_dict
 
         assert _to_dict(42) == {}
+
+    def test_to_dict_includes_defaults(self):
+        """Verify _to_dict includes fields with default values, not just explicitly set fields."""
+        from airflow.plugins_manager import ExternalViewConfig, _to_dict
+
+        cfg = ExternalViewConfig(name="V", href="https://example.com")
+        result = _to_dict(cfg)
+        assert isinstance(result, dict)
+        # Explicitly set fields should be present
+        assert result["name"] == "V"
+        assert result["href"] == "https://example.com"
+        # Fields with defaults should also be present (not excluded)
+        assert "destination" in result
+        assert result["destination"] == "nav"
+        assert "category" in result
+        assert result["category"] is None
+
+
+class TestValidationIntegration:
+    """Integration tests for plugin validation error collection."""
+
+    def test_validation_errors_collected_in_import_errors(self):
+        """Verify that validation errors are properly collected in the import_errors dict."""
+        from unittest import mock
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        class ValidPlugin(AirflowPlugin):
+            name = "valid_plugin"
+            external_views = [
+                {
+                    "name": "Good View",
+                    "href": "https://example.com",
+                    "url_route": "good_view",
+                }
+            ]
+
+        class InvalidPlugin(AirflowPlugin):
+            name = "invalid_plugin"
+            # FastAPIAppConfig requires app, url_prefix, and name — missing required fields
+            fastapi_apps = [{"name": "only name"}]
+
+        with (
+            mock.patch(
+                "airflow.plugins_manager._load_plugins_from_plugin_directory",
+                return_value=([ValidPlugin(), InvalidPlugin()], {}),
+            ),
+            mock.patch("airflow.plugins_manager._load_entrypoint_plugins", return_value=([], {})),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], {})),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_plugins.cache_clear()
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        # Both plugins should still be loaded (invalid items are kept)
+        plugin_names = [p.name for p in plugins]
+        assert "valid_plugin" in plugin_names
+        assert "invalid_plugin" in plugin_names
+
+        # The invalid plugin should have generated import errors
+        assert len(import_errors) >= 1
+        # Check that at least one error mentions fastapi_apps
+        error_values = " ".join(import_errors.values())
+        assert "fastapi_apps[0]" in error_values
+
+    def test_valid_plugin_no_import_errors(self):
+        """Verify that a fully valid plugin produces no import errors."""
+        from unittest import mock
+
+        from airflow.plugins_manager import AirflowPlugin
+
+        class GoodPlugin(AirflowPlugin):
+            name = "good_plugin"
+            external_views = [
+                {
+                    "name": "View",
+                    "href": "https://example.com",
+                    "url_route": "view",
+                }
+            ]
+            appbuilder_menu_items = [
+                {
+                    "name": "Link",
+                    "href": "https://example.com",
+                }
+            ]
+
+        with (
+            mock.patch(
+                "airflow.plugins_manager._load_plugins_from_plugin_directory",
+                return_value=([GoodPlugin()], {}),
+            ),
+            mock.patch("airflow.plugins_manager._load_entrypoint_plugins", return_value=([], {})),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], {})),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_plugins.cache_clear()
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        assert len(plugins) == 1
+        assert len(import_errors) == 0

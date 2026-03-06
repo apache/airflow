@@ -114,7 +114,7 @@ class ExternalViewConfig(_PluginConfigBase):
     """
 
     name: str = Field(..., description="Display name for the external view.")
-    href: str | None = Field(default=None, description="URL the external view iframe points to.")
+    href: str = Field(..., description="URL the external view iframe points to.")
     url_route: str | None = Field(default=None, description="URL route segment in the Airflow UI.")
     icon: str | None = Field(default=None, description="URL or path to the view icon.")
     icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
@@ -166,7 +166,7 @@ class AppBuilderMenuItemConfig(_PluginConfigBase):
     name: str = Field(..., description="Display name for the menu item.")
     href: str = Field(..., description="URL the menu item links to.")
     category: str | None = Field(default=None, description="Navigation category for grouping.")
-    label: str | None = Field(default=None, description="Label override for the menu item.")
+
 
 
 class FastAPIAppConfig(_PluginConfigBase):
@@ -248,7 +248,7 @@ class ReactAppConfig(_PluginConfigBase):
     """
 
     name: str = Field(..., description="Display name for the React app.")
-    bundle_url: str | None = Field(default=None, description="URL to the React app's JavaScript bundle.")
+    bundle_url: str = Field(..., description="URL to the React app's JavaScript bundle.")
     url_route: str | None = Field(default=None, description="URL route segment in the Airflow UI.")
     icon: str | None = Field(default=None, description="URL or path to the app icon.")
     icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
@@ -295,7 +295,7 @@ def _to_dict(item: Any) -> dict[str, Any]:
     layer.
     """
     if isinstance(item, _PluginConfigBase):
-        return item.model_dump(exclude_unset=True)
+        return item.model_dump()
     if isinstance(item, dict):
         return item
     return {}
@@ -526,7 +526,8 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
         for external_view in plugin.external_views:
             if not isinstance(external_view, (dict, _PluginConfigBase)):
                 log.warning(
-                    "Plugin '%s' has an external view that is not a dictionary. The view will not be loaded.",
+                    "Plugin '%s' has an external view that is not a dictionary or valid config object. "
+                    "The view will not be loaded.",
                     plugin.name,
                 )
                 external_views_to_remove.append(external_view)
@@ -550,7 +551,8 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
         for react_app in plugin.react_apps:
             if not isinstance(react_app, (dict, _PluginConfigBase)):
                 log.warning(
-                    "Plugin '%s' has a React App that is not a dictionary. The React App will not be loaded.",
+                    "Plugin '%s' has a React App that is not a dictionary or valid config object. "
+                    "The React App will not be loaded.",
                     plugin.name,
                 )
                 react_apps_to_remove.append(react_app)
