@@ -1688,21 +1688,20 @@ def get_query_count(
 
     :meta private:
     """
-    backend = session.bind.dialect.name
+    dialect_name = get_dialect_name(session)
 
-    if allow_estimation and _is_simple_select_from(query_stmt) and backend in ("postgresql", "mysql"):
-        table = query_stmt.get_final_froms()[0].name
-        print(backend, table)
-        if backend == "postgresql":
-            count_stmt = text("SELECT reltuples FROM pg_class WHERE relname = :table")
-        elif backend == "mysql":
-            count_stmt = text(
+    if allow_estimation and dialect_name in ("postgresql", "mysql") and _is_simple_select_from(query_stmt):
+        table = getattr(query_stmt.get_final_froms()[0], "name", None)
+        if dialect_name == "postgresql":
+            estimate_stmt = text("SELECT reltuples FROM pg_class WHERE relname = :table")
+        elif dialect_name == "mysql":
+            estimate_stmt = text(
                 "SELECT NUM_ROWS FROM INFORMATION_SCHEMA.INNODB_TABLESTATS where NAME = 'airflow/:table'"
             )
-        result = session.scalar(count_stmt, {"table": table})
+        result = session.scalar(estimate_stmt, {"table": table})
 
         # If the row count estimate is small, query count(*) to get the exact number
-        if result > threshold:
+        if result is not None and result > threshold:
             return result
 
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
@@ -1724,8 +1723,8 @@ def _is_simple_select_from(query_stmt: Select) -> bool:
     if query_stmt._limit_clause is not None or query_stmt._offset_clause is not None:
         return False
 
-    froms = query_stmt.get_final_froms()
-    if len(froms) > 1 or froms[0]._is_join or froms[0]._is_subquery:
+    from_clauses = query_stmt.get_final_froms()
+    if len(from_clauses) > 1 or from_clauses[0]._is_join or from_clauses[0]._is_subquery:
         return False
     return True
 

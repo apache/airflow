@@ -64,6 +64,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
     TaskInstanceHistoryCollectionResponse,
@@ -480,7 +481,7 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    filters = [
+    filters: list[OrmClause] = [
         run_after_range,
         logical_date_range,
         start_date_range,
@@ -538,6 +539,7 @@ def get_task_instances(
     task_instance_note_columns = (TaskInstanceNote.content,)
 
     # Build an ID-only query with all filters applied
+    task_instance_id_select: Select | None = None
     if version_number.value:
         task_instance_id_select = (
             select(TI)
@@ -555,10 +557,10 @@ def get_task_instances(
                 status.HTTP_404_NOT_FOUND,
                 f"DagRun with run_id: `{dag_run_id}` was not found",
             )
-        filters += [FilterParam(TI.run_id, dag_run_id)]
+        filters.append(FilterParam(TI.run_id, dag_run_id))
     if dag_id != "~":
         dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-        filters += [FilterParam(TI.dag_id, dag_id)]
+        filters.append(FilterParam(TI.dag_id, dag_id))
         if dag:
             task_group_id.dag = dag
 
