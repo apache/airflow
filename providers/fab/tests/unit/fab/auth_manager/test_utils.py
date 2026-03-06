@@ -19,19 +19,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
-from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-
-
-@contextmanager
-def create_test_client(app, user_name, role_name, permissions):
-    """
-    Helper function to create a client with a temporary user which will be deleted once done
-    """
-    client = app.test_client()
-    with create_user_scope(app, username=user_name, role_name=role_name, permissions=permissions) as _:
-        resp = client.post("/login/", data={"username": user_name, "password": user_name})
-        assert resp.status_code == 302
-        yield client
 
 
 @contextmanager
@@ -111,13 +98,3 @@ def delete_user(app, username):
             ]
             appbuilder.sm.del_register_user(user)
             break
-
-
-def assert_401(response):
-    assert response.status_code == 401, f"Current code: {response.status_code}"
-    assert response.json == {
-        "detail": None,
-        "status": 401,
-        "title": "Unauthorized",
-        "type": EXCEPTIONS_LINK_MAP[401],
-    }

@@ -38,7 +38,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_user, delete_user
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
