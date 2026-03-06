@@ -145,9 +145,7 @@ def get_plural_base(key: str, suffixes: list[str]) -> str | None:
 COUNT_PLACEHOLDER = "{{count}}"
 
 
-def expand_plural_keys(
-    keys: set[str], lang: str, en_key_to_value: dict[str, str] | None = None
-) -> set[str]:
+def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str] | None = None) -> set[str]:
     """
     For a set of keys, expand plural bases to include required suffixes for the language.
 
@@ -174,9 +172,7 @@ def expand_plural_keys(
     for base in base_to_suffixes.keys():
         if en_key_to_value is not None:
             en_keys_for_base = [k for k in keys if get_plural_base(k, suffixes) == base]
-            any_has_count = any(
-                COUNT_PLACEHOLDER in en_key_to_value.get(k, "") for k in en_keys_for_base
-            )
+            any_has_count = any(COUNT_PLACEHOLDER in en_key_to_value.get(k, "") for k in en_keys_for_base)
             if not any_has_count:
                 continue
         for suffix in suffixes:
