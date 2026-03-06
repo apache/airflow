@@ -570,7 +570,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input))
+            operator=IterableOperator(
+                operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input)
+            )
         )
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
@@ -604,7 +606,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             apply_upstream_relationship=False,
         )
         return XComArg(
-            operator=IterableOperator(operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input))
+            operator=IterableOperator(
+                operator=cast(PlainXComArg, op).operator, expand_input=DecoratedExpandInput(expand_input)
+            )
         )
 
     def _expand(
