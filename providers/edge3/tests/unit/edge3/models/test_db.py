@@ -168,11 +168,13 @@ class TestEdgeDBManager:
         __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
         "get_current_revision",
     )
-    def test_initdb_new_db(self, mock_get_rev, mock_create, mock_upgrade, session):
+    @mock.patch("airflow.providers.edge3.models.db.inspect")
+    def test_initdb_new_db(self, mock_inspect, mock_get_rev, mock_create, mock_upgrade, session):
         """Test that initdb calls create_db_from_orm for new databases."""
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         mock_get_rev.return_value = None
+        mock_inspect.return_value.get_table_names.return_value = []  # no tables exist
 
         manager = EdgeDBManager(session)
         manager.initdb()
@@ -221,7 +223,6 @@ class TestEdgeDBManager:
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         manager = EdgeDBManager(session)
-        config = manager.get_alembic_config()
 
         # Simulate pre-alembic state: tables exist but no version table and no concurrency column
         with settings.engine.begin() as conn:

@@ -52,7 +52,7 @@ class EdgeDBManager(BaseDBManager):
 
         If the edge3 tables already exist but the alembic version table does not
         (e.g. created via create_all before the migration chain was introduced),
-        stamp to the first revision and run upgradedb() so every incremental
+        stamp to the first revision and run the incremental upgrade so every
         migration is applied rather than jumping straight to head.
         """
         db_exists = self.get_current_revision()
