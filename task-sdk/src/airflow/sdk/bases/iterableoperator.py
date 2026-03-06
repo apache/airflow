@@ -87,7 +87,9 @@ class TaskExecutor(LoggingMixin):
 
     @property
     def task_index(self) -> int:
-        return self.task_instance.map_index
+        map_index = self.task_instance.map_index
+        assert map_index is not None
+        return map_index
 
     @property
     def key(self):
