@@ -20,7 +20,7 @@
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
 readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 
@@ -31,19 +31,13 @@ readonly EVERY=$((FREQUENCY*60))
 echo "Cleaning logs every $EVERY seconds"
 
 while true; do
-  if (( RETENTION_MINUTES > 0 )); then
-    echo "Trimming airflow logs to ${RETENTION_MINUTES} minutes."
-    find "${DIRECTORY}"/logs \
-      -type d -name 'lost+found' -prune -o \
-      -type f -mmin +"${RETENTION_MINUTES}" -name '*.log' -print0 | \
-      xargs -0 rm -f || true
-  else
-    echo "Trimming airflow logs to ${RETENTION} days."
-    find "${DIRECTORY}"/logs \
-      -type d -name 'lost+found' -prune -o \
-      -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
-      xargs -0 rm -f || true
-  fi
+  total_retention_minutes=$(( (RETENTION_DAYS * 1440) + RETENTION_MINUTES ))
+  echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
+
+  find "${DIRECTORY}"/logs \
+    -type d -name 'lost+found' -prune -o \
+    -type f -mmin +"${total_retention_minutes}" -name '*.log' -print0 | \
+    xargs -0 rm -f || true
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
