@@ -26,17 +26,15 @@ import {
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
+import { createErrorToaster } from "./createErrorToaster";
+
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("dag");
-
-  const onError = () => {
-    toaster.create({
-      description: translate("parse.toaster.error.description"),
-      title: translate("parse.toaster.error.title"),
-      type: "error",
-    });
-  };
+  const { t: translate } = useTranslation(["dag", "common"]);
+  const onError = createErrorToaster(translate, {
+    description: translate("parse.toaster.error.description"),
+    title: translate("parse.toaster.error.title"),
+  });
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
