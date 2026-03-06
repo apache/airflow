@@ -28,6 +28,7 @@ from airflow_breeze.commands.common_options import (
     option_auth_manager,
     option_backend,
     option_builder,
+    option_custom_db_url,
     option_db_reset,
     option_docker_host,
     option_dry_run,
@@ -101,6 +102,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_answer
 @option_auth_manager
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_db_reset
 @option_docker_host
