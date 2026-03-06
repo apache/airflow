@@ -200,6 +200,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -279,6 +280,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_bundle_version": f"some_commit_hash{expected_version_number}",
             "map_index": -1,
             "logical_date": mock.ANY,
             "start_date": None,
@@ -358,6 +360,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -422,6 +425,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -478,6 +482,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -598,6 +603,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                     "version_number": 1,
                 },
                 "dag_display_name": "example_python_operator",
+                "dag_run_bundle_version": None,
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "logical_date": "2020-01-01T00:00:00Z",
@@ -2070,6 +2076,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -2116,6 +2123,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -2193,6 +2201,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             assert response_data == {
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
+                "dag_run_bundle_version": None,
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "executor": None,
@@ -2265,6 +2274,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -2312,6 +2322,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
+            "dag_run_bundle_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -2392,6 +2403,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_bundle_version": f"some_commit_hash{expected_version_number}",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -2446,6 +2458,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_bundle_version": f"some_commit_hash{expected_version_number}",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -3141,6 +3154,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
+                "dag_run_bundle_version": None,
                 "dag_version": {
                     "bundle_name": "dags-folder",
                     "bundle_url": None,
@@ -3528,6 +3542,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 {
                     "dag_id": "example_python_operator",
                     "dag_display_name": "example_python_operator",
+                    "dag_run_bundle_version": None,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -3565,6 +3580,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 {
                     "dag_id": "example_python_operator",
                     "dag_display_name": "example_python_operator",
+                    "dag_run_bundle_version": None,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -3636,6 +3652,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 {
                     "dag_id": "example_python_operator",
                     "dag_display_name": "example_python_operator",
+                    "dag_run_bundle_version": None,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -3719,6 +3736,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     {
                         "dag_id": "example_python_operator",
                         "dag_display_name": "example_python_operator",
+                        "dag_run_bundle_version": None,
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
@@ -3756,6 +3774,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     {
                         "dag_id": "example_python_operator",
                         "dag_display_name": "example_python_operator",
+                        "dag_run_bundle_version": None,
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
@@ -3828,6 +3847,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_bundle_version": f"some_commit_hash{expected_version_number}",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -3882,6 +3902,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_bundle_version": f"some_commit_hash{expected_version_number}",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -3981,6 +4002,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
+                    "dag_run_bundle_version": None,
                     "dag_version": {
                         "bundle_name": "dags-folder",
                         "bundle_url": None,
@@ -4255,6 +4277,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         {
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
+                            "dag_run_bundle_version": None,
                             "dag_version": {
                                 "bundle_name": "dags-folder",
                                 "bundle_url": None,
@@ -4391,6 +4414,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
+                    "dag_run_bundle_version": None,
                     "dag_version": {
                         "bundle_name": "dags-folder",
                         "bundle_url": None,
@@ -4452,6 +4476,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
+                    "dag_run_bundle_version": None,
                     "dag_version": {
                         "bundle_name": "dags-folder",
                         "bundle_url": None,
@@ -4531,6 +4556,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     {
                         "dag_id": self.DAG_ID,
                         "dag_display_name": self.DAG_DISPLAY_NAME,
+                        "dag_run_bundle_version": None,
                         "dag_version": {
                             "bundle_name": "dags-folder",
                             "bundle_url": None,
@@ -4612,6 +4638,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             assert response_ti == {
                 "dag_id": self.DAG_ID,
                 "dag_display_name": self.DAG_DISPLAY_NAME,
+                "dag_run_bundle_version": None,
                 "dag_version": {
                     "bundle_name": "dags-folder",
                     "bundle_url": None,
@@ -4728,6 +4755,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
+                    "dag_run_bundle_version": None,
                     "dag_version": {
                         "bundle_name": "dags-folder",
                         "bundle_url": None,
@@ -5014,6 +5042,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         {
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
+                            "dag_run_bundle_version": None,
                             "dag_version": {
                                 "bundle_name": "dags-folder",
                                 "bundle_url": None,

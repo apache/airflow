@@ -156,6 +156,17 @@ class DagRunAlreadyExists(AirflowBadRequest):
         )
 
 
+class BundleVersionUnavailable(AirflowException):
+    """
+    Raise when a requested bundle version exists but has not been parsed/serialized yet.
+
+    This is a temporary condition that occurs during the window between bundle refresh
+    completion and DAG parsing/serialization. Callers should retry the operation.
+    """
+
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE
+
+
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize something."""
 

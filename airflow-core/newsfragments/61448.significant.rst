@@ -1,0 +1,30 @@
+Add ``run_on_latest_version`` configuration for DAG bundle versioning
+
+When clearing or rerunning tasks, this setting controls whether the new DAG run
+uses the latest bundle version or the original version from the initial run.
+The setting follows a three-level precedence:
+
+1. **DAG-level**: ``run_on_latest_version`` parameter on the DAG definition.
+2. **Global config**: ``[dag_bundles] run_on_latest_version`` in ``airflow.cfg``.
+3. **Default**: ``False`` (use the original bundle version).
+
+In Airflow 2.x, reruns always used the latest code. Airflow 3.x introduced bundle
+versioning, defaulting to the original version. This setting gives users control
+over which behaviour is the default.
+
+See :doc:`/administration-and-deployment/dag-bundles` for full details.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * None - this is a new optional feature with backwards-compatible defaults
