@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import functools
 import importlib.util
+import inspect
 import textwrap
 from pathlib import Path
 
@@ -67,6 +68,197 @@ class TestBaseDecorator:
         # Returned source must be valid Python
         ast.parse(cleaned)
         assert cleaned.lstrip().splitlines()[0].startswith("def a_task")
+
+
+class DummyDecoratedOperator(DecoratedOperator):
+    custom_operator_name = "@task.dummy"
+
+    def execute(self, context):
+        return self.python_callable(*self.op_args, **self.op_kwargs)
+
+
+class TestDefaultFillingLogic:
+    @pytest.mark.parametrize(
+        ("func", "kwargs", "args"),
+        [
+            pytest.param(
+                lambda: 42,
+                {},
+                [],
+                id="no_params",
+            ),
+            pytest.param(
+                lambda a, b=5, c=None: (a, b, c),
+                {"a": 1},
+                [],
+                id="param_after_first_default_without_default",
+            ),
+            pytest.param(
+                lambda x, y=99: (x, y),
+                {"x": 1},
+                [],
+                id="param_after_first_default_is_given_none",
+            ),
+            pytest.param(
+                lambda a, b, c=99: (a, b, c),
+                {},
+                [1, 2],
+                id="single_trailing_optional",
+            ),
+        ],
+    )
+    def test_construction_succeeds(self, func, kwargs, args):
+        op = make_op(func, op_kwargs=kwargs, op_args=args)
+        assert op is not None
+
+    @pytest.mark.parametrize(
+        ("func", "op_kwargs", "op_args", "expected_defaults"),
+        [
+            pytest.param(
+                lambda a, b, c: a + b + c,
+                {},
+                [1, 2, 3],
+                [inspect.Parameter.empty, inspect.Parameter.empty, inspect.Parameter.empty],
+                id="all_required_no_defaults_injected",
+            ),
+            pytest.param(
+                lambda required, optional=10: required + optional,
+                {"required": 5},
+                [],
+                [inspect.Parameter.empty, 10],
+                id="params_before_first_default_stay_required",
+            ),
+            pytest.param(
+                lambda a, b=1, c=2, d=3: a + b + c + d,
+                {"a": 10},
+                [],
+                [inspect.Parameter.empty, 1, 2, 3],
+                id="explicit_defaults_after_first_default_preserved",
+            ),
+            pytest.param(
+                lambda no_default_1, no_default_2, first_default=42, after=None: None,
+                {},
+                [1, 2],
+                [inspect.Parameter.empty, inspect.Parameter.empty, 42, None],
+                id="first_default_defines_boundary",
+            ),
+            pytest.param(
+                lambda a=1, b=2, c=3: a + b + c,
+                {},
+                [],
+                [1, 2, 3],
+                id="all_params_have_defaults_none_overwritten",
+            ),
+        ],
+    )
+    def test_param_defaults(self, func, op_kwargs, op_args, expected_defaults):
+        op = make_op(func, op_kwargs=op_kwargs, op_args=op_args)
+        sig = inspect.signature(op.python_callable)
+        actual = [p.default for p in sig.parameters.values()]
+        assert actual == expected_defaults
+
+    def test_context_key_default_none_does_not_raise(self):
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        f = _make_func(f"def dummy_task(x, {ctx_key}=None): return x")
+        assert make_op(f, op_kwargs={"x": 1}) is not None
+
+    def test_context_key_with_non_none_default_raises(self):
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        f = _make_func(f"def dummy_task(x, {ctx_key}='bad_default'): return x")
+        with pytest.raises(ValueError, match="can't have a default other than None"):
+            make_op(f, op_kwargs={"x": 1})
+
+    @pytest.mark.parametrize(
+        ("func_src", "op_kwargs"),
+        [
+            pytest.param(
+                "def dummy_task({ctx0}, x, y=10): return (x, y)",
+                {"x": 1},
+                id="context_key_before_first_default_shifts_boundary",
+            ),
+            pytest.param(
+                "def dummy_task(x, y=5, {ctx0}=None): return (x, y)",
+                {"x": 1},
+                id="context_key_after_regular_default",
+            ),
+            pytest.param(
+                "def dummy_task(a, {ctx0}=None, b=7, {ctx1}=None): return (a, b)",
+                {"a": 1},
+                id="multiple_context_keys_mixed_with_regular_defaults",
+            ),
+            pytest.param(
+                "def dummy_task({ctx0}, x, y=10): return (x, y)",
+                {"x": 42},
+                id="required_param_between_context_key_and_regular_default_gets_none",
+            ),
+            pytest.param(
+                "def dummy_task({ctx0}=None, {ctx1}=None, {ctx2}=None): return True",
+                {},
+                id="context_key_only_signature",
+            ),
+        ],
+    )
+    def test_context_key_construction_succeeds(self, func_src, op_kwargs):
+        """All context-key signature shapes must construct without raising."""
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        ctx_keys = list(KNOWN_CONTEXT_KEYS)
+        src = func_src.format(
+            ctx0=ctx_keys[0],
+            ctx1=ctx_keys[1] if len(ctx_keys) > 1 else ctx_keys[0],
+            ctx2=ctx_keys[2] if len(ctx_keys) > 2 else ctx_keys[0],
+        )
+        op = make_op(_make_func(src), op_kwargs=op_kwargs)
+        assert op is not None
+
+    def test_context_key_after_regular_default_preserves_original_default(self):
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        f = _make_func(f"def dummy_task(x, y=5, {ctx_key}=None): return (x, y)")
+        op = make_op(f, op_kwargs={"x": 1})
+        sig = inspect.signature(op.python_callable)
+        y_param = next(p for p in sig.parameters.values() if p.name == "y")
+        assert y_param.default == 5
+
+    def test_non_context_param_after_context_key_gets_none_injected(self):
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        assert "start_date" in KNOWN_CONTEXT_KEYS, "start_date should be a context key"
+
+        def dummy_task(start_date, a): ...
+
+        assert make_op(dummy_task, op_kwargs={"a": "2024-01-01"}) is not None
+        assert make_op(dummy_task) is not None
+
+    def test_bind_validation_fails_for_missing_required_args(self):
+        """Truly required args with no supplied value must still cause a bind failure."""
+
+        def dummy_task(required_arg):
+            return required_arg
+
+        with pytest.raises(TypeError):
+            make_op(dummy_task)
+
+
+def make_op(func, op_args=None, op_kwargs=None, **kwargs):
+    return DummyDecoratedOperator(
+        task_id="test_task",
+        python_callable=func,
+        op_args=op_args or [],
+        op_kwargs=op_kwargs or {},
+        **kwargs,
+    )
+
+
+def _make_func(src: str):
+    ns: dict = {}
+    exec(src, ns)
+    return next(v for v in ns.values() if callable(v))
 
 
 def simple_decorator(fn):
