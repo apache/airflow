@@ -30,6 +30,7 @@ from cadwyn import (
 )
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -248,6 +249,16 @@ def create_task_execution_api_app() -> FastAPI:
     app.add_middleware(JWTReissueMiddleware)
 
     app.generate_and_include_versioned_routers(execution_api_router)
+
+    @app.exception_handler(SQLAlchemyError)
+    def handle_sqlalchemy_error(request: Request, exc: SQLAlchemyError):
+        logger.exception(
+            "Database error",
+            exc_info=(type(exc), exc, exc.__traceback__),
+            path=request.url.path,
+            method=request.method,
+        )
+        return JSONResponse(status_code=500, content={"detail": "Database error occurred"})
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
     @app.exception_handler(Exception)
