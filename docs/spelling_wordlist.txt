@@ -1548,6 +1548,7 @@ regexes
 reidentify
 ReidentifyContentResponse
 reimagined
+reindex
 reinit
 Reinitialising
 reinitialization
