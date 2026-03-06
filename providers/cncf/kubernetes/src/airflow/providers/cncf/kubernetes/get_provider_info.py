@@ -75,6 +75,9 @@ def get_provider_info():
                 ],
             }
         ],
+        "secrets-backends": [
+            "airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend"
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",

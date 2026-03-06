@@ -1733,11 +1733,25 @@ class TestTriggerDagRun:
                     ]
                 },
             ),
+            (
+                [],
+                {
+                    "detail": [
+                        {
+                            "type": "model_attributes_type",
+                            "loc": ["body"],
+                            "msg": "Input should be a valid dictionary or object to extract fields from",
+                            "input": [],
+                        }
+                    ]
+                },
+            ),
         ],
     )
     def test_invalid_data(self, test_client, post_body, expected_detail):
-        now = timezone.utcnow().isoformat()
-        post_body["logical_date"] = now
+        if isinstance(post_body, dict):
+            now = timezone.utcnow().isoformat()
+            post_body["logical_date"] = now
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail

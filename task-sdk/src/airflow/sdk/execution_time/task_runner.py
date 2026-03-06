@@ -843,7 +843,7 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
         )
 
 
-def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
+def get_startup_details() -> StartupDetails:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
@@ -867,7 +867,11 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    return msg
 
+
+def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
+    log = structlog.get_logger("task")
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -1005,16 +1009,44 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     from airflow.sdk._shared.secrets_masker import redact
 
-    rendered_fields = {}
+    rendered_fields: dict[str, JsonValue] = {}
     for field in task.template_fields:
         value = getattr(task, field)
         serialized = _serialize_template_field(value, field)
         # Redact secrets in the task process itself before sending to API server
         # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
         # on the UI.
-        rendered_fields[field] = redact(serialized, field)
+        redacted = redact(serialized, field)
+        rendered_fields[field] = TypeAdapter(JsonValue).validate_python(redacted)
 
-    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." not in renderer_path:
+            continue
+
+        base_field, _, remainder = renderer_path.partition(".")
+        if base_field not in task.template_fields:
+            continue
+
+        base_value = getattr(task, base_field, None)
+        if base_value is None:
+            continue
+
+        current = base_value
+        for key in remainder.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                current = getattr(current, key, None)
+            if current is None:
+                break
+
+        if current is not None:
+            serialized = _serialize_template_field(current, renderer_path)
+            redacted = redact(serialized, renderer_path)
+            rendered_fields[renderer_path] = TypeAdapter(JsonValue).validate_python(redacted)
+
+    return rendered_fields
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -1775,7 +1807,8 @@ def main():
 
     try:
         try:
-            ti, context, log = startup()
+            startup_details = get_startup_details()
+            ti, context, log = startup(msg=startup_details)
         except AirflowRescheduleException as reschedule:
             log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
             SUPERVISOR_COMMS.send(
