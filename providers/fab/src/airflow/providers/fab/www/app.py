@@ -38,8 +38,6 @@ from airflow.providers.fab.www.extensions.init_manifest_files import configure_m
 from airflow.providers.fab.www.extensions.init_security import init_api_auth
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import (
-    init_api_auth_provider,
-    init_api_error_handlers,
     init_error_handlers,
     init_plugins,
 )
@@ -112,8 +110,6 @@ def create_app(enable_plugins: bool):
         if enable_plugins:
             init_plugins(flask_app)
         elif isinstance(get_auth_manager(), FabAuthManager):
-            init_api_auth_provider(flask_app)
-            init_api_error_handlers(flask_app)
             init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
