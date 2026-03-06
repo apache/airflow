@@ -608,6 +608,14 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         for f in expected_relative_doc_files
         if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
+
+    expected_doc_urls = {
+        doc_url
+        for doc_url in expected_doc_urls
+        for suspend_provider in suspended_providers
+        if suspend_provider not in doc_url
+    }
+
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
@@ -759,6 +767,16 @@ if __name__ == "__main__":
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
+
+    # remove errors related to suspended module imports.
+    print("suspended_providers ", suspended_providers)
+    if suspended_providers and errors:
+        errors = [
+            error
+            for error in errors
+            for module in suspended_providers
+            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
+        ]
 
     if errors:
         error_num = len(errors)

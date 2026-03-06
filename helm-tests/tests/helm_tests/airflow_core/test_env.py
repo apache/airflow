@@ -24,7 +24,7 @@ from chart_utils.helm_template_generator import render_chart
 @pytest.mark.parametrize(
     ("airflow_version", "template_yaml"),
     [
-        ("2.10.0", "templates/webserver/webserver-deployment.yaml"),
+        ("2.11.0", "templates/webserver/webserver-deployment.yaml"),
         ("3.0.0", "templates/api-server/api-server-deployment.yaml"),
         ("default", "templates/api-server/api-server-deployment.yaml"),
     ],
@@ -46,7 +46,7 @@ def test_should_add_airflow_home(airflow_version, template_yaml):
 @pytest.mark.parametrize(
     ("airflow_version", "template_yaml"),
     [
-        ("2.10.0", "templates/webserver/webserver-deployment.yaml"),
+        ("2.11.0", "templates/webserver/webserver-deployment.yaml"),
         ("3.0.0", "templates/api-server/api-server-deployment.yaml"),
         ("default", "templates/api-server/api-server-deployment.yaml"),
     ],

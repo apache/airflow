@@ -60,6 +60,11 @@ try:
 except AirflowConfigException:
     EDGE_EXECUTOR_ACTIVE = False
 
+if EDGE_EXECUTOR_ACTIVE:
+    from airflow.providers.edge3.models.db import check_db_manager_config
+
+    check_db_manager_config()
+
 # Load the API endpoint only on api-server
 # TODO(jscheffl): Remove this check when the discussion in
 #                 https://lists.apache.org/thread/w170czq6r7bslkqp1tk6bjjjo0789wgl
