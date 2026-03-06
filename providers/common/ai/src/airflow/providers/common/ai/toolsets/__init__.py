@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["HookToolset", "SQLToolset"]
+__all__ = ["HookToolset", "MCPToolset", "SQLToolset"]
 
 
 def __getattr__(name: str):
@@ -32,4 +32,12 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException(e)
         return SQLToolset
+    if name == "MCPToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return MCPToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
