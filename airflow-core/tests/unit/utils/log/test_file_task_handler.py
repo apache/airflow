@@ -20,8 +20,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 
@@ -40,9 +38,7 @@ class TestFileTaskHandlerLogServer:
     @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     @patch.object(FileTaskHandler, "_read_from_local")
-    def test_404_falls_back_to_local_when_available(
-        self, mock_read_local, mock_get_url, mock_fetch
-    ):
+    def test_404_falls_back_to_local_when_available(self, mock_read_local, mock_get_url, mock_fetch):
         """When log server returns 404 and local logs exist, use local logs."""
         mock_get_url.return_value = ("http://worker-1/log", "dag/run/task/1.log")
 
@@ -57,16 +53,12 @@ class TestFileTaskHandlerLogServer:
 
         assert sources == ["/tmp/test_logs/dag/run/task/1.log"]
         assert streams == [mock_stream]
-        mock_read_local.assert_called_once_with(
-            Path("/tmp/test_logs", "dag/run/task/1.log")
-        )
+        mock_read_local.assert_called_once_with(Path("/tmp/test_logs", "dag/run/task/1.log"))
 
     @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     @patch.object(FileTaskHandler, "_read_from_local")
-    def test_404_shows_clear_message_when_no_local_fallback(
-        self, mock_read_local, mock_get_url, mock_fetch
-    ):
+    def test_404_shows_clear_message_when_no_local_fallback(self, mock_read_local, mock_get_url, mock_fetch):
         """When log server returns 404 and no local logs exist, show helpful message."""
         mock_get_url.return_value = ("http://worker-1/log", "dag/run/task/1.log")
 
