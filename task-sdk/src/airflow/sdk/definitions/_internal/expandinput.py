@@ -305,10 +305,9 @@ class ListOfDictsExpandInput(ExpandInput):
 
     def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
-        if map_index < 0:
+        if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        mapping: Any = None
         if isinstance(self.value, Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, Mapping):
