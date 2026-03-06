@@ -260,7 +260,16 @@ class LLMDataQualityOperator(LLMOperator):
         return check_results
 
     def _validate_validator_keys(self) -> None:
-        """Raise :class:`ValueError` if any validator key is absent from *prompts*."""
+        """
+        Raise :class:`ValueError` if any validator key is absent from *prompts*.
+
+        Skips validation when *prompts* is not yet a dict — this happens when the
+        operator is constructed via the ``@task.llm_dq`` decorator and *prompts*
+        is set to ``SET_DURING_EXECUTION`` at init time.  The decorator calls this
+        method again after the callable has populated ``self.prompts``.
+        """
+        if not isinstance(self.prompts, dict):
+            return
         unknown = set(self.validators.keys()) - set(self.prompts.keys())
         if unknown:
             raise ValueError(
