@@ -218,8 +218,8 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
     await expect(async () => {
       await backfillPage.page.reload();
       await expect(backfillPage.triggerButton).toBeVisible({ timeout: 10_000 });
-      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 15_000 });
-    }).toPass({ timeout: 120_000 });
+      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 60_000 });
   });
 
   test.afterEach(async () => {
