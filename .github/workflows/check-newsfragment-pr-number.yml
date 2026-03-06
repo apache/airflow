@@ -44,8 +44,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: "${{ github.event.pull_request.number }}"
         run: |
-          # Find newsfragment files whose PR number doesn't match this PR
-          bad=$(gh pr diff "$PR_NUMBER" --name-only \
+          # Find newsfragment files whose PR number doesn't match this PR.
+          # Use the REST API to get file statuses so we can exclude deleted files.
+          bad=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/files" \
+            --paginate --jq '.[] | select(.status != "removed") | .filename' \
             | grep '/newsfragments/.*\.rst$' \
             | grep -v "/newsfragments/${PR_NUMBER}\." || true)
 
