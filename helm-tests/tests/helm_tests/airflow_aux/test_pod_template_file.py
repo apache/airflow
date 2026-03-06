@@ -576,18 +576,26 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        ("base_scheduler_name", "worker_scheduler_name", "expected"),
+        ("base_scheduler_name", "worker_values", "expected"),
         [
-            ("default-scheduler", "most-allocated", "most-allocated"),
-            ("default-scheduler", None, "default-scheduler"),
-            (None, None, None),
+            ("default-scheduler", {"schedulerName": "most-allocated"}, "most-allocated"),
+            ("default-scheduler", {"kubernetes": {"schedulerName": "most-allocated"}}, "most-allocated"),
+            (
+                "default-scheduler",
+                {"schedulerName": "least-allocated", "kubernetes": {"schedulerName": "most-allocated"}},
+                "most-allocated",
+            ),
+            ("default-scheduler", {"schedulerName": None}, "default-scheduler"),
+            ("default-scheduler", {"kubernetes": {"schedulerName": None}}, "default-scheduler"),
+            (None, {"schedulerName": None}, None),
+            (None, {"kubernetes": {"schedulerName": None}}, None),
         ],
     )
-    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
+    def test_scheduler_name(self, base_scheduler_name, worker_values, expected):
         docs = render_chart(
             values={
                 "schedulerName": base_scheduler_name,
-                "workers": {"schedulerName": worker_scheduler_name},
+                "workers": worker_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
