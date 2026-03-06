@@ -75,7 +75,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.traces import override_ids
+from airflow.observability.traces import new_dagrun_trace_carrier, override_ids
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -367,15 +367,8 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier: dict[str, str] = {}
+        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier()
 
-        # We never call .end() on this span. It's solely used to generate a trace context for the rest of the run.
-        empty_context = context.Context()
-        span = tracer.start_span("notused", context=empty_context)
-        ctx = trace.set_span_in_context(span)
-        carrier: dict[str, str] = {}
-        TraceContextTextMapPropagator().inject(carrier, context=ctx)
-        self.context_carrier = carrier
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"

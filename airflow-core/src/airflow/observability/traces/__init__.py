@@ -27,6 +27,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from airflow.configuration import conf
 
@@ -50,6 +52,21 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
         if override is not None:
             return override
         return super().generate_trace_id()
+
+
+def new_dagrun_trace_carrier() -> dict[str, str]:
+    """Generate a fresh W3C traceparent carrier without creating a recordable span."""
+    gen = RandomIdGenerator()
+    span_ctx = SpanContext(
+        trace_id=gen.generate_trace_id(),
+        span_id=gen.generate_span_id(),
+        is_remote=False,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED),
+    )
+    ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
+    carrier: dict[str, str] = {}
+    TraceContextTextMapPropagator().inject(carrier, context=ctx)
+    return carrier
 
 
 @contextmanager
