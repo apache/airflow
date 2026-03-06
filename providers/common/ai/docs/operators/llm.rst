@@ -118,3 +118,11 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. At DEBUG level, the LLM output is also logged
+(truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.
