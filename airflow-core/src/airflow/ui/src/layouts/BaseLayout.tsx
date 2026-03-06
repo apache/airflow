@@ -21,6 +21,9 @@ import { useEffect, type PropsWithChildren } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
+import { usePluginServiceGetPlugins } from "openapi/queries";
+import type { ReactAppResponse } from "openapi/requests/types.gen";
+import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useConfig } from "src/queries/useConfig";
 
 import { Nav } from "./Nav";
@@ -28,6 +31,12 @@ import { Nav } from "./Nav";
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
   const { i18n } = useTranslation();
+  const { data: pluginData } = usePluginServiceGetPlugins();
+
+  const baseReactPlugins =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.react_apps)
+      .filter((reactApp: ReactAppResponse) => reactApp.destination === "base") ?? [];
 
   if (typeof instanceName === "string") {
     document.title = instanceName;
@@ -52,18 +61,24 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
 
   return (
     <LocaleProvider locale={i18n.language || "en"}>
-      <Nav />
-      <Box
-        _ltr={{ ml: 16 }}
-        _rtl={{ mr: 16 }}
-        data-testid="main-content"
-        display="flex"
-        flexDirection="column"
-        h="100vh"
-        overflowY="auto"
-        p={3}
-      >
-        {children ?? <Outlet />}
+      <Box display="flex" flexDirection="column" h="100vh">
+        <Nav />
+        <Box
+          _ltr={{ ml: 16 }}
+          _rtl={{ mr: 16 }}
+          data-testid="main-content"
+          display="flex"
+          flex={1}
+          flexDirection="column"
+          minH={0}
+          overflowY="auto"
+          p={3}
+        >
+          {baseReactPlugins.map((plugin) => (
+            <ReactPlugin key={plugin.name} reactApp={plugin} />
+          ))}
+          {children ?? <Outlet />}
+        </Box>
       </Box>
     </LocaleProvider>
   );

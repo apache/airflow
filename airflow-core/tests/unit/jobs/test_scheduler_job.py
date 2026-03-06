@@ -21,6 +21,7 @@ import contextlib
 import datetime
 import logging
 import os
+import re
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
 from contextlib import ExitStack
@@ -65,6 +66,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, _create_backfill
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -92,7 +94,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -377,6 +379,55 @@ class TestSchedulerJob:
         current_children = set(current_process.children(recursive=True)) - set(old_children)
         assert not current_children
 
+    def test_only_idle_no_dags_exits_after_n_idle_runs(self, caplog, configure_testing_dag_bundle):
+        num_runs = 5
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
+            with configure_testing_dag_bundle(os.devnull):
+                executor = MockExecutor(do_update=False)
+                scheduler_job = Job()
+                self.job_runner = SchedulerJobRunner(
+                    job=scheduler_job,
+                    num_runs=num_runs,
+                    only_idle=True,
+                    executors=[executor],
+                )
+                run_job(scheduler_job, execute_callable=self.job_runner._execute)
+
+        match = re.search(r"\((\d+) idle, (\d+) total\)", caplog.text)
+        assert match, f"Expected exit log '(N idle, M total)' in: {caplog.text}"
+        idle_runs_val, total_runs_val = int(match.group(1)), int(match.group(2))
+        assert total_runs_val == num_runs, "With no DAGs, total loop count should equal num_runs"
+        assert idle_runs_val == num_runs, "With no DAGs, all runs are idle; idle count should equal num_runs"
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_only_idle_with_dag_exits_after_n_idle_runs(self, caplog, dag_maker, session):
+        num_runs = 5
+        with dag_maker(dag_id="test_only_idle_one_task", fileloc="test_only_idle_one_task.py"):
+            EmptyOperator(task_id="dummy")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
+        ti = dr.get_task_instance("dummy", session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job,
+            num_runs=num_runs,
+            only_idle=True,
+            executors=[executor],
+        )
+        with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
+            run_job(scheduler_job, execute_callable=self.job_runner._execute)
+
+        match = re.search(r"\((\d+) idle, (\d+) total\)", caplog.text)
+        assert match, f"Expected exit log '(N idle, M total)' in: {caplog.text}"
+        idle_runs_val, total_runs_val = int(match.group(1)), int(match.group(2))
+        assert total_runs_val >= num_runs, "Total loop count should be at least num_runs"
+        assert idle_runs_val == num_runs, "Scheduler exits when idle run count reaches num_runs"
+        assert total_runs_val > idle_runs_val, "Some runs should not be idle"
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
     def test_process_executor_events(self, mock_stats_incr, mock_task_callback, dag_maker):
@@ -556,6 +607,48 @@ class TestSchedulerJob:
             any_order=True,
         )
 
+    def test_enqueue_executor_callbacks_only_selects_pending_state(self, dag_maker, session):
+        def test_callback():
+            pass
+
+        def create_callback_in_state(state: CallbackState):
+            callback = Deadline(
+                deadline_time=timezone.utcnow(),
+                callback=SyncCallback(test_callback),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            ).callback
+            callback.state = state
+            callback.data["dag_run_id"] = dag_run.id
+            callback.data["dag_id"] = dag_run.dag_id
+            return callback
+
+        with dag_maker(dag_id="test_callback_states"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        scheduled_callback = create_callback_in_state(CallbackState.SCHEDULED)
+        pending_callback = create_callback_in_state(CallbackState.PENDING)
+        queued_callback = create_callback_in_state(CallbackState.QUEUED)
+        running_callback = create_callback_in_state(CallbackState.RUNNING)
+        session.add_all([scheduled_callback, pending_callback, queued_callback, running_callback])
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Verify initial state before calling _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.PENDING
+
+        self.job_runner._enqueue_executor_callbacks(session)
+        # PENDING should progress to QUEUED after _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.QUEUED
+
+        # Other callbacks should remain in their original states
+        assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
+        assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
+        assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
     def test_process_executor_events_with_callback(
@@ -641,7 +734,9 @@ class TestSchedulerJob:
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
-    def test_process_executor_events_ti_requeued(self, mock_stats_incr, mock_task_callback, dag_maker):
+    def test_process_executor_events_ti_requeued(
+        self, mock_stats_incr, mock_task_callback, dag_maker, caplog
+    ):
         dag_id = "test_process_executor_events_ti_requeued"
         task_id_1 = "dummy_task"
 
@@ -669,10 +764,12 @@ class TestSchedulerJob:
 
         executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
 
-        self.job_runner._process_executor_events(executor=executor, session=session)
+        with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
+            self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
+        assert any("TI try_number mismatch:" in rec.message for rec in caplog.records)
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
@@ -700,6 +797,42 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
+        mock_stats_incr.assert_not_called()
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_multiple_try_numbers_warns(
+        self, mock_stats_incr, mock_task_callback, dag_maker, caplog
+    ):
+        dag_id = "test_process_executor_events_multiple_try_numbers_warns"
+        task_id = "dummy_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task = EmptyOperator(task_id=task_id)
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        mock_stats_incr.reset_mock()
+
+        ti.state = State.QUEUED
+        ti.try_number = 2
+        session.merge(ti)
+        session.commit()
+
+        executor.event_buffer[ti.key.with_try_number(1)] = State.RUNNING, "first_executor_id"
+        executor.event_buffer[ti.key.with_try_number(2)] = State.RUNNING, "second_executor_id"
+
+        with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
+        assert any(
+            "Multiple executor events for same TI with different try_numbers!" in rec.message
+            for rec in caplog.records
+        )
+        mock_task_callback.assert_not_called()
         mock_stats_incr.assert_not_called()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
@@ -1311,7 +1444,7 @@ class TestSchedulerJob:
         assert len(res) == 5
 
         # Verify that each task is routed to the correct executor
-        executor_to_tis = self.job_runner._executor_to_tis(res, session)
+        executor_to_tis = self.job_runner._executor_to_workloads(res, session)
 
         # Team pi tasks should go to mock_executors[0] (configured for team_pi)
         a_tis_in_executor = [ti for ti in executor_to_tis.get(mock_executors[0], []) if ti.dag_id == "dag_a"]
@@ -4725,9 +4858,6 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
         self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
         kwargs = mock_create.call_args.kwargs
-        # todo: AIP-76 let's add partition_date to dag run
-        #  and we should probably have something on DagRun that can return the DagRunInfo for
-        #  that dag run. See https://github.com/apache/airflow/issues/61167
         actual = DagRunInfo(
             run_after=kwargs["run_after"],
             data_interval=kwargs["data_interval"],
@@ -7909,7 +8039,7 @@ class TestSchedulerJob:
         assert result == {}
         mock_log.exception.assert_called_once()
 
-    def test_multi_team_get_task_team_name_success(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_success(self, dag_maker, session):
         """Test successful team name resolution for a single task."""
         clear_db_teams()
         clear_db_dag_bundles()
@@ -7932,10 +8062,10 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        result = self.job_runner._get_task_team_name(ti, session)
+        result = self.job_runner._get_workload_team_name(ti, session)
         assert result == "team_a"
 
-    def test_multi_team_get_task_team_name_no_team(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_no_team(self, dag_maker, session):
         """Test team resolution when no team is associated with the DAG."""
         with dag_maker(dag_id="dag_no_team", session=session):
             task = EmptyOperator(task_id="task_no_team")
@@ -7946,10 +8076,10 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        result = self.job_runner._get_task_team_name(ti, session)
+        result = self.job_runner._get_workload_team_name(ti, session)
         assert result is None
 
-    def test_multi_team_get_task_team_name_database_error(self, dag_maker, session):
+    def test_multi_team_get_workload_team_name_database_error(self, dag_maker, session):
         """Test graceful error handling when individual task team resolution fails. This code should _not_ fail the scheduler."""
         with dag_maker(dag_id="dag_test", session=session):
             task = EmptyOperator(task_id="task_test")
@@ -7962,7 +8092,7 @@ class TestSchedulerJob:
 
         # Mock _get_team_names_for_dag_ids to return empty dict (simulates database error handling in that function)
         with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids", return_value={}) as mock_batch:
-            result = self.job_runner._get_task_team_name(ti, session)
+            result = self.job_runner._get_workload_team_name(ti, session)
             mock_batch.assert_called_once_with([ti.dag_id], session)
 
         # Should return None when batch function returns empty dict
@@ -7980,7 +8110,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result = self.job_runner._try_to_load_executor(ti, session)
             # Should not call team resolution when multi_team is disabled
             mock_team_resolve.assert_not_called()
@@ -8177,7 +8307,8 @@ class TestSchedulerJob:
 
             # Should log a warning when no executor is found
             mock_log.warning.assert_called_once_with(
-                "Executor, %s, was not found but a Task was configured to use it", "secondary_exec"
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                "secondary_exec",
             )
 
         # Should return None since we failed to resolve an executor due to the mismatch. In practice, this
@@ -8229,11 +8360,42 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         # Call with pre-resolved team name (as done in the scheduling loop)
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result = self.job_runner._try_to_load_executor(ti, session, team_name="team_a")
             mock_team_resolve.assert_not_called()  # We don't query for the team if it is pre-resolved
 
         assert result == mock_executors[1]
+
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_try_to_load_executor_matches_by_classname(self, dag_maker, mock_executors, session):
+        """Test that executor lookup matches by classname when alias and module_path don't match.
+
+        This covers the edge case where a user aliases a core executor (e.g.
+        ``global_exec:LocalExecutor;team1=team_exec:LocalExecutor``) but a task specifies
+        ``executor="LocalExecutor"`` (the classname). The scheduler should still find the
+        executor by matching the last component of the module_path (the classname).
+        """
+        # Set up the mock executors with aliases that differ from the classname
+        mock_executors[0].name = ExecutorName(
+            alias="global_exec", module_path="airflow.executors.local_executor.LocalExecutor"
+        )
+        mock_executors[1].name = ExecutorName(
+            alias="team_exec", module_path="airflow.executors.local_executor.LocalExecutor"
+        )
+
+        with dag_maker(dag_id="test_dag", session=session):
+            task = EmptyOperator(task_id="test_task", executor="LocalExecutor")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should match by classname (last component of module_path) and return the global executor
+        assert result == mock_executors[0]
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_scheduling_loop_batch_optimization(self, dag_maker, mock_executors, session):
@@ -8320,13 +8482,13 @@ class TestSchedulerJob:
 
         with (
             assert_queries_count(1, session=session),
-            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+            mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_single,
         ):
-            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+            executor_to_workloads = self.job_runner._executor_to_workloads([ti1, ti2], session)
 
             mock_single.assert_not_called()
-            assert executor_to_tis[mock_executors[0]] == [ti1]
-            assert executor_to_tis[mock_executors[1]] == [ti2]
+            assert executor_to_workloads[mock_executors[0]] == [ti1]
+            assert executor_to_workloads[mock_executors[1]] == [ti2]
 
     @conf_vars({("core", "multi_team"): "false"})
     def test_multi_team_config_disabled_uses_legacy_behavior(self, dag_maker, mock_executors, session):
@@ -8342,7 +8504,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+        with mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_team_resolve:
             result1 = self.job_runner._try_to_load_executor(ti1, session)
             result2 = self.job_runner._try_to_load_executor(ti2, session)
 

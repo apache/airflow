@@ -76,7 +76,13 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- if and .Values.workers.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))) }}
+  {{- $kedaEnabled := .Values.workers.keda.enabled }}
+  {{- $kedaUsePgBouncer := .Values.workers.keda.usePgbouncer }}
+  {{- if hasKey .Values.workers "celery" }}
+    {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
+    {{- $kedaUsePgBouncer = or .Values.workers.celery.keda.usePgbouncer (and (not (has .Values.workers.celery.keda.usePgbouncer (list true false))) .Values.workers.keda.usePgbouncer) }}
+  {{- end }}
+  {{- if and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
@@ -640,7 +646,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "webserver") .) -}}
 {{- end }}
 
-
 {{/* Create the name of the API server service account to use */}}
 {{- define "apiServer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "apiServer" "nameSuffix" "api-server" ) .) -}}
@@ -896,9 +901,9 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
 Set the default value for container securityContext
 If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
-    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
-    | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +-----------------------------+      +------------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |
+    +-----------------------------------+      +-----------------------------+      +------------------------------------------------------------+
 
 The template can be called like so:
    include "containerSecurityContext" (list .Values.webserver .Values)
@@ -931,9 +936,9 @@ capabilities:
 Set the default value for external container securityContext(redis and statsd).
 If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
-    +-----------------------------------+      +-----------------------------------------------------------+
-    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-    +-----------------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +------------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |
+    +-----------------------------------+      +------------------------------------------------------------+
 
 The template can be called like so:
   include "externalContainerSecurityContext" .Values.statsd
