@@ -229,8 +229,8 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
-            if provider.data.get("config"):
-                self._provider_configs[provider_package] = provider.data.get("config")
+            if config := provider.data.get("config"):
+                self._provider_configs[provider_package] = config
 
     def _discover_hooks_from_connection_types(
         self,

@@ -42,7 +42,6 @@ from airflow._shared.configuration.parser import (
 )
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
-from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
@@ -204,6 +203,8 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         _default_values = create_default_config_parser(configuration_description)
+        from airflow.providers_manager import ProvidersManager
+
         super().__init__(
             configuration_description,
             _default_values,
