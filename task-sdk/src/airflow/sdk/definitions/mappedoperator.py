@@ -227,7 +227,9 @@ class OperatorPartial:
         operator = self._expand(expand_input, strict=False, apply_upstream_relationship=False)
         return IterableOperator(operator=operator, expand_input=expand_input)
 
-    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> IterableOperator:
+    def iterate_kwargs(
+        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
+    ) -> IterableOperator:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
