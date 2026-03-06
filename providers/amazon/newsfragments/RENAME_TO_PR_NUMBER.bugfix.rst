@@ -1,0 +1,1 @@
+Fix ``CloudwatchTaskHandler`` not deleting local log files after streaming to CloudWatch. In Airflow 3, logs are streamed in real-time so ``upload()`` became a no-op, but ``delete_local_copy`` was never honoured, causing local log files to accumulate indefinitely.
