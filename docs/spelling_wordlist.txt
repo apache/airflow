@@ -762,6 +762,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -1269,6 +1270,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
