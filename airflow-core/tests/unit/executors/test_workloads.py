@@ -58,9 +58,7 @@ def test_token_excluded_from_workload_repr():
     workload_repr = repr(workload)
 
     # Token MUST NOT appear in repr (prevents leaking into logs)
-    assert fake_token not in workload_repr, (
-        f"JWT token leaked into repr! Found token in: {workload_repr}"
-    )
+    assert fake_token not in workload_repr, f"JWT token leaked into repr! Found token in: {workload_repr}"
     # But token should still be accessible as an attribute
     assert workload.token == fake_token
 
