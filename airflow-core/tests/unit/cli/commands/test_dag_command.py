@@ -36,6 +36,7 @@ from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
@@ -43,6 +44,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
+from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
@@ -1074,10 +1077,6 @@ class TestCliDagsReserialize:
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_make_equal_hash_with_dag_processor(self, configure_dag_bundles, session):
-        from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-        from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
-        from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
-
         bundles = {"bundle_reserialize": TEST_DAGS_FOLDER / "test_dag_reserialize.py"}
         with configure_dag_bundles(bundles):
             dag_command.dag_reserialize(
