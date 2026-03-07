@@ -124,10 +124,10 @@ Hotkey values (e.g., `"hotkey": "e"`) are literal key bindings and should
 
 3. **Translate** the `TODO: translate` entries using this guide and the locale
    glossary.
-4. **Remove** extra keys not present in the English source:
+4. **Remove** unused keys (not required):
 
    ```bash
-   breeze ui check-translation-completeness --language <locale-name> --remove-extra
+   breeze ui check-translation-completeness --language <locale-name> --remove-unused
    ```
 
 5. **Validate** completeness:
