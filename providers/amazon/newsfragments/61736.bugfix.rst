@@ -1,0 +1,1 @@
+Fix EksPodOperator deferrable mode failing on remote triggerers with 401 Unauthorized by embedding bearer token in kubeconfig instead of using exec block with temp file references
