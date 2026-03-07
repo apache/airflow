@@ -58,6 +58,7 @@ versions:
 integrations:
   - integration-name: ArangoDB
     external-doc-url: https://www.arangodb.com/
+    logo: /docs/integration-logos/ArangoDB.svg
     tags: [software]
 
 hooks:

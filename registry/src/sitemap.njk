@@ -1,0 +1,14 @@
+---
+permalink: /sitemap.xml
+eleventyExcludeFromCollections: true
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://airflow.apache.org/registry/</loc></url>
+  <url><loc>https://airflow.apache.org/registry/providers/</loc></url>
+  <url><loc>https://airflow.apache.org/registry/explore/</loc></url>
+  <url><loc>https://airflow.apache.org/registry/stats/</loc></url>
+  {%- for provider in providers.providers %}
+  <url><loc>https://airflow.apache.org/registry/providers/{{ provider.id }}/{{ provider.version }}/</loc></url>
+  {%- endfor %}
+</urlset>

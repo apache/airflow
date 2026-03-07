@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Influxdb",
                 "external-doc-url": "https://www.influxdata.com/",
+                "logo": "/docs/integration-logos/Influxdb.svg",
                 "tags": ["software"],
             }
         ],
