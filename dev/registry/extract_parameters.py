@@ -19,8 +19,9 @@
 Airflow Registry Parameter & Module Extractor
 
 Discovers provider modules (operators, hooks, sensors, triggers, etc.) at runtime
-and extracts constructor parameters via MRO inspection. Produces both modules.json
-(the full module catalog) and per-provider parameters.json files.
+and extracts constructor/function parameters via MRO or signature inspection.
+Produces both modules.json (the full module catalog) and per-provider
+parameters.json files.
 
 Must be run inside breeze where all providers are installed.
 
@@ -152,6 +153,29 @@ def format_default(default: object) -> object:
         return repr(default)
 
 
+def get_params_from_signature(sig: inspect.Signature, qualified_origin: str) -> dict[str, dict]:
+    """Convert an inspect.Signature into parameter metadata."""
+    params: dict[str, dict] = {}
+
+    for name, param in sig.parameters.items():
+        if name in ("self", "cls"):
+            continue
+        if name.startswith("_"):
+            continue
+        if param.kind in (param.VAR_KEYWORD, param.VAR_POSITIONAL):
+            continue
+
+        params[name] = {
+            "name": name,
+            "type": format_annotation(param.annotation),
+            "default": format_default(param.default),
+            "required": param.default is inspect.Parameter.empty,
+            "origin": qualified_origin,
+        }
+
+    return params
+
+
 def get_params_from_class(cls: type) -> dict[str, dict]:
     """
     Extract all __init__ parameters by walking the MRO in reverse
@@ -174,22 +198,7 @@ def get_params_from_class(cls: type) -> dict[str, dict]:
             continue
 
         qualified_origin = f"{klass.__module__}.{klass.__qualname__}"
-
-        for name, param in sig.parameters.items():
-            if name in ("self", "cls"):
-                continue
-            if name.startswith("_"):
-                continue
-            if param.kind in (param.VAR_KEYWORD, param.VAR_POSITIONAL):
-                continue
-
-            params[name] = {
-                "name": name,
-                "type": format_annotation(param.annotation),
-                "default": format_default(param.default),
-                "required": param.default is inspect.Parameter.empty,
-                "origin": qualified_origin,
-            }
+        params.update(get_params_from_signature(sig, qualified_origin))
 
     return params
 
@@ -197,6 +206,26 @@ def get_params_from_class(cls: type) -> dict[str, dict]:
 def get_mro_chain(cls: type) -> list[str]:
     """Return the full MRO as a list of qualified class names."""
     return [f"{k.__module__}.{k.__qualname__}" for k in cls.__mro__ if k is not object]
+
+
+def parse_param_descriptions(doc: str) -> dict[str, str]:
+    """Parse ``:param name: description`` entries from a docstring."""
+    descriptions: dict[str, str] = {}
+    if not doc:
+        return descriptions
+
+    for match in re.finditer(
+        r":param\s+(\w+):\s*(.+?)(?=\n\s*:\w|\n\s*\.\.|$)",
+        doc,
+        re.DOTALL,
+    ):
+        name = match.group(1)
+        desc = match.group(2).strip()
+        desc = re.sub(r"\s+", " ", desc)
+        if name not in descriptions:
+            descriptions[name] = desc
+
+    return descriptions
 
 
 def parse_docstring_params(cls: type) -> dict[str, str]:
@@ -209,18 +238,7 @@ def parse_docstring_params(cls: type) -> dict[str, str]:
     for klass in cls.__mro__:
         if klass is object:
             continue
-        doc = getattr(klass, "__doc__", None) or ""
-        if not doc:
-            continue
-
-        for match in re.finditer(
-            r":param\s+(\w+):\s*(.+?)(?=\n\s*:\w|\n\s*\.\.|$)",
-            doc,
-            re.DOTALL,
-        ):
-            name = match.group(1)
-            desc = match.group(2).strip()
-            desc = re.sub(r"\s+", " ", desc)
+        for name, desc in parse_param_descriptions(getattr(klass, "__doc__", None) or "").items():
             if name not in descriptions:
                 descriptions[name] = desc
 
@@ -248,16 +266,43 @@ def extract_class_params(cls: type) -> tuple[list[str], list[dict]]:
     return mro, provider_params
 
 
-def import_class(import_path: str) -> type | None:
-    """Import a class from its full dotted path."""
+def extract_callable_params(func: typing.Callable[..., typing.Any]) -> tuple[list[str], list[dict]]:
+    """Extract parameter metadata from a callable signature and docstring."""
+    try:
+        sig = inspect.signature(func)
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Could not inspect callable signature: {e}") from e
+
+    qualified_origin = f"{func.__module__}.{func.__qualname__}"
+    params = get_params_from_signature(sig, qualified_origin)
+    descriptions = parse_param_descriptions(getattr(func, "__doc__", None) or "")
+
+    for name, param in params.items():
+        param["description"] = descriptions.get(name)
+
+    provider_params = [p for p in params.values() if p["origin"].startswith("airflow.providers.")]
+    return [], provider_params
+
+
+def extract_params(obj: object) -> tuple[list[str], list[dict]]:
+    """Extract parameter metadata from either a class or a callable."""
+    if inspect.isclass(obj):
+        return extract_class_params(obj)
+    if callable(obj):
+        return extract_callable_params(typing.cast("typing.Callable[..., typing.Any]", obj))
+    raise TypeError(f"Unsupported import type: {type(obj)!r}")
+
+
+def import_symbol(import_path: str) -> object | None:
+    """Import a symbol from its full dotted path."""
     parts = import_path.rsplit(".", 1)
     if len(parts) != 2:
         return None
 
-    module_path, class_name = parts
+    module_path, symbol_name = parts
     try:
         module = importlib.import_module(module_path)
-        return getattr(module, class_name, None)
+        return getattr(module, symbol_name, None)
     except Exception as e:
         print(f"  WARN failed to import {import_path}: {e}")
         return None
@@ -699,13 +744,13 @@ def _extract_params_from_modules(
 
         provider_names[provider_id] = provider_name
 
-        cls = import_class(import_path)
-        if cls is None:
+        obj = import_symbol(import_path)
+        if obj is None:
             total_failed += 1
             continue
 
         try:
-            mro, params = extract_class_params(cls)
+            mro, params = extract_params(obj)
         except Exception as e:
             print(f"  ERROR extracting params for {import_path}: {e}")
             total_failed += 1
