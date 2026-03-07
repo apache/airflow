@@ -145,15 +145,6 @@
     "placeholder": "Not ekle...",
     "taskInstance": "Görev Örneği Notu"
   },
-  "pools": {
-    "deferred": "Ertelenmiş",
-    "open": "Açık",
-    "pools_one": "Havuz",
-    "pools_other": "Havuzlar",
-    "queued": "Kuyrukta",
-    "running": "Çalışıyor",
-    "scheduled": "Planlanmış"
-  },
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
@@ -192,6 +183,7 @@
     "failed": "Başarısız",
     "no_status": "Durum Yok",
     "none": "Durum Yok",
+    "open": "Açık",
     "planned": "Planlanmış",
     "queued": "Kuyrukta",
     "removed": "Kaldırılmış",
