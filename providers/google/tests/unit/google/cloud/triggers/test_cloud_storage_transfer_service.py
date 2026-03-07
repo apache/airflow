@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
+import time_machine
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.storage_transfer_v1 import TransferOperation
 from google.protobuf import struct_pb2
@@ -53,6 +55,7 @@ ASYNC_HOOK_CLASS_PATH = (
 )
 EXPECTED_STATUSES = GcpTransferOperationStatus.SUCCESS
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+DEFAULT_CREATION_TIME = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture(scope="session")
@@ -65,11 +68,16 @@ def trigger():
     )
 
 
-def mock_jobs(names: list[str], latest_operation_names: list[str | None]):
+def mock_jobs(
+    names: list[str],
+    latest_operation_names: list[str | None],
+    creation_times: list[datetime] | None = None,
+):
     """Returns object that mocks asynchronous looping over mock jobs"""
     jobs = [mock.MagicMock(latest_operation_name=name) for name in latest_operation_names]
-    for job, name in zip(jobs, names):
+    for i, (job, name) in enumerate(zip(jobs, names)):
         job.name = name
+        job.creation_time = creation_times[i] if creation_times else DEFAULT_CREATION_TIME
     mock_obj = mock.MagicMock()
     mock_obj.__aiter__.return_value = iter(jobs)
     return mock_obj
@@ -91,6 +99,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             "job_names": JOB_NAMES,
             "poll_interval": POLL_INTERVAL,
             "gcp_conn_id": GCP_CONN_ID,
+            "wait_for_operation_timeout": 60 * 5,
         }
 
     def test_get_async_hook(self, trigger):
@@ -156,30 +165,25 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         assert actual_event == expected_event
         mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
-    @pytest.mark.parametrize(
-        ("latest_operations_names", "expected_failed_job"),
-        [
-            ([None, LATEST_OPERATION_NAME_1], JOB_0),
-            ([LATEST_OPERATION_NAME_0, None], JOB_1),
-        ],
-    )
     @pytest.mark.asyncio
+    @time_machine.travel(DEFAULT_CREATION_TIME, tick=False)
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
-    async def test_run_error_job_has_no_latest_operation(
-        self, get_jobs, get_latest_operation, trigger, latest_operations_names, expected_failed_job
-    ):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=latest_operations_names)
+    async def test_run_wait_for_job_with_no_initial_operation(self, get_jobs, get_latest_operation, trigger):
+        get_jobs.side_effect = [
+            mock_jobs(names=JOB_NAMES, latest_operation_names=[LATEST_OPERATION_NAME_0, None]),
+            mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
+        ]
         get_latest_operation.side_effect = [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
-            if job_name
-            else None
-            for job_name in latest_operations_names
+            create_mock_operation(status=TransferOperation.Status.IN_PROGRESS, name=LATEST_OPERATION_NAME_0),
+            None,
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_0),
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_1),
         ]
         expected_event = TriggerEvent(
             {
-                "status": "error",
-                "message": f"Transfer job {expected_failed_job} has no latest operation.",
+                "status": "success",
+                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
             }
         )
 
@@ -187,6 +191,60 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         actual_event = await generator.asend(None)
 
         assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @time_machine.travel(DEFAULT_CREATION_TIME, tick=False)
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
+    async def test_run_continues_polling_if_no_operation(self, get_jobs, get_latest_operation, trigger):
+        get_jobs.side_effect = [
+            mock_jobs(names=JOB_NAMES, latest_operation_names=[None, None]),
+            mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
+        ]
+        get_latest_operation.side_effect = [
+            None,
+            None,
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_0),
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_1),
+        ]
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
+            }
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @time_machine.travel(DEFAULT_CREATION_TIME, tick=False)
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
+    async def test_run_timeout_waiting_for_operation(self, get_jobs, get_latest_operation):
+        creation_time = DEFAULT_CREATION_TIME - timedelta(seconds=400)
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES,
+            latest_operation_names=[None, None],
+            creation_times=[creation_time, creation_time],
+        )
+        get_latest_operation.return_value = None
+        trigger = CloudStorageTransferServiceCreateJobsTrigger(
+            project_id=PROJECT_ID,
+            job_names=JOB_NAMES,
+            poll_interval=POLL_INTERVAL,
+            gcp_conn_id=GCP_CONN_ID,
+            wait_for_operation_timeout=300,
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event.payload["status"] == "error"
+        assert "Timeout" in actual_event.payload["message"]
+        assert "300" in actual_event.payload["message"]
 
     @pytest.mark.parametrize(
         ("job_statuses", "failed_operation", "expected_status"),
