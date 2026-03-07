@@ -20,7 +20,7 @@ import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -79,6 +79,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+T = TypeVar("T")
 
 
 def auth_manager_from_app(request: Request) -> BaseAuthManager:
@@ -182,7 +184,14 @@ def requires_access_dag(
 class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
+    def __init__(self, value: T | None = None, skip_filter: bool = False):
+        super().__init__(value=value)
+        self.skip_filter = skip_filter
+
     def to_orm(self, select: Select) -> Select:
+        if self.skip_filter:
+            return select
+
         # self.value may be None (OrmClause holds Optional), ensure we pass an Iterable to in_
         return select.where(DagModel.dag_id.in_(self.value or set()))
 
@@ -252,8 +261,8 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
-        return filter_class(authorized_dags)
+        authorized_dags, all_dags_selected = auth_manager.get_authorized_dag_ids(user=user, method=method)
+        return filter_class(authorized_dags, skip_filter=all_dags_selected)
 
     return depends_permitted_dags_filter
 
