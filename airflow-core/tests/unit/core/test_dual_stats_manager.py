@@ -119,79 +119,81 @@ class TestDualStatsManager:
         assert sorted(args_dict) == sorted(expected_args_dict)
 
     @pytest.mark.parametrize(
-        ("args_dict", "tags", "extra_tags", "expected_args_dict"),
+        ("args_dict", "tags", "legacy_name_tags", "expected_args_dict"),
         [
             pytest.param(
                 {"count": 1},
                 {"test": True},
                 {},
                 {"count": 1, "tags": {"test": True}},
-                id="no_extra_tags",
+                id="no_legacy_name_tags",
             ),
             pytest.param(
                 {},
                 {"test": True},
                 {},
                 {"tags": {"test": True}},
-                id="no_args_no_extra_but_tags",
+                id="no_args_no_legacy_but_tags",
             ),
             pytest.param(
                 {},
                 {"test": True},
-                {"test_extra": True},
-                {"tags": {"test": True, "test_extra": True}},
-                id="no_args_but_tags_and_extra",
+                {"test_legacy": True},
+                {"tags": {"test": True, "test_legacy": True}},
+                id="no_args_but_tags_and_legacy",
             ),
             pytest.param(
                 {"count": 1},
                 {"test": True},
                 {},
                 {"count": 1, "tags": {"test": True}},
-                id="no_args_no_tags_but_extra_tags",
+                id="no_args_no_tags_but_legacy_name_tags",
             ),
             pytest.param(
                 {"count": 1},
                 {"test": True},
-                {"test_extra": True},
-                {"count": 1, "tags": {"test": True, "test_extra": True}},
+                {"test_legacy": True},
+                {"count": 1, "tags": {"test": True, "test_legacy": True}},
                 id="all_params_provided",
             ),
             pytest.param(
                 {"count": 1, "rate": 3},
                 {"test1": True, "test2": False},
-                {"test_extra1": True, "test_extra2": False, "test_extra3": True},
+                {"test_legacy1": True, "test_legacy2": False, "test_legacy3": True},
                 {
                     "count": 1,
                     "rate": 3,
                     "tags": {
                         "test1": True,
                         "test2": False,
-                        "test_extra1": True,
-                        "test_extra2": False,
-                        "test_extra3": True,
+                        "test_legacy1": True,
+                        "test_legacy2": False,
+                        "test_legacy3": True,
                     },
                 },
                 id="multiple_params",
             ),
         ],
     )
-    def test_get_args_dict_with_extra_tags_if_set(
+    def test_get_args_dict_with_legacy_name_tags_if_set(
         self,
         args_dict: dict[str, Any] | None,
         tags: dict[str, Any] | None,
-        extra_tags: dict[str, Any] | None,
+        legacy_name_tags: dict[str, Any] | None,
         expected_args_dict: dict[str, Any],
     ):
-        dict_full = dual_stats_manager._get_args_dict_with_extra_tags_if_set(args_dict, tags, extra_tags)
+        dict_full = dual_stats_manager._get_args_dict_with_legacy_name_tags_if_set(
+            args_dict, tags, legacy_name_tags
+        )
         assert sorted(dict_full) == sorted(expected_args_dict)
 
     @pytest.mark.parametrize(
-        ("tags", "extra_tags", "expected_tags_dict"),
+        ("tags", "legacy_name_tags", "expected_tags_dict"),
         [
             pytest.param(
                 {"test": True},
-                {"test_extra": True},
-                {"test": True, "test_extra": True},
+                {"test_legacy": True},
+                {"test": True, "test_legacy": True},
                 id="all_params_provided",
             ),
             pytest.param(
@@ -208,31 +210,31 @@ class TestDualStatsManager:
             ),
             pytest.param(
                 {},
-                {"test_extra": True},
-                {"test_extra": True},
-                id="only_extra",
+                {"test_legacy": True},
+                {"test_legacy": True},
+                id="only_legacy",
             ),
             pytest.param(
                 {"test1": True, "test2": False},
-                {"test_extra1": True, "test_extra2": False, "test_extra3": True},
+                {"test_legacy1": True, "test_legacy2": False, "test_legacy3": True},
                 {
                     "test1": True,
                     "test2": False,
-                    "test_extra1": True,
-                    "test_extra2": False,
-                    "test_extra3": True,
+                    "test_legacy1": True,
+                    "test_legacy2": False,
+                    "test_legacy3": True,
                 },
                 id="multiple_params",
             ),
         ],
     )
-    def test_get_tags_with_extra(
+    def test_get_tags_with_legacy(
         self,
         tags: dict[str, Any] | None,
-        extra_tags: dict[str, Any] | None,
+        legacy_name_tags: dict[str, Any] | None,
         expected_tags_dict: dict[str, Any],
     ):
-        tags_full = dual_stats_manager._get_tags_with_extra(tags, extra_tags)
+        tags_full = dual_stats_manager._get_tags_with_legacy(tags, legacy_name_tags)
         assert sorted(tags_full) == sorted(expected_tags_dict)
 
     @pytest.mark.parametrize(
