@@ -42,7 +42,7 @@ class AzureContainerInstanceTrigger(BaseTrigger):
         resource_group: str,
         name: str,
         ci_conn_id: str,
-        polling_interval: float = 5.0,
+        polling_interval: float = 30.0,
     ) -> None:
         super().__init__()
         self.resource_group = resource_group
@@ -79,8 +79,6 @@ class AzureContainerInstanceTrigger(BaseTrigger):
                         state = cg_state.provisioning_state
                         exit_code = 0
                         detail_status = "Provisioning"
-
-                    self.log.info("Container group %s/%s state: %s", self.resource_group, self.name, state)
 
                     if state in TERMINAL_STATES:
                         if state in SUCCESS_STATES and exit_code == 0:

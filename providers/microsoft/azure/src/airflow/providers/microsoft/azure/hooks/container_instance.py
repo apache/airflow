@@ -189,6 +189,7 @@ class AzureContainerInstanceAsyncHook(AzureContainerInstanceHook):
 
     def __init__(self, azure_conn_id: str = AzureContainerInstanceHook.default_conn_name) -> None:
         self._async_conn: AsyncContainerInstanceManagementClient | None = None
+        self._async_credential: Any = None
         super().__init__(azure_conn_id=azure_conn_id)
 
     async def __aenter__(self) -> AzureContainerInstanceAsyncHook:
@@ -198,10 +199,13 @@ class AzureContainerInstanceAsyncHook(AzureContainerInstanceHook):
         await self.close()
 
     async def close(self) -> None:
-        """Close the async connection."""
+        """Close the async connection and credential."""
         if self._async_conn is not None:
             await self._async_conn.close()
             self._async_conn = None
+        if self._async_credential is not None and hasattr(self._async_credential, "close"):
+            await self._async_credential.close()
+            self._async_credential = None
 
     async def get_async_conn(self) -> AsyncContainerInstanceManagementClient:
         """Return (or create) the async management client."""
@@ -213,7 +217,7 @@ class AzureContainerInstanceAsyncHook(AzureContainerInstanceHook):
         subscription_id = cast("str", conn.extra_dejson.get("subscriptionId"))
 
         if all([conn.login, conn.password, tenant]):
-            credential: Any = AsyncClientSecretCredential(
+            self._async_credential = AsyncClientSecretCredential(
                 client_id=cast("str", conn.login),
                 client_secret=cast("str", conn.password),
                 tenant_id=cast("str", tenant),
@@ -221,13 +225,13 @@ class AzureContainerInstanceAsyncHook(AzureContainerInstanceHook):
         else:
             managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
             workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            credential = get_async_default_azure_credential(
+            self._async_credential = get_async_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
         self._async_conn = AsyncContainerInstanceManagementClient(
-            credential=credential,
+            credential=self._async_credential,
             subscription_id=subscription_id,
         )
         return self._async_conn

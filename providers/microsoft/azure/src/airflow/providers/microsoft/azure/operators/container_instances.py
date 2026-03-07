@@ -111,7 +111,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param deferrable: Run in deferrable mode, releasing the worker slot while the container
         runs. Defaults to ``[operators] default_deferrable`` in ``airflow.cfg``.
     :param remove_on_success: Delete the container group after a successful run. Default ``True``.
-    :param polling_interval: Seconds between status polls in deferrable mode. Default ``5.0``.
+    :param polling_interval: Seconds between status polls in deferrable mode. Default ``30.0``.
 
     **Example**::
 
@@ -202,7 +202,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         priority: str | None = "Regular",
         identity: ContainerGroupIdentity | dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        polling_interval: float = 5.0,
+        polling_interval: float = 30.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -446,10 +446,9 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         finally:
             if _cleanup:
-                if exit_code == 0:
-                    if self.remove_on_success:
-                        self.on_kill()
-                elif self.remove_on_error:
+                if exit_code == 0 and self.remove_on_success:
+                    self.on_kill()
+                elif exit_code != 0 and self.remove_on_error:
                     self.on_kill()
 
     def on_kill(self) -> None:
