@@ -54,6 +54,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.common.utils import is_valid_gcp_project_id
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
@@ -186,12 +187,12 @@ class GoogleBaseHook(BaseHook):
     All hook derived from this base hook use the 'Google Cloud' connection
     type. Three ways of authentication are supported:
 
-    Default credentials: Only the 'Project Id' is required. You'll need to
+    Default credentials: Only the 'Project ID' is required. You'll need to
     have set up default credentials, such as by the
     ``GOOGLE_APPLICATION_DEFAULT`` environment variable or from the metadata
     server on Google Compute Engine.
 
-    JSON key file: Specify 'Project Id', 'Keyfile Path' and 'Scope'.
+    JSON key file: Specify 'Project ID', 'Keyfile Path' and 'Scope'.
 
     Legacy P12 key files are not supported.
 
@@ -222,7 +223,7 @@ class GoogleBaseHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
+            "project": StringField(lazy_gettext("Project ID"), widget=BS3TextFieldWidget()),
             "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
             "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
             "credential_config_file": StringField(
@@ -233,7 +234,7 @@ class GoogleBaseHook(BaseHook):
                 lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "key_secret_project_id": StringField(
-                lazy_gettext("Keyfile Secret Project Id (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Project ID (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "num_retries": IntegerField(
                 lazy_gettext("Number of Retries"),
@@ -261,6 +262,9 @@ class GoogleBaseHook(BaseHook):
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
+            "quota_project_id": StringField(
+                lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -269,17 +273,34 @@ class GoogleBaseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "placeholders": {
+                "quota_project_id": "Project ID to use for API quota and billing (optional)",
+            },
+            "tooltips": {
+                "quota_project_id": "Specify a different project for quota/billing purposes. Useful when using shared service accounts.",
+            },
         }
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
+        """Initialize the Google Cloud Base Hook.
+        
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials.
+        :param quota_project_id: Optional Project ID to use for quota/billing purposes.
+            If None, no separate quota project is configured and the default behavior of the credentials is used.
+        :param kwargs: Additional arguments to pass to parent constructor.
+        """
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.quota_project_id = quota_project_id
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
@@ -290,16 +311,13 @@ class GoogleBaseHook(BaseHook):
             return self._cached_credentials, self._cached_project_id
 
         key_path: str | None = self._get_field("key_path", None)
-        try:
-            keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
-            keyfile_dict_json: dict[str, str] | None = None
-            if keyfile_dict:
-                if isinstance(keyfile_dict, dict):
-                    keyfile_dict_json = keyfile_dict
-                else:
-                    keyfile_dict_json = json.loads(keyfile_dict)
-        except json.decoder.JSONDecodeError:
-            raise AirflowException("Invalid key JSON.")
+        keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
+        keyfile_dict_json: dict[str, str] | None = None
+        if keyfile_dict:
+            if isinstance(keyfile_dict, dict):
+                keyfile_dict_json = keyfile_dict
+            else:
+                keyfile_dict_json = json.loads(keyfile_dict)
 
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
@@ -321,10 +339,7 @@ class GoogleBaseHook(BaseHook):
 
         idp_extra_params_dict: dict[str, str] | None = None
         if idp_extra_params:
-            try:
-                idp_extra_params_dict = json.loads(idp_extra_params)
-            except json.decoder.JSONDecodeError:
-                raise AirflowException("Invalid JSON.")
+            idp_extra_params_dict = json.loads(idp_extra_params)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
@@ -342,6 +357,19 @@ class GoogleBaseHook(BaseHook):
             idp_extra_params_dict=idp_extra_params_dict,
         )
 
+        # Apply quota project before caching credentials
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project and not is_anonymous:
+            self._validate_quota_project(quota_project)
+            if not hasattr(credentials, "with_quota_project"):
+                raise ValueError(
+                    f"Credentials of type {type(credentials).__name__} do not support "
+                    "quota project configuration. Please use a different authentication method "
+                    "or remove the quota_project_id setting."
+                )
+            credentials = credentials.with_quota_project(quota_project)
+        
+        # Override project_id if set in extras
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
@@ -351,8 +379,29 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
+    def _validate_quota_project(self, quota_project: str) -> None:
+        """Validate the quota Project ID format.
+
+        :param quota_project: The quota Project ID to validate
+        :raises TypeError: If the quota Project ID is not a string
+        :raises ValueError: If the quota Project ID is empty or does not match the expected format
+        """
+        if not isinstance(quota_project, str):
+            raise TypeError(f"quota_project_id must be a string, got {type(quota_project)}")
+        if not quota_project.strip():
+            raise ValueError("quota_project_id cannot be empty")
+        # Check for valid GCP Project ID format
+        if not is_valid_gcp_project_id(quota_project):
+            raise ValueError(
+                f"Invalid quota_project_id '{quota_project}'. "
+                "Project IDs must be 6-30 characters long, start with a lowercase letter, and can contain only lowercase letters, digits, and hyphens."
+            )
+
     def get_credentials(self) -> Credentials:
-        """Return the Credentials object for Google API."""
+        """Return the Credentials object for Google API.
+        
+        :return: Google Cloud credentials object
+        """
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
@@ -429,7 +478,7 @@ class GoogleBaseHook(BaseHook):
     @property
     def project_id(self) -> str:
         """
-        Returns project id.
+        Returns Project ID.
 
         :return: id of the project
         """
@@ -521,10 +570,10 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Provide fallback for Google Cloud project id. To be used as a decorator.
+        Provide fallback for Google Cloud Project ID. To be used as a decorator.
 
         If the project is None it will be replaced with the project_id from the
-        service account the Hook is authenticated with. Project id can be specified
+        service account the Hook is authenticated with. Project ID can be specified
         either via project_id kwarg or via first parameter in positional args.
 
         :param func: function to wrap
@@ -535,7 +584,7 @@ class GoogleBaseHook(BaseHook):
         def inner_wrapper(self: GoogleBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
-                    "You must use keyword arguments in this methods rather than positional"
+                    "You must use keyword arguments in this method rather than positional"
                 )
             if "project_id" in kwargs:
                 kwargs["project_id"] = kwargs["project_id"] or self.project_id
@@ -543,7 +592,7 @@ class GoogleBaseHook(BaseHook):
                 kwargs["project_id"] = self.project_id
             if not kwargs["project_id"]:
                 raise AirflowException(
-                    "The project id must be passed either as "
+                    "The Project ID must be passed either as "
                     "keyword project_id parameter or as project_id extra "
                     "in Google Cloud connection definition. Both are not set!"
                 )
@@ -589,7 +638,7 @@ class GoogleBaseHook(BaseHook):
             )
         elif key_path:
             if key_path.endswith(".p12"):
-                raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
+                raise AirflowException("Legacy P12 key files are not supported, use a JSON key file.")
             with patch_environ({CREDENTIALS: key_path}):
                 yield key_path
         elif keyfile_dict:
