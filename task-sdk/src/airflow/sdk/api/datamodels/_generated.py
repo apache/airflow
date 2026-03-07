@@ -379,6 +379,17 @@ class ValidationError(BaseModel):
     ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
+class VariableKeysResponse(BaseModel):
+    """
+    Variable keys list response.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    keys: Annotated[list[str], Field(title="Keys")]
+
+
 class VariablePostBody(BaseModel):
     """
     Request body schema for creating variables.

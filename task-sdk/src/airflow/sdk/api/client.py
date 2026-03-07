@@ -68,6 +68,7 @@ from airflow.sdk.api.datamodels._generated import (
     TITerminalStatePayload,
     TriggerDAGRunPayload,
     ValidationError as RemoteValidationError,
+    VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
     XComResponse,
@@ -452,6 +453,14 @@ class VariableOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def list_keys(self, prefix: str | None = None) -> VariableKeysResponse:
+        """List variable keys from the API server."""
+        params = {}
+        if prefix is not None:
+            params["prefix"] = prefix
+        resp = self.client.get("variables/keys/list", params=params)
+        return VariableKeysResponse.model_validate_json(resp.read())
 
 
 class XComOperations:

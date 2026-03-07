@@ -525,6 +525,44 @@ class Variable(Base, LoggingMixin):
         return var_val
 
     @staticmethod
+    def list_keys(
+        prefix: str | None = None, team_name: str | None = None, session: Session | None = None
+    ) -> list[str]:
+        """
+        List variable keys, optionally filtered by prefix.
+
+        :param prefix: Prefix to filter keys
+        :param team_name: Team name filter
+        """
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.list_keys from `airflow.models` is deprecated. "
+                "Please use `list_keys` on Variable from sdk(`airflow.sdk.Variable`) instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+
+            return TaskSDKVariable.list_keys(prefix=prefix)
+
+        if team_name and not conf.getboolean("core", "multi_team"):
+            raise ValueError("Multi-team mode is not configured in the Airflow environment")
+
+        ctx: contextlib.AbstractContextManager
+        if session is not None:
+            ctx = contextlib.nullcontext(session)
+        else:
+            ctx = create_session()
+        with ctx as session:
+            stmt = select(Variable.key)
+            if team_name:
+                stmt = stmt.where(or_(Variable.team_name == team_name, Variable.team_name.is_(None)))
+            if prefix:
+                stmt = stmt.where(Variable.key.like(f"{prefix}%"))
+
+            return list(session.scalars(stmt).all())
+
+    @staticmethod
     @provide_session
     def get_team_name(variable_key: str, session=NEW_SESSION) -> str | None:
         stmt = select(Variable.team_name).where(Variable.key == variable_key)

@@ -88,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -113,6 +114,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
+    VariableKeysResult,
     VariableResult,
     XComResult,
     XComSequenceIndexResult,
@@ -1298,6 +1300,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, GetVariableKeys):
+            keys_response = self.client.variables.list_keys(msg.prefix)
+            resp = VariableKeysResult.from_api_response(keys_response)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates

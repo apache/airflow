@@ -95,6 +95,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -125,6 +126,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
+    VariableKeysResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -1476,6 +1478,16 @@ REQUEST_TEST_CASES = [
             args=("test_key", "test_value", "test_description"),
             response=OKResponse(ok=True),
         ),
+    ),
+    RequestTestCase(
+        message=GetVariableKeys(prefix="test_"),
+        test_id="get_variable",
+        client_mock=ClientMock(
+            method_path="variables.list_keys",
+            args=("test_",),
+            response=VariableKeysResult(keys=["test_key"]),
+        ),
+        expected_body={"keys": ["test_key"], "type": "VariableKeysResult"},
     ),
     RequestTestCase(
         message=DeleteVariable(key="test_key"),
