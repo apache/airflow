@@ -1,0 +1,1131 @@
+{
+  "components": {
+    "parameters": {
+      "ProviderId": {
+        "description": "Provider identifier (for example: amazon).",
+        "in": "path",
+        "name": "providerId",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Version": {
+        "description": "Provider version (for example: 9.22.0).",
+        "in": "path",
+        "name": "version",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Static endpoint file not found."
+      }
+    },
+    "schemas": {
+      "CategoryContract": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "module_count": {
+            "default": 0,
+            "title": "Module Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CategoryContract",
+        "type": "object"
+      },
+      "ClassParametersEntryContract": {
+        "additionalProperties": false,
+        "properties": {
+          "mro": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mro",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterContract"
+            },
+            "title": "Parameters",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "mro",
+          "parameters"
+        ],
+        "title": "ClassParametersEntryContract",
+        "type": "object"
+      },
+      "ConnectionTypeContract": {
+        "additionalProperties": false,
+        "properties": {
+          "conn_type": {
+            "title": "Conn Type",
+            "type": "string"
+          },
+          "docs_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Docs Url"
+          },
+          "hook_class": {
+            "default": "",
+            "title": "Hook Class",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conn_type"
+        ],
+        "title": "ConnectionTypeContract",
+        "type": "object"
+      },
+      "CustomConnectionFieldContract": {
+        "additionalProperties": true,
+        "properties": {
+          "default": {
+            "default": null,
+            "title": "Default"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "enum": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Enum"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Format"
+          },
+          "is_sensitive": {
+            "default": false,
+            "title": "Is Sensitive",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Minimum"
+          },
+          "type": {
+            "title": "Type"
+          }
+        },
+        "required": [
+          "label",
+          "type"
+        ],
+        "title": "CustomConnectionFieldContract",
+        "type": "object"
+      },
+      "DownloadStatsContract": {
+        "additionalProperties": false,
+        "properties": {
+          "monthly": {
+            "default": 0,
+            "title": "Monthly",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "weekly": {
+            "default": 0,
+            "title": "Weekly",
+            "type": "integer"
+          }
+        },
+        "title": "DownloadStatsContract",
+        "type": "object"
+      },
+      "ModuleContract": {
+        "additionalProperties": false,
+        "description": "A registry module entry.\n\n``module_path`` is optional for older versioned metadata generated from git\ntags where only import paths are available.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "docs_url": {
+            "title": "Docs Url",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "import_path": {
+            "title": "Import Path",
+            "type": "string"
+          },
+          "module_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Module Path"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Id"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Name"
+          },
+          "short_description": {
+            "title": "Short Description",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "import_path",
+          "short_description",
+          "docs_url",
+          "source_url",
+          "category"
+        ],
+        "title": "ModuleContract",
+        "type": "object"
+      },
+      "ModulesCatalogPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleContract"
+            },
+            "title": "Modules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "modules"
+        ],
+        "title": "ModulesCatalogContract",
+        "type": "object"
+      },
+      "ParameterContract": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "default": null,
+            "title": "Default"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Type"
+          }
+        },
+        "required": [
+          "name",
+          "required",
+          "origin"
+        ],
+        "title": "ParameterContract",
+        "type": "object"
+      },
+      "ProviderConnectionTypeContract": {
+        "additionalProperties": true,
+        "properties": {
+          "connection_type": {
+            "title": "Connection Type",
+            "type": "string"
+          },
+          "custom_fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CustomConnectionFieldContract"
+            },
+            "title": "Custom Fields",
+            "type": "object"
+          },
+          "hook_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hook Class"
+          },
+          "standard_fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StandardConnectionFieldContract"
+            },
+            "title": "Standard Fields",
+            "type": "object"
+          }
+        },
+        "required": [
+          "connection_type",
+          "standard_fields"
+        ],
+        "title": "ProviderConnectionTypeContract",
+        "type": "object"
+      },
+      "ProviderConnectionsPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_types": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderConnectionTypeContract"
+            },
+            "title": "Connection Types",
+            "type": "array"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Generated At"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "version",
+          "connection_types"
+        ],
+        "title": "ProviderConnectionsContract",
+        "type": "object"
+      },
+      "ProviderContract": {
+        "additionalProperties": false,
+        "description": "Top-level provider entry in providers.json.",
+        "properties": {
+          "airflow_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Airflow Versions",
+            "type": "array"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryContract"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "connection_types": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionTypeContract"
+            },
+            "title": "Connection Types",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "dependents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependents",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "docs_url": {
+            "title": "Docs Url",
+            "type": "string"
+          },
+          "first_released": {
+            "default": "",
+            "title": "First Released",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_updated": {
+            "default": "",
+            "title": "Last Updated",
+            "type": "string"
+          },
+          "lifecycle": {
+            "default": "production",
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Logo"
+          },
+          "module_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Module Counts",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_extras": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Optional Extras",
+            "type": "object"
+          },
+          "package_name": {
+            "title": "Package Name",
+            "type": "string"
+          },
+          "pypi_downloads": {
+            "$ref": "#/components/schemas/DownloadStatsContract"
+          },
+          "pypi_url": {
+            "title": "Pypi Url",
+            "type": "string"
+          },
+          "related_providers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Related Providers",
+            "type": "array"
+          },
+          "requires_python": {
+            "default": "",
+            "title": "Requires Python",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "package_name",
+          "description",
+          "version",
+          "versions",
+          "docs_url",
+          "source_url",
+          "pypi_url"
+        ],
+        "title": "ProviderContract",
+        "type": "object"
+      },
+      "ProviderModulesPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleContract"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "version",
+          "modules"
+        ],
+        "title": "ProviderModulesContract",
+        "type": "object"
+      },
+      "ProviderParametersPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ClassParametersEntryContract"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Generated At"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "version",
+          "classes"
+        ],
+        "title": "ProviderParametersContract",
+        "type": "object"
+      },
+      "ProviderVersionMetadataPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_types": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionTypeContract"
+            },
+            "title": "Connection Types",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "string"
+          },
+          "module_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Module Counts",
+            "type": "object"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleContract"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "optional_extras": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Optional Extras",
+            "type": "object"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "requires_python": {
+            "title": "Requires Python",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "version",
+          "generated_at",
+          "requires_python",
+          "dependencies",
+          "optional_extras",
+          "connection_types",
+          "module_counts",
+          "modules"
+        ],
+        "title": "ProviderVersionMetadataContract",
+        "type": "object"
+      },
+      "ProviderVersionsPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "title": "Latest",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "latest",
+          "versions"
+        ],
+        "title": "ProviderVersionsContract",
+        "type": "object"
+      },
+      "ProvidersCatalogPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderContract"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "ProvidersCatalogContract",
+        "type": "object"
+      },
+      "StandardConnectionFieldContract": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "placeholder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Placeholder"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "visible",
+          "label"
+        ],
+        "title": "StandardConnectionFieldContract",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "JSON endpoints for Apache Airflow provider and module discovery.",
+    "title": "Airflow Registry API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/modules.json": {
+      "get": {
+        "operationId": "listModules",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModulesCatalogPayload"
+                }
+              }
+            },
+            "description": "Module catalog."
+          }
+        },
+        "summary": "List modules",
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/api/providers.json": {
+      "get": {
+        "operationId": "listProviders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersCatalogPayload"
+                }
+              }
+            },
+            "description": "Provider catalog."
+          }
+        },
+        "summary": "List providers",
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/connections.json": {
+      "get": {
+        "operationId": "getProviderConnectionsLatest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConnectionsPayload"
+                }
+              }
+            },
+            "description": "Provider connections for latest version."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider connections (latest)",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/modules.json": {
+      "get": {
+        "operationId": "getProviderModulesLatest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderModulesPayload"
+                }
+              }
+            },
+            "description": "Provider modules for latest version."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider modules (latest)",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/parameters.json": {
+      "get": {
+        "operationId": "getProviderParametersLatest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderParametersPayload"
+                }
+              }
+            },
+            "description": "Provider parameters for latest version."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider parameters (latest)",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/versions.json": {
+      "get": {
+        "operationId": "getProviderVersions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderVersionsPayload"
+                }
+              }
+            },
+            "description": "Published provider versions."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider versions",
+        "tags": [
+          "Provider Versions"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/{version}/connections.json": {
+      "get": {
+        "operationId": "getProviderConnectionsByVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConnectionsPayload"
+                }
+              }
+            },
+            "description": "Versioned provider connections."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider connections (versioned)",
+        "tags": [
+          "Provider Versions"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/{version}/modules.json": {
+      "get": {
+        "operationId": "getProviderModulesByVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderModulesPayload"
+                }
+              }
+            },
+            "description": "Versioned provider modules."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider modules (versioned)",
+        "tags": [
+          "Provider Versions"
+        ]
+      }
+    },
+    "/api/providers/{providerId}/{version}/parameters.json": {
+      "get": {
+        "operationId": "getProviderParametersByVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderId"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderParametersPayload"
+                }
+              }
+            },
+            "description": "Versioned provider parameters."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get provider parameters (versioned)",
+        "tags": [
+          "Provider Versions"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Global registry datasets.",
+      "name": "Catalog"
+    },
+    {
+      "description": "Provider-scoped latest metadata.",
+      "name": "Providers"
+    },
+    {
+      "description": "Version-specific provider metadata.",
+      "name": "Provider Versions"
+    }
+  ]
+}

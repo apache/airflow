@@ -1,0 +1,65 @@
+---
+permalink: "/api-explorer/"
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registry API Explorer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fafafa;
+    }
+    #swagger-ui {
+      min-height: 100vh;
+    }
+    .swagger-ui .topbar {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    (function () {
+      const openApiUrl = new URL("../api/openapi.json", window.location.href).toString();
+      const serverPath = new URL("../", window.location.href).pathname.replace(/\/$/, "") || "/";
+
+      async function renderSwaggerUi() {
+        try {
+          const response = await fetch(openApiUrl, { credentials: "same-origin" });
+          if (!response.ok) {
+            throw new Error(`OpenAPI load failed: ${response.status}`);
+          }
+          const spec = await response.json();
+          spec.servers = [{ url: serverPath, description: "Registry base path" }];
+          SwaggerUIBundle({
+            spec,
+            dom_id: "#swagger-ui",
+            deepLinking: true,
+            displayRequestDuration: true,
+            docExpansion: "none",
+            defaultModelsExpandDepth: -1,
+            tryItOutEnabled: true,
+            supportedSubmitMethods: ["get"],
+            presets: [SwaggerUIBundle.presets.apis],
+          });
+        } catch (error) {
+          document.getElementById("swagger-ui").innerHTML =
+            "<p style=\"padding: 1rem; font-family: sans-serif; color: #444;\">" +
+            "Could not load interactive console. " +
+            "<a href=\"" + openApiUrl + "\" target=\"_blank\" rel=\"noopener\">Open raw OpenAPI document</a>." +
+            "</p>";
+        }
+      }
+
+      renderSwaggerUi();
+    })();
+  </script>
+</body>
+</html>

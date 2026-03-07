@@ -1,0 +1,249 @@
+{
+  "$defs": {
+    "CategoryContract": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "module_count": {
+          "default": 0,
+          "title": "Module Count",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CategoryContract",
+      "type": "object"
+    },
+    "ConnectionTypeContract": {
+      "additionalProperties": false,
+      "properties": {
+        "conn_type": {
+          "title": "Conn Type",
+          "type": "string"
+        },
+        "docs_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docs Url"
+        },
+        "hook_class": {
+          "default": "",
+          "title": "Hook Class",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conn_type"
+      ],
+      "title": "ConnectionTypeContract",
+      "type": "object"
+    },
+    "DownloadStatsContract": {
+      "additionalProperties": false,
+      "properties": {
+        "monthly": {
+          "default": 0,
+          "title": "Monthly",
+          "type": "integer"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "weekly": {
+          "default": 0,
+          "title": "Weekly",
+          "type": "integer"
+        }
+      },
+      "title": "DownloadStatsContract",
+      "type": "object"
+    },
+    "ProviderContract": {
+      "additionalProperties": false,
+      "description": "Top-level provider entry in providers.json.",
+      "properties": {
+        "airflow_versions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Airflow Versions",
+          "type": "array"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/$defs/CategoryContract"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "connection_types": {
+          "items": {
+            "$ref": "#/$defs/ConnectionTypeContract"
+          },
+          "title": "Connection Types",
+          "type": "array"
+        },
+        "dependencies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependencies",
+          "type": "array"
+        },
+        "dependents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependents",
+          "type": "array"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "docs_url": {
+          "title": "Docs Url",
+          "type": "string"
+        },
+        "first_released": {
+          "default": "",
+          "title": "First Released",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "last_updated": {
+          "default": "",
+          "title": "Last Updated",
+          "type": "string"
+        },
+        "lifecycle": {
+          "default": "production",
+          "title": "Lifecycle",
+          "type": "string"
+        },
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logo"
+        },
+        "module_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Module Counts",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "optional_extras": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Optional Extras",
+          "type": "object"
+        },
+        "package_name": {
+          "title": "Package Name",
+          "type": "string"
+        },
+        "pypi_downloads": {
+          "$ref": "#/$defs/DownloadStatsContract"
+        },
+        "pypi_url": {
+          "title": "Pypi Url",
+          "type": "string"
+        },
+        "related_providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Providers",
+          "type": "array"
+        },
+        "requires_python": {
+          "default": "",
+          "title": "Requires Python",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "versions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "package_name",
+        "description",
+        "version",
+        "versions",
+        "docs_url",
+        "source_url",
+        "pypi_url"
+      ],
+      "title": "ProviderContract",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/ProviderContract"
+      },
+      "title": "Providers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "providers"
+  ],
+  "title": "ProvidersCatalogContract",
+  "type": "object"
+}

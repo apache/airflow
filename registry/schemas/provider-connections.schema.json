@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "CustomConnectionFieldContract": {
+      "additionalProperties": true,
+      "properties": {
+        "default": {
+          "default": null,
+          "title": "Default"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "is_sensitive": {
+          "default": false,
+          "title": "Is Sensitive",
+          "type": "boolean"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "type": {
+          "title": "Type"
+        }
+      },
+      "required": [
+        "label",
+        "type"
+      ],
+      "title": "CustomConnectionFieldContract",
+      "type": "object"
+    },
+    "ProviderConnectionTypeContract": {
+      "additionalProperties": true,
+      "properties": {
+        "connection_type": {
+          "title": "Connection Type",
+          "type": "string"
+        },
+        "custom_fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CustomConnectionFieldContract"
+          },
+          "title": "Custom Fields",
+          "type": "object"
+        },
+        "hook_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hook Class"
+        },
+        "standard_fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StandardConnectionFieldContract"
+          },
+          "title": "Standard Fields",
+          "type": "object"
+        }
+      },
+      "required": [
+        "connection_type",
+        "standard_fields"
+      ],
+      "title": "ProviderConnectionTypeContract",
+      "type": "object"
+    },
+    "StandardConnectionFieldContract": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "placeholder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Placeholder"
+        },
+        "visible": {
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "visible",
+        "label"
+      ],
+      "title": "StandardConnectionFieldContract",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "connection_types": {
+      "items": {
+        "$ref": "#/$defs/ProviderConnectionTypeContract"
+      },
+      "title": "Connection Types",
+      "type": "array"
+    },
+    "generated_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Generated At"
+    },
+    "provider_id": {
+      "title": "Provider Id",
+      "type": "string"
+    },
+    "provider_name": {
+      "title": "Provider Name",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "provider_id",
+    "provider_name",
+    "version",
+    "connection_types"
+  ],
+  "title": "ProviderConnectionsContract",
+  "type": "object"
+}

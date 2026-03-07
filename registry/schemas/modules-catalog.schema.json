@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "ModuleContract": {
+      "additionalProperties": false,
+      "description": "A registry module entry.\n\n``module_path`` is optional for older versioned metadata generated from git\ntags where only import paths are available.",
+      "properties": {
+        "category": {
+          "title": "Category",
+          "type": "string"
+        },
+        "docs_url": {
+          "title": "Docs Url",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "import_path": {
+          "title": "Import Path",
+          "type": "string"
+        },
+        "module_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module Path"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Id"
+        },
+        "provider_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Name"
+        },
+        "short_description": {
+          "title": "Short Description",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "import_path",
+        "short_description",
+        "docs_url",
+        "source_url",
+        "category"
+      ],
+      "title": "ModuleContract",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/ModuleContract"
+      },
+      "title": "Modules",
+      "type": "array"
+    }
+  },
+  "required": [
+    "modules"
+  ],
+  "title": "ModulesCatalogContract",
+  "type": "object"
+}
