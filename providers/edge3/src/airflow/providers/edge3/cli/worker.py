@@ -401,6 +401,13 @@ class EdgeWorker:
                 new_maintenance_comments,
             )
             self.queues = worker_info.queues
+            if worker_info.concurrency is not None and worker_info.concurrency != self.concurrency:
+                logger.info(
+                    "Concurrency updated from %d to %d by remote request.",
+                    self.concurrency,
+                    worker_info.concurrency,
+                )
+                self.concurrency = worker_info.concurrency
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
                 self.maintenance_mode = True
