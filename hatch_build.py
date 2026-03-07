@@ -753,9 +753,11 @@ def get_python_exclusion(excluded_python_versions: list[str]):
 
 def get_provider_exclusion(normalized_provider_name: str):
     if normalized_provider_name == "celery":
-        # This version of celery provider breaks Airflow 2.11.1
+        # The 3.16.0 version of celery provider breaks Airflow 2.11.*
         # https://github.com/apache/airflow/issues/61766#issuecomment-3902002494
-        return "!=3.16.0"
+        # Also 3.17.0 breaks Airflow 2.11.*
+        # https://github.com/apache/airflow/issues/63043
+        return "!=3.16.0,!=3.17.0"
     return ""
 
 
