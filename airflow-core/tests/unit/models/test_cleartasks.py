@@ -738,3 +738,167 @@ class TestClearTasks:
             assert TaskInstanceState.REMOVED not in [ti.state for ti in dr.task_instances]
             for ti in dr.task_instances:
                 assert ti.dag_version_id == old_dag_version.id
+
+    def test_clear_only_new_tasks(self, dag_maker, session):
+        """Test that only_new queues only newly added tasks without clearing existing ones."""
+
+        with dag_maker(
+            "test_clear_new_task_instances",
+            bundle_version="v1",
+        ) as dag:
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
+
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
+        dr.state = DagRunState.SUCCESS
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_new_task_instances",
+            bundle_version="v2",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+            EmptyOperator(task_id="3")
+
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        assert old_dag_version.id != new_dag_version.id
+
+        count = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            session=session,
+        )
+        assert count == 2
+
+        session.flush()
+
+        updated_dr = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+        )
+
+        assert updated_dr.created_dag_version_id == new_dag_version.id
+        assert updated_dr.bundle_version == new_dag_version.bundle_version
+
+        all_tis = sorted(updated_dr.task_instances, key=lambda ti: ti.task_id)
+        assert len(all_tis) == 4
+        assert [ti.task_id for ti in all_tis] == ["0", "1", "2", "3"]
+
+        ti0_after, ti1_after, ti2, ti3 = all_tis
+        assert ti0_after.state == TaskInstanceState.SUCCESS
+        assert ti1_after.state == TaskInstanceState.SUCCESS
+
+        assert ti2.state is None
+        assert ti3.state is None
+
+        for ti in all_tis:
+            assert ti.dag_version_id == new_dag_version.id
+
+    def test_clear_only_new_tasks_dry_run(self, dag_maker, session):
+        """Test that only_new with dry_run returns new tasks and changes can be rolled back."""
+        with dag_maker(
+            "test_clear_new_task_instances_dry_run",
+            bundle_version="v1",
+        ) as dag:
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
+
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
+        dr.state = DagRunState.SUCCESS
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_new_task_instances_dry_run",
+            bundle_version="v2",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+            EmptyOperator(task_id="3")
+
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        assert old_dag_version.id != new_dag_version.id
+
+        new_tis = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            dry_run=True,
+            session=session,
+        )
+
+        assert len(new_tis) == 2
+        assert sorted(new_tis) == ["2", "3"]
+
+        session.rollback()
+        dr.refresh_from_db(session)
+
+        assert dr.created_dag_version_id == old_dag_version.id
+        assert len(dr.task_instances) == 2  # should be only the 2 earlier tasks
+
+    def test_clear_only_new_no_new_tasks(self, dag_maker, session):
+        """Test that only_new returns 0 when no new tasks are added."""
+        with dag_maker(
+            "test_clear_no_new_task_instances",
+            bundle_version="v1",
+        ) as dag:
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
+
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
+        dr.state = DagRunState.SUCCESS
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_no_new_task_instances",
+            bundle_version="v2",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+
+        new_dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        assert old_dag_version.id != new_dag_version.id
+
+        count = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            session=session,
+        )
+
+        assert count == 0
