@@ -169,16 +169,50 @@ class TestEdgeDBManager:
         "get_current_revision",
     )
     def test_initdb_new_db(self, mock_get_rev, mock_create, mock_upgrade, session):
-        """Test that initdb calls create_db_from_orm for new databases."""
+        """Test that initdb calls create_db_from_orm for new databases"""
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         mock_get_rev.return_value = None
 
-        manager = EdgeDBManager(session)
-        manager.initdb()
+        mock_inspector = mock.MagicMock()
 
-        mock_create.assert_called_once()
-        mock_upgrade.assert_not_called()
+        # Setup mock inspector to make databases clean
+        mock_inspector.has_table.return_value = False
+        with mock.patch("airflow.providers.edge3.models.db.inspect", return_value=mock_inspector):
+            manager = EdgeDBManager(session)
+            manager.initdb()
+
+            mock_create.assert_called_once()
+            mock_upgrade.assert_not_called()
+
+    @mock.patch.object(
+        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
+        "upgradedb",
+    )
+    @mock.patch.object(
+        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
+        "create_db_from_orm",
+    )
+    @mock.patch.object(
+        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
+        "get_current_revision",
+    )
+    def test_initdb_table_already_exist(self, mock_get_rev, mock_create, mock_upgrade, session):
+        """Test that initdb calls upgradedb for databases tables already exists."""
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        mock_get_rev.return_value = None
+
+        mock_inspector = mock.MagicMock()
+
+        # Setup mock inspector to make databases table already exists
+        mock_inspector.has_table.return_value = True
+        with mock.patch("airflow.providers.edge3.models.db.inspect", return_value=mock_inspector):
+            manager = EdgeDBManager(session)
+            manager.initdb()
+
+            mock_create.assert_not_called()
+            mock_upgrade.assert_called_once()
 
     @mock.patch.object(
         __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
@@ -205,11 +239,13 @@ class TestEdgeDBManager:
         mock_create.assert_not_called()
 
     def test_revision_heads_map_populated(self):
-        """Test that _REVISION_HEADS_MAP is populated with the initial migration."""
+        """Test that _REVISION_HEADS_MAP is populated with all migrations."""
         from airflow.providers.edge3.models.db import _REVISION_HEADS_MAP
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
+        assert "3.1.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.1.0"] == "a09c3ee8e1d3"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""
