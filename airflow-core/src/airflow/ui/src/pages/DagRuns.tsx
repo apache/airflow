@@ -22,9 +22,9 @@ import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRuns } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -192,6 +192,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({
@@ -207,6 +208,12 @@ export const DagRuns = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
   const { pageIndex, pageSize } = pagination;
+  const { data: dagDetails } = useDagServiceGetDagDetails(
+    { dagId: dagId ?? "" },
+    undefined,
+    { enabled: Boolean(dagId) },
+  );
+
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
@@ -263,6 +270,14 @@ export const DagRuns = () => {
   );
 
   const columns = runColumns(translate, dagId);
+
+  if (dagId && dagDetails?.timetable_summary === "Partitioned Asset" && filteredType === null) {
+    const next = new URLSearchParams(searchParams);
+
+    next.set(RUN_TYPE_PARAM, "asset_triggered");
+
+    return <Navigate replace to={`${location.pathname}?${next.toString()}`} />;
+  }
 
   return (
     <>
