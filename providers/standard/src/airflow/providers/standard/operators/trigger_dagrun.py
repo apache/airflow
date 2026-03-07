@@ -127,6 +127,7 @@ class TriggerDagRunOperator(BaseOperator):
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
     :param logical_date: Logical date for the triggered DAG (templated).
+    :param run_after: The date before which the triggered DAG should not run.
     :param reset_dag_run: Whether clear existing DAG run if already exists.
         This is useful when backfill or rerun an existing DAG run.
         This only resets (not recreates) the DAG run.
@@ -173,6 +174,7 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_run_id: str | None = None,
         conf: dict | None = None,
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
+        run_after: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
@@ -215,17 +217,37 @@ class TriggerDagRunOperator(BaseOperator):
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
+        self.run_after = run_after
+        if run_after is NOTSET:
+            self.run_after = NOTSET
+        elif run_after is None or isinstance(run_after, (str, datetime.datetime)):
+            self.run_after = run_after
+        else:
+            raise TypeError(
+                f"Expected str, datetime.datetime, or None for parameter 'run_after'. Got {type(run_after).__name__}"
+            )
+
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
             raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
-            # If no logical_date is provided we will set utcnow()
-            parsed_logical_date = timezone.utcnow()
+            if self.run_after is not NOTSET:
+                parsed_logical_date = None
+            else:
+                # If no logical_date is provided we will set utcnow()
+                parsed_logical_date = timezone.utcnow()
         elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date  # type: ignore
         elif isinstance(self.logical_date, str):
             parsed_logical_date = timezone.parse(self.logical_date)
+
+        if self.run_after is NOTSET:
+            parsed_run_after = parsed_logical_date
+        elif self.run_after is None or isinstance(self.run_after, datetime.datetime):
+            parsed_run_after = self.run_after  # type: ignore
+        elif isinstance(self.run_after, str):
+            parsed_run_after = timezone.parse(self.run_after)
 
         try:
             if self.conf and isinstance(self.conf, str):
@@ -247,7 +269,7 @@ class TriggerDagRunOperator(BaseOperator):
                 run_id = DagRun.generate_run_id(
                     run_type=DagRunType.MANUAL,
                     logical_date=parsed_logical_date,
-                    run_after=parsed_logical_date or timezone.utcnow(),
+                    run_after=parsed_run_after or timezone.utcnow(),
                 )
             else:
                 run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())  # type: ignore[misc,call-arg]
@@ -267,14 +289,17 @@ class TriggerDagRunOperator(BaseOperator):
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(
-                context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
+                context=context,
+                run_id=self.trigger_run_id,
+                parsed_logical_date=parsed_logical_date,
+                parsed_run_after=parsed_run_after if self.run_after is not NOTSET else None,
             )
         else:
             self._trigger_dag_af_2(
                 context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
             )
 
-    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
+    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date, parsed_run_after=None):
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
         kwargs_accepted = dict(
@@ -291,8 +316,12 @@ class TriggerDagRunOperator(BaseOperator):
             deferrable=self.deferrable,
         )
 
-        if self.note and "note" in inspect.signature(DagRunTriggerException.__init__).parameters:
+        parameters = inspect.signature(DagRunTriggerException.__init__).parameters
+        if self.note and "note" in parameters:
             kwargs_accepted["note"] = self.note
+
+        if parsed_run_after and "run_after" in parameters:
+            kwargs_accepted["run_after"] = parsed_run_after
 
         raise DagRunTriggerException(**kwargs_accepted)
 
@@ -300,6 +329,9 @@ class TriggerDagRunOperator(BaseOperator):
         try:
             if self.note:
                 self.log.warning("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+
+            if self.run_after is not NOTSET:
+                self.log.warning("Parameter 'run_after' is not supported in Airflow 2.x and will be ignored.")
 
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,

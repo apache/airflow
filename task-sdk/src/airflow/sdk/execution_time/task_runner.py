@@ -1398,6 +1398,7 @@ def _handle_trigger_dag_run(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
             logical_date=drte.logical_date,
+            run_after=drte.run_after,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
             note=drte.note,
