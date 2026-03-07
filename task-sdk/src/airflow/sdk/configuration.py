@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +130,15 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         configuration_description = retrieve_configuration_description()
         # Create default values parser
         _default_values = create_default_config_parser(configuration_description)
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        super().__init__(
+            configuration_description,
+            _default_values,
+            ProvidersManagerTaskRuntime,
+            create_default_config_parser,
+            _default_config_file_path("provider_config_fallback_defaults.cfg"),
+            *args,
+            **kwargs,
+        )
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
