@@ -931,7 +931,7 @@ jobs:
     steps:
       - name: Notify Slack
         id: slack
-        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
