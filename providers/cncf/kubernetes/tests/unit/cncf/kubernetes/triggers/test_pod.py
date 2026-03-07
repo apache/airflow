@@ -25,10 +25,12 @@ from asyncio import Future
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
 
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
@@ -51,6 +53,9 @@ BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
 
 
+class CustomCallback(KubernetesPodOperatorCallback): ...
+
+
 @pytest.fixture
 def trigger():
     return KubernetesPodTrigger(
@@ -68,6 +73,7 @@ def trigger():
         schedule_timeout=STARTUP_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
         on_finish_action=ON_FINISH_ACTION,
+        callbacks=[CustomCallback],
     )
 
 
@@ -128,6 +134,7 @@ class TestKubernetesPodTrigger:
             "last_log_time": None,
             "logging_interval": None,
             "trigger_kwargs": {},
+            "callbacks": "unit.cncf.kubernetes.triggers.test_pod.CustomCallback",
         }
 
     def test_serialize_with_connection_extras(self):
@@ -153,6 +160,18 @@ class TestKubernetesPodTrigger:
         _, kwargs_dict = trigger.serialize()
 
         assert kwargs_dict["connection_extras"] == extras
+
+    def test_callback_deserialization(self, caplog):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            callbacks="unit.cncf.kubernetes.triggers.test_pod.CustomCallback,unit.cncf.kubernetes.test_callbacks.MockKubernetesPodOperatorCallback,invalid.module.Callback",
+        )
+        assert CustomCallback in trigger._callbacks
+        assert len(trigger._callbacks) == 2
+        assert "Failed to import callback invalid.module.Callback: No module named 'invalid'\n" in caplog.text
 
     def test_hook_uses_provided_connection_extras(self):
         extras = {"token": "abc"}
@@ -555,3 +574,28 @@ class TestKubernetesPodTrigger:
         with context:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    async def test_logging_callbacks(self, mock_define_container_state, mock_hook, trigger):
+        mock_define_container_state.side_effect = [ContainerState.RUNNING, ContainerState.TERMINATED]
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.AsyncMock())
+        trigger.logging_interval = -1
+        callback = mock.AsyncMock()
+        trigger._callbacks = [callback]
+        timestamp = "2026-01-01T00:00:00Z"
+        mock_hook.read_logs = mock.AsyncMock(return_value=[f"{timestamp} log line"])
+
+        await trigger._wait_for_container_completion()
+
+        assert callback.progress_callback.call_count == 1
+        assert callback.progress_callback.await_count == 1
+        callback.progress_callback.assert_called_with(
+            container_name="base",
+            line="log line",
+            timestamp=pendulum.parse(timestamp),
+            client=mock.ANY,
+            mode=ExecutionMode.ASYNC,
+            pod=mock.ANY,
+        )

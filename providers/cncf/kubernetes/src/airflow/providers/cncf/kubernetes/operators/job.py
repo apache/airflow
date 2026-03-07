@@ -289,7 +289,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 pod = self.hook.get_pod(pod_name, pod_namespace)
                 if not pod:
                     raise PodNotFoundException("Could not find pod after resuming from deferral")
-                self._write_logs(pod)
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=pod,
+                    containers=self.container_logs,
+                    container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                    log_formatter=self.log_formatter,
+                    post_termination_timeout=900,
+                )
 
         if self.do_xcom_push:
             xcom_results: list[Any | None] = []
