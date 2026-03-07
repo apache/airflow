@@ -872,7 +872,7 @@ class PodManager(LoggingMixin):
             raise KubernetesApiException(
                 f"There was an error reading the kubernetes API: {e}"
             ) from e
-        except HTTPError as e:  
+        except HTTPError as e:
             raise KubernetesApiException(
                 f"There was an error reading the kubernetes API: {e}"
             ) from e
