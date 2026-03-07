@@ -191,6 +191,7 @@ class ImapHook(BaseHook):
         max_mails: int | None = None,
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
+        overwrite_file: bool = True,
         not_found_mode: str = "raise",
     ) -> None:
         """
@@ -205,6 +206,11 @@ class ImapHook(BaseHook):
         :param mail_folder: The mail folder where to look at.
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
+        :param overwrite_file: Specify what should happen if file already exists on disk.
+            If set to True - file is overwritten.
+            If set to False - new file with suffix _1, _2, etc. is created.
+            Suffix is inserted before the last extension, so files with multiple extensions, like .tar.gz, will be transformed into .tar_1.gz.
+            Defaults to True to preserve existing behavior.
         :param not_found_mode: Specify what should happen if no attachment has been found.
             Supported values are 'raise', 'warn' and 'ignore'.
             If it is set to 'raise' it will raise an exception,
@@ -218,7 +224,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite_file)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -286,14 +292,16 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, overwrite_file: bool
+    ) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
-                self._create_file(name, payload, local_output_directory)
+                self._create_file(name, payload, local_output_directory, overwrite_file)
 
     def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
@@ -310,11 +318,24 @@ class ImapHook(BaseHook):
             else local_output_directory + "/" + name
         )
 
-    def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
-        file_path = self._correct_path(name, local_output_directory)
-
-        with open(file_path, "wb") as file:
-            file.write(payload)
+    def _create_file(
+        self, name: str, payload: Any, local_output_directory: str, overwrite_file: bool
+    ) -> None:
+        if overwrite_file:
+            method = "wb"
+        else:
+            method = "xb"
+            filename, extension = os.path.splitext(name)
+            counter = 1
+        while True:
+            file_path = self._correct_path(name, local_output_directory)
+            try:
+                with open(file_path, method) as file:
+                    file.write(payload)
+                break
+            except FileExistsError:
+                name = f"{filename}_{counter}{extension}"
+                counter += 1
 
 
 class Mail(LoggingMixin):
