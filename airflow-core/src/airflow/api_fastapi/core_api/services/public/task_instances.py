@@ -30,6 +30,7 @@ from sqlalchemy.orm.session import Session
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
     BulkActionNotOnExistence,
     BulkActionResponse,
     BulkBody,
@@ -37,7 +38,11 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskGroupBody,
+    PatchTaskInstanceBody,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -151,6 +156,99 @@ def _patch_task_instance_note(
             else:
                 ti.task_instance_note.content = task_instance_body.note
                 ti.task_instance_note.user_id = user.get_id()
+
+
+def _get_task_group_task_ids(
+    dag: SerializedDAG,
+    group_id: str,
+) -> list[str]:
+    """
+    Get task ids that belong to a task group.
+
+    :param dag: The serialized DAG containing the task group.
+    :param group_id: The ID of the task group.
+    :return: List of task IDs in the group.
+    :raises HTTPException: If the task group is not found or has no tasks.
+    """
+    if not hasattr(dag, "task_group"):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DAG '{dag.dag_id}' does not have task groups",
+        )
+
+    task_groups = dag.task_group.get_task_group_dict()
+    task_group = task_groups.get(group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task group '{group_id}' not found in DAG '{dag.dag_id}'",
+        )
+
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+    if not task_ids:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task group '{group_id}' in DAG '{dag.dag_id}' has no tasks",
+        )
+
+    return task_ids
+
+
+def _patch_task_group_state(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    group_id: str,
+    body: PatchTaskGroupBody,
+    dag_bag: DagBagDep,
+    user: GetUserDep,
+    session: Session,
+) -> None:
+    """
+    Set the state of all task instances in a task group.
+
+    Uses BulkTaskInstanceService to update each task in the group.
+
+    :param dag_id: The DAG ID.
+    :param dag_run_id: The run_id of the DAG run.
+    :param group_id: The ID of the task group.
+    :param body: The request body with the new state and options.
+    :param dag_bag: The DAG bag for DAG resolution.
+    :param user: The authenticated user.
+    :param session: The database session.
+    """
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    task_ids = _get_task_group_task_ids(dag, group_id)
+
+    entities = [
+        BulkTaskInstanceBody(
+            task_id=task_id,
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            new_state=body.new_state,
+            include_future=body.include_future,
+            include_past=body.include_past,
+        )
+        for task_id in task_ids
+    ]
+
+    action = BulkUpdateAction(
+        action=BulkAction.UPDATE,
+        entities=entities,
+        update_mask=["new_state"],
+        action_on_non_existence=BulkActionNotOnExistence.SKIP,
+    )
+    results = BulkActionResponse()
+
+    service = BulkTaskInstanceService(
+        session=session,
+        request=BulkBody(actions=[]),  # unused, but required by base class
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        dag_bag=dag_bag,
+        user=user,
+    )
+    service.handle_bulk_update(action, results)
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
@@ -268,34 +366,39 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         results: BulkActionResponse,
         update_mask: list[str] | None = Query(None),
     ) -> None:
-        dag, tis, data = _patch_ti_validate_request(
-            dag_id=dag_id,
-            dag_run_id=dag_run_id,
-            task_id=task_id,
-            dag_bag=self.dag_bag,
-            body=entity,
-            session=self.session,
-            update_mask=update_mask,
-        )
+        try:
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id=dag_id,
+                dag_run_id=dag_run_id,
+                task_id=task_id,
+                dag_bag=self.dag_bag,
+                body=entity,
+                session=self.session,
+                update_mask=update_mask,
+            )
 
-        for key, _ in data.items():
-            if key == "new_state":
-                _patch_task_instance_state(
-                    task_id=task_id,
-                    dag_run_id=dag_run_id,
-                    dag=dag,
-                    task_instance_body=entity,
-                    session=self.session,
-                    data=data,
-                )
-            elif key == "note":
-                _patch_task_instance_note(
-                    task_instance_body=entity,
-                    tis=tis,
-                    user=self.user,
-                )
+            for key, _ in data.items():
+                if key == "new_state":
+                    _patch_task_instance_state(
+                        task_id=task_id,
+                        dag_run_id=dag_run_id,
+                        dag=dag,
+                        task_instance_body=entity,
+                        data=data,
+                        session=self.session,
+                    )
+                elif key == "note":
+                    _patch_task_instance_note(
+                        task_instance_body=entity,
+                        tis=tis,
+                        user=self.user,
+                    )
 
-        results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
+            results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
+        except HTTPException as e:
+            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+        except ValidationError as e:
+            results.errors.append({"error": f"{e.errors()}"})
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
