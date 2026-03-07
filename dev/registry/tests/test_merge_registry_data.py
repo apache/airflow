@@ -37,14 +37,58 @@ def _write_json(path: Path, data: dict) -> Path:
     return path
 
 
+def _provider(provider_id: str, name: str, last_updated: str) -> dict:
+    return {
+        "id": provider_id,
+        "name": name,
+        "package_name": f"apache-airflow-providers-{provider_id}",
+        "description": f"{name} provider",
+        "lifecycle": "production",
+        "logo": None,
+        "version": "1.0.0",
+        "versions": ["1.0.0"],
+        "airflow_versions": ["3.0+"],
+        "pypi_downloads": {"weekly": 0, "monthly": 0, "total": 0},
+        "module_counts": {"operator": 1},
+        "categories": [],
+        "connection_types": [],
+        "requires_python": ">=3.10",
+        "dependencies": [],
+        "optional_extras": {},
+        "dependents": [],
+        "related_providers": [],
+        "docs_url": "https://example.invalid/docs",
+        "source_url": "https://example.invalid/source",
+        "pypi_url": "https://example.invalid/pypi",
+        "first_released": "",
+        "last_updated": last_updated,
+    }
+
+
+def _module(module_id: str, provider_id: str) -> dict:
+    return {
+        "id": module_id,
+        "name": "ExampleOperator",
+        "type": "operator",
+        "import_path": f"airflow.providers.{provider_id}.operators.example.ExampleOperator",
+        "module_path": f"airflow.providers.{provider_id}.operators.example",
+        "short_description": "Example operator",
+        "docs_url": "https://example.invalid/docs",
+        "source_url": "https://example.invalid/source",
+        "category": "test",
+        "provider_id": provider_id,
+        "provider_name": provider_id.capitalize(),
+    }
+
+
 class TestMerge:
     def test_replaces_existing_provider(self, tmp_path, output_dir):
         existing_providers = _write_json(
             tmp_path / "existing_providers.json",
             {
                 "providers": [
-                    {"id": "amazon", "name": "Amazon", "last_updated": "2024-01-01"},
-                    {"id": "google", "name": "Google", "last_updated": "2024-02-01"},
+                    _provider("amazon", "Amazon", "2024-01-01"),
+                    _provider("google", "Google", "2024-02-01"),
                 ]
             },
         )
@@ -52,18 +96,18 @@ class TestMerge:
             tmp_path / "existing_modules.json",
             {
                 "modules": [
-                    {"id": "amazon-s3-op", "provider_id": "amazon"},
-                    {"id": "google-bq-op", "provider_id": "google"},
+                    _module("amazon-s3-op", "amazon"),
+                    _module("google-bq-op", "google"),
                 ]
             },
         )
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "amazon", "name": "Amazon", "last_updated": "2025-01-01"}]},
+            {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
         )
         new_modules = _write_json(
             tmp_path / "new_modules.json",
-            {"modules": [{"id": "amazon-s3-op-v2", "provider_id": "amazon"}]},
+            {"modules": [_module("amazon-s3-op-v2", "amazon")]},
         )
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
@@ -88,19 +132,19 @@ class TestMerge:
     def test_adds_new_provider(self, tmp_path, output_dir):
         existing_providers = _write_json(
             tmp_path / "existing_providers.json",
-            {"providers": [{"id": "google", "name": "Google", "last_updated": "2024-02-01"}]},
+            {"providers": [_provider("google", "Google", "2024-02-01")]},
         )
         existing_modules = _write_json(
             tmp_path / "existing_modules.json",
-            {"modules": [{"id": "google-bq-op", "provider_id": "google"}]},
+            {"modules": [_module("google-bq-op", "google")]},
         )
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "amazon", "name": "Amazon", "last_updated": "2025-01-01"}]},
+            {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
         )
         new_modules = _write_json(
             tmp_path / "new_modules.json",
-            {"modules": [{"id": "amazon-s3-op", "provider_id": "amazon"}]},
+            {"modules": [_module("amazon-s3-op", "amazon")]},
         )
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
@@ -112,12 +156,12 @@ class TestMerge:
     def test_providers_sorted_by_name(self, tmp_path, output_dir):
         existing_providers = _write_json(
             tmp_path / "existing_providers.json",
-            {"providers": [{"id": "zzz", "name": "Zzz Provider", "last_updated": ""}]},
+            {"providers": [_provider("zzz", "Zzz Provider", "")]},
         )
         existing_modules = _write_json(tmp_path / "existing_modules.json", {"modules": []})
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "aaa", "name": "Aaa Provider", "last_updated": ""}]},
+            {"providers": [_provider("aaa", "Aaa Provider", "")]},
         )
         new_modules = _write_json(tmp_path / "new_modules.json", {"modules": []})
 
@@ -132,21 +176,21 @@ class TestMerge:
             tmp_path / "existing_providers.json",
             {
                 "providers": [
-                    {"id": "old", "name": "Old Provider", "last_updated": "2020-01-01"},
+                    _provider("old", "Old Provider", "2020-01-01"),
                 ]
             },
         )
         existing_modules = _write_json(
             tmp_path / "existing_modules.json",
-            {"modules": [{"id": "old-mod", "provider_id": "old"}]},
+            {"modules": [_module("old-mod", "old")]},
         )
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "new", "name": "New Provider", "last_updated": "2025-06-01"}]},
+            {"providers": [_provider("new", "New Provider", "2025-06-01")]},
         )
         new_modules = _write_json(
             tmp_path / "new_modules.json",
-            {"modules": [{"id": "new-mod", "provider_id": "new"}]},
+            {"modules": [_module("new-mod", "new")]},
         )
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
@@ -159,17 +203,17 @@ class TestMerge:
     def test_missing_existing_modules_file(self, tmp_path, output_dir):
         existing_providers = _write_json(
             tmp_path / "existing_providers.json",
-            {"providers": [{"id": "google", "name": "Google", "last_updated": ""}]},
+            {"providers": [_provider("google", "Google", "")]},
         )
         # existing_modules file does not exist
         existing_modules = tmp_path / "nonexistent_modules.json"
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "amazon", "name": "Amazon", "last_updated": ""}]},
+            {"providers": [_provider("amazon", "Amazon", "")]},
         )
         new_modules = _write_json(
             tmp_path / "new_modules.json",
-            {"modules": [{"id": "amazon-s3-op", "provider_id": "amazon"}]},
+            {"modules": [_module("amazon-s3-op", "amazon")]},
         )
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
@@ -184,11 +228,11 @@ class TestMerge:
         existing_modules = _write_json(tmp_path / "existing_modules.json", {"modules": []})
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "amazon", "name": "Amazon", "last_updated": ""}]},
+            {"providers": [_provider("amazon", "Amazon", "")]},
         )
         new_modules = _write_json(
             tmp_path / "new_modules.json",
-            {"modules": [{"id": "amazon-s3-op", "provider_id": "amazon"}]},
+            {"modules": [_module("amazon-s3-op", "amazon")]},
         )
 
         merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
@@ -206,7 +250,7 @@ class TestMerge:
         existing_modules = _write_json(tmp_path / "existing_modules.json", {"modules": []})
         new_providers = _write_json(
             tmp_path / "new_providers.json",
-            {"providers": [{"id": "test", "name": "Test", "last_updated": ""}]},
+            {"providers": [_provider("test", "Test", "")]},
         )
         new_modules = _write_json(tmp_path / "new_modules.json", {"modules": []})
 

@@ -205,6 +205,12 @@ jobs:
             cp -r "${REGISTRY_DATA_DIR}/logos/"* "${REGISTRY_SITE_LOGOS_DIR}/"
           fi
 
+      - name: "Verify registry schema artifacts"
+        run: uv run python dev/registry/export_registry_schemas.py --check
+
+      - name: "Validate generated registry data"
+        run: uv run python dev/registry/validate_registry_outputs.py --strict
+
       - name: "Setup pnpm"
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -226,6 +232,12 @@ jobs:
         env:
           REGISTRY_PATH_PREFIX: "/registry/"
         run: pnpm build
+
+      - name: "Validate generated site API payloads"
+        run: >-
+          uv run python dev/registry/validate_registry_outputs.py
+          --strict
+          --site-api-dir registry/_site/api
 
       - name: "Upload registry artifact"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2

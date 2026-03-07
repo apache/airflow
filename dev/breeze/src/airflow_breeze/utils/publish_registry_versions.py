@@ -30,8 +30,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import boto3
 from packaging.version import InvalidVersion, Version
@@ -42,6 +45,23 @@ CLOUDFRONT_DISTRIBUTIONS = {
     "live": "E26P75MP9PMULE",
     "staging": "E197MS0XRJC5F3",
 }
+
+
+def _load_versions_validator() -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """Load shared registry contract validator from dev/registry."""
+    airflow_root = Path(__file__).resolve().parents[5]
+    registry_dev_dir = airflow_root / "dev" / "registry"
+    registry_dev_dir_str = str(registry_dev_dir)
+    if registry_dev_dir_str not in sys.path:
+        sys.path.insert(0, registry_dev_dir_str)
+    try:
+        from registry_contract_models import validate_provider_versions  # type: ignore[import-not-found]
+    except Exception as err:
+        raise RuntimeError(
+            f"Could not import registry contract models from {registry_dev_dir}. "
+            "Run from the Airflow repository root."
+        ) from err
+    return validate_provider_versions
 
 
 def parse_s3_url(url: str) -> tuple[str, str]:
@@ -125,6 +145,7 @@ def publish_versions(s3_bucket: str, providers_json_path: Path | None = None) ->
         raise FileNotFoundError(f"providers.json not found at {providers_json_path}")
 
     providers = json.loads(providers_json_path.read_text())["providers"]
+    validate_provider_versions = _load_versions_validator()
 
     s3 = boto3.client("s3")
     bucket, prefix = parse_s3_url(s3_bucket)
@@ -145,7 +166,7 @@ def publish_versions(s3_bucket: str, providers_json_path: Path | None = None) ->
 
         # If the declared latest isn't deployed yet, use the highest deployed version.
         effective_latest = latest if latest in versions else versions[0]
-        data = {"versions": versions, "latest": effective_latest}
+        data = validate_provider_versions({"versions": versions, "latest": effective_latest})
         key = (
             f"{prefix}/api/providers/{pid}/versions.json" if prefix else f"api/providers/{pid}/versions.json"
         )

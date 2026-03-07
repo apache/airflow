@@ -37,6 +37,8 @@ import argparse
 import json
 from pathlib import Path
 
+from registry_contract_models import validate_modules_catalog, validate_providers_catalog
+
 
 def merge(
     existing_providers_path: Path,
@@ -72,10 +74,13 @@ def merge(
     date_by_provider = {p["id"]: p.get("last_updated", "") for p in merged_providers}
     merged_modules.sort(key=lambda m: date_by_provider.get(m["provider_id"], ""), reverse=True)
 
+    providers_payload = validate_providers_catalog({"providers": merged_providers})
+    modules_payload = validate_modules_catalog({"modules": merged_modules})
+
     # Write merged output
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "providers.json").write_text(json.dumps({"providers": merged_providers}, indent=2) + "\n")
-    (output_dir / "modules.json").write_text(json.dumps({"modules": merged_modules}, indent=2) + "\n")
+    (output_dir / "providers.json").write_text(json.dumps(providers_payload, indent=2) + "\n")
+    (output_dir / "modules.json").write_text(json.dumps(modules_payload, indent=2) + "\n")
 
     print(f"Merged {len(new_ids)} updated provider(s) into {len(merged_providers)} total providers")
     print(f"Total modules: {len(merged_modules)}")

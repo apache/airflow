@@ -14,11 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-import sys
-from pathlib import Path
+[build-system]
+requires = ["hatchling==1.29.0"]
+build-backend = "hatchling.build"
 
-# Add dev/registry/ to sys.path so ``import extract_metadata`` and sibling
-# script modules work directly in unit tests.
-sys.path.insert(0, str(Path(__file__).parent.parent))
+[project]
+name = "apache-airflow-dev-registry"
+description = "Registry generation and schema validation tooling for Apache Airflow"
+classifiers = [
+    "Private :: Do Not Upload",
+]
+requires-python = ">=3.11,!=3.14"
+authors = [
+    { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
+]
+maintainers = [
+    { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
+]
+version = "0.0.1"
+dependencies = [
+    "jsonschema>=4.19.1",
+    "pydantic>=2.12.0",
+    "pyyaml>=6.0.3",
+]
+
+[dependency-groups]
+test = [
+    "pytest>=9.0.0",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["*"]
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

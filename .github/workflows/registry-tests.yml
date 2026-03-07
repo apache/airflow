@@ -58,7 +58,13 @@ jobs:
         run: python -m pip install uv
 
       - name: "Install test dependencies"
-        run: uv pip install --system pytest pyyaml
+        run: uv pip install --system --project dev/registry --group test
+
+      - name: "Verify schema artifacts are current"
+        run: python dev/registry/export_registry_schemas.py --check
+
+      - name: "Validate checked-in registry data against schemas"
+        run: python dev/registry/validate_registry_outputs.py
 
       - name: "Run registry extraction tests"
         run: pytest dev/registry/tests/ -v -o "addopts="

@@ -43,6 +43,7 @@ from typing import Any
 
 import tomllib
 import yaml
+from registry_contract_models import validate_providers_catalog
 
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
@@ -594,7 +595,7 @@ def main():
     all_providers.sort(key=lambda p: p.name.lower())
 
     # Convert to JSON-serializable format
-    providers_json = {"providers": [asdict(p) for p in all_providers]}
+    providers_json = validate_providers_catalog({"providers": [asdict(p) for p in all_providers]})
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.

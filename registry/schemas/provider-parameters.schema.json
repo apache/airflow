@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "ClassParametersEntryContract": {
+      "additionalProperties": false,
+      "properties": {
+        "mro": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mro",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/ParameterContract"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "mro",
+        "parameters"
+      ],
+      "title": "ClassParametersEntryContract",
+      "type": "object"
+    },
+    "ParameterContract": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "default": null,
+          "title": "Default"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "title": "Origin",
+          "type": "string"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "origin"
+      ],
+      "title": "ParameterContract",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "classes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ClassParametersEntryContract"
+      },
+      "title": "Classes",
+      "type": "object"
+    },
+    "generated_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Generated At"
+    },
+    "provider_id": {
+      "title": "Provider Id",
+      "type": "string"
+    },
+    "provider_name": {
+      "title": "Provider Name",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "provider_id",
+    "provider_name",
+    "version",
+    "classes"
+  ],
+  "title": "ProviderParametersContract",
+  "type": "object"
+}
