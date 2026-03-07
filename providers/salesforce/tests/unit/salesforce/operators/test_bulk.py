@@ -204,6 +204,13 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
+    def test_template_fields(self):
+        """
+        Test that template_fields contains the expected fields
+        """
+        expected_fields = ("payload", "object_name", "operation", "external_id_field", "salesforce_conn_id")
+        assert SalesforceBulkOperator.template_fields == expected_fields
+
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_hard_delete(self, mock_get_conn):
         """
