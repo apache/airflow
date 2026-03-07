@@ -37,6 +37,7 @@ from airflow.sdk.execution_time.xcom import BaseXCom
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
 
@@ -95,6 +96,17 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         raise NotImplementedError()
+
+    def iter_values(self, context: Context) -> Iterable[Any]:
+        resolved = self.resolve(context)
+
+        if isinstance(resolved, (str, bytes, dict)):
+            yield resolved
+        elif isinstance(resolved, Iterable):
+            for item in resolved:
+                yield from item
+        else:
+            yield resolved
 
     @staticmethod
     def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
@@ -177,7 +189,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         raise NotImplementedError()
 
     def __enter__(self):
@@ -329,7 +341,7 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
 
@@ -441,7 +453,7 @@ class MapXComArg(XComArg):
         # Flatten arg.map(f1).map(f2) into one MapXComArg.
         return MapXComArg(self.arg, [*self.callables, f])
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         value = self.arg.resolve(context)
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
@@ -503,7 +515,7 @@ class ZipXComArg(XComArg):
         for arg in self.args:
             yield from arg.iter_references()
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
@@ -564,7 +576,7 @@ class ConcatXComArg(XComArg):
         # Flatten foo.concat(x).concat(y) into one call.
         return ConcatXComArg([*self.args, *others])
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Context) -> Any:
         values = [arg.resolve(context) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):

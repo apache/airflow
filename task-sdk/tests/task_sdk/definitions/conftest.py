@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 import structlog
 
+from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.execution_time.comms import SucceedTask, TaskState
 
 if TYPE_CHECKING:
@@ -47,3 +49,10 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
         raise RuntimeError("Unable to find call to TaskState")
 
     return run
+
+
+def make_xcom_arg(values: Any) -> XComArg:
+    op = BaseOperator(task_id="upstream")
+    xcom_arg = XComArg(op)
+    patch.object(xcom_arg, "resolve", return_value=values).start()
+    return xcom_arg
