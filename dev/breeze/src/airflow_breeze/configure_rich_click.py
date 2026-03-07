@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.commands.issues_commands_config import ISSUES_COMMANDS, ISSUES_PARAMETERS
+from airflow_breeze.commands.registry_commands_config import REGISTRY_COMMANDS, REGISTRY_PARAMETERS
 from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
 from airflow_breeze.commands.ui_commands_config import UI_COMMANDS, UI_PARAMETERS
 from airflow_breeze.commands.workflow_commands_config import WORKFLOW_RUN_COMMANDS, WORKFLOW_RUN_PARAMETERS
@@ -78,10 +80,12 @@ else:
         **CI_IMAGE_TOOLS_PARAMETERS,
         **PRODUCTION_IMAGE_TOOLS_PARAMETERS,
         **CI_PARAMETERS,
+        **REGISTRY_PARAMETERS,
         **RELEASE_MANAGEMENT_PARAMETERS,
         **SBOM_PARAMETERS,
         **WORKFLOW_RUN_PARAMETERS,
         **UI_PARAMETERS,
+        **ISSUES_PARAMETERS,
     }
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
@@ -103,8 +107,16 @@ else:
                 "commands": ["ci"],
             },
             {
+                "name": "Registry commands",
+                "commands": ["registry"],
+            },
+            {
                 "name": "UI commands",
                 "commands": ["ui"],
+            },
+            {
+                "name": "Issues commands",
+                "commands": ["issues"],
             },
             {
                 "name": "Setup commands",
@@ -131,5 +143,7 @@ else:
         "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
         "breeze workflow-run": [WORKFLOW_RUN_COMMANDS],
+        "breeze registry": [REGISTRY_COMMANDS],
         "breeze ui": [UI_COMMANDS],
+        "breeze issues": [ISSUES_COMMANDS],
     }

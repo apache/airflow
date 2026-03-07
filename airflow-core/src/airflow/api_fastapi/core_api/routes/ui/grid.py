@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import exists, select
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -58,10 +58,13 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -275,16 +278,39 @@ def get_grid_runs(
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    has_missed_deadline = (
+        exists()
+        .where(Deadline.dagrun_id == DagRun.id, Deadline.missed.is_(True))
+        .correlate(DagRun)
+        .label("has_missed_deadline")
+    )
+    base_query = (
+        select(DagRun, has_missed_deadline)
+        .where(DagRun.dag_id == dag_id)
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.run_id,
+                DagRun.queued_at,
+                DagRun.start_date,
+                DagRun.end_date,
+                DagRun.run_after,
+                DagRun.state,
+                DagRun.run_type,
+                DagRun.bundle_version,
+            ),
+            joinedload(DagRun.dag_model).load_only(DagModel._dag_display_property_value),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+            selectinload(DagRun.task_instances)
+            .load_only(TaskInstance.dag_version_id)
+            .joinedload(TaskInstance.dag_version)
+            .joinedload(DagVersion.bundle),
+            selectinload(DagRun.task_instances_histories)
+            .load_only(TaskInstanceHistory.dag_version_id)
+            .joinedload(TaskInstanceHistory.dag_version)
+            .joinedload(DagVersion.bundle),
+        )
+    )
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
@@ -301,8 +327,14 @@ def get_grid_runs(
         offset=offset,
         filters=[run_after, run_type, state, triggering_user],
         limit=limit,
+        return_total_entries=False,
     )
-    return [GridRunsResponse(**row._mapping) for row in session.execute(dag_runs_select_filter)]
+    results = session.execute(dag_runs_select_filter).unique().all()
+    grid_runs = []
+    for run, has_missed in results:
+        run.has_missed_deadline = has_missed
+        grid_runs.append(GridRunsResponse.model_validate(run, from_attributes=True))
+    return grid_runs
 
 
 @grid_router.get(
@@ -355,7 +387,9 @@ def get_grid_ti_summaries(
                 TaskInstance.dag_version_id,
                 TaskInstance.start_date,
                 TaskInstance.end_date,
+                DagVersion.version_number,
             )
+            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
             .where(TaskInstance.dag_id == dag_id)
             .where(
                 TaskInstance.run_id == run_id,
@@ -378,6 +412,7 @@ def get_grid_ti_summaries(
                 "state": ti.state,
                 "start_date": ti.start_date,
                 "end_date": ti.end_date,
+                "dag_version_number": ti.version_number,
             }
         )
     serdag = _get_serdag(
@@ -401,8 +436,6 @@ def get_grid_ti_summaries(
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
                     node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
             yield node
 
         # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
@@ -418,10 +451,8 @@ def get_grid_ti_summaries(
                 "type": "task",
                 "parent_id": None,
                 **agg,
-                # Align with leaf behavior
+                # Leaf tasks have no children
                 "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
             }
 
     task_instances = list(get_node_sumaries())

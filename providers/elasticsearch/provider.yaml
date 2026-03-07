@@ -22,12 +22,14 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1769461187
+lifecycle: production
+source-date-epoch: 1771577215
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.5.0
   - 6.4.4
   - 6.4.3
   - 6.4.2
@@ -206,6 +208,15 @@ config:
         type: string
         example: module.callable
         default: ""
+      max_lines_per_page:
+        description: |
+          The Page size of logs to retrieve from elasticsearch using the ElasticsearchTaskHandler.
+          If this is set too low, this can cause log read queries to become very slow.
+          This is limited on the server side (default limit of 10,000).
+        version_added: 6.4.4
+        type: string
+        example: ~
+        default: "1000"
   elasticsearch_configs:
     description: ~
     options:

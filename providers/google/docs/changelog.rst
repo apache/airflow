@@ -27,8 +27,94 @@
 Changelog
 ---------
 
+20.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate ADLSListOperator from ADLS Gen1 to Gen2 (#61188)``
+
+  .. note::
+     The ``ADLSToGCSOperator`` now uses the ADLS Gen2 API. This change makes the ``file_system_name`` parameter mandatory.
+
+Features
+~~~~~~~~
+
+* ``Add Google Cloud Ray Job integration (#59558)``
+* ``Return list of destination URIs from GCSToGCSOperator (#61320)``
+* ``Return list of destination URIs from LocalFilesystemToGCSOperator (#61355)``
+* ``Return list of GCS URIs from Azure*ToGCS operators (#61048)``
+* ``Add 'run_id' parameter to stop a specific execution of GCP Data Fusion pipelines (#61290)``
+* ``Add support for 'parquetOptions' in GCSToBigQueryOperator  (#60876)``
+* ``feat: Improve Hook Level Lineage for BigQueryHook (#62231)``
+* ``Add unit tests for Gen AI operator exception handling. (#61790)``
+* ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+* ``Return list of GCS URIs from FacebookAdsReportToGcsOperator (#61349)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Return list of destination URIs from HttpToGCSOperator (#61306)``
+* ``Return files destination uris in 'GoogleDriverToGCSOperator' and 'SheetsToGCSOperator' (#61347)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode in CloudRunExecuteJobOperator (#61546)``
+* ``Fix CloudDataTransferServiceUpdateJobOperator AWS credential injection for S3 sources (#61611)``
+* ``Fix serialization in GenAIGeminiCreateBatchJobOperator (#61253)``
+* ``Handle invalid response in GCP DataFusion hook start_pipeline (#60688)``
+* ``Pass credentials object to GCSFileSystem for automatic token refresh (#62013)``
+* ``Fix serialization for return value in GenAIGeminiGetBatchJobOperator (#61842)``
+* ``GoogleCalendarToGCSOperator: add unwrap_single flag and return full GCS URIs (#61284)``
+
+Misc
+~~~~
+
+* ``Move exception handling from Google Bigtable operators to hooks (#61124)``
+* ``Replace 'apache-beam' with 'apache-airflow-providers-apache-beam' (#62071)``
+* ``Switch Cloud Run operators to use regional endpoints (#61857)``
+* ``Support Python 3.13 in apache beam provider (#61978)``
+* ``Separate display video (#61709)``
+* ``Fix ray job system test (#61848)``
+
+Doc-only
+~~~~~~~~
+
+* ``Align GCS operator documentation headings with RST style (#61578)``
+* ``Align Google Cloud Compute operator documentation headings with RST style (#61574)``
+* ``Align Google Cloud Functions operator documentation headings with RST style (#61576)``
+* ``Align Google Cloud Vision operator documentation headings with RST style (#61577)``
+* ``Fix RST heading hierarchy in Google Cloud Build docs (#61365)``
+* ``Improve Bigtable operator documentation (#61277)``
+* ``Update the heading for BigtableCreateTableOperator in docs (#61194)``
+* ``Update Stackdriver docstrings to Cloud Monitoring (#61635)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix race condition in auth manager initialization (#62214)" (#62404)``
+   * ``Fix race condition in auth manager initialization (#62214)``
+   * ``Add missing bundles entries to Amazon and Google provider.yaml (#61650)``
+   * ``Change Dataform system test to avoid race condition and infinite execution (#61543)``
+   * ``Change region in gen_ai generative_model system test (#61545)``
+   * ``Fix type hints (#61317)``
+   * ``CI: Upgrade important CI environment (#61417)``
+   * ``Change endpoint version and search criteria in gen_ai system test (#61252)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+   * ``Providers wave 2026-02-10 (#61746)``
+   * ``Fix Google Provider Ray test fail in Python 3.13 (#61749)``
+   * ``Revert "Fixed CloudComposerDAGRunSensor to return False when no runs exist in execution_range (#61046)" (#61346)``
+   * ``Fixed CloudComposerDAGRunSensor to return False when no runs exist in execution_range (#61046)``
+
 19.5.0
 ......
+
+.. warning::
+  We have identified the following regressions for this version.
+  - The return value of the ``GenAIGeminiCreateBatchJobOperator`` and ``GenAIGeminiGetBatchJobOperator`` were incompatible with Airflow 2. The issues fixed in the following PRs #61253 and #61842.
+  - The ``transport`` parameter broke the deferrable mode for ``CloudRunExecuteJobOperator``. The issue fixed in #61546.
+
+  The fixes will be available in version 20.0.0.
 
 Features
 ~~~~~~~~

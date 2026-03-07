@@ -18,12 +18,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, Float, ForeignKey, String, Text, select
+from sqlalchemy import JSON, Float, ForeignKey, String, Text, Uuid, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
@@ -40,11 +40,11 @@ class DeadlineAlert(Base):
 
     __tablename__ = "deadline_alert"
 
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
-    serialized_dag_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False), ForeignKey("serialized_dag.id", ondelete="CASCADE"), nullable=False
+    serialized_dag_id: Mapped[UUID] = mapped_column(
+        Uuid(), ForeignKey("serialized_dag.id", ondelete="CASCADE"), nullable=False
     )
 
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
@@ -73,17 +73,15 @@ class DeadlineAlert(Base):
             f"callback={self.callback_def}"
         )
 
-    def __eq__(self, other):
+    def matches_definition(self, other: DeadlineAlert) -> bool:
+        """Check if two DeadlineAlerts share the same reference, interval, and callback definition."""
         if not isinstance(other, DeadlineAlert):
-            return False
+            return NotImplemented
         return (
             self.reference == other.reference
             and self.interval == other.interval
             and self.callback_def == other.callback_def
         )
-
-    def __hash__(self):
-        return hash((str(self.reference), self.interval, str(self.callback_def)))
 
     @property
     def reference_class(self) -> type[SerializedReferenceModels.SerializedBaseDeadlineReference]:
@@ -94,13 +92,16 @@ class DeadlineAlert(Base):
 
     @classmethod
     @provide_session
-    def get_by_id(cls, deadline_alert_id: str, session: Session = NEW_SESSION) -> DeadlineAlert:
+    def get_by_id(cls, deadline_alert_id: str | UUID, session: Session = NEW_SESSION) -> DeadlineAlert:
         """
         Retrieve a DeadlineAlert record by its UUID.
 
-        :param deadline_alert_id: The UUID of the DeadlineAlert to retrieve
+        :param deadline_alert_id: The UUID of the DeadlineAlert to retrieve (as string or UUID object)
         :param session: Database session
         """
+        # Convert string to UUID if needed
+        if isinstance(deadline_alert_id, str):
+            deadline_alert_id = UUID(deadline_alert_id)
         result = session.scalar(select(cls).where(cls.id == deadline_alert_id))
         if result is None:
             raise NoResultFound(f"No DeadlineAlert found with id {deadline_alert_id}")

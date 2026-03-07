@@ -145,7 +145,7 @@ def find_task_relatives(
 
 @provide_session
 def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
-    """Return DAG executions' run_ids."""
+    """Return Dag executions' run_ids."""
     current_logical_date = session.scalar(
         select(DagRun.logical_date).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
     )
@@ -168,11 +168,11 @@ def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, sessi
         .limit(1)
     )
 
-    # determine run_id range of dag runs and tasks to consider
+    # determine run_id range of Dag runs and tasks to consider
     end_date = last_logical_date if future else current_logical_date
     start_date = current_logical_date if not past else first_logical_date
     if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the
+        # If the Dag never schedules, need to look at existing DagRun if the
         # user wants future or past runs.
         dag_runs = session.scalars(
             select(DagRun).where(
@@ -317,11 +317,11 @@ def set_dag_run_state_to_failed(
     # Do not kill teardown tasks
     task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
 
-    def _set_runing_task(task: Operator) -> Operator:
+    def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
         return task
 
-    running_tasks = [_set_runing_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
+    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = list(

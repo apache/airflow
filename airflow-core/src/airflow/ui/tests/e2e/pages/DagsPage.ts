@@ -35,14 +35,11 @@ export class DagsPage extends BasePage {
   public readonly failedFilter: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
   public readonly queuedFilter: Locator;
   public readonly retriesFilter: Locator;
   public readonly runningFilter: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
-  public readonly sortSelect: Locator;
   public readonly stateElement: Locator;
   public readonly successFilter: Locator;
   public readonly tableViewButton: Locator;
@@ -61,8 +58,6 @@ export class DagsPage extends BasePage {
     // page trigger button has visible text or is icon-only.
     this.confirmButton = page.locator('button:has-text("Trigger")').last();
     this.stateElement = page.locator('*:has-text("State") + *').first();
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
     this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
@@ -71,8 +66,6 @@ export class DagsPage extends BasePage {
     // View toggle buttons
     this.cardViewButton = page.locator('button[aria-label="Show card view"]');
     this.tableViewButton = page.locator('button[aria-label="Show table view"]');
-    // Sort select (card view only)
-    this.sortSelect = page.locator('[data-testid="sort-by-select"]');
     // Status filter buttons
     this.successFilter = page.locator('button:has-text("Success")');
     this.failedFilter = page.locator('button:has-text("Failed")');
@@ -104,75 +97,6 @@ export class DagsPage extends BasePage {
 
     // Wait for the DAG list to be visible again
     await this.waitForDagList();
-  }
-
-  /**
-   * Click next page button and wait for list to change
-   */
-  public async clickNextPage(): Promise<void> {
-    const initialDagNames = await this.getDagNames();
-
-    // Set up API listener before action
-    const responsePromise = this.page
-      .waitForResponse((resp) => resp.url().includes("/dags") && resp.status() === 200, {
-        timeout: 30_000,
-      })
-      .catch(() => {
-        /* API might be cached */
-      });
-
-    await this.paginationNextButton.click();
-
-    // Wait for API response
-    await responsePromise;
-
-    // Wait for UI to actually change (increased timeout for slower browsers like Firefox)
-    await expect
-      .poll(() => this.getDagNames(), {
-        message: "List did not update after clicking next page",
-        timeout: 30_000,
-      })
-      .not.toEqual(initialDagNames);
-
-    await this.waitForDagList();
-  }
-
-  /**
-   * Click previous page button and wait for list to change
-   */
-  public async clickPrevPage(): Promise<void> {
-    const initialDagNames = await this.getDagNames();
-
-    // Set up API listener before action
-    const responsePromise = this.page
-      .waitForResponse((resp) => resp.url().includes("/dags") && resp.status() === 200, {
-        timeout: 30_000,
-      })
-      .catch(() => {
-        /* API might be cached */
-      });
-
-    await this.paginationPrevButton.click();
-
-    // Wait for API response
-    await responsePromise;
-
-    // Wait for UI to actually change (increased timeout for slower browsers like Firefox)
-    await expect
-      .poll(() => this.getDagNames(), {
-        message: "List did not update after clicking prev page",
-        timeout: 30_000,
-      })
-      .not.toEqual(initialDagNames);
-
-    await this.waitForDagList();
-  }
-
-  /**
-   * Click sort select (only works in card view)
-   */
-  public async clickSortSelect(): Promise<void> {
-    await this.sortSelect.click();
   }
 
   public async filterByOperator(operator: string): Promise<void> {

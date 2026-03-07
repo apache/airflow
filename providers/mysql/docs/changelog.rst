@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+6.4.3
+.....
+
+Misc
+~~~~
+
+* ``Remove mysql-client-python 9.6.0 limitation (#61740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.4.2
 .....
 

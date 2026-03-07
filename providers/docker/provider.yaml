@@ -22,6 +22,7 @@ description: |
     `Docker <https://www.docker.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334813
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -115,6 +116,28 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.docker.hooks.docker.DockerHook
     connection-type: docker
+    conn-fields:
+      reauth:
+        label: Reauthenticate
+        schema:
+          type:
+            - boolean
+            - 'null'
+        description: Whether or not to refresh existing authentication on the Docker server.
+      email:
+        label: Email
+        schema:
+          type:
+            - string
+            - 'null'
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        host: Registry URL
+        login: Username
+      placeholders:
+        extra: '{"reauth": false, "email": "Jane.Doe@example.org"}'
 
 task-decorators:
   - class-name: airflow.providers.docker.decorators.docker.docker_task

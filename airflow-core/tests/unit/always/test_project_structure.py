@@ -98,6 +98,8 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/common/sql/tests/unit/common/sql/datafusion/test_base.py",
+            "providers/common/sql/tests/unit/common/sql/datafusion/test_exceptions.py",
             "providers/common/compat/tests/unit/common/compat/lineage/test_entities.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_operators.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_triggers.py",
@@ -470,6 +472,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
+        "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
         "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }

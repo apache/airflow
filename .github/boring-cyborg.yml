@@ -99,6 +99,9 @@ labelPRBasedOnFilePath:
   provider:cohere:
     - providers/cohere/**
 
+  provider:common-ai:
+    - providers/common/ai/**
+
   provider:common-compat:
     - providers/common/compat/**
 
@@ -170,6 +173,9 @@ labelPRBasedOnFilePath:
 
   provider:influxdb:
     - providers/influxdb/**
+
+  provider:informatica:
+    - providers/informatica/**
 
   provider:jdbc:
     - providers/jdbc/**
@@ -550,6 +556,14 @@ labelPRBasedOnFilePath:
 
   area:kubernetes-tests:
     - kubernetes-tests/**/*
+
+  area:registry:
+    - registry/**/*
+    - dev/registry/**/*
+    - dev/breeze/src/airflow_breeze/commands/registry_commands*.py
+    - dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py
+    - dev/breeze/tests/test_publish_registry_versions.py
+    - .github/workflows/registry-*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

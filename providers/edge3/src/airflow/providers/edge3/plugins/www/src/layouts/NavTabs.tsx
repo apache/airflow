@@ -22,8 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRef, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
-import { useContainerWidth } from "src/utils";
-import { lte } from "semver";
+import { getLegacyRouterNavigation, useContainerWidth } from "src/utils";
 
 type Props = {
   readonly tabs: Array<{ icon?: ReactNode; label: string; value: string }>;
@@ -44,12 +43,7 @@ export const NavTabs = ({ tabs }: Props) => {
   let legacyRouterNavigation: boolean | undefined = undefined;
 
   if (data) {
-    const airflowCoreVersion = data.version;
-    if (lte(airflowCoreVersion, "3.1.6")) {
-      legacyRouterNavigation = true;
-    } else {
-     legacyRouterNavigation = false;
-    }
+    legacyRouterNavigation = getLegacyRouterNavigation(data.version);
   }
 
   return (
