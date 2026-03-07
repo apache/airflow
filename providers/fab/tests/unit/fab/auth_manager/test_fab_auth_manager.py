@@ -781,35 +781,35 @@ class TestFabAuthManager:
             (
                 "GET",
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2", "Connections"},
+                ({"test_dag1", "test_dag2", "Connections"}, True),
             ),
             # Scenario 2
             # With global edit permissions on Dags
             (
                 "PUT",
                 [(ACTION_CAN_EDIT, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2", "Connections"},
+                ({"test_dag1", "test_dag2", "Connections"}, True),
             ),
             # Scenario 3
             # With DAG-specific permissions
             (
                 "GET",
                 [(ACTION_CAN_READ, "DAG:test_dag1")],
-                {"test_dag1"},
+                ({"test_dag1"}, False),
             ),
             # Scenario 4
             # With no permissions
             (
                 "GET",
                 [],
-                set(),
+                (set(), False),
             ),
             # Scenario 5
             # With read permissions but edit is requested
             (
                 "PUT",
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
-                set(),
+                (set(), False),
             ),
             # Scenario 7
             # With read permissions but edit is requested

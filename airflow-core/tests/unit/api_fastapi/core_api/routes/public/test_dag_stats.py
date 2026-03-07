@@ -197,7 +197,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 2,
         }
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
         assert response.status_code == 200
         res_json = response.json()
@@ -286,7 +286,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 3,
         }
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get(API_PREFIX)
         assert response.status_code == 200
         res_json = response.json()
@@ -442,7 +442,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
     def test_single_dag_in_dag_ids(self, test_client, session, testing_dag_bundle, url, params, exp_payload):
         self._create_dag_and_runs(session)
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get(url, params=params)
         assert response.status_code == 200
         res_json = response.json()
