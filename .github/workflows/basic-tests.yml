@@ -103,7 +103,7 @@ jobs:
       - name: "Setup node"
         uses: actions/setup-node@v4
         with:
-          node-version: 21
+          node-version: 22
       - name: "Restore eslint cache (www)"
         uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:

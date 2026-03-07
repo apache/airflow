@@ -1,0 +1,86 @@
+Here's the full summary of all upgrades that made it into the commit, grouped by risk level:
+
+  HIGH RISK — Major version bumps with known breaking changes
+
+  ┌─────────────────┬─────────┬──────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │     Package     │   Old   │   New    │                                                                                   Breaking Changes                                                                                    │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ jquery          │ >=3.5.0 │ >=4.0.0  │ Dropped IE support, removed deprecated APIs ($.isFunction, $.isArray, $.trim, $.isWindow), removed jQuery.cssNumber, jQuery.type(). .focus()/.blur() no longer trigger native events. │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ framer-motion   │ ^6.0.0  │ ^12.34.3 │ Complete API overhaul across 6 major versions. AnimatePresence exit animations changed, useAnimation → useAnimationControls, layout animation API changed, motion.div prop changes.   │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ echarts         │ ^5.4.2  │ ^6.0.0   │ Breaking API changes in chart options, deprecated configs removed, default themes changed. May silently render charts differently.                                                    │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ d3-shape        │ ^2.1.0  │ ^3.2.0   │ d3.line().curve() defaults changed, some curve types renamed.                                                                                                                         │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ typescript      │ ^4.6.3  │ ^5.9.3   │ enum behavior changes, decorator support changes, moduleResolution defaults changed. May surface new type errors.                                                                     │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ jest            │ ^27.3.1 │ ^30.2.0  │ Complete rewrite. Test globals (expect, describe, it) now imported differently, jest.config.js format changes, timer mocking API changes, snapshot format changed.                    │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ swagger-ui-dist │ 4.1.3   │ 5.31.2   │ CSS class names changed, rendering differences, bundled CSS restructured.                                                                                                             │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ moment-timezone │ ^0.5.43 │ ^0.6.0   │ Timezone data format changed, some edge-case parsing differences.                                                                                                                     │
+  ├─────────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ elkjs           │ ^0.7.1  │ ^0.11.0  │ Layout algorithm changes — graph layouts may render differently.                                                                                                                      │
+  └─────────────────┴─────────┴──────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  MEDIUM RISK — Breaking changes less likely to affect this codebase
+
+  ┌───────────────────────────┬─────────┬─────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │          Package          │   Old   │   New   │                                               Breaking Changes                                                │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ @testing-library/jest-dom │ ^5.16.0 │ ^6.9.1  │ Matchers now use @jest/expect instead of jest-jasmine2. Some matchers renamed.                                │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ @testing-library/react    │ ^13.0.0 │ ^16.3.2 │ renderHook now exported from main, cleanup behavior changed, act() wrapping changes.                          │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ @typescript-eslint/*      │ ^5.x    │ ^7.18.0 │ New rules enabled by default, some rules removed/renamed, stricter defaults. May flag new lint errors.        │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ prettier                  │ ^2.8.4  │ ^3.8.1  │ Trailing commas now default to all, different formatting for various constructs. Will change code formatting. │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ openapi-typescript        │ ^5.4.1  │ ^7.13.0 │ Generated types may have different structure. generate-api-types script output may change.                    │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ webpack-cli               │ ^4.0.0  │ ^6.0.1  │ CLI argument changes, config resolution changes.                                                              │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ react-syntax-highlighter  │ ^15.5.0 │ ^16.1.0 │ Theme/style import paths may have changed.                                                                    │
+  ├───────────────────────────┼─────────┼─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ @chakra-ui/react          │ 2.4.2   │ 2.4.2   │ Not upgraded (kept at base) — but note the pinned chakra-react-select@4.0.3 is fragile.                       │
+  └───────────────────────────┴─────────┴─────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  LOW RISK — Minor/patch-level or backwards-compatible changes
+
+  ┌───────────────────────┬──────────────┬────────────┬────────────────────────────────────────┐
+  │        Package        │     Old      │    New     │                 Notes                  │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ @babel/*              │ ^7.24.x      │ ^7.28-29.x │ Minor bumps, backwards compatible      │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ axios                 │ ^1.6.0       │ ^1.13.5    │ Minor within v1, backwards compatible  │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ @emotion/*            │ ^11.9.x      │ ^11.14.x   │ Minor within v11                       │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ @tanstack/react-table │ ^8.13.2      │ ^8.21.3    │ Minor within v8                        │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ react / react-dom     │ ^18.0.0      │ ^18.3.1    │ Minor within v18, backwards compatible │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ react-query           │ ^3.39.1      │ ^3.39.3    │ Patch bump                             │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ react-router-dom      │ ^6.3.0       │ ^6.30.3    │ Minor within v6, backwards compatible  │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ reactflow             │ ^11.7.4      │ ^11.11.4   │ Minor within v11                       │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ lodash                │ ^4.17.21     │ ^4.17.23   │ Patch bump                             │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ webpack               │ ^5.94.0      │ ^5.105.2   │ Minor within v5                        │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ redoc                 │ ^2.0.0-rc.72 │ ^2.5.2     │ Now a stable release instead of RC     │
+  ├───────────────────────┼──────────────┼────────────┼────────────────────────────────────────┤
+  │ validator             │ ^13.9.0      │ ^13.15.26  │ Minor within v13                       │
+  └───────────────────────┴──────────────┴────────────┴────────────────────────────────────────┘
+
+  Key areas to manually verify
+
+  1. jQuery 4 — Any legacy JS templates using deprecated jQuery APIs ($.isFunction, $.trim, etc.) will break silently
+  2. framer-motion 12 — All animation components should be visually checked; the API changed significantly across 6 major versions
+  3. echarts 6 — All charts should be visually verified; rendering defaults changed
+  4. swagger-ui-dist 5 — The API docs page styling may look different
+  5. prettier 3 — Running yarn format will reformat many files (trailing commas, etc.)
+  6. jest 30 — The test config (jest.config.js, babel.config.js) may need updates if CI reveals issues beyond what we've fixed
