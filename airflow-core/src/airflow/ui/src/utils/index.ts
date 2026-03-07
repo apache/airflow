@@ -19,6 +19,7 @@
 
 export { capitalize } from "./capitalize";
 export { getDuration, renderDuration } from "./datetimeUtils";
+export { createErrorToaster, getErrorStatus } from "./errorHandling";
 export { getMetaKey } from "./getMetaKey";
 export { useContainerWidth } from "./useContainerWidth";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";

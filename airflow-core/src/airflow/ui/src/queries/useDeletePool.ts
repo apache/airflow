@@ -21,12 +21,20 @@ import { useTranslation } from "react-i18next";
 
 import { usePoolServiceDeletePool, usePoolServiceGetPoolsKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { getErrorStatus } from "src/utils";
 
 export const useDeletePool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation(["common", "admin"]);
 
   const onError = (error: Error) => {
+    const status = getErrorStatus(error);
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
     toaster.create({
       description: error.message,
       title: translate("toaster.delete.error", {

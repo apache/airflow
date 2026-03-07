@@ -28,6 +28,7 @@ import {
   UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { getErrorStatus } from "src/utils";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
@@ -44,6 +45,13 @@ export const usePatchDagRun = ({
   const { t: translate } = useTranslation();
 
   const onError = (error: Error) => {
+    const status = getErrorStatus(error);
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
     toaster.create({
       description: error.message,
       title: translate("toaster.update.error", {

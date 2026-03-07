@@ -31,6 +31,7 @@ import {
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
+import { getErrorStatus } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -63,6 +64,15 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   };
 
   const onError = (_error: Error) => {
+    const status = getErrorStatus(_error);
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      setError(_error);
+
+      return;
+    }
+
     toaster.create({
       description: _error.message,
       title: translate("triggerDag.toaster.error.title"),

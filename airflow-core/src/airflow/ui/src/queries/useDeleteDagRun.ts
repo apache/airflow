@@ -27,6 +27,7 @@ import {
   useTaskInstanceServiceGetHitlDetailsKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { getErrorStatus } from "src/utils";
 
 type DeleteDagRunParams = {
   dagId: string;
@@ -39,6 +40,13 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
   const queryClient = useQueryClient();
 
   const onError = (error: Error) => {
+    const status = getErrorStatus(error);
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
     toaster.create({
       description: error.message,
       title: translate("dags:runAndTaskActions.delete.error", { type: translate("dagRun_one") }),
