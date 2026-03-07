@@ -38,11 +38,18 @@ edge3_version = "3.1.0"
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("edge_job") as batch_op:
-        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True), if_not_exists=True)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
-    with op.batch_alter_table("edge_worker") as batch_op:
-        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True), if_not_exists=True)
+    edge_job_cols = {c["name"] for c in inspector.get_columns("edge_job")}
+    if "team_name" not in edge_job_cols:
+        with op.batch_alter_table("edge_job") as batch_op:
+            batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
+
+    edge_worker_cols = {c["name"] for c in inspector.get_columns("edge_worker")}
+    if "team_name" not in edge_worker_cols:
+        with op.batch_alter_table("edge_worker") as batch_op:
+            batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
 
 
 def downgrade() -> None:
