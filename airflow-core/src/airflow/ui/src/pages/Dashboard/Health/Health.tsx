@@ -46,19 +46,19 @@ export const Health = () => {
       <HStack alignItems="center" flexWrap={{ base: "wrap", md: "nowrap" }} gap={2}>
         <HealthBadge
           isLoading={isLoading}
-          status={data?.metadatabase.status}
+          status={data?.metadatabase?.status}
           title={translate("health.metaDatabase")}
         />
         <HealthBadge
           isLoading={isLoading}
-          latestHeartbeat={data?.scheduler.latest_scheduler_heartbeat}
-          status={data?.scheduler.status}
+          latestHeartbeat={data?.scheduler?.latest_scheduler_heartbeat}
+          status={data?.scheduler?.status}
           title={translate("health.scheduler")}
         />
         <HealthBadge
           isLoading={isLoading}
-          latestHeartbeat={data?.triggerer.latest_triggerer_heartbeat}
-          status={data?.triggerer.status}
+          latestHeartbeat={data?.triggerer?.latest_triggerer_heartbeat}
+          status={data?.triggerer?.status}
           title={translate("health.triggerer")}
         />
         {data?.dag_processor ? (
