@@ -117,7 +117,7 @@ Extra                 Dependencies
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
 ``apache.hive``       ``apache-airflow-providers-apache-hive``
 ``exasol``            ``apache-airflow-providers-exasol``
-``fab``               ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``fab``               ``apache-airflow-providers-fab>=2.2.0``
 ``ftp``               ``apache-airflow-providers-ftp``
 ``google``            ``apache-airflow-providers-google``
 ``imap``              ``apache-airflow-providers-imap``
