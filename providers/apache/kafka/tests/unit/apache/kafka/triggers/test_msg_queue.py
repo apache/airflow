@@ -112,6 +112,7 @@ class TestMessageQueueTrigger:
             "apply_function_kwargs": {"one": 1, "two": 2},
             "poll_timeout": 10,
             "poll_interval": 5,
+            "commit_offset": True,
         }
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")

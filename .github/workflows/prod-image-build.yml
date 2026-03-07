@@ -138,6 +138,13 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.upload-package-artifact == 'true'
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: inputs.upload-package-artifact == 'true'
@@ -228,10 +235,6 @@ jobs:
         with:
           name: prod-packages
           path: ./docker-context-files
-      - name: "Remove fab provider for python 3.13"
-        shell: bash
-        run: rm -vf ./docker-context-files/apache_airflow_providers_fab-*.whl
-        if: matrix.python-version == '3.13'
       - name: "Show downloaded packages"
         run: ls -la ./docker-context-files
       - name: "Download constraints"

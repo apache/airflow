@@ -52,7 +52,6 @@ from airflow.utils.db import (
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
-from unit.cli.commands.test_kerberos_command import PY313
 
 pytestmark = pytest.mark.db_test
 
@@ -80,14 +79,10 @@ def ensure_clean_engine_state():
 @pytest.fixture
 def initialized_db():
     """Ensure database is properly initialized with alembic_version table."""
-    # Check if DB is already initialized
-    if not _get_current_revision(settings.Session()):
-        # Initialize it properly
-        initdb(session=settings.Session())
-
+    session = settings.Session()
+    if not _get_current_revision(session):
+        initdb(session=session)
     yield
-
-    # Cleanup if needed
     settings.Session.remove()
 
 
@@ -103,21 +98,18 @@ class TestDb:
         # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
-        # External DB Managers
+        # External DB Managers — include all auto-discovered managers so the
+        # metadata matches what initialized_db migrated via initdb().
         external_db_managers = RunDBManager()
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-        skip_fab = PY313
-        if not skip_fab:
-            # FAB DB Manager
-            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        # FAB DB Manager
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-            # test FAB models
-            for table_name, table in FABDBManager.metadata.tables.items():
-                all_meta_data._add_table(table_name, table.schema, table)
-        else:
-            print("Ignoring FAB models in Python 3.13+ as FAB is not compatible with 3.13+ yet.")
+        # test FAB models
+        for table_name, table in FABDBManager.metadata.tables.items():
+            all_meta_data._add_table(table_name, table.schema, table)
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             settings.engine.connect(),
@@ -128,38 +120,32 @@ class TestDb:
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
-            lambda t: (t[0] == "remove_table" and t[1].name == "celery_taskmeta"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "celery_tasksetmeta"),
+            lambda t: t[0] == "remove_table" and t[1].name == "celery_taskmeta",
+            lambda t: t[0] == "remove_table" and t[1].name == "celery_tasksetmeta",
             # ignore indices created by celery
-            lambda t: (t[0] == "remove_index" and t[1].name == "task_id"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "taskset_id"),
+            lambda t: t[0] == "remove_index" and t[1].name == "task_id",
+            lambda t: t[0] == "remove_index" and t[1].name == "taskset_id",
             # from test_security unit test
-            lambda t: (t[0] == "remove_table" and t[1].name == "some_model"),
+            lambda t: t[0] == "remove_table" and t[1].name == "some_model",
             # Ignore flask-session table/index
-            lambda t: (t[0] == "remove_table" and t[1].name == "session"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
+            lambda t: t[0] == "remove_table" and t[1].name == "session",
+            lambda t: t[0] == "remove_index" and t[1].name == "session_id",
+            lambda t: t[0] == "remove_index" and t[1].name == "session_session_id_uq",
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
-            lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
+            lambda t: t[0] == "remove_table" and t[1].name == "sqlite_sequence",
             # fab version table
-            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
+            lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_fab",
+            # edge3 version table
+            lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_edge3",
+            # edge3 data tables — may be present in DB from a previous initdb run
+            # when edge3 is installed, but absent from the model in lower-dep CI runs
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_worker",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_job",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_logs",
+            lambda t: t[0] == "remove_index" and t[1].name == "rj_order",
             # Ignore _xcom_archive table
-            lambda t: (t[0] == "remove_table" and t[1].name == "_xcom_archive"),
+            lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
-
-        if skip_fab:
-            # Check structure first
-            ignores.append(lambda t: len(t) > 1 and hasattr(t[1], "name") and t[1].name.startswith("ab_"))
-            ignores.append(
-                lambda t: (
-                    len(t) > 1
-                    and t[0] == "remove_index"
-                    and hasattr(t[1], "columns")
-                    and len(t[1].columns) > 0
-                    and hasattr(t[1].columns[0], "table")
-                    and t[1].columns[0].table.name.startswith("ab_")
-                )
-            )
 
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
@@ -238,11 +224,6 @@ class TestDb:
         ],
     )
     def test_upgradedb(self, auth, expected, mocker):
-        if PY313 and "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" in str(auth):
-            pytest.skip(
-                "Skipping test for FAB Auth Manager on Python 3.13+ as FAB is not compatible with 3.13+ yet."
-            )
-
         mock_upgrade = mocker.patch("alembic.command.upgrade")
 
         with conf_vars(auth):

@@ -113,6 +113,7 @@ def get_mapped_xcom_by_index(
     else:
         xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
 
+    result: tuple[XComModel] | None
     if (result := session.scalars(xcom_query).first()) is None:
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
@@ -121,7 +122,7 @@ def get_mapped_xcom_by_index(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
-    return XComSequenceIndexResponse(result.value)
+    return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
 
 
 class GetXComSliceFilterParams(BaseModel):
@@ -291,8 +292,8 @@ def get_xcom(
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
-    result = session.scalars(xcom_query).first()
-    if result is None:
+    result: tuple[XComModel] | None
+    if (result := session.scalars(xcom_query).first()) is None:
         if params.offset is None:
             message = (
                 f"XCom with {key=} map_index={params.map_index} not found for "
@@ -308,7 +309,7 @@ def get_xcom(
             detail={"reason": "not_found", "message": message},
         )
 
-    return XComResponse(key=key, value=result.value)
+    return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in

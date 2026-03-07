@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage methods to DatabricksHook (#62179)``
+* ``Databricks OIDC token federation for Kubernetes deployment (#61458)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Add missing template fields to 'DatabricksWorkflowTaskGroup' (#61865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``cleanup test_databricks_workflow (#61907)``
+
+7.9.1
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add direct GCS export to DatabricksSqlOperator with Parquet/Avro support #55128 (#60543)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing fastavro after PR #60732 (#60797)``
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+* ``Updating Databricks API endpoints to appropriate versions (#60647)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert exclusion of deltalake 1.3.1 as aarch64 binaries are available now (#60611)``
+
 7.8.3
 .....
 

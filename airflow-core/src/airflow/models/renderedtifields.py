@@ -22,29 +22,27 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     PrimaryKeyConstraint,
     delete,
-    exists,
     select,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
-from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import FromClause
+    from sqlalchemy.sql.selectable import ScalarSelect
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -111,10 +109,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default="-1")
-    rendered_fields: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    k8s_pod_yaml: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    rendered_fields: Mapped[dict] = mapped_column(sa.JSON(), nullable=False)
+    k8s_pod_yaml: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint(
@@ -257,18 +253,19 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         cls,
         task_id: str,
         dag_id: str,
-        num_to_keep: int = conf.getint("core", "max_num_rendered_ti_fields_per_task", fallback=0),
+        num_to_keep: int = conf.getint("core", "num_dag_runs_to_retain_rendered_fields", fallback=0),
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Keep only Last X (num_to_keep) number of records for a task by deleting others.
+        Keep RTIF records from the most recent dag runs, deleting records from older runs.
 
-        In the case of data for a mapped task either all of the rows or none of the rows will be deleted, so
-        we don't end up with partial data for a set of mapped Task Instances left in the database.
+        Records are retained for the N most recent dag runs (ordered by run_after timestamp).
+        All mapped task instance records for a given run are kept or deleted together,
+        ensuring no partial data remains.
 
         :param task_id: Task ID
         :param dag_id: Dag ID
-        :param num_to_keep: Number of Records to keep
+        :param num_to_keep: Number of recent dag runs to retain RTIF records for
         :param session: SqlAlchemy Session
         """
         if num_to_keep <= 0:
@@ -276,19 +273,27 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
         from airflow.models.dagrun import DagRun
 
-        tis_to_keep_query = (
-            select(cls.dag_id, cls.task_id, cls.run_id, DagRun.logical_date)
-            .where(cls.dag_id == dag_id, cls.task_id == task_id)
-            .join(cls.dag_run)
-            .distinct()
-            .order_by(DagRun.logical_date.desc())
+        # Find run_ids from the N most recent dag runs (no RTIF table scan needed).
+        # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
+        run_ids_to_keep_query = (
+            select(DagRun.run_id)
+            .where(DagRun.dag_id == dag_id)
+            .order_by(DagRun.run_after.desc())
             .limit(num_to_keep)
         )
+
+        if get_dialect_name(session) == "mysql":
+            # MySQL doesn't support LIMIT in IN/NOT IN subqueries, so fetch IDs first
+            run_ids_to_keep: list[str] | ScalarSelect[str] = list(
+                session.scalars(run_ids_to_keep_query).all()
+            )
+        else:
+            run_ids_to_keep = run_ids_to_keep_query.scalar_subquery()
 
         cls._do_delete_old_records(
             dag_id=dag_id,
             task_id=task_id,
-            ti_clause=tis_to_keep_query.subquery(),
+            run_ids_to_keep=run_ids_to_keep,
             session=session,
         )
         session.flush()
@@ -300,21 +305,16 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         *,
         task_id: str,
         dag_id: str,
-        ti_clause: FromClause,
+        run_ids_to_keep: list[str] | ScalarSelect[str],
         session: Session,
     ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)
-
         stmt = (
             delete(cls)
             .where(
                 cls.dag_id == dag_id,
                 cls.task_id == task_id,
-                ~exists(1).where(
-                    ti_clause.c.dag_id == cls.dag_id,
-                    ti_clause.c.task_id == cls.task_id,
-                    ti_clause.c.run_id == cls.run_id,
-                ),
+                cls.run_id.not_in(run_ids_to_keep),
             )
             .execution_options(synchronize_session=False)
         )

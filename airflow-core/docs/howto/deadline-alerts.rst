@@ -237,6 +237,13 @@ Triggerer's system path.
       Nested callables are not currently supported.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
+.. note::
+    **Airflow ``context``:** When a deadline is missed, Airflow automatically provides a ``context``
+    kwarg into the callback containing information about the Dag run and the deadline. To receive it,
+    accept ``**kwargs`` in your callback and access ``kwargs["context"]``, or add a named ``context``
+    parameter. Callbacks that don't need the context can omit it — Airflow will only pass kwargs that
+    the callable accepts. The ``context`` keyword is reserved and cannot be used in the ``kwargs``
+    parameter of a ``Callback``; attempting to do so will raise a ``ValueError`` at DAG parse time.
 
 A **custom asynchronous callback** might look like this:
 
@@ -247,9 +254,9 @@ A **custom asynchronous callback** might look like this:
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get("dag_run", {}).get("dag_id")}!")
+        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
         print(f"Context: {context}")
-        print(f"Alert type: {kwargs.get("alert_type")}")
+        print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
 
 2. Restart your Triggerer.

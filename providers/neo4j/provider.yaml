@@ -22,6 +22,7 @@ description: |
     `Neo4j <https://neo4j.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335339
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -68,6 +69,7 @@ versions:
 integrations:
   - integration-name: Neo4j
     external-doc-url: https://neo4j.com/
+    logo: /docs/integration-logos/Neo4j.svg
     how-to-guide:
       - /docs/apache-airflow-providers-neo4j/operators/neo4j.rst
       - /docs/apache-airflow-providers-neo4j/sensors/neo4j.rst

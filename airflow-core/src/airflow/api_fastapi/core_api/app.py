@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import warnings
 from pathlib import Path
 
@@ -35,7 +34,6 @@ from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
-_PY313 = sys.version_info >= (3, 13)
 _AIRFLOW_PATH = Path(__file__).parents[3]
 
 
@@ -123,13 +121,6 @@ def init_flask_plugins(app: FastAPI) -> None:
     try:
         from airflow.providers.fab.www.app import create_app
     except ImportError:
-        if _PY313:
-            log.info(
-                "Some Airflow 2 plugins have been detected in your environment. Currently FAB provider "
-                "does not support Python 3.13, so you cannot use Airflow 2 plugins with Airflow 3 until "
-                "FAB provider will be Python 3.13 compatible."
-            )
-            return
         raise AirflowException(
             "Some Airflow 2 plugins have been detected in your environment. "
             "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."
@@ -162,11 +153,6 @@ def init_config(app: FastAPI) -> None:
             allow_headers=allow_headers,
         )
 
-    # Compress responses greater than 1kB with optimal compression level as 5
-    # with level ranging from 1 to 9 with 1 (fastest, least compression)
-    # and 9 (slowest, most compression)
-    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
-
     app.state.secret_key = get_signing_key("api", "secret_key")
 
 
@@ -185,3 +171,9 @@ def init_middlewares(app: FastAPI) -> None:
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+
+    # The GzipMiddleware should be the last middleware added as https://github.com/apache/airflow/issues/60165 points out.
+    # Compress responses greater than 1kB with optimal compression level as 5
+    # with level ranging from 1 to 9 with 1 (fastest, least compression)
+    # and 9 (slowest, most compression)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)

@@ -21,12 +21,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const testConfig = {
+  asset: {
+    name: process.env.TEST_ASSET_NAME ?? "s3://dag1/output_1.txt",
+  },
+  connection: {
+    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
+  },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
     username: process.env.TEST_USERNAME ?? "admin",
   },
   testDag: {
+    hitlId: process.env.TEST_HITL_DAG_ID ?? "example_hitl_operator",
     id: process.env.TEST_DAG_ID ?? "example_bash_operator",
+  },
+  testTask: {
+    id: process.env.TEST_TASK_ID ?? "runme_0",
   },
   xcomDag: {
     id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",

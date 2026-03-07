@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Influxdb",
                 "external-doc-url": "https://www.influxdata.com/",
+                "logo": "/docs/integration-logos/Influxdb.svg",
                 "tags": ["software"],
             }
         ],
@@ -46,6 +47,21 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.influxdb.hooks.influxdb.InfluxDBHook",
                 "connection-type": "influxdb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "token": {
+                        "label": "Token",
+                        "schema": {"type": ["string", "null"], "format": "password", "default": ""},
+                    },
+                    "org": {
+                        "label": "Organization Name",
+                        "schema": {"type": ["string", "null"], "default": ""},
+                    },
+                },
             }
         ],
     }

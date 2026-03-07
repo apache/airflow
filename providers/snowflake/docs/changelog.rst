@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+6.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Added retry logic for Snowflake OAuth token requests (#61796)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+
+6.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle HTTP 422 responses via _process_response instead of raising immediately in Snowflake SQL API hook (#60891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): add HTTP request customization parameters to 'SnowflakeSqlApiHook' (#60689)``
+
+Misc
+~~~~
+
+* ``reformat add proxy support commit (#60432)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.8.2
 .....
 

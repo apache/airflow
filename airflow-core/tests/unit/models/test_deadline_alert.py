@@ -20,10 +20,10 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-from airflow.models.deadline import ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -117,7 +117,7 @@ class TestDeadlineAlert:
         assert "interval=1m" in repr_str
         assert repr(deadline_alert_orm.callback_def) in repr_str
 
-    def test_deadline_alert_equality(self, session, deadline_reference):
+    def test_deadline_alert_matches_definition(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
             reference=deadline_reference,
@@ -130,7 +130,7 @@ class TestDeadlineAlert:
             interval=DEADLINE_INTERVAL,
             callback_def=DEADLINE_CALLBACK,
         )
-        assert alert1 == alert2
+        assert alert1.matches_definition(alert2)
 
         different_ref = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
@@ -138,7 +138,7 @@ class TestDeadlineAlert:
             interval=DEADLINE_INTERVAL,
             callback_def=DEADLINE_CALLBACK,
         )
-        assert alert1 != different_ref
+        assert not alert1.matches_definition(different_ref)
 
         different_interval = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
@@ -146,7 +146,7 @@ class TestDeadlineAlert:
             interval=120,
             callback_def=DEADLINE_CALLBACK,
         )
-        assert alert1 != different_interval
+        assert not alert1.matches_definition(different_interval)
 
         different_callback = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
@@ -154,32 +154,17 @@ class TestDeadlineAlert:
             interval=DEADLINE_INTERVAL,
             callback_def={"path": "different.callback"},
         )
-        assert alert1 != different_callback
+        assert not alert1.matches_definition(different_callback)
 
-        assert alert1 != "not a deadline alert"
-
-    def test_deadline_alert_hash(self, session, deadline_reference):
-        alert1 = DeadlineAlert(
-            serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=deadline_reference,
-            interval=DEADLINE_INTERVAL,
-            callback_def=DEADLINE_CALLBACK,
-        )
-        alert2 = DeadlineAlert(
-            serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=deadline_reference,
-            interval=DEADLINE_INTERVAL,
-            callback_def=DEADLINE_CALLBACK,
-        )
-
-        assert hash(alert1) == hash(alert2)
+        assert alert1.matches_definition("not a deadline alert") is NotImplemented
 
     def test_deadline_alert_reference_class_property(self, deadline_alert_orm):
-        assert deadline_alert_orm.reference_class == ReferenceModels.DagRunQueuedAtDeadline
+        assert deadline_alert_orm.reference_class == SerializedReferenceModels.DagRunQueuedAtDeadline
 
     def test_deadline_alert_get_by_id(self, deadline_alert_orm, session):
         retrieved_alert = DeadlineAlert.get_by_id(deadline_alert_orm.id, session=session)
-        assert retrieved_alert == deadline_alert_orm
+        assert retrieved_alert.id == deadline_alert_orm.id
+        assert retrieved_alert.matches_definition(deadline_alert_orm)
 
     def test_deadline_alert_get_by_id_not_found(self, session):
         from sqlalchemy.exc import NoResultFound

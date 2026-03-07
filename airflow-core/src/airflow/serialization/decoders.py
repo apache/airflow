@@ -34,6 +34,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetUriRef,
     SerializedAssetWatcher,
 )
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedDeadlineAlert,
+    SerializedReferenceModels,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
@@ -43,7 +48,7 @@ from airflow.serialization.helpers import (
 )
 
 if TYPE_CHECKING:
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -129,6 +134,29 @@ def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
             return SerializedAssetUriRef(**var)
         case data_type:
             raise ValueError(f"deserialization not implemented for DAT {data_type!r}")
+
+
+def decode_deadline_alert(encoded_data: dict):
+    """
+    Decode a previously serialized deadline alert.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import deserialize
+
+    data = encoded_data.get(Encoding.VAR, encoded_data)
+
+    reference_data = data[DeadlineAlertFields.REFERENCE]
+    reference_type = reference_data[SerializedReferenceModels.REFERENCE_TYPE_FIELD]
+
+    reference_class = SerializedReferenceModels.get_reference_class(reference_type)
+    reference = reference_class.deserialize_reference(reference_data)
+
+    return SerializedDeadlineAlert(
+        reference=reference,
+        interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+    )
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:

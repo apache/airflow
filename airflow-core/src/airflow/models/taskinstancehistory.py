@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import dill
 from sqlalchemy import (
@@ -29,14 +30,15 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
+    Uuid,
     func,
     select,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy_utils import UUIDType
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
@@ -48,7 +50,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
     UtcDateTime,
-    mapped_column,
 )
 from airflow.utils.state import State, TaskInstanceState
 
@@ -67,8 +68,8 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    task_instance_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    task_instance_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         nullable=False,
         primary_key=True,
     )
@@ -105,7 +106,7 @@ class TaskInstanceHistory(Base):
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     trigger_timeout: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -114,7 +115,7 @@ class TaskInstanceHistory(Base):
     )
 
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
-    dag_version_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), nullable=True)
+    dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     dag_version = relationship(
         "DagVersion",
@@ -174,7 +175,7 @@ class TaskInstanceHistory(Base):
     )
 
     @property
-    def id(self) -> str:
+    def id(self) -> UUID:
         """Alias for primary key field to support TaskInstance."""
         return self.task_instance_id
 

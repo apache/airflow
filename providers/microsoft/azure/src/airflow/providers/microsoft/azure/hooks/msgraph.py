@@ -160,12 +160,28 @@ class KiotaRequestAdapterHook(BaseHook):
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
-        self.host = host
+        self.host = self._ensure_protocol(host)
         if isinstance(scopes, str):
             self.scopes = [scopes]
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
+
+    def _ensure_protocol(self, host: str | None, schema: str = "https") -> str | None:
+        """Ensure URL has http:// or https:// protocol prefix."""
+        if not host:
+            return None
+
+        if host.startswith(("http://", "https://")):
+            return host
+
+        self.log.warning(
+            "URL '%s' is missing protocol prefix. Automatically adding '%s://'. "
+            "Please update your connection configuration to include the full URL with protocol.",
+            host,
+            schema,
+        )
+        return f"{schema}://{host}"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -232,9 +248,9 @@ class KiotaRequestAdapterHook(BaseHook):
             if connection.schema and connection.host:
                 return f"{connection.schema}://{connection.host}"
             return NationalClouds.Global.value
-        if not self.host.startswith("http://") or not self.host.startswith("https://"):
-            return f"{connection.schema}://{self.host}"
-        return self.host
+
+        schema = connection.schema or "https"
+        return cast("str", self._ensure_protocol(self.host, schema))
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
         base_url = config.get("base_url", urljoin(host, api_version)).strip()
@@ -275,6 +291,8 @@ class KiotaRequestAdapterHook(BaseHook):
                     self.log.debug("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
+            return proxies
+        if proxies:
             return proxies
         return None
 

@@ -899,7 +899,13 @@ class AsyncKubernetesHook(KubernetesHook):
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
             if self.conn_id:
-                connection = await get_async_connection(self.conn_id)
+                try:
+                    connection = await get_async_connection(self.conn_id)
+                except AirflowNotFoundException:
+                    if self.conn_id == self.default_conn_name:
+                        connection = Connection(conn_id=self.default_conn_name)
+                    else:
+                        raise
                 self._extras = connection.extra_dejson
             else:
                 self._extras = {}

@@ -23,6 +23,7 @@ import json
 import os
 import time
 from collections.abc import Sequence
+from enum import Enum
 from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
@@ -31,8 +32,8 @@ from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
+from requests.exceptions import HTTPError, RequestException
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -43,10 +44,17 @@ from airflow.providers.google.common.hooks.base_google import (
 Operation = dict[str, Any]
 
 
-class ConflictException(AirflowException):
+class ConflictException(Exception):
     """Exception to catch 409 error."""
 
     pass
+
+
+class ProgramType(Enum):
+    """Data Fusion Workflow program type."""
+
+    BATCH = "workflow"
+    STREAM = "spark"
 
 
 class PipelineStates:
@@ -96,7 +104,7 @@ class DataFusionHook(GoogleBaseHook):
             if operation.get("done"):
                 break
         if "error" in operation:
-            raise AirflowException(operation["error"])
+            raise ValueError(operation["error"])
         return operation["response"]
 
     def wait_for_pipeline_state(
@@ -125,18 +133,18 @@ class DataFusionHook(GoogleBaseHook):
                     namespace=namespace,
                 )
                 current_state = workflow["status"]
-            except AirflowException:
+            except KeyError:
                 pass  # Because the pipeline may not be visible in system yet
             if current_state in success_states:
                 return
             if current_state in failure_states:
-                raise AirflowException(
+                raise ValueError(
                     f"Pipeline {pipeline_name} state {current_state} is not one of {success_states}"
                 )
             time.sleep(30)
 
         # Time is up!
-        raise AirflowException(
+        raise ValueError(
             f"Pipeline {pipeline_name} state {current_state} is not one of {success_states} after {timeout}s"
         )
 
@@ -168,14 +176,19 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def _check_response_status_and_data(response, message: str) -> None:
+        if not response:
+            raise RequestException(
+                "Invalid / Empty response received. Please, check for possible root "
+                "causes of this behavior either in DAG code or on Cloud DataFusion side"
+            )
         if response.status == 404:
-            raise AirflowNotFoundException(message)
+            raise HTTPError(message)
         if response.status == 409:
             raise ConflictException("Conflict: Resource is still in use.")
         if response.status != 200:
-            raise AirflowException(message)
+            raise RequestException(message)
         if response.data is None:
-            raise AirflowException(
+            raise ValueError(
                 "Empty response received. Please, check for possible root "
                 "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
@@ -438,7 +451,7 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
-            f"{self.cdap_program_type(pipeline_type=pipeline_type)}s",
+            self.cdap_program_type(pipeline_type=pipeline_type),
             self.cdap_program_id(pipeline_type=pipeline_type),
             "runs",
             quote(pipeline_id),
@@ -469,9 +482,6 @@ class DataFusionHook(GoogleBaseHook):
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
-        # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
-        #  return the run Id as part of the API request to run a single pipeline.
-        #  https://github.com/apache/airflow/pull/8954#discussion_r438223116
         url = os.path.join(
             instance_url,
             "v3",
@@ -479,39 +489,74 @@ class DataFusionHook(GoogleBaseHook):
             quote(namespace),
             "start",
         )
+
         runtime_args = runtime_args or {}
+        program_id = self.cdap_program_id(pipeline_type=pipeline_type)
+
+        program_type_value = (
+            ProgramType.BATCH.value
+            if pipeline_type == DataFusionPipelineType.BATCH
+            else ProgramType.STREAM.value
+        )
+
         body = [
             {
                 "appId": pipeline_name,
+                "programType": program_type_value,
+                "programId": program_id,
                 "runtimeargs": runtime_args,
-                "programType": self.cdap_program_type(pipeline_type=pipeline_type),
-                "programId": self.cdap_program_id(pipeline_type=pipeline_type),
             }
         ]
-        response = self._cdap_request(url=url, method="POST", body=body)
-        self._check_response_status_and_data(
-            response, f"Starting a pipeline failed with code {response.status}"
-        )
-        response_json = json.loads(response.data)
-        return response_json[0]["runId"]
 
-    def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
+        response: google.auth.transport.Response = self._cdap_request(url=url, method="POST", body=body)
+
+        response_json = {}
+        error_message = "Unknown error"
+
+        if response:
+            self._check_response_status_and_data(
+                response, f"Starting a pipeline failed with code {response.status}"
+            )
+
+            response_json = json.loads(response.data)
+            if response_json:
+                if "runId" in response_json[0]:
+                    return response_json[0].get("runId")
+                error_message = response_json[0].get("error", error_message)
+
+        raise ValueError(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
+
+    def stop_pipeline(
+        self,
+        pipeline_name: str,
+        instance_url: str,
+        namespace: str = "default",
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
+        run_id: str | None = None,
+    ) -> None:
         """
         Stop a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
+        :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
+        :param pipeline_type: Can be either BATCH or STREAM.
+        :param run_id: The specific run_id to stop execution if available; when absent it will stop all runs under pipeline_name.
         """
-        url = os.path.join(
+        base_stop_url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
-            "workflows",
-            "DataPipelineWorkflow",
-            "stop",
+            self.cdap_program_type(pipeline_type=pipeline_type),
+            self.cdap_program_id(pipeline_type=pipeline_type),
         )
+
+        if run_id:
+            url = os.path.join(base_stop_url, "runs", quote(str(run_id)), "stop")
+        else:
+            url = os.path.join(base_stop_url, "stop")
+
         response = self._cdap_request(url=url, method="POST")
         self._check_response_status_and_data(
             response, f"Stopping a pipeline failed with code {response.status}"
@@ -525,7 +570,7 @@ class DataFusionHook(GoogleBaseHook):
         :param pipeline_type: Pipeline type.
         """
         program_types = {
-            DataFusionPipelineType.BATCH: "workflow",
+            DataFusionPipelineType.BATCH: "workflows",
             DataFusionPipelineType.STREAM: "spark",
         }
         return program_types.get(pipeline_type, "")
@@ -565,14 +610,14 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                 try:
                     pipeline = await session_aio.get(url=url, headers=headers)
                     break
-                except Exception as exc:
+                except ValueError as exc:
                     if "404" in str(exc):
                         await asyncio.sleep(time_to_wait)
                     else:
                         raise
         if pipeline:
             return pipeline
-        raise AirflowException("Could not retrieve pipeline. Aborting.")
+        raise ValueError("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,
@@ -587,7 +632,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         program_id = self.sync_hook_class.cdap_program_id(pipeline_type=pipeline_type)
         base_url_link = self._base_url(instance_url, namespace)
         url = urljoin(
-            base_url_link, f"{quote(pipeline_name)}/{program_type}s/{program_id}/runs/{quote(pipeline_id)}"
+            base_url_link, f"{quote(pipeline_name)}/{program_type}/{program_id}/runs/{quote(pipeline_id)}"
         )
         return await self._get_link(url=url, session=session)
 
@@ -635,7 +680,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     pipeline_status = "pending"
             except OSError:
                 pipeline_status = "pending"
-            except Exception as e:
+            except ValueError as e:
                 self.log.info("Retrieving pipeline status finished with errors...")
                 pipeline_status = str(e)
             return pipeline_status
