@@ -4779,7 +4779,6 @@
                     ],
                     "items": {
                         "type": "object",
-                        "additionalProperties": false,
                         "required": [
                             "name",
                             "classpath"
@@ -4805,9 +4804,19 @@
                                         "null"
                                     ]
                                 }
+                            },
+                            "deploymentOverride": {
+                                "description": "Per-bundle deployment overrides. Only used when deployPerBundle is true. Overrides base dagProcessor settings for this bundle.",
+                                "type": "object",
+                                "additionalProperties": {}
                             }
                         }
                     }
+                },
+                "deployPerBundle": {
+                    "description": "When true, creates a separate deployment for each bundle in ``dagBundleConfigList``.",
+                    "type": "boolean",
+                    "default": false
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
