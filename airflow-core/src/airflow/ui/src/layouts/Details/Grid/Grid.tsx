@@ -52,6 +52,7 @@ dayjs.extend(dayjsDuration);
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runAfterLte?: string;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
@@ -61,6 +62,7 @@ type Props = {
 export const Grid = ({
   dagRunState,
   limit,
+  runAfterLte,
   runType,
   showGantt,
   showVersionIndicatorMode,
@@ -81,7 +83,13 @@ export const Grid = ({
   const depthParam = searchParams.get("depth");
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
-  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
+  const { data: gridRuns, isLoading } = useGridRuns({
+    dagRunState,
+    limit,
+    runAfterLte,
+    runType,
+    triggeringUser,
+  });
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
