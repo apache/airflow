@@ -35,7 +35,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
+from sqlalchemy import Column, ColumnElement, and_, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -273,7 +273,7 @@ class SortParam(BaseParam[list[str]]):
     MAX_SORT_PARAMS = 10
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | ColumnElement] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
