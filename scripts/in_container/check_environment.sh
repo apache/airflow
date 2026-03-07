@@ -149,6 +149,9 @@ fi
 if [[ ${INTEGRATION_REDIS} == "true" ]]; then
     check_service "Redis" "run_nc redis 6379" 50
 fi
+if [[ ${INTEGRATION_OTEL} == "true" ]]; then
+    check_service "Jaeger" "run_nc jaeger 16686" 50
+fi
 if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     check_service "Redis" "run_nc redis 6379" 50
     check_service "RabbitMQ" "run_nc rabbitmq 5672" 50
