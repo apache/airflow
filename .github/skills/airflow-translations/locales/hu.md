@@ -15,7 +15,6 @@ The following terms **must remain in English unchanged** (case-sensitive):
 
 - `Dag` / `Dags` — Airflow concept; never write "DAG"
 - `XCom` / `XComs` — Airflow cross-communication mechanism
-- `Plugin` / `Plugins` — Airflow extensibility mechanism
 - `Pool` / `Pools` — Resource constraint mechanism
 - `Provider` / `Providers` — Airflow extension package name
 - `Map Index`
@@ -55,7 +54,7 @@ that **must be used consistently**:
 | Operator              | Operátor                          |                                            |
 | Asset                 | Adatkészlet (asset)               | Usually kept as "(asset)" for clarity      |
 | Asset Event           | Adatkészlet esemény               |                                            |
-| Plugins               | Bővítmények                       |                                            |
+| Plugin / Plugins      | Bővítmény / Bővítmények            |                                            |
 | Pools                 | Poolok                            |                                            |
 | Providers             | Szolgáltatók                      |                                            |
 | Upstream              | Felfelé mutató (upstream)         |                                            |
@@ -123,7 +122,7 @@ that **must be used consistently**:
 
 - Use **sentence case** for descriptions and longer strings.
 - Use the capitalization style of existing translations for headers and buttons.
-- Preserve proper terms: "Dag", "XCom", "Pool", "Plugin".
+- Preserve proper terms: "Dag", "XCom", "Pool".
 
 ## 5. Examples from Existing Translations
 
@@ -132,7 +131,6 @@ that **must be used consistently**:
 - "Dag"
 - "XCom"
 - "Pool"
-- "Plugin"
 
 **Common translation patterns:**
 
@@ -147,6 +145,8 @@ backfill_one      → "Visszatöltés"
 backfill_other    → "Visszatöltések"
 taskInstance_one  → "Feladatpéldány"
 taskInstance_other→ "Feladatpéldányok"
+plugin_one        → "Bővítmény"
+plugin_other      → "Bővítmények"
 running           → "Fut"
 failed            → "Sikertelen"
 success           → "Sikeres"
