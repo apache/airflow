@@ -51,6 +51,7 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
@@ -942,6 +943,33 @@ class TestDagRun:
         dagrun.verify_integrity(dag_version_id=DagVersion.get_latest_version(dag.dag_id, session=session).id)
         task = dagrun.get_task_instances()[0]
         assert task.queue == "queue1"
+
+    def test_task_instance_mutation_hook_has_run_id(self, dag_maker, session):
+        """Test that task_instance_mutation_hook receives a TI with run_id set (not None).
+
+        Regression test for https://github.com/apache/airflow/issues/61945
+        """
+        observed_run_ids = []
+
+        def mutate_task_instance(task_instance):
+            observed_run_ids.append(task_instance.run_id)
+            if task_instance.run_id and task_instance.run_id.startswith("manual__"):
+                task_instance.pool = "manual_pool"
+
+        with mock.patch.object(
+            get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+        ) as mock_hook:
+            mock_hook.side_effect = mutate_task_instance
+            with dag_maker(
+                dag_id="test_mutation_hook_run_id", schedule=datetime.timedelta(days=1), session=session
+            ) as dag:
+                EmptyOperator(task_id="mutated_task", owner="test")
+
+            self.create_dag_run(dag, session=session)
+        # The hook should have been called during TI creation with run_id set
+        assert any(rid is not None for rid in observed_run_ids), (
+            f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
+        )
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),
