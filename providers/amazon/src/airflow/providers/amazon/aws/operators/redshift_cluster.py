@@ -110,6 +110,9 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
     :param deferrable: If True, the operator will run in deferrable mode.
     :param delete_cluster_on_failure: If True, best-effort deletion of the redshift cluster will be attempted
         after post-creation failure. Default: True.
+    :param cleanup_timeout_seconds: Maximum time in seconds to attempt
+        best-effort deletion of the cluster when post-creation failure occurs.
+        Default: 600 seconds.
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -193,6 +196,7 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         poll_interval: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         delete_cluster_on_failure: bool = True,
+        cleanup_timeout_seconds: int = 300,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -235,6 +239,70 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.deferrable = deferrable
         self.kwargs = kwargs
         self.delete_cluster_on_failure = delete_cluster_on_failure
+        self.cleanup_timeout_seconds = cleanup_timeout_seconds
+
+    def _attempt_cleanup_with_retry(self) -> None:
+        """
+        Attempt bounded best-effort deletion of the cluster.
+
+        This method is only invoked during task failure handling.
+        It does not block until deletion completes and will not
+        mask the original exception.
+        """
+        RETRY_INTERVAL_SECONDS = 60
+
+        # Bound cleanup attempts to avoid indefinitely occupying a worker slot.
+        deadline = time.monotonic() + self.cleanup_timeout_seconds
+        attempt = 1
+
+        while True:
+            try:
+                self.log.info(
+                    "Attempt %s: Deleting Redshift cluster %s.",
+                    attempt,
+                    self.cluster_identifier,
+                )
+
+                # Do not wait for deletion to complete; cleanup is best-effort.
+                self.hook.delete_cluster(cluster_identifier=self.cluster_identifier)
+
+                self.log.info(
+                    "Successfully initiated deletion of Redshift cluster %s.",
+                    self.cluster_identifier,
+                )
+                return
+
+            except Exception as e:
+                error_code = e.response["Error"]["Code"]
+
+                # Cluster still processing another operation.
+                if error_code in {"InvalidClusterStateFault", "InvalidClusterState"}:
+                    if time.monotonic() >= deadline:
+                        self.log.exception(
+                            "Timed out after %s seconds while trying to delete Redshift cluster %s.",
+                            self.cleanup_timeout_seconds,
+                            self.cluster_identifier,
+                        )
+                        return
+
+                    self.log.warning(
+                        "Cluster %s still has an active operation. Retrying deletion in %s seconds.",
+                        self.cluster_identifier,
+                        RETRY_INTERVAL_SECONDS,
+                    )
+
+                    time.sleep(RETRY_INTERVAL_SECONDS)
+                    attempt += 1
+                    continue
+
+                raise
+
+            except Exception:
+                self.log.exception(
+                    "Unexpected error while attempting to delete Redshift cluster %s.",
+                    self.cluster_identifier,
+                )
+                return
 
     def execute(self, context: Context):
         self.log.info("Creating Redshift cluster %s", self.cluster_identifier)
@@ -340,10 +408,7 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
 
                 if self.delete_cluster_on_failure:
                     try:
-                        self.log.warning(
-                            "Attempting deletion of Redshift cluster %s.", self.cluster_identifier
-                        )
-                        self.hook.delete_cluster(cluster_identifier=self.cluster_identifier)
+                        self._attempt_cleanup_with_retry()
                     except Exception:
                         self.log.exception(
                             "Failed while attempting to delete Reshift cluster %s.",
