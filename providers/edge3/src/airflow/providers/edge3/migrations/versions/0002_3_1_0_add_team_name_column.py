@@ -39,10 +39,10 @@ edge3_version = "3.1.0"
 
 def upgrade() -> None:
     with op.batch_alter_table("edge_job") as batch_op:
-        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
+        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True), if_not_exists=True)
 
     with op.batch_alter_table("edge_worker") as batch_op:
-        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
+        batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True), if_not_exists=True)
 
 
 def downgrade() -> None:
