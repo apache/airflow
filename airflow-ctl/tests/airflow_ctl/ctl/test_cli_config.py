@@ -30,6 +30,7 @@ from airflowctl.ctl.cli_config import (
     GroupCommand,
     add_auth_token_to_all_commands,
     merge_commands,
+    safe_call_command,
 )
 
 
@@ -537,3 +538,38 @@ class TestCliConfigMethods:
 
         # Should return params unchanged for other datamodels
         assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"
+
+
+class TestSafeCallCommand:
+    """safe_call_command must exit with code 1 on every caught exception."""
+
+    def test_exits_on_remote_protocol_error(self):
+        import httpx
+
+        def _raise(args):
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+
+        with pytest.raises(SystemExit, match="1"):
+            safe_call_command(_raise, args=None)
+
+    def test_exits_on_read_timeout(self):
+        import httpx
+
+        def _raise(args):
+            raise httpx.ReadTimeout("timed out")
+
+        with pytest.raises(SystemExit, match="1"):
+            safe_call_command(_raise, args=None)
+
+    def test_exits_on_server_response_error(self):
+        import httpx
+
+        from airflowctl.api.operations import ServerResponseError
+
+        def _raise(args):
+            request = httpx.Request("GET", "http://localhost/api/v2/dags")
+            response = httpx.Response(400, request=request)
+            raise ServerResponseError("Client error message: bad request", request=request, response=response)
+
+        with pytest.raises(SystemExit, match="1"):
+            safe_call_command(_raise, args=None)
