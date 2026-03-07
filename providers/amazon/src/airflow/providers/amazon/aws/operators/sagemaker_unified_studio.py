@@ -101,6 +101,11 @@ class SageMakerNotebookOperator(BaseOperator):
     """
 
     operator_extra_links = (SageMakerUnifiedStudioLink(),)
+    # These fields are declared as template_fields so Airflow resolves XCom references
+    # (e.g. task_instance.xcom_pull(...)) to actual string values before execute() is called.
+    # Without this, the hook would be instantiated with unresolved PlainXComArg objects,
+    # causing a ParamValidationError when the underlying SDK tries to use them as strings.
+    template_fields = ("domain_id", "project_id", "domain_region")
 
     def __init__(
         self,
