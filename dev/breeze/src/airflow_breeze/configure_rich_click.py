@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_breeze.commands.registry_commands_config import REGISTRY_COMMANDS, REGISTRY_PARAMETERS
 from airflow_breeze.commands.issues_commands_config import ISSUES_COMMANDS, ISSUES_PARAMETERS
+from airflow_breeze.commands.registry_commands_config import REGISTRY_COMMANDS, REGISTRY_PARAMETERS
 from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
 from airflow_breeze.commands.ui_commands_config import UI_COMMANDS, UI_PARAMETERS
 from airflow_breeze.commands.workflow_commands_config import WORKFLOW_RUN_COMMANDS, WORKFLOW_RUN_PARAMETERS

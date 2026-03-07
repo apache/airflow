@@ -81,5 +81,5 @@ Example usage:
 
 -----
 
-Next step: Follow the `Advanced Breeze topics <12_advanced_breeze_topics.rst>`__ instructions to learn more
+Next step: Follow the `Advanced Breeze topics <13_advanced_breeze_topics.rst>`__ instructions to learn more
 about advanced Breeze topics and internals.

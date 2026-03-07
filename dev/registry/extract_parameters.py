@@ -513,13 +513,14 @@ def discover_classes_from_provider(
             module_path, class_name = parts
             try:
                 mod = importlib.import_module(module_path)
-                cls = getattr(mod, class_name, None)
+                candidate = getattr(mod, class_name, None)
             except Exception:
                 log.warning("Could not import %s", class_path)
                 continue
-            if cls is None or not inspect.isclass(cls):
+            if candidate is None or not inspect.isclass(candidate):
                 log.warning("%s is not a class", class_path)
                 continue
+            cls = typing.cast("type[typing.Any]", candidate)
 
             # Use section name as category for class-level entries
             category_map = {
