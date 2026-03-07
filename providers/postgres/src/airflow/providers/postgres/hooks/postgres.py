@@ -483,9 +483,13 @@ class PostgresHook(DbApiHook):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get(
-                "cluster-identifier", cast("str", conn.host).split(".")[0]
-            )
+            cluster_identifier = conn.extra_dejson.get("cluster-identifier")
+            if cluster_identifier is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when cluster-identifier is not set in extras."
+                    )
+                cluster_identifier = conn.host.split(".")[0]
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -501,7 +505,13 @@ class PostgresHook(DbApiHook):
             # Pull the workgroup-name from the query params/extras, if not there then pull it from the
             # beginning of the Redshift URL
             # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
-            workgroup_name = conn.extra_dejson.get("workgroup-name", cast("str", conn.host).split(".")[0])
+            workgroup_name = conn.extra_dejson.get("workgroup-name")
+            if workgroup_name is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when workgroup-name is not set in extras."
+                    )
+                workgroup_name = conn.host.split(".")[0]
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
