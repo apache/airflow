@@ -1,0 +1,160 @@
+---
+layout: base.njk
+title: Explore
+description: Discover Airflow providers by category and use case
+mainClass: explore-page
+---
+
+<div class="container">
+    <!-- Hero -->
+    <header class="page-header">
+      <h1>Explore by Category</h1>
+      <p>Find the right providers for your data pipelines. Browse by use case or discover community contributions.</p>
+    </header>
+
+    <!-- Category Cards -->
+    <div class="category-grid">
+      {% for category in exploreCategories %}
+      {% set categoryProviders = exploreCategoryProviders[category.id] or [] %}
+
+      <article class="category-card color-{{ category.color }}">
+        <div class="category-header">
+          <div class="category-icon">
+            {{ category.icon | safe }}
+          </div>
+          <div>
+            <h2>{{ category.name }}</h2>
+            <p class="provider-count">{{ categoryProviders.length }}+ providers</p>
+          </div>
+        </div>
+        <p class="category-description">{{ category.description }}</p>
+        <div class="provider-badges">
+          {% for provider in categoryProviders | slice(0, 6) %}
+          <a href="{{ '/providers/' | url }}{{ provider.id }}/" class="provider-badge">
+            {% if provider.logo %}
+            <img src="{{ provider.logo | url }}" alt="{{ provider.name }}">
+            {% endif %}
+            <span>{{ provider.name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        <a href="{{ '/providers/' | url }}?category={{ category.id }}">
+          View all in {{ category.name }}
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="featured-sections">
+      <!-- Top Providers -->
+      <section class="featured-section">
+        <div class="section-header">
+          <h2>Top Providers</h2>
+          <span class="lifecycle-badge lifecycle-stable">Stable</span>
+        </div>
+        <div class="provider-list">
+          {% set topProviders = [] %}
+          {% for provider in providers.providers %}
+            {% set counts = provider.module_counts or {} %}
+            {% set totalMods = (counts.operator or 0) + (counts.hook or 0) + (counts.sensor or 0) + (counts.trigger or 0) + (counts.transfer or 0) %}
+            {% if totalMods > 0 %}
+              {% set topProviders = (topProviders.push({provider: provider, total: totalMods}), topProviders) %}
+            {% endif %}
+          {% endfor %}
+          {% for item in topProviders | sort(false, false, 'total') | reverse | slice(0, 4) %}
+          {% set provider = item.provider %}
+          <a href="{{ '/providers/' | url }}{{ provider.id }}/" class="provider-row">
+            <div class="provider-logo">
+              {% if provider.logo %}
+              <img src="{{ provider.logo | url }}" alt="{{ provider.name }}">
+              {% else %}
+              <span class="initial">{{ provider.name[0] }}</span>
+              {% endif %}
+            </div>
+            <div class="provider-info">
+              <div class="provider-name">{{ provider.name }}</div>
+              <div class="provider-desc">{{ provider.description }}</div>
+            </div>
+            <div class="module-count">{{ item.total }} {% if item.total === 1 %}module{% else %}modules{% endif %}</div>
+          </a>
+          {% endfor %}
+        </div>
+        <a href="{{ '/providers/' | url }}">
+          View all providers →
+        </a>
+      </section>
+
+      <!-- Incubating Providers -->
+      <section class="featured-section">
+        <div class="section-header">
+          <h2>Incubating Providers</h2>
+          <span class="lifecycle-badge lifecycle-incubation">Incubation</span>
+        </div>
+        <div class="provider-list">
+          {% set incubatingProviders = [] %}
+          {% for provider in providers.providers %}
+            {% set lc = provider.lifecycle or "production" %}
+            {% if lc === 'incubation' %}
+              {% set counts = provider.module_counts or {} %}
+              {% set totalMods = (counts.operator or 0) + (counts.hook or 0) + (counts.sensor or 0) + (counts.trigger or 0) + (counts.transfer or 0) %}
+              {% set incubatingProviders = (incubatingProviders.push({provider: provider, total: totalMods}), incubatingProviders) %}
+            {% endif %}
+          {% endfor %}
+          {% if incubatingProviders.length > 0 %}
+          {% for item in incubatingProviders | sort(false, false, 'total') | reverse | slice(0, 4) %}
+          {% set provider = item.provider %}
+          <a href="{{ '/providers/' | url }}{{ provider.id }}/" class="provider-row">
+            <div class="provider-logo">
+              {% if provider.logo %}
+              <img src="{{ provider.logo | url }}" alt="{{ provider.name }}">
+              {% else %}
+              <span class="initial">{{ provider.name[0] }}</span>
+              {% endif %}
+            </div>
+            <div class="provider-info">
+              <div class="provider-name">{{ provider.name }}</div>
+              <div class="provider-desc">{{ provider.description }}</div>
+            </div>
+            <div class="module-count">{{ item.total }} {% if item.total === 1 %}module{% else %}modules{% endif %}</div>
+          </a>
+          {% endfor %}
+          {% else %}
+          <p class="empty-section">No incubating providers at this time.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+      <p>Looking for something specific?</p>
+      <div class="link-buttons">
+        <a href="{{ '/providers/' | url }}">All Providers</a>
+        <a href="{{ '/stats/' | url }}">View Statistics</a>
+        <button id="open-search">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Search Modules
+        </button>
+      </div>
+    </div>
+</div>
+
+<script>
+  const openSearchBtn = document.getElementById('open-search');
+  if (openSearchBtn) {
+    openSearchBtn.addEventListener('click', () => {
+      const modal = document.getElementById('search-modal');
+      const input = document.getElementById('search-input');
+      if (modal) {
+        modal.classList.add('active');
+        if (input) input.focus();
+      }
+    });
+  }
+</script>

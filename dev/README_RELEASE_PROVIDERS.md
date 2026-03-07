@@ -1038,8 +1038,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 
@@ -1329,6 +1331,13 @@ Or if you just want to publish a few selected providers, you can run:
 
 There is also a manual way of running the workflows (see at the end of the document, this should normally
 not be needed unless there is some problem with workflow automation above)
+
+> [!NOTE]
+> The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
+> `publish-docs-to-s3.yml` workflow (it calls `registry-build.yml` as a post-publish job). The registry
+> extracts metadata from `provider.yaml` files and PyPI, so it picks up new/updated providers without
+> manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
+> workflow manually. See [`registry/README.md`](../registry/README.md) for details.
 
 ## Update providers metadata
 
