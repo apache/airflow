@@ -70,7 +70,6 @@ class EdgeDBManager(BaseDBManager):
         if inspector.has_table(version.name):
             self.log.info("Dropping version table %s", version.name)
             version.drop(connection)
-        self.create_db_from_orm()
 
     def initdb(self):
         if hasattr(self, "_release_metadata_locks_if_needed"):
