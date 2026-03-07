@@ -171,10 +171,6 @@ class _VaultClient(LoggingMixin):
                 raise VaultError("The 'gcp' authentication type requires 'gcp_scopes'")
             if not role_id:
                 raise VaultError("The 'gcp' authentication type requires 'role_id'")
-            if not gcp_key_path and not gcp_keyfile_dict:
-                raise VaultError(
-                    "The 'gcp' authentication type requires 'gcp_key_path' or 'gcp_keyfile_dict'"
-                )
 
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
@@ -352,25 +348,35 @@ class _VaultClient(LoggingMixin):
         import json
         import time
 
-        import googleapiclient
-
-        if self.gcp_keyfile_dict:
-            creds = self.gcp_keyfile_dict
-        elif self.gcp_key_path:
-            with open(self.gcp_key_path) as f:
-                creds = json.load(f)
-
-        service_account = creds["client_email"]
+        # Determine service account email
+        service_account_email = getattr(credentials, "service_account_email", None)
+        if not service_account_email or not isinstance(service_account_email, str):
+            service_account_email = getattr(credentials, "client_email", None)
+        
+        if not service_account_email or not isinstance(service_account_email, str):
+            # Fallback for Compute Engine credentials if email is not yet populated
+            try:
+                from google.auth import compute_engine
+                if isinstance(credentials, compute_engine.Credentials):
+                    if not getattr(credentials, "service_account_email", None):
+                        from google.auth import transport
+                        credentials.refresh(transport.requests.Request())
+                    service_account_email = credentials.service_account_email
+            except Exception:
+                pass
+        
+        if not service_account_email:
+            raise VaultError("Could not determine service account email from credentials")
 
         # Generate a payload for subsequent "signJwt()" call
-        # Reference: https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html#google.auth.jwt.Credentials
         now = int(time.time())
         expires = now + 900  # 15 mins in seconds, can't be longer.
-        payload = {"iat": now, "exp": expires, "sub": credentials, "aud": f"vault/{self.role_id}"}
+        payload = {"iat": now, "exp": expires, "sub": service_account_email, "aud": f"vault/{self.role_id}"}
         body = {"payload": json.dumps(payload)}
-        name = f"projects/{project_id}/serviceAccounts/{service_account}"
+        name = f"projects/{project_id}/serviceAccounts/{service_account_email}"
 
         # Perform the GCP API call
+        import googleapiclient.discovery
         iam = googleapiclient.discovery.build("iam", "v1", credentials=credentials)
         request = iam.projects().serviceAccounts().signJwt(name=name, body=body)
         resp = request.execute()
