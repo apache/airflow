@@ -20,7 +20,7 @@ import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -79,8 +79,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
-
-T = TypeVar("T")
 
 
 def auth_manager_from_app(request: Request) -> BaseAuthManager:
@@ -184,7 +182,7 @@ def requires_access_dag(
 class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
-    def __init__(self, value: T | None = None, skip_filter: bool = False):
+    def __init__(self, value: set[str] | None = None, skip_filter: bool = False):
         super().__init__(value=value)
         self.skip_filter = skip_filter
 

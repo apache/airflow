@@ -79,7 +79,7 @@ def get_import_error(
     session.expunge(error)
 
     auth_manager = get_auth_manager()
-    readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
+    readable_dag_ids, _ = auth_manager.get_authorized_dag_ids(user=user)
     # We need file_dag_ids as a set for intersection, issubset operations
     file_dag_ids = set(
         session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()

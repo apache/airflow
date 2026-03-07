@@ -522,7 +522,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}, True
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
 
