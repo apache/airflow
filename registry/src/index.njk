@@ -77,8 +77,8 @@ title: Discover Providers, Operators & Hooks for Apache Airflow
   <div class="container">
     <header>
       <div>
-        <h2>Featured Providers</h2>
-        <p>Most popular providers in the ecosystem</p>
+        <h2>Popular Providers</h2>
+        <p>Most downloaded providers in the ecosystem</p>
       </div>
       <a href="{{ '/providers/' | url }}" class="view-all">
         View all
@@ -89,7 +89,7 @@ title: Discover Providers, Operators & Hooks for Apache Airflow
     </header>
 
     <ul class="providers">
-      {% for provider in providers.providers | slice(0, 4) %}
+      {% for provider in statsData.topByDownloads | slice(0, 4) %}
       <li>
         {% include "provider-card.njk" %}
       </li>
