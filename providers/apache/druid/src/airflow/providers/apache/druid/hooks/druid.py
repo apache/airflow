@@ -143,7 +143,8 @@ class DruidHook(BaseHook):
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(
-            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.get_verify()
+            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.get_verify(),
+            timeout=30,
         )
 
         code = req_index.status_code
@@ -165,14 +166,15 @@ class DruidHook(BaseHook):
 
         sec = 0
         while running:
-            req_status = requests.get(druid_task_status_url, auth=self.get_auth(), verify=self.get_verify())
+            req_status = requests.get(druid_task_status_url, auth=self.get_auth(), verify=self.get_verify(), timeout=30)
 
             self.log.info("Job still running for %s seconds...", sec)
 
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post(
-                    f"{url}/{druid_task_id}/shutdown", auth=self.get_auth(), verify=self.get_verify()
+                    f"{url}/{druid_task_id}/shutdown", auth=self.get_auth(), verify=self.get_verify(),
+                    timeout=30,
                 )
                 raise AirflowException(f"Druid ingestion took more than {self.max_ingestion_time} seconds")
 

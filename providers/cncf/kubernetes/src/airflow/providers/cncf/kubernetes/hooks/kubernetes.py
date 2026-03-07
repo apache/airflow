@@ -778,7 +778,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     @staticmethod
     def get_yaml_content_from_file(kueue_yaml_url) -> list[dict]:
         """Download content of YAML file and separate it into several dictionaries."""
-        response = requests.get(kueue_yaml_url, allow_redirects=True)
+        response = requests.get(kueue_yaml_url, allow_redirects=True, timeout=30)
         if response.status_code != 200:
             raise AirflowException("Was not able to read the yaml file from given URL")
 
