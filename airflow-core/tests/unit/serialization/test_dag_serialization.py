@@ -565,6 +565,8 @@ class TestStringifiedDAGs:
                 f"{ignore_module_import_error}" not in error
                 for ignore_module_import_error in IGNORE_MODULE_IMPORT_ERRORS
             )
+            # snowflake-sqlalchemy does not yet support SQLAlchemy 2.1
+            if "module 'sqlalchemy.orm.context' has no attribute 'ORMSelectCompileState'" not in error
         }
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too

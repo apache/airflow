@@ -17,3 +17,9 @@
 from __future__ import annotations
 
 pytest_plugins = "tests_common.pytest_plugin"
+
+# snowflake-sqlalchemy does not yet support SQLAlchemy 2.1
+try:
+    from snowflake.sqlalchemy import URL  # noqa: F401
+except AttributeError:
+    collect_ignore_glob = ["*"]
