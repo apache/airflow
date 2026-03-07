@@ -48,6 +48,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -60,6 +69,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -72,6 +90,15 @@ updates:
       ui-plugin-template-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      ui-plugin-template-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -134,6 +161,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     cooldown:
@@ -150,6 +180,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
