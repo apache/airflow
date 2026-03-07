@@ -49,6 +49,16 @@ You can read more about standard python logging classes (Loggers, Handlers, Form
 Create a custom logging class
 -----------------------------
 
+.. important::
+
+   In Airflow 3.x, logging uses `structlog <https://www.structlog.org/>`_ and ``DEFAULT_LOGGING_CONFIG``
+   is no longer respected. The ``logging_config_class`` option still works, but the dict you provide is
+   merged *before* structlog applies its own configuration. Specifically, Airflow will override the
+   formatter, root handler, and strip ``formatter``/``stream`` keys from any handler you define, so
+   custom formatters have no effect. The most useful thing you can do with this dict is add extra loggers
+   with custom ``level`` settings. For per-namespace log level overrides, consider using the
+   :ref:`config:logging__namespace_levels` option in ``airflow.cfg`` instead.
+
 Configuring your logging classes can be done via the ``logging_config_class`` option in ``airflow.cfg`` file.
 This configuration should specify the import path to a configuration compatible with
 :func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a
@@ -67,30 +77,19 @@ Follow the steps below to enable custom logging config class:
 
     .. code-block:: python
 
-      from copy import deepcopy
-      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+        LOGGING_CONFIG = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "loggers": {},
+        }
 
-      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-
-#.  At the end of the file, add code to modify the default dictionary configuration.
+#.  At the end of the file, add code to modify the dictionary configuration.
 #. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
 
     .. code-block:: ini
 
         [logging]
         logging_config_class = log_config.LOGGING_CONFIG
-
-You can also use the ``logging_config_class`` together with remote logging if you plan to just extend/update
-the configuration with remote logging enabled. Then the deep-copied dictionary will contain the remote logging
-configuration generated for you and your modification will apply after remote logging configuration has
-been added:
-
-    .. code-block:: ini
-
-        [logging]
-        remote_logging = True
-        logging_config_class = log_config.LOGGING_CONFIG
-
 
 #. Restart the application.
 
@@ -107,35 +106,15 @@ Custom logger for Operators, Hooks and Tasks
 
 You can create custom logging handlers and apply them to specific Operators, Hooks and tasks. By default, the Operators
 and Hooks loggers are child of the ``airflow.task`` logger: They follow respectively the naming convention
-``airflow.task.operators.<package>.<module_name>`` and ``airflow.task.hooks.<package>.<module_name>``. After
-:doc:`creating a custom logging class </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`,
-you can assign specific loggers to them.
+``airflow.task.operators.<package>.<module_name>`` and ``airflow.task.hooks.<package>.<module_name>``.
 
-Example of custom logging for the ``SQLExecuteQueryOperator`` and the ``HttpHook``:
+To set a custom log level for a specific operator or hook namespace, use the
+:ref:`config:logging__namespace_levels` option in ``airflow.cfg``:
 
-    .. code-block:: python
+.. code-block:: ini
 
-      from copy import deepcopy
-      from pydantic.utils import deep_update
-      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-
-      LOGGING_CONFIG = deep_update(
-          deepcopy(DEFAULT_LOGGING_CONFIG),
-          {
-              "loggers": {
-                  "airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator": {
-                      "handlers": ["task"],
-                      "level": "DEBUG",
-                      "propagate": True,
-                  },
-                  "airflow.task.hooks.airflow.providers.http.hooks.http.HttpHook": {
-                      "handlers": ["task"],
-                      "level": "WARNING",
-                      "propagate": False,
-                  },
-              }
-          },
-      )
+    [logging]
+    namespace_levels = airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator=DEBUG airflow.task.hooks.airflow.providers.http.hooks.http.HttpHook=WARNING
 
 
 You can also set a custom name to a Dag's task with the ``logger_name`` attribute. This can be useful if multiple tasks
@@ -148,35 +127,29 @@ Example of custom logger name:
       # In your Dag file
       SQLExecuteQueryOperator(..., logger_name="sql.big_query")
 
-      # In your custom `log_config.py`
-      LOGGING_CONFIG = deep_update(
-          deepcopy(DEFAULT_LOGGING_CONFIG),
-          {
-              "loggers": {
-                  "airflow.task.operators.sql.big_query": {
-                      "handlers": ["task"],
-                      "level": "WARNING",
-                      "propagate": True,
-                  },
-              }
-          },
-      )
+To control the log level for that custom name, use :ref:`config:logging__namespace_levels`:
 
-If you want to limit the log size of the tasks, you can add the handlers.task.max_bytes parameter.
+    .. code-block:: ini
 
-Example of limiting the size of tasks:
+        [logging]
+        namespace_levels = sql.big_query=WARNING
 
-    .. code-block:: python
 
-      from copy import deepcopy
-      from pydantic.utils import deep_update
-      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+JSON console output
+-------------------
 
-      LOGGING_CONFIG = deep_update(
-          deepcopy(DEFAULT_LOGGING_CONFIG),
-          {
-              "handlers": {
-                  "task": {"max_bytes": 104857600, "backup_count": 1}  # 100MB and keep 1 history rotate log.
-              }
-          },
-      )
+To emit logs as one JSON object per line (useful for log aggregation systems such as Loki,
+Elasticsearch, or Splunk), enable the ``json_format`` option:
+
+.. code-block:: ini
+
+    [logging]
+    json_format = True
+
+When enabled, each log line is a JSON object containing fields such as ``timestamp``,
+``level``, ``event``, and ``logger``. This replaces the default human-readable console output.
+
+.. note::
+
+   ``json_format`` affects only the Airflow component (scheduler, webserver, triggerer, …) console
+   output. Task logs written to files or remote storage use their own formatting.
