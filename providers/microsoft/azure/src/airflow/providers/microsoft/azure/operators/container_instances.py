@@ -21,6 +21,7 @@ import re
 import time
 from collections import namedtuple
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.mgmt.containerinstance.models import (
@@ -42,10 +43,12 @@ from azure.mgmt.containerinstance.models import (
 )
 from msrestazure.azure_exceptions import CloudError
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+from airflow.providers.microsoft.azure.triggers.container_instance import AzureContainerInstanceTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -105,6 +108,10 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param diagnostics: Container group diagnostic information (Log Analytics).
     :param priority: Container group priority, Possible values include: 'Regular', 'Spot'
     :param identity: List of User/System assigned identities for the container group.
+    :param deferrable: Run in deferrable mode, releasing the worker slot while the container
+        runs. Defaults to ``[operators] default_deferrable`` in ``airflow.cfg``.
+    :param remove_on_success: Delete the container group after a successful run. Default ``True``.
+    :param polling_interval: Seconds between status polls in deferrable mode. Default ``30.0``.
 
     **Example**::
 
@@ -181,6 +188,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         gpu: Any | None = None,
         command: list[str] | None = None,
         remove_on_error: bool = True,
+        remove_on_success: bool = True,
         fail_if_exists: bool = True,
         tags: dict[str, str] | None = None,
         xcom_all: bool | None = None,
@@ -193,6 +201,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         diagnostics: ContainerGroupDiagnostics | None = None,
         priority: str | None = "Regular",
         identity: ContainerGroupIdentity | dict | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        polling_interval: float = 30.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -211,8 +221,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.gpu = gpu
         self.command = command
         self.remove_on_error = remove_on_error
+        self.remove_on_success = remove_on_success
         self.fail_if_exists = fail_if_exists
-        self._ci_hook: Any = None
         self.tags = tags
         self.xcom_all = xcom_all
         self.os_type = os_type
@@ -242,6 +252,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 "Please set 'Regular' or 'Spot' as the priority. "
                 f"Found `{self.priority}`."
             )
+        self.deferrable = deferrable
+        self.polling_interval = polling_interval
 
     # helper to accept dict (user-friendly) or ContainerGroupIdentity (SDK object)
     @staticmethod
@@ -303,11 +315,13 @@ class AzureContainerInstancesOperator(BaseOperator):
             )
         return identity
 
+    @cached_property
+    def _ci_hook(self) -> AzureContainerInstanceHook:
+        return AzureContainerInstanceHook(azure_conn_id=self.ci_conn_id)
+
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
-
-        self._ci_hook = AzureContainerInstanceHook(azure_conn_id=self.ci_conn_id)
 
         if self.fail_if_exists:
             self.log.info("Testing if container group already exists")
@@ -340,6 +354,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             volume_mounts.append(VolumeMount(name=mount_name, mount_path=mount_path, read_only=read_only))
 
         exit_code = 1
+        _cleanup = True
         try:
             self.log.info("Starting container group with %.1f cpu %.1f mem", self.cpu, self.memory_in_gb)
             if self.gpu:
@@ -385,6 +400,29 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             self.log.info("Container group started %s/%s", self.resource_group, self.name)
 
+            if self.deferrable:
+                cg_state = self._ci_hook.get_state(self.resource_group, self.name)
+                instance_view = cg_state.containers[0].instance_view
+                current_state = (
+                    instance_view.current_state.state
+                    if instance_view is not None
+                    else cg_state.provisioning_state
+                )
+                terminal_states = {"Terminated", "Succeeded", "Failed", "Unhealthy"}
+                if current_state not in terminal_states:
+                    _cleanup = False  # container is still running; do not delete on TaskDeferred
+                    self.defer(
+                        trigger=AzureContainerInstanceTrigger(
+                            resource_group=self.resource_group,
+                            name=self.name,
+                            ci_conn_id=self.ci_conn_id,
+                            polling_interval=self.polling_interval,
+                        ),
+                        method_name=self.execute_complete.__name__,
+                        timeout=self.execution_timeout,
+                    )
+                # Already terminal — fall through to synchronous completion below.
+
             exit_code = self._monitor_logging(self.resource_group, self.name)
             if self.xcom_all is not None:
                 logs = self._ci_hook.get_logs(self.resource_group, self.name)
@@ -407,8 +445,11 @@ class AzureContainerInstancesOperator(BaseOperator):
             raise AirflowException("Could not start container group")
 
         finally:
-            if exit_code == 0 or self.remove_on_error:
-                self.on_kill()
+            if _cleanup:
+                if exit_code == 0 and self.remove_on_success:
+                    self.on_kill()
+                elif exit_code != 0 and self.remove_on_error:
+                    self.on_kill()
 
     def on_kill(self) -> None:
         self.log.info("Deleting container group")
@@ -416,6 +457,44 @@ class AzureContainerInstancesOperator(BaseOperator):
             self._ci_hook.delete(self.resource_group, self.name)
         except Exception:
             self.log.exception("Could not delete container group")
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> int:
+        """
+        Handle the trigger event after deferral.
+
+        Called by the Triggerer when the container reaches a terminal state.
+        Raises on failure; returns the exit code on success.
+        """
+        if event is None:
+            raise ValueError("Trigger error: event is None")
+
+        exit_code: int = event.get("exit_code", 1)
+
+        if event["status"] == "error":
+            if self.remove_on_error:
+                self.on_kill()
+            raise RuntimeError(
+                event.get(
+                    "message",
+                    f"Container group {self.resource_group}/{self.name} failed with exit code {exit_code}",
+                )
+            )
+
+        if self.xcom_all is not None:
+            logs = self._ci_hook.get_logs(self.resource_group, self.name)
+            if logs is None:
+                context["ti"].xcom_push(key="logs", value=[])
+            elif self.xcom_all:
+                context["ti"].xcom_push(key="logs", value=logs)
+            else:
+                context["ti"].xcom_push(key="logs", value=logs[-1:])
+
+        self.log.info("Container had exit code: %s", exit_code)
+
+        if self.remove_on_success:
+            self.on_kill()
+
+        return exit_code
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
