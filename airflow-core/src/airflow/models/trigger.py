@@ -139,6 +139,15 @@ class Trigger(Base):
         """Set the encrypted kwargs of the trigger."""
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
 
+    @property
+    def start_from_trigger(self) -> bool:
+        return (
+            self.task_instance
+            and self.task_instance.task
+            and self.task_instance.task.template_fields
+            and self.task_instance.start_trigger_args
+        )
+
     @staticmethod
     def encrypt_kwargs(kwargs: dict[str, Any]) -> str:
         """Encrypt the kwargs of the trigger."""
