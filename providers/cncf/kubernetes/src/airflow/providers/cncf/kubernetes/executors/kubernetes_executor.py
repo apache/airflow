@@ -337,6 +337,7 @@ class KubernetesExecutor(BaseExecutor):
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
+                        or (str(e.status) == "410" and "too old resource version" in message)
                         or str(e.status) == "500"
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(

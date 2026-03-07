@@ -399,6 +399,16 @@ class TestKubernetesExecutor:
                 id="409 conflict",
             ),
             pytest.param(
+                HTTPResponse(
+                    body='{"message": "too old resource version: 65442975 (65489651)"}',
+                    status=410,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="410 gone",
+            ),
+            pytest.param(
                 HTTPResponse(body="Too many requests, please try again later.", status=429),
                 0,
                 False,
