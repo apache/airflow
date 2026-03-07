@@ -71,7 +71,7 @@ Workflow
          | 6. Read action from XCom        |
          |                                 |
          | 7a. approve → return output     |
-         | 7b. reject  → raise HITLRejectError
+         | 7b. reject  → raise HITLRejectionException
          | 7c. changes_requested           |
          |     → regenerate_with_feedback  |
          |     → push output_2, loop to 3  |

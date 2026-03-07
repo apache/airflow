@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
@@ -61,8 +60,7 @@ class HITLReviewMixin:
     3. When a human sets action to ``changes_requested`` (via the plugin API),
        calls :meth:`regenerate_with_feedback` and pushes the new agent output.
     4. When a human sets action to ``approved``, returns the output.
-    5. When a human sets action to ``rejected``, raises
-       :class:`~airflow.providers.common.ai.utils.hitl_review.HITLRejectError`.
+    5. When a human sets action to ``rejected``, raises a `HITLRejectException`
 
     The loop stops after ``hitl_timeout``.
 
