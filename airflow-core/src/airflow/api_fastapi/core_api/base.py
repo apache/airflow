@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union, get_args, get_origin
+from typing import TYPE_CHECKING, Generic, TypeVar, Union, get_args, get_origin
 
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, create_model
 
@@ -58,7 +58,7 @@ def make_partial_model(model: type[PydanticBaseModel]) -> type[PydanticBaseModel
         ann = field_info.annotation
         origin = get_origin(ann)
         if not (origin is Union and type(None) in get_args(ann)):
-            ann = Optional[ann]
+            ann = ann | None  # type: ignore[operator, assignment]
         new_info.default = None
         field_overrides[field_name] = (ann, new_info)
 
