@@ -63,7 +63,9 @@ MY_DIR = Path(__file__).parent.resolve()
 
 crd_lookup = {
     # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
-    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml"
+    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
+    # https://github.com/prometheus-operator/prometheus-operator/blob/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+    "monitoring.coreos.com/v1::ServiceMonitor": f"{MY_DIR.as_posix()}/servicemonitor-monitoring-v1.yaml",
 }
 
 
