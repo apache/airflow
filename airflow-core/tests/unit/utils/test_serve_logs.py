@@ -244,7 +244,7 @@ class TestServeLogs:
 
 
 @patch("airflow.utils.serve_logs.uvicorn.run")
-@patch("socket.has_dualstack_ipv6") # Patch the specific attribute from the socket module
+@patch("socket.has_dualstack_ipv6")
 def test_serve_logs_with_custom_host(mock_has_dualstack_ipv6, mock_uvicorn):
     """Test that provided host config is respected."""
     mock_has_dualstack_ipv6.return_value = True
@@ -261,7 +261,7 @@ def test_serve_logs_with_custom_host(mock_has_dualstack_ipv6, mock_uvicorn):
 
 
 @patch("airflow.utils.serve_logs.uvicorn.run")
-@patch("socket.has_dualstack_ipv6") # Patch the specific attribute from the socket module
+@patch("socket.has_dualstack_ipv6")
 def test_serve_logs_ipv6_fallback(mock_has_dualstack_ipv6, mock_uvicorn):
     """Test fallback to IPv6 when no host is provided."""
     mock_has_dualstack_ipv6.return_value = True
@@ -278,7 +278,7 @@ def test_serve_logs_ipv6_fallback(mock_has_dualstack_ipv6, mock_uvicorn):
 
 
 @patch("airflow.utils.serve_logs.uvicorn.run")
-@patch("socket.has_dualstack_ipv6") # Patch the specific attribute from the socket module
+@patch("socket.has_dualstack_ipv6")
 def test_serve_logs_ipv4_fallback(mock_has_dualstack_ipv6, mock_uvicorn):
     """Test fallback to IPv4 when IPv6 is unavailable."""
     mock_has_dualstack_ipv6.return_value = False
