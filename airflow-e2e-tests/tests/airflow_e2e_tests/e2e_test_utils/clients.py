@@ -128,6 +128,20 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
         )
 
+    def get_dag_run(self, dag_id: str, run_id: str):
+        """Get DagRun details via API."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}",
+        )
+
+    def get_dag_run_task_instances(self, dag_id: str, run_id: str):
+        """Get all task instances for a DagRun via API."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+        )
+
 
 class TaskSDKClient:
     """Client for interacting with the Task SDK API."""
