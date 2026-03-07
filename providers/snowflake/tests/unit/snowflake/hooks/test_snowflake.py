@@ -1077,6 +1077,24 @@ class TestPytestSnowflakeHook:
                 }
             )
 
+    @pytest.mark.parametrize(
+        ("grant_type", "expected", "match"),
+        [
+            ("refresh_token", "refresh_token", None),
+            ("client_credentials", "client_credentials", None),
+            ("invalid_grant", ValueError, r"Unsupported grant_type"),
+            (None, ValueError, r"Grant type must be provided"),
+        ],
+    )
+    def test_validate_grant_type(self, grant_type, expected, match):
+        hook = SnowflakeHook(snowflake_conn_id="test")
+
+        if expected is ValueError:
+            with pytest.raises(ValueError, match=match):
+                hook._validate_grant_type(grant_type)
+        else:
+            assert hook._validate_grant_type(grant_type) == expected
+
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
     @mock.patch(
