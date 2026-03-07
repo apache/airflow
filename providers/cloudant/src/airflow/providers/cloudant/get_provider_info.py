@@ -44,6 +44,10 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.cloudant.hooks.cloudant.CloudantHook",
                 "connection-type": "cloudant",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {"host": "Account", "login": "Username (or API Key)"},
+                },
             }
         ],
     }
