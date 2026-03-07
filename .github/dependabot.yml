@@ -17,6 +17,11 @@
 ---
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
   - package-ecosystem: pip
     cooldown:
       default-days: 4
