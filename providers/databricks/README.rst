@@ -96,7 +96,7 @@ Extra               Dependencies
 ==================  ================================================================
 ``avro``            ``fastavro>=1.9.0``, ``fastavro>=1.10.0;python_version>="3.12"``
 ``azure-identity``  ``azure-identity>=1.3.1``
-``fab``             ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
 ``sdk``             ``databricks-sdk==0.10.0``
 ``standard``        ``apache-airflow-providers-standard``

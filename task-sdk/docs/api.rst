@@ -215,6 +215,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.YearlyMapper
 
+.. autoapiclass:: airflow.sdk.ProductMapper
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath

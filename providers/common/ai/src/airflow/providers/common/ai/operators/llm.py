@@ -19,12 +19,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
@@ -33,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class LLMOperator(BaseOperator):
+class LLMOperator(BaseOperator, LLMApprovalMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -53,6 +56,14 @@ class LLMOperator(BaseOperator):
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
         for the full list.
+    :param require_approval: If ``True``, the task defers after generating
+        output and waits for a human reviewer to approve or reject via the
+        HITL interface.  Default ``False``.
+    :param approval_timeout: Maximum time to wait for a review.  When
+        exceeded, the task fails with ``TimeoutError``.
+    :param allow_modifications: If ``True``, the reviewer can edit the output
+        before approving.  The modified value is returned as the task result.
+        Default ``False``.
     """
 
     template_fields: Sequence[str] = (
@@ -72,6 +83,9 @@ class LLMOperator(BaseOperator):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        allow_modifications: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -81,6 +95,9 @@ class LLMOperator(BaseOperator):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.agent_params = agent_params or {}
+        self.require_approval = require_approval
+        self.approval_timeout = approval_timeout
+        self.allow_modifications = allow_modifications
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -92,8 +109,13 @@ class LLMOperator(BaseOperator):
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         output = result.output
 
+        if self.require_approval:
+            self.defer_for_approval(context, output)  # type: ignore[misc]
+
         if isinstance(output, BaseModel):
-            return output.model_dump()
+            output = output.model_dump()
+
         return output

@@ -1,0 +1,17 @@
+{
+  "name": "airflow-registry",
+  "version": "1.0.0",
+  "description": "Apache Airflow Provider Registry",
+  "scripts": {
+    "dev": "REGISTRY_PATH_PREFIX=/ pnpm build && REGISTRY_PATH_PREFIX=/ eleventy --serve --port=8080",
+    "build": "eleventy",
+    "postbuild": "cleancss -o _site/css/main.css _site/css/main.css && node scripts/build-pagefind-index.mjs"
+  },
+  "dependencies": {
+    "@11ty/eleventy": "^3.1.2"
+  },
+  "devDependencies": {
+    "clean-css-cli": "^5.6.3",
+    "pagefind": "^1.1.0"
+  }
+}
