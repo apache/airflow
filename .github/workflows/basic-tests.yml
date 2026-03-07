@@ -139,7 +139,9 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
+        run: |
+          curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
