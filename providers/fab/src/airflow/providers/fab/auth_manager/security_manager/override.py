@@ -1480,6 +1480,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_user(self, user: User) -> bool:
         try:
+            existing_user = self.session.get(self.user_model, user.id)
+            if existing_user:
+                existing_role_ids = {r.id for r in existing_user.roles}
+                existing_group_ids = {grp.id for grp in existing_user.groups}
+                new_role_ids = {r.id for r in user.roles}
+                new_group_ids = {grp.id for grp in user.groups}
+                if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
+                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)

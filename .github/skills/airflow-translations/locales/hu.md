@@ -15,10 +15,8 @@ The following terms **must remain in English unchanged** (case-sensitive):
 
 - `Dag` / `Dags` — Airflow concept; never write "DAG"
 - `XCom` / `XComs` — Airflow cross-communication mechanism
-- `Plugin` / `Plugins` — Airflow extensibility mechanism
 - `Pool` / `Pools` — Resource constraint mechanism
 - `Provider` / `Providers` — Airflow extension package name
-- `Run` / `Runs` — When used standalone
 - `Map Index`
 - `PID`
 - `ID` — Note: Sometimes used as "Azonosító" in labels
@@ -38,6 +36,7 @@ that **must be used consistently**:
 | Task Instance         | Feladatpéldány                    | Plural: "Feladatpéldányok"                 |
 | Task Group            | Feladatcsoport                    |                                            |
 | Dag Run               | Dag futás                         | Plural: "Dag futások"                      |
+| Run                   | Futás                             | Plural: "Futások"; used standalone         |
 | Backfill              | Visszatöltés / Backfill           | "Visszatöltés" is preferred                |
 | Trigger (noun)        | Indító                            |                                            |
 | Trigger Rule          | Indítási szabály                  |                                            |
@@ -55,7 +54,7 @@ that **must be used consistently**:
 | Operator              | Operátor                          |                                            |
 | Asset                 | Adatkészlet (asset)               | Usually kept as "(asset)" for clarity      |
 | Asset Event           | Adatkészlet esemény               |                                            |
-| Plugins               | Bővítmények                       |                                            |
+| Plugin / Plugins      | Bővítmény / Bővítmények           |                                            |
 | Pools                 | Poolok                            |                                            |
 | Providers             | Szolgáltatók                      |                                            |
 | Upstream              | Felfelé mutató (upstream)         |                                            |
@@ -109,7 +108,7 @@ that **must be used consistently**:
 
 ### Plural Forms
 
-- In Hungarian, nouns stay in **singular form** after numbers (e.g., "5 feladat" not "5 feladatok").
+- In Hungarian, nouns stay in **singular form** after numbers and quantity words (e.g., "5 feladat" not "5 feladatok", and "Összes feladat" not "Összes feladatok").
 - i18next uses `_one` and `_other`. For Hungarian, ensure the noun following a number stays singular in the `_other` translation if it's following a count.
 
   ```json
@@ -117,13 +116,13 @@ that **must be used consistently**:
   "task_other": "Feladat"
   ```
 
-  *(Note: If the word is used alone as a plural (e.g., "All Tasks"), use the plural "Feladatok" or "XComok".)*
+  *(Note: If the word is used alone as a plural (e.g., "Tasks"), use the plural "Feladatok". However, if it follows a quantity word (e.g., "All Tasks"), use the singular "Összes feladat".)*
 
 ### Capitalization
 
 - Use **sentence case** for descriptions and longer strings.
 - Use the capitalization style of existing translations for headers and buttons.
-- Preserve proper terms: "Dag", "XCom", "Pool", "Plugin".
+- Preserve proper terms: "Dag", "XCom", "Pool".
 
 ## 5. Examples from Existing Translations
 
@@ -132,7 +131,6 @@ that **must be used consistently**:
 - "Dag"
 - "XCom"
 - "Pool"
-- "Plugin"
 
 **Common translation patterns:**
 
@@ -141,10 +139,14 @@ task_one          → "Feladat"
 task_other        → "Feladatok" (without number)
 dagRun_one        → "Dag futás"
 dagRun_other      → "Dag futások"
+run_one           → "Futás"
+run_other         → "Futások" (without number)
 backfill_one      → "Visszatöltés"
 backfill_other    → "Visszatöltések"
 taskInstance_one  → "Feladatpéldány"
 taskInstance_other→ "Feladatpéldányok"
+plugin_one        → "Bővítmény"
+plugin_other      → "Bővítmények"
 running           → "Fut"
 failed            → "Sikertelen"
 success           → "Sikeres"
