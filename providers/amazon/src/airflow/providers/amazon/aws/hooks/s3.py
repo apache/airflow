@@ -1736,7 +1736,7 @@ class S3Hook(AwsBaseHook):
     def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
         current_s3_keys = {key for key in current_s3_objects}
 
-        for item in local_dir.iterdir():
+        for item in sorted(local_dir.rglob("*"), key=lambda path: len(path.parts), reverse=True):
             item: Path  # type: ignore[no-redef]
             absolute_item_path = item.resolve()
 
