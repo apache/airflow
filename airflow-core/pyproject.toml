@@ -287,7 +287,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
+    "apache-airflow-providers-fab>=2.2.0",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]
