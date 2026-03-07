@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from pendulum.tz.timezone import FixedTimezone, Timezone
 
 
 class _BaseTemporalMapper(PartitionMapper):
@@ -24,9 +29,11 @@ class _BaseTemporalMapper(PartitionMapper):
 
     def __init__(
         self,
-        input_format: str = "%Y-%m-%dT%H:%M:%S",
+        timezone: str | Timezone | FixedTimezone,
+        input_format: str = "%Y-%m-%dT%H:%M:%S%z",
         output_format: str | None = None,
     ) -> None:
+        self.timezone = timezone
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
 
@@ -34,34 +41,34 @@ class _BaseTemporalMapper(PartitionMapper):
 class HourlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
-    default_output_format = "%Y-%m-%dT%H"
+    default_output_format = "%Y-%m-%dT%H%z"
 
 
 class DailyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
-    default_output_format = "%Y-%m-%d"
+    default_output_format = "%Y-%m-%d%z"
 
 
 class WeeklyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
-    default_output_format = "%Y-%m-%d (W%V)"
+    default_output_format = "%Y-%m-%d (W%V)%z"
 
 
 class MonthlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
-    default_output_format = "%Y-%m"
+    default_output_format = "%Y-%m%z"
 
 
 class QuarterlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
-    default_output_format = "%Y-Q{quarter}"
+    default_output_format = "%Y-Q{quarter}%z"
 
 
 class YearlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
-    default_output_format = "%Y"
+    default_output_format = "%Y%z"
