@@ -40,7 +40,11 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionSaveAndTestResponse,
+    ConnectionTestQueuedResponse,
+    ConnectionTestRequestBody,
     ConnectionTestResponse,
+    ConnectionTestStatusResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
@@ -56,11 +60,22 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
+from airflow.models.connection_test import ConnectionTest, snapshot_connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
+
+
+def _ensure_test_connection_enabled() -> None:
+    """Raise 403 if connection testing is not enabled in the Airflow configuration."""
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
 
 
 @connections_router.delete(
@@ -174,6 +189,70 @@ def bulk_connections(
 
 
 @connections_router.patch(
+    "/{connection_id}/test",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())],
+)
+def patch_connection_and_test(
+    connection_id: str,
+    patch_body: ConnectionBody,
+    session: SessionDep,
+    update_mask: list[str] | None = Query(None),
+    executor: str | None = Query(None, description="Executor to route the connection test to"),
+    queue: str | None = Query(None, description="Queue to route the connection test to"),
+) -> ConnectionSaveAndTestResponse:
+    """
+    Update a connection and queue an async test with revert-on-failure.
+
+    Atomically saves the edit and creates a ConnectionTest with snapshots of the
+    pre-edit and post-edit state. If the test fails, the connection is automatically
+    reverted to its pre-edit values.
+    """
+    _ensure_test_connection_enabled()
+
+    if patch_body.connection_id != connection_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "The connection_id in the request body does not match the URL parameter",
+        )
+
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    if connection is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Connection with connection_id: `{connection_id}` was not found",
+        )
+
+    try:
+        ConnectionBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
+
+    pre_snapshot = snapshot_connection(connection)
+
+    update_orm_from_pydantic(connection, patch_body, update_mask)
+
+    post_snapshot = snapshot_connection(connection)
+
+    connection_test = ConnectionTest(connection_id=connection_id, executor=executor, queue=queue)
+    connection_test.connection_snapshot = {"pre": pre_snapshot, "post": post_snapshot}
+    session.add(connection_test)
+    session.flush()
+
+    return ConnectionSaveAndTestResponse(
+        connection=connection,
+        test_token=connection_test.token,
+        test_state=connection_test.state,
+    )
+
+
+@connections_router.patch(
     "/{connection_id}",
     responses=create_openapi_http_exception_doc(
         [
@@ -221,12 +300,7 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
     It also deletes the conn id env connection after the test.
     """
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Testing connections is disabled in Airflow configuration. "
-            "Contact your deployment admin to enable it.",
-        )
+    _ensure_test_connection_enabled()
 
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
@@ -247,6 +321,79 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)
+
+
+@connections_router.post(
+    "/test-async",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
+)
+def test_connection_async(
+    test_body: ConnectionTestRequestBody,
+    session: SessionDep,
+) -> ConnectionTestQueuedResponse:
+    """
+    Queue an async connection test to be executed on a worker.
+
+    The connection must already be saved. Returns a token that can be used
+    to poll for the test result via GET /connections/test-async/{token}.
+    """
+    _ensure_test_connection_enabled()
+
+    try:
+        Connection.get_connection_from_secrets(test_body.connection_id)
+    except AirflowNotFoundException:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Connection with connection_id: `{test_body.connection_id}` was not found. "
+            "Connection must be saved before testing.",
+        )
+
+    connection_test = ConnectionTest(
+        connection_id=test_body.connection_id, executor=test_body.executor, queue=test_body.queue
+    )
+    session.add(connection_test)
+    session.flush()
+
+    return ConnectionTestQueuedResponse(
+        token=connection_test.token,
+        connection_id=connection_test.connection_id,
+        state=connection_test.state,
+    )
+
+
+@connections_router.get(
+    "/test-async/{connection_test_token}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
+)
+def get_connection_test_status(
+    connection_test_token: str,
+    session: SessionDep,
+) -> ConnectionTestStatusResponse:
+    """
+    Poll for the status of an async connection test.
+
+    Knowledge of the token serves as authorization — only the client
+    that initiated the test knows the crypto-random token.
+    """
+    connection_test = session.scalar(select(ConnectionTest).filter_by(token=connection_test_token))
+
+    if connection_test is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No connection test found for token: `{connection_test_token}`",
+        )
+
+    return ConnectionTestStatusResponse(
+        token=connection_test.token,
+        connection_id=connection_test.connection_id,
+        state=connection_test.state,
+        result_message=connection_test.result_message,
+        created_at=connection_test.created_at,
+        reverted=connection_test.reverted,
+    )
 
 
 @connections_router.post(

@@ -496,11 +496,50 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned by the combined save-and-test endpoint.
+ */
+export type ConnectionSaveAndTestResponse = {
+    connection: ConnectionResponse;
+    test_token: string;
+    test_state: string;
+};
+
+/**
+ * Response returned when an async connection test is queued.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for async connection test.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+    executor?: string | null;
+    queue?: string | null;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
     message: string;
+};
+
+/**
+ * Response returned when polling for async connection test status.
+ */
+export type ConnectionTestStatusResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_message?: string | null;
+    created_at: string;
+    reverted?: boolean;
 };
 
 /**
@@ -2463,11 +2502,39 @@ export type BulkConnectionsData = {
 
 export type BulkConnectionsResponse = BulkResponse;
 
+export type PatchConnectionAndTestData = {
+    connectionId: string;
+    /**
+     * Executor to route the connection test to
+     */
+    executor?: string | null;
+    /**
+     * Queue to route the connection test to
+     */
+    queue?: string | null;
+    requestBody: ConnectionBody;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchConnectionAndTestResponse = ConnectionSaveAndTestResponse;
+
 export type TestConnectionData = {
     requestBody: ConnectionBody;
 };
 
 export type TestConnectionResponse = ConnectionTestResponse;
+
+export type TestConnectionAsyncData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type TestConnectionAsyncResponse = ConnectionTestQueuedResponse;
+
+export type GetConnectionTestStatusData = {
+    connectionTestToken: string;
+};
+
+export type GetConnectionTestStatusResponse = ConnectionTestStatusResponse;
 
 export type CreateDefaultConnectionsResponse = void;
 
@@ -4418,6 +4485,37 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/connections/{connection_id}/test': {
+        patch: {
+            req: PatchConnectionAndTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionSaveAndTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/connections/test': {
         post: {
             req: TestConnectionData;
@@ -4434,6 +4532,60 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async': {
+        post: {
+            req: TestConnectionAsyncData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async/{connection_test_token}': {
+        get: {
+            req: GetConnectionTestStatusData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionTestStatusResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

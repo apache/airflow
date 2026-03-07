@@ -21,12 +21,13 @@ import logging
 import textwrap
 from datetime import timedelta
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
 import structlog
 import time_machine
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -405,6 +406,43 @@ def test_repr():
     assert repr(executor) == "BaseExecutor(parallelism=10)"
     executor = BaseExecutor(parallelism=10, team_name="teamA")
     assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
+
+
+def test_supports_connection_test_default_value():
+    assert not BaseExecutor.supports_connection_test
+
+
+def test_queue_connection_test_workload_rejected_by_default():
+    """BaseExecutor (supports_connection_test=False) rejects TestConnection workloads."""
+    executor = BaseExecutor()
+    wl = workloads.TestConnection.make(
+        connection_test_id=uuid4(),
+        connection_id="test_conn",
+    )
+    with pytest.raises(NotImplementedError, match="does not support TestConnection workloads"):
+        executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
+
+
+def test_queue_connection_test_workload_accepted_when_supported():
+    """An executor with supports_connection_test=True accepts TestConnection workloads."""
+    executor = LocalExecutor()
+    executor.queued_connection_tests.clear()
+    wl = workloads.TestConnection.make(
+        connection_test_id=uuid4(),
+        connection_id="test_conn",
+    )
+    executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
+    assert len(executor.queued_connection_tests) == 1
+    assert executor.queued_connection_tests[str(wl.connection_test_id)] is wl
+
+
+def test_trigger_connection_tests_skipped_when_not_supported():
+    """trigger_connection_tests is a no-op when supports_connection_test is False."""
+    executor = BaseExecutor()
+    executor.queued_connection_tests["dummy"] = mock.MagicMock(spec=workloads.TestConnection)
+    with mock.patch.object(executor, "_process_workloads") as mock_process:
+        executor.trigger_connection_tests()
+    mock_process.assert_not_called()
 
 
 @mock.patch.dict("os.environ", {}, clear=True)

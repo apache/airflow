@@ -244,13 +244,59 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ConnectionSaveAndTestResponse(BaseModel):
+    """
+    Response returned by the combined save-and-test endpoint.
+    """
+
+    connection: ConnectionResponse
+    test_token: Annotated[str, Field(title="Test Token")]
+    test_state: Annotated[str, Field(title="Test State")]
+
+
+class ConnectionTestQueuedResponse(BaseModel):
+    """
+    Response returned when an async connection test is queued.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+
+
+class ConnectionTestRequestBody(BaseModel):
+    """
+    Request body for async connection test.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    executor: Annotated[str | None, Field(title="Executor")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = None
+
+
 class ConnectionTestResponse(BaseModel):
     """
-    Connection Test serializer for responses.
+    Connection Test serializer for synchronous test responses.
     """
 
     status: Annotated[bool, Field(title="Status")]
     message: Annotated[str, Field(title="Message")]
+
+
+class ConnectionTestStatusResponse(BaseModel):
+    """
+    Response returned when polling for async connection test status.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    reverted: Annotated[bool | None, Field(title="Reverted")] = False
 
 
 class CreateAssetEventsBody(BaseModel):

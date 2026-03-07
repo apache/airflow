@@ -1691,6 +1691,83 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
+export const $ConnectionSaveAndTestResponse = {
+    properties: {
+        connection: {
+            '$ref': '#/components/schemas/ConnectionResponse'
+        },
+        test_token: {
+            type: 'string',
+            title: 'Test Token'
+        },
+        test_state: {
+            type: 'string',
+            title: 'Test State'
+        }
+    },
+    type: 'object',
+    required: ['connection', 'test_token', 'test_state'],
+    title: 'ConnectionSaveAndTestResponse',
+    description: 'Response returned by the combined save-and-test endpoint.'
+} as const;
+
+export const $ConnectionTestQueuedResponse = {
+    properties: {
+        token: {
+            type: 'string',
+            title: 'Token'
+        },
+        connection_id: {
+            type: 'string',
+            title: 'Connection Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
+        }
+    },
+    type: 'object',
+    required: ['token', 'connection_id', 'state'],
+    title: 'ConnectionTestQueuedResponse',
+    description: 'Response returned when an async connection test is queued.'
+} as const;
+
+export const $ConnectionTestRequestBody = {
+    properties: {
+        connection_id: {
+            type: 'string',
+            title: 'Connection Id'
+        },
+        executor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Executor'
+        },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['connection_id'],
+    title: 'ConnectionTestRequestBody',
+    description: 'Request body for async connection test.'
+} as const;
+
 export const $ConnectionTestResponse = {
     properties: {
         status: {
@@ -1705,7 +1782,49 @@ export const $ConnectionTestResponse = {
     type: 'object',
     required: ['status', 'message'],
     title: 'ConnectionTestResponse',
-    description: 'Connection Test serializer for responses.'
+    description: 'Connection Test serializer for synchronous test responses.'
+} as const;
+
+export const $ConnectionTestStatusResponse = {
+    properties: {
+        token: {
+            type: 'string',
+            title: 'Token'
+        },
+        connection_id: {
+            type: 'string',
+            title: 'Connection Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
+        },
+        result_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Result Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        reverted: {
+            type: 'boolean',
+            title: 'Reverted',
+            default: false
+        }
+    },
+    type: 'object',
+    required: ['token', 'connection_id', 'state', 'created_at'],
+    title: 'ConnectionTestStatusResponse',
+    description: 'Response returned when polling for async connection test status.'
 } as const;
 
 export const $CreateAssetEventsBody = {
