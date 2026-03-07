@@ -17,35 +17,58 @@
  * under the License.
  */
 import { Flex, type FlexProps } from "@chakra-ui/react";
-import ReactJson, { type ReactJsonViewProps } from "react-json-view";
+import Editor, { type OnMount } from "@monaco-editor/react";
+import { useCallback } from "react";
 
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 
 type Props = {
+  readonly collapsed?: boolean;
   readonly content: object;
   readonly enableClipboard?: boolean;
-  readonly jsonProps?: Omit<ReactJsonViewProps, "src">;
 } & FlexProps;
 
-const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest }: Props) => {
-  const contentFormatted = JSON.stringify(content, undefined, 4);
+const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true, ...rest }: Props) => {
+  const contentFormatted = JSON.stringify(content, undefined, 2);
   const { colorMode } = useColorMode();
+  const lineCount = contentFormatted.split("\n").length;
+  const height = `${Math.min(Math.max(lineCount * 19 + 10, 40), 300)}px`;
+  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
+
+  const handleMount: OnMount = useCallback(
+    (editorInstance) => {
+      if (collapsed) {
+        void editorInstance.getAction("editor.foldAll")?.run();
+      }
+    },
+    [collapsed],
+  );
 
   return (
     <Flex {...rest}>
-      <ReactJson
-        displayDataTypes={false}
-        enableClipboard={false}
-        iconStyle="triangle"
-        indentWidth={2}
-        name={false}
-        src={content}
-        style={{
-          backgroundColor: "inherit",
+      <Editor
+        height={height}
+        language="json"
+        onMount={handleMount}
+        options={{
+          automaticLayout: true,
+          contextmenu: false,
+          folding: true,
+          fontSize: 13,
+          glyphMargin: false,
+          lineDecorationsWidth: 0,
+          lineNumbers: "off",
+          minimap: { enabled: false },
+          overviewRulerLanes: 0,
+          readOnly: true,
+          renderLineHighlight: "none",
+          scrollbar: { vertical: "hidden", verticalScrollbarSize: 0 },
+          scrollBeyondLastLine: false,
+          wordWrap: "on",
         }}
-        theme={colorMode === "dark" ? "monokai" : "rjv-default"}
-        {...jsonProps}
+        theme={theme}
+        value={contentFormatted}
       />
       {enableClipboard ? (
         <ClipboardRoot value={contentFormatted}>

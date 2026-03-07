@@ -168,7 +168,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
-        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+        <RenderedJsonField collapsed content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
   },

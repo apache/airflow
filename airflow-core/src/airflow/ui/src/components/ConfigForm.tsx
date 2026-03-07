@@ -109,10 +109,11 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
                 <Field.Root invalid={Boolean(errors.conf)} mt={6}>
                   <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
                   <JsonEditor
-                    {...field}
                     onBlur={() => {
                       field.onChange(validateAndPrettifyJson(field.value as string));
                     }}
+                    onChange={field.onChange}
+                    value={field.value as string}
                   />
                   {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                 </Field.Root>
