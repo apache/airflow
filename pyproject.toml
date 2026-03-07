@@ -23,7 +23,7 @@
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
     "distlib==0.4.0",
-    "filelock==3.24.3",
+    "filelock==3.25.0",
     "hatchling==1.29.0",
     "packaging==26.0",
     "pathspec==1.0.4",
