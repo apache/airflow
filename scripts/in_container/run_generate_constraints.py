@@ -380,9 +380,9 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             console.print("[green]OK")
             if provider_package == "apache-airflow-providers-celery":
                 console.print(
-                    "[yellow]Excluding celery provider 3.16.0 as it does not work with Airflow 2.11."
+                    "[yellow]Excluding celery provider 3.16.0 and 3.17.0 as they does not work with Airflow 2.11."
                 )
-                provider_package = f"{provider_package}!=3.16.0"
+                provider_package = f"{provider_package}!=3.16.0,!=3.17.0"
             packages_to_install.append(provider_package)
         else:
             console.print("[yellow]NOK. Skipping.")
