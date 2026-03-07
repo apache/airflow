@@ -54,7 +54,7 @@ that **must be used consistently**:
 | Operator              | Operátor                          |                                            |
 | Asset                 | Adatkészlet (asset)               | Usually kept as "(asset)" for clarity      |
 | Asset Event           | Adatkészlet esemény               |                                            |
-| Plugin / Plugins      | Bővítmény / Bővítmények            |                                            |
+| Plugin / Plugins      | Bővítmény / Bővítmények           |                                            |
 | Pools                 | Poolok                            |                                            |
 | Providers             | Szolgáltatók                      |                                            |
 | Upstream              | Felfelé mutató (upstream)         |                                            |
