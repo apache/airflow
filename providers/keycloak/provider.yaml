@@ -37,6 +37,12 @@ versions:
   - 0.1.0
   - 0.0.1
 
+integrations:
+  - integration-name: Keycloak
+    external-doc-url: https://www.keycloak.org/
+    logo: /docs/integration-logos/Keycloak.svg
+    tags: [software]
+
 auth-managers:
   - airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager
 

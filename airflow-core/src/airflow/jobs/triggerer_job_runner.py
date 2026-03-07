@@ -30,7 +30,7 @@ from contextlib import suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
 
 import anyio
 import attrs
@@ -301,6 +301,8 @@ class TriggerLoggingFactory:
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
+    _filehandle: TextIO | BinaryIO = attrs.field(init=False, repr=False)
+
     def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
         if hasattr(self, "bound_logger"):
             return self.bound_logger
@@ -311,12 +313,19 @@ class TriggerLoggingFactory:
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+            self._filehandle = log_file.open("w", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+            self._filehandle = log_file.open("wb")
+            underlying_logger = structlog.BytesLogger(self._filehandle)
         logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
         self.bound_logger = logger
         return logger
+
+    def close(self):
+        # Explicitly close the file descriptor.
+        if hasattr(self, "_filehandle") and self._filehandle and not self._filehandle.closed:
+            self._filehandle.close()
 
     def upload_to_remote(self):
         from airflow.sdk.log import upload_to_remote
@@ -420,10 +429,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
-                # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
-                # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
+                    # Need to close the FD explicitly, as it is not closed when logger is removed.
+                    factory.close()
 
             response = messages.TriggerStateSync(
                 to_create=[],

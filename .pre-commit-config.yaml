@@ -614,7 +614,7 @@ repos:
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
-          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
           ^.*/provider_conf\.py$|
           ^providers/\.pre-commit-config\.yaml$|
