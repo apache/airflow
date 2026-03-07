@@ -158,6 +158,43 @@ class DataFusionEngine(LoggingMixin):
                 credentials = self._remove_none_values(credentials)
                 extra_config = _fetch_extra_configs(["region", "endpoint"])
 
+            case "google_cloud_platform":
+                try:
+                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import GoogleBaseHook. To use the GCS storage functionality, please install the "
+                        "apache-airflow-providers-google package."
+                    )
+                gcp_hook: GoogleBaseHook = GoogleBaseHook(gcp_conn_id=conn.conn_id)
+                key_path = gcp_hook._get_field("key_path")
+                if key_path:
+                    credentials.update({"service_account_path": key_path})
+                extra_config = {}
+
+            case "wasb":
+                try:
+                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import WasbHook. To use the Azure storage functionality, please install the "
+                        "apache-airflow-providers-microsoft-azure package."
+                    )
+                wasb_hook: WasbHook = WasbHook(wasb_conn_id=conn.conn_id)
+                wasb_conn = wasb_hook.get_connection(conn.conn_id)
+                account_name = wasb_conn.login
+                account_key = wasb_conn.password or wasb_conn.extra_dejson.get("account_key")
+                if account_name:
+                    credentials["account"] = account_name
+                if account_key:
+                    credentials["access_key"] = account_key
+                credentials = self._remove_none_values(credentials)
+                extra_config = _fetch_extra_configs(["endpoint"])
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
         return credentials, extra_config
