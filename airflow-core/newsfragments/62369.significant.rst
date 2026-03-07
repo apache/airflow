@@ -13,7 +13,7 @@ instances are ready, so columns appear progressively rather than all at once.
   line is a serialized ``GridTISummaries`` object for one run.
 - The old single-run endpoint ``GET /ui/grid/ti_summaries/{dag_id}/{run_id}``
   has been removed.
-- The serialized DAG structure is loaded once and shared across all runs that
+- The serialized Dag structure is loaded once and shared across all runs that
   share the same ``dag_version_id``, avoiding redundant deserialization.
 - All UI views (grid, graph, gantt, task instance, mapped task instance, group
   task instance) use the stream endpoint, passing one or more ``run_ids``.

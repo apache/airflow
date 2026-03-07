@@ -405,7 +405,7 @@ def _build_ti_summaries(
         ),
         200: {
             "content": {"application/x-ndjson": {"schema": {"type": "string"}}},
-            "description": "NDJSON stream — one ``GridTISummaries`` JSON object per line, one per DAG run",
+            "description": "NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run",
         },
     },
     dependencies=[
@@ -428,13 +428,13 @@ def get_grid_ti_summaries_stream(
     session: SessionDep,
     run_ids: Annotated[list[str], Query()] = [],
 ) -> StreamingResponse:
-    """Stream TI summaries for multiple DAG runs as NDJSON (one JSON line per run).
+    """Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
 
     Each line is a serialized ``GridTISummaries`` object emitted as soon as that
     run's task instances have been processed, so the client can render columns
     progressively without waiting for all runs to complete.
 
-    The serialized DAG structure is loaded once and reused for all runs that
+    The serialized Dag structure is loaded once and reused for all runs that
     share the same ``dag_version_id``, avoiding repeated deserialization.
     """
 
