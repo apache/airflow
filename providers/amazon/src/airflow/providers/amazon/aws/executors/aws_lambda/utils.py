@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseCo
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-
 CONFIG_GROUP_NAME = "aws_lambda_executor"
 INVALID_CREDENTIALS_EXCEPTIONS = [
     "ExpiredTokenException",
@@ -37,9 +36,9 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
 
 @dataclass
 class LambdaQueuedTask:
-    """Represents a Lambda task that is queued. The task will be run in the next heartbeat."""
+    """Represents a Lambda workload that is queued. The task will be run in the next heartbeat."""
 
-    key: TaskInstanceKey
+    key: TaskInstanceKey | str
     command: CommandType
     queue: str
     executor_config: ExecutorConfigType
@@ -66,5 +65,5 @@ class AllLambdaConfigKeys(InvokeLambdaKwargsConfigKeys):
     END_WAIT_TIMEOUT = "end_wait_timeout"
 
 
-CommandType = Sequence[str]
+CommandType = Sequence[Any]
 ExecutorConfigType = dict[str, Any]
