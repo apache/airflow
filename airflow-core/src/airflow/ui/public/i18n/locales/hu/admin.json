@@ -44,7 +44,7 @@
     "nothingFound": {
       "description": "A környezeti változókon vagy secret kezelőkön keresztül meghatározott kapcsolatok itt nem jelennek meg.",
       "documentationLink": "További információkért tekintse meg az Airflow dokumentációját.",
-      "learnMore": "Ezek futásidőben kerülnek feldogozásra, és nem láthatók a felhasználói felületen.",
+      "learnMore": "Ezek futásidőben kerülnek feldolgozásra, és nem láthatók a felhasználói felületen.",
       "title": "Nem található kapcsolat!"
     },
     "searchPlaceholder": "Kapcsolatok keresése",

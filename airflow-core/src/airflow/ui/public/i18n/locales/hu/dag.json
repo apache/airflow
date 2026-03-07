@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Visszaállítás a legutóbbira",
       "toggleGroup": "Csoport váltása"
-    }
+    },
+    "runTypeLegend": "Futástípus jelmagyarázat"
   },
   "header": {
     "buttons": {

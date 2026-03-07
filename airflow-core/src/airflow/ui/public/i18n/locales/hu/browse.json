@@ -13,9 +13,9 @@
   },
   "xcom": {
     "add": {
-      "error": "Nem sikerült hozzáadni az XCom-ot",
+      "error": "XCom hozzáadása sikertelen",
       "errorTitle": "Hiba",
-      "success": "Az XCom sikeresen hozzáadva",
+      "success": "XCom sikeresen hozzáadva",
       "successTitle": "XCom hozzáadva",
       "title": "XCom hozzáadása"
     },
@@ -25,17 +25,17 @@
       "value": "Érték"
     },
     "delete": {
-      "error": "Nem sikerült törölni az XCom-ot",
+      "error": "XCom törlése sikertelen",
       "errorTitle": "Hiba",
-      "success": "Az XCom sikeresen törölve",
+      "success": "XCom sikeresen törölve",
       "successTitle": "XCom törölve",
       "title": "XCom törlése",
       "warning": "Biztosan törölni szeretné ezt az XCom-ot? Ez a művelet nem vonható vissza."
     },
     "edit": {
-      "error": "Nem sikerült frissíteni az XCom-ot",
+      "error": "XCom frissítése sikertelen",
       "errorTitle": "Hiba",
-      "success": "Az XCom sikeresen frissítve",
+      "success": "XCom sikeresen frissítve",
       "successTitle": "XCom frissítve",
       "title": "XCom szerkesztése"
     },
