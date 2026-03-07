@@ -232,6 +232,43 @@ class TestCliVariables:
         # Test command is received
         variable_command.variables_list(self.parser.parse_args(["variables", "list"]))
 
+    def test_variables_list_without_show_values(self, stdout_capture):
+        """Test that variables list without --show-values shows only keys."""
+        Variable.set("test_key", "secret_value")
+        args = self.parser.parse_args(["variables", "list", "--output", "json"])
+        with stdout_capture as capture:
+            variable_command.variables_list(args)
+            stdout = capture.getvalue()
+        # Key should be visible
+        assert "test_key" in stdout
+        # Value should NOT be visible
+        assert "secret_value" not in stdout
+
+    def test_variables_list_with_show_values(self, stdout_capture):
+        """Test that variables list with --show-values shows keys and values."""
+        Variable.set("test_key", "secret_value")
+        args = self.parser.parse_args(["variables", "list", "--show-values", "--output", "json"])
+        with stdout_capture as capture:
+            variable_command.variables_list(args)
+            stdout = capture.getvalue()
+        # Both key and value should be visible
+        assert "test_key" in stdout
+        assert "secret_value" in stdout
+
+    def test_variables_list_with_show_values_and_hide_sensitive(self, stdout_capture):
+        """Test that --show-values --hide-sensitive masks sensitive values."""
+        Variable.set("password", "my_secret_password")
+        args = self.parser.parse_args(
+            ["variables", "list", "--show-values", "--hide-sensitive", "--output", "json"]
+        )
+        with stdout_capture as capture:
+            variable_command.variables_list(args)
+            stdout = capture.getvalue()
+        # Key should be visible
+        assert "password" in stdout
+        # Sensitive value should be masked
+        assert "my_secret_password" not in stdout
+
     def test_variables_delete(self):
         """Test variable_delete command"""
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", "bar"]))

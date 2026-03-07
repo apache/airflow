@@ -95,6 +95,77 @@ class TestCliListConnections:
             assert conn_type in stdout
             assert conn_id in stdout
 
+    def test_cli_connections_list_without_show_values(self):
+        """Test that connections list without --show-values does not show password/extra/uri."""
+        # Create a connection with password
+        clear_db_connections(add_default_connections_back=False)
+        merge_conn(
+            Connection(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host="localhost",
+                login="user",
+                password="secret_password",
+                extra='{"key": "value"}',
+            )
+        )
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        # Password, extra_dejson, get_uri should NOT be in output
+        assert "secret_password" not in stdout
+        assert "extra_dejson" not in stdout
+        assert "get_uri" not in stdout
+
+    def test_cli_connections_list_with_show_values(self):
+        """Test that connections list with --show-values shows all values including sensitive."""
+        clear_db_connections(add_default_connections_back=False)
+        merge_conn(
+            Connection(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host="localhost",
+                login="user",
+                password="secret_password",
+                extra='{"key": "value"}',
+            )
+        )
+        args = self.parser.parse_args(["connections", "list", "--show-values", "--output", "json"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        # Password should be visible
+        assert "secret_password" in stdout
+        assert "extra_dejson" in stdout
+        assert "get_uri" in stdout
+
+    def test_cli_connections_list_with_show_values_and_hide_sensitive(self):
+        """Test that --show-values --hide-sensitive masks sensitive values."""
+        clear_db_connections(add_default_connections_back=False)
+        merge_conn(
+            Connection(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host="localhost",
+                login="user",
+                password="secret_password",
+                extra='{"key": "value"}',
+            )
+        )
+        args = self.parser.parse_args(
+            ["connections", "list", "--show-values", "--hide-sensitive", "--output", "json"]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        # Password should be masked (not visible as plain text)
+        assert "secret_password" not in stdout
+        # But the fields should still be present
+        assert "password" in stdout
+        assert "extra_dejson" in stdout
+        assert "get_uri" in stdout
+
 
 class TestCliExportConnections:
     parser = cli_parser.get_parser()

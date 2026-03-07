@@ -1,0 +1,5 @@
+Added ``--show-values`` and ``--hide-sensitive`` flags to ``airflow connections list`` and ``airflow variables list`` CLI commands.
+
+By default, ``connections list`` shows only basic connection fields (no password, extra, or URI) and ``variables list`` shows only keys.
+Use ``--show-values`` to display all values including sensitive data.
+Use ``--show-values --hide-sensitive`` to display values with sensitive data masked using Airflow's SecretsMasker.

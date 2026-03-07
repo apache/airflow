@@ -29,6 +29,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.orm import exc
 
+from airflow._shared.secrets_masker import redact
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import is_stdout, print_export_output
 from airflow.configuration import conf
@@ -43,8 +44,17 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _connection_mapper(conn: Connection) -> dict[str, Any]:
-    return {
+def _connection_mapper(
+    conn: Connection, show_values: bool = True, hide_sensitive: bool = False
+) -> dict[str, Any]:
+    """
+    Map a Connection object to a dictionary for display.
+
+    :param conn: Connection object
+    :param show_values: If True, include sensitive fields (password, URI, extra)
+    :param hide_sensitive: If True (and show_values is True), mask sensitive values
+    """
+    result: dict[str, Any] = {
         "id": conn.id,
         "conn_id": conn.conn_id,
         "conn_type": conn.conn_type,
@@ -52,13 +62,20 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "host": conn.host,
         "schema": conn.schema,
         "login": conn.login,
-        "password": conn.password,
         "port": conn.port,
         "is_encrypted": conn.is_encrypted,
         "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
     }
+    if show_values:
+        if hide_sensitive:
+            result["password"] = redact(conn.password, "password") if conn.password else None
+            result["extra_dejson"] = redact(conn.extra_dejson)
+            result["get_uri"] = redact(conn.get_uri(), "password")
+        else:
+            result["password"] = conn.password
+            result["extra_dejson"] = conn.extra_dejson
+            result["get_uri"] = conn.get_uri()
+    return result
 
 
 @suppress_logs_and_warning
@@ -74,7 +91,7 @@ def connections_get(args):
     AirflowConsole().print_as(
         data=[conn],
         output=args.output,
-        mapper=_connection_mapper,
+        mapper=lambda c: _connection_mapper(c, show_values=True, hide_sensitive=False),
     )
 
 
@@ -85,11 +102,13 @@ def connections_list(args):
     with create_session() as session:
         query = select(Connection)
         conns = session.scalars(query).all()
+        show_values = getattr(args, "show_values", False)
+        hide_sensitive = getattr(args, "hide_sensitive", False)
 
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=lambda c: _connection_mapper(c, show_values=show_values, hide_sensitive=hide_sensitive),
         )
 
 

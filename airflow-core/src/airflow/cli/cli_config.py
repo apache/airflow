@@ -337,6 +337,16 @@ ARG_DEFAULTS = Arg(
     action="store_true",
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
+ARG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    help="Show values of connections/variables",
+    action="store_true",
+)
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    help="When used with --show-values, mask sensitive values (passwords, keys, tokens, etc.)",
+    action="store_true",
+)
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
@@ -1429,7 +1439,7 @@ VARIABLES_COMMANDS = (
         name="list",
         help="List variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_SHOW_VALUES, ARG_HIDE_SENSITIVE),
     ),
     ActionCommand(
         name="get",
@@ -1604,7 +1614,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_SHOW_VALUES, ARG_HIDE_SENSITIVE),
     ),
     ActionCommand(
         name="add",

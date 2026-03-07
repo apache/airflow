@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import redact
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
 from airflow.exceptions import (
@@ -39,13 +41,38 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
+def _variable_mapper(
+    var: Variable, show_values: bool = False, hide_sensitive: bool = False
+) -> dict[str, Any]:
+    """
+    Map a Variable object to a dictionary for display.
+
+    :param var: Variable object
+    :param show_values: If True, include the variable value
+    :param hide_sensitive: If True (and show_values is True), mask sensitive values
+    """
+    result: dict[str, Any] = {"key": var.key}
+    if show_values:
+        if hide_sensitive:
+            result["value"] = redact(var.val, var.key)
+        else:
+            result["value"] = var.val
+    return result
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
     """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    show_values = getattr(args, "show_values", False)
+    hide_sensitive = getattr(args, "hide_sensitive", False)
+    AirflowConsole().print_as(
+        data=variables,
+        output=args.output,
+        mapper=lambda x: _variable_mapper(x, show_values=show_values, hide_sensitive=hide_sensitive),
+    )
 
 
 @suppress_logs_and_warning
