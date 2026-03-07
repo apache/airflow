@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Weaviate",
                 "external-doc-url": "https://weaviate.io/developers/weaviate",
+                "logo": "/docs/integration-logos/Weaviate.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-weaviate/operators/weaviate.rst"],
                 "tags": ["software"],
             }
