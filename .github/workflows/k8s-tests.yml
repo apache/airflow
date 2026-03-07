@@ -120,7 +120,7 @@ jobs:
       - name: "\
           Upload KinD logs ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
           ${{ matrix.use-standard-naming }}"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: "\
             kind-logs-${{ matrix.kubernetes-combo }}-${{ matrix.executor }}-\
