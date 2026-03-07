@@ -25,7 +25,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 /**
  * Streams TI summaries for all grid runs over a single HTTP connection (NDJSON).
  *
- * The server emits one JSON line per DAG run as soon as that run's task
+ * The server emits one JSON line per Dag run as soon as that run's task
  * instances have been computed, so the grid renders each column progressively
  * rather than waiting for the entire payload.  This eliminates the N+1 request
  * pattern without loading all runs into one large query.

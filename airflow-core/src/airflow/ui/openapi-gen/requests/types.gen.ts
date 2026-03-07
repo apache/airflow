@@ -6941,7 +6941,7 @@ export type $OpenApiTs = {
             req: GetGridTiSummariesStreamData;
             res: {
                 /**
-                 * NDJSON stream — one ``GridTISummaries`` JSON object per line, one per DAG run
+                 * NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
                  */
                 200: string;
                 /**

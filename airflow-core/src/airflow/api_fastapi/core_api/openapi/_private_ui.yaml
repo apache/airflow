@@ -1134,7 +1134,7 @@ paths:
       tags:
       - Grid
       summary: Get Grid Ti Summaries Stream
-      description: 'Stream TI summaries for multiple DAG runs as NDJSON (one JSON
+      description: 'Stream TI summaries for multiple Dag runs as NDJSON (one JSON
         line per run).
 
 
@@ -1145,7 +1145,7 @@ paths:
         progressively without waiting for all runs to complete.
 
 
-        The serialized DAG structure is loaded once and reused for all runs that
+        The serialized Dag structure is loaded once and reused for all runs that
 
         share the same ``dag_version_id``, avoiding repeated deserialization.'
       operationId: get_grid_ti_summaries_stream
@@ -1171,7 +1171,7 @@ paths:
       responses:
         '200':
           description: "NDJSON stream \u2014 one ``GridTISummaries`` JSON object per\
-            \ line, one per DAG run"
+            \ line, one per Dag run"
           content:
             application/x-ndjson:
               schema:

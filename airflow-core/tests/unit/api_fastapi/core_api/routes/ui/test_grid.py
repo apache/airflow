@@ -1163,7 +1163,7 @@ class TestGetGridDataEndpoint:
         assert self._parse_ndjson(response) == []
 
     def test_grid_ti_summaries_stream_deduplicates_serdag_loads(self, session, test_client):
-        """Serialized DAG is loaded once even when multiple runs share the same version."""
+        """Serialized Dag is loaded once even when multiple runs share the same version."""
         session.commit()
 
         run_ids = ["run_1", "run_2"]
