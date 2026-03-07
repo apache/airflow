@@ -115,9 +115,7 @@ with DAG(
 
     # [START howto_operator_databricks_run_now]
     # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
-    run_now = DatabricksRunNowOperator(
-        task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
-    )
+    run_now = DatabricksRunNowOperator(task_id="run_now", job_id=jobs_create_named.output)
 
     jobs_create_named >> run_now
     # [END howto_operator_databricks_run_now]
