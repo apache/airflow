@@ -212,6 +212,10 @@ class TestOtelIntegration:
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
         os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
         os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
+        if cls.use_otel != "true":
+            os.environ["OTEL_TRACES_EXPORTER"] = "console"
+            os.environ["OTEL_METRICS_EXPORTER"] = "none"
+            os.environ["AIRFLOW__METRICS__OTEL_ON"] = "False"
 
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
@@ -486,38 +490,39 @@ class TestOtelIntegration:
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
 
-        # host = "host.docker.internal"
-        host = "jaeger"
-        service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
-        # service_name ``= "my-service-name"
-        r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
-        data = r.json()
+        # Only query Jaeger and assert on span hierarchy when OTel is sending traces to the collector.
+        # When use_otel != "true", OTEL_TRACES_EXPORTER=console so no spans reach Jaeger.
+        if self.use_otel == "true":
+            host = "jaeger"
+            service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
+            r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
+            data = r.json()
 
-        trace = data["data"][-1]
-        spans = trace["spans"]
+            trace = data["data"][-1]
+            spans = trace["spans"]
 
-        def get_span_hierarchy():
-            spans_dict = {x["spanID"]: x for x in spans}
+            def get_span_hierarchy():
+                spans_dict = {x["spanID"]: x for x in spans}
 
-            def get_parent_span_id(span):
-                parents = [x["spanID"] for x in span["references"] if x["refType"] == "CHILD_OF"]
-                if parents:
-                    parent_id = parents[0]
-                    return spans_dict[parent_id]["operationName"]
+                def get_parent_span_id(span):
+                    parents = [x["spanID"] for x in span["references"] if x["refType"] == "CHILD_OF"]
+                    if parents:
+                        parent_id = parents[0]
+                        return spans_dict[parent_id]["operationName"]
 
-            nested = {x["operationName"]: get_parent_span_id(x) for x in spans}
-            return nested
+                nested = {x["operationName"]: get_parent_span_id(x) for x in spans}
+                return nested
 
-        nested = get_span_hierarchy()
-        assert nested == {
-            "otel_test_dag": None,
-            "task1": None,
-            "task1_sub_span1": None,
-            "task1_sub_span2": None,
-            "task1_sub_span3": "task1_sub_span2",
-            "task1_sub_span4": None,
-            "task2": None,
-        }
+            nested = get_span_hierarchy()
+            assert nested == {
+                "otel_test_dag": None,
+                "task1": None,
+                "task1_sub_span1": None,
+                "task1_sub_span2": None,
+                "task1_sub_span3": "task1_sub_span2",
+                "task1_sub_span4": None,
+                "task2": None,
+            }
 
     def start_worker_and_scheduler(self):
         scheduler_process = subprocess.Popen(

@@ -27,6 +27,9 @@ services:
     ports:
       - "24318:4318"    # OTLP http receiver
       - "28889:8889"    # Prometheus exporter metrics
+    # No healthcheck: the contrib image is distroless and has no wget/curl.
+    # Airflow depends on service_started only; tests use wait_for_otel_collector() to wait for the collector.
+    restart: "on-failure"
 
   prometheus:
     image: prom/prometheus
@@ -80,7 +83,11 @@ services:
       - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
 
     depends_on:
-      - otel-collector
-      - prometheus
-      - grafana
-      - jaeger
+      otel-collector:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      grafana:
+        condition: service_started
+      jaeger:
+        condition: service_started
