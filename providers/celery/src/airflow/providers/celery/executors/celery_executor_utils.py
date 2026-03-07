@@ -54,7 +54,7 @@ except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 
 if AIRFLOW_V_3_2_PLUS:
-    from airflow.executors.workloads.callback import execute_callback_workload
+    from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
 log = logging.getLogger(__name__)
 
@@ -209,9 +209,12 @@ def execute_workload(input: str) -> None:
             log_path=workload.log_path,
         )
     elif isinstance(workload, workloads.ExecuteCallback):
-        success, error_msg = execute_callback_workload(workload.callback, log)
-        if not success:
-            raise RuntimeError(error_msg or "Callback execution failed")
+        supervise_callback(
+            id=workload.callback.id,
+            callback_path=workload.callback.data.get("path", ""),
+            callback_kwargs=workload.callback.data.get("kwargs", {}),
+            log_path=workload.log_path,
+        )
     else:
         raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 

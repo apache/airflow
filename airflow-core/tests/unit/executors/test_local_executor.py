@@ -28,7 +28,8 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.executors.local_executor import LocalExecutor, _execute_work
+from airflow.executors.base_executor import ExecutorConf
+from airflow.executors.local_executor import LocalExecutor, _execute_workload
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
@@ -46,6 +47,17 @@ skip_spawn_mp_start = pytest.mark.skipif(
     multiprocessing.get_context().get_start_method() == "spawn",
     reason="mock patching in test don't work with 'spawn' mode (default on macOS)",
 )
+
+
+def _make_mock_task_workload():
+    """Create a MagicMock that passes isinstance checks for ExecuteTask and has required attributes."""
+    task_workload = mock.MagicMock(spec=workloads.ExecuteTask)
+    task_workload.ti = mock.MagicMock(spec=TaskInstanceDTO)
+    task_workload.dag_rel_path = "some/path"
+    task_workload.bundle_info = mock.MagicMock(spec=BundleInfo)
+    task_workload.token = "test_token"
+    task_workload.log_path = None
+    return task_workload
 
 
 class TestLocalExecutor:
@@ -235,7 +247,7 @@ class TestLocalExecutor:
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+            _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
 
             mock_supervise.assert_called_with(
                 ti=mock.ANY,
@@ -270,7 +282,7 @@ class TestLocalExecutor:
             with conf_vars(config_overrides):
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
-                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+                _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
 
                 # Verify team-specific server URL was used
                 assert mock_supervise.call_count == 1
@@ -281,7 +293,7 @@ class TestLocalExecutor:
 
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
-                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=global_conf)
+                _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=global_conf)
 
                 # Verify default server URL was used
                 assert mock_supervise.call_count == 1
@@ -334,18 +346,18 @@ class TestLocalExecutor:
 
 
 class TestLocalExecutorCallbackSupport:
+    CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
+
     def test_supports_callbacks_flag_is_true(self):
         executor = LocalExecutor()
         assert executor.supports_callbacks is True
 
     @skip_spawn_mp_start
-    @mock.patch("airflow.executors.workloads.callback.execute_callback_workload")
-    def test_process_callback_workload(self, mock_execute_callback):
-        mock_execute_callback.return_value = (True, None)
-
+    def test_process_callback_workload_queue_management(self):
+        """Test that _process_workloads correctly removes callbacks from queued_callbacks."""
         executor = LocalExecutor(parallelism=1)
         callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
+            id=self.CALLBACK_UUID,
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
         )
@@ -368,3 +380,51 @@ class TestLocalExecutorCallbackSupport:
 
         finally:
             executor.end()
+
+    @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
+    def test_execute_workload_calls_supervise_callback(self, mock_supervise_callback):
+
+        callback_data = CallbackDTO(
+            id=self.CALLBACK_UUID,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": {"arg1": "val1"}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        _execute_workload(log=mock.ANY, workload=callback_workload, team_conf=ExecutorConf(team_name=None))
+
+        mock_supervise_callback.assert_called_once_with(
+            id=self.CALLBACK_UUID,
+            callback_path="test.module.my_callback",
+            callback_kwargs={"arg1": "val1"},
+            log_path="test.log",
+        )
+
+    @mock.patch(
+        "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
+        side_effect=RuntimeError("Callback subprocess exited with code 1"),
+    )
+    def test_execute_workload_raises_on_callback_failure(self, mock_supervise_callback):
+        callback_data = CallbackDTO(
+            id=self.CALLBACK_UUID,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        with pytest.raises(RuntimeError, match="Callback subprocess exited with code 1"):
+            _execute_workload(
+                log=mock.ANY, workload=callback_workload, team_conf=ExecutorConf(team_name=None)
+            )

@@ -28,6 +28,7 @@ import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -74,6 +75,28 @@ class ExecuteCallback(BaseDagBundleWorkload):
     callback: CallbackDTO
 
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+
+    @property
+    def key(self) -> CallbackKey:
+        """Return the callback key for this workload."""
+        return self.callback.key
+
+    @property
+    def display_name(self) -> str:
+        """Return a human-readable name for logging and process titles."""
+        if path := self.callback.data.get("path", ""):
+            # Use just the function/class name for brevity in process titles.
+            # The full path and UUID are available in log messages if needed.
+            return path.rsplit(".", 1)[-1]
+        return str(self.callback.id)
+
+    @property
+    def success_state(self) -> CallbackState:
+        return CallbackState.SUCCESS
+
+    @property
+    def failure_state(self) -> CallbackState:
+        return CallbackState.FAILED
 
     @classmethod
     def make(
