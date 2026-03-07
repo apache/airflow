@@ -108,7 +108,7 @@ that **must be used consistently**:
 
 ### Plural Forms
 
-- In Hungarian, nouns stay in **singular form** after numbers (e.g., "5 feladat" not "5 feladatok").
+- In Hungarian, nouns stay in **singular form** after numbers and quantity words (e.g., "5 feladat" not "5 feladatok", and "Összes feladat" not "Összes feladatok").
 - i18next uses `_one` and `_other`. For Hungarian, ensure the noun following a number stays singular in the `_other` translation if it's following a count.
 
   ```json
@@ -116,7 +116,7 @@ that **must be used consistently**:
   "task_other": "Feladat"
   ```
 
-  *(Note: If the word is used alone as a plural (e.g., "All Tasks"), use the plural "Feladatok" or "XComok".)*
+  *(Note: If the word is used alone as a plural (e.g., "Tasks"), use the plural "Feladatok". However, if it follows a quantity word (e.g., "All Tasks"), use the singular "Összes feladat".)*
 
 ### Capitalization
 
