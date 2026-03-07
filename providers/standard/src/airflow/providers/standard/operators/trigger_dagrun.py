@@ -152,6 +152,20 @@ class TriggerDagRunOperator(BaseOperator):
         and existing OpenLineage-related settings in the conf will not be overwritten. The injection process
         is safeguarded against exceptions - if any error occurs during metadata injection, it is gracefully
         handled and the conf remains unchanged - so it's safe to use. Default is ``True``
+
+    **Retrieving XCom values from the triggered DAG:**
+
+    After triggering a child DAG, this operator pushes the child DAG run's ``run_id`` to XCom with
+    the key ``XCOM_RUN_ID`` (``"trigger_run_id"``). Downstream tasks can retrieve XCom values produced
+    by tasks in the child DAG using this run_id:
+
+    .. code-block:: python
+
+        from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID
+
+        # In a downstream task:
+        child_run_id = ti.xcom_pull(task_ids="<trigger_task_id>", key=XCOM_RUN_ID)
+        child_result = ti.xcom_pull(dag_id="<child_dag_id>", task_ids="<task_id>", run_id=child_run_id)
     """
 
     template_fields: Sequence[str] = (

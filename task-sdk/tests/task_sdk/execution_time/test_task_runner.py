@@ -4230,6 +4230,42 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    def test_cross_dag_xcom_pull_using_triggered_run_id(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that a task can pull XCom from a triggered child DAG using the run_id stored by TriggerDagRunOperator."""
+
+        class PullOperator(BaseOperator):
+            def execute(self, context):
+                return context["ti"].xcom_pull(
+                    dag_id="child_dag", task_ids="produce_task", run_id="child_run_id"
+                )
+
+        task = PullOperator(task_id="pull_task")
+        ti = create_runtime_ti(dag_id="parent_dag", run_id="parent_run", task=task)
+
+        ser_value = BaseXCom.serialize_value("child_result")
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="return_value", value=ser_value)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            msg=GetXComSequenceSlice(
+                key="return_value",
+                dag_id="child_dag",
+                run_id="child_run_id",
+                task_id="produce_task",
+                start=None,
+                stop=None,
+                step=None,
+            ),
+        )
+
     @pytest.mark.parametrize(
         ("skip_when_already_exists", "expected_state"),
         [

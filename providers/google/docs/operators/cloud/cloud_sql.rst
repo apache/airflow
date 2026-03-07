@@ -359,6 +359,21 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
+.. _howto/operator:CloudSQLInstanceOperationsSensor:
+
+CloudSQLInstanceOperationsSensor
+--------------------------------
+
+Waits until no Cloud SQL administrative operation is running on an instance. Cloud SQL allows only
+one such operation at a time per instance (import, export, clone, patch, etc.). When multiple
+operations are triggered concurrently, the API returns HTTP 409 with reason ``operationInProgress``.
+
+Use this sensor upstream of import/export/clone tasks to serialize access to a shared instance
+across DAGs or dynamically mapped tasks. Supports deferrable mode to avoid occupying worker slots.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.sensors.cloud_sql.CloudSQLInstanceOperationsSensor`.
+
 .. _howto/operator:CloudSQLCreateInstanceOperator:
 
 CloudSQLCreateInstanceOperator

@@ -78,6 +78,39 @@ An example of pushing multiple XComs and pulling them individually:
         # Pulling entire XCom data from push_multiple task
         data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
+Pulling XComs from a Triggered DAG
+------------------------------------
+
+When using :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator` to trigger a
+child DAG, the operator automatically pushes the triggered DAG run's ``run_id`` to XCom with the key
+``XCOM_RUN_ID`` (``"trigger_run_id"``). A downstream task can then use this ``run_id`` to pull XCom values
+produced by tasks inside the child DAG.
+
+.. code-block:: python
+
+    from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID, TriggerDagRunOperator
+    from airflow.sdk import dag, task, get_current_context
+
+
+    @dag()
+    def parent_dag():
+        @task
+        def postprocess(trigger_result):
+            context = get_current_context()
+            ti = context["ti"]
+            # Step 1: Get the run_id of the triggered child DAG run
+            child_run_id = ti.xcom_pull(task_ids="trigger_child", key=XCOM_RUN_ID)
+            # Step 2: Pull XCom from the child DAG using the specific run_id
+            child_result = ti.xcom_pull(dag_id="child_dag", task_ids="produce", run_id=child_run_id)
+            return child_result
+
+        trigger = TriggerDagRunOperator(
+            task_id="trigger_child",
+            trigger_dag_id="child_dag",
+            wait_for_completion=True,
+        )
+        postprocess(trigger)
+
 .. note::
 
   If the first task was not successful then on every retry task XComs will be cleared to make the task run idempotent. XComs therefore can't be used to persist state across task retries or :doc:`./sensors` poke.

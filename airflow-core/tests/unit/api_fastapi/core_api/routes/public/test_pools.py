@@ -584,7 +584,7 @@ class TestPostPool(TestPoolsEndpoint):
         else:
             response_json = response.json()
             assert "detail" in response_json
-            assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
+            assert response_json["detail"] == f"The Pool with name: `{body['name']}` already exists"
 
         assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
 
