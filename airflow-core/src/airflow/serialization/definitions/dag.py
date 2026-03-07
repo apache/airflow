@@ -500,6 +500,7 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        bundle_version: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
         session: Session = NEW_SESSION,
@@ -584,6 +585,7 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            bundle_version=bundle_version,
             partition_date=partition_date,
             note=note,
             session=session,
@@ -1114,16 +1116,30 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    bundle_version: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
+    resolved_bundle_version: str | None = None
     if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if bundle_version is not None:
+            resolved_bundle_version = bundle_version
+            dag_version = DagVersion.get_latest_version(
+                dag.dag_id, bundle_version=resolved_bundle_version, session=session
+            )
+            if not dag_version:
+                raise AirflowException(
+                    f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                )
+        else:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+            )
+            dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    else:
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1141,7 +1157,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,

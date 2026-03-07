@@ -82,6 +82,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -475,6 +476,13 @@ def trigger_dag_run(
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
 
+        if body.bundle_version is not None:
+            if dag.disable_bundle_versioning:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
+                )
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -486,6 +494,7 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            bundle_version=body.bundle_version,
             session=session,
         )
 
@@ -494,6 +503,8 @@ def trigger_dag_run(
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
+    except AirflowException as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
