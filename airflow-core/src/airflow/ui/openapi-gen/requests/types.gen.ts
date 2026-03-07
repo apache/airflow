@@ -3633,12 +3633,12 @@ export type GetGridRunsData = {
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
 
-export type GetGridTiSummariesData = {
+export type GetGridTiSummariesStreamData = {
     dagId: string;
-    runId: string;
+    runIds?: Array<(string)>;
 };
 
-export type GetGridTiSummariesResponse = GridTISummaries;
+export type GetGridTiSummariesStreamResponse = string;
 
 export type GetGanttDataData = {
     dagId: string;
@@ -6897,14 +6897,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/grid/ti_summaries/{dag_id}/{run_id}': {
+    '/ui/grid/ti_summaries/{dag_id}': {
         get: {
-            req: GetGridTiSummariesData;
+            req: GetGridTiSummariesStreamData;
             res: {
                 /**
-                 * Successful Response
+                 * NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
                  */
-                200: GridTISummaries;
+                200: string;
                 /**
                  * Bad Request
                  */
