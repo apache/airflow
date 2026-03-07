@@ -91,7 +91,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           <Field.Root mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
-              min={initialPool.slots}
+              min={-1}
               onChange={(event) => {
                 const value = event.target.valueAsNumber;
 
@@ -101,6 +101,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
               type="number"
               value={field.value}
             />
+            <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
           </Field.Root>
         )}
       />

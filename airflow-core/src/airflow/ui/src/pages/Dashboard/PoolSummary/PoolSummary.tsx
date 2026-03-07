@@ -24,7 +24,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { type PoolServiceGetPoolsDefaultResponse, useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { usePoolServiceGetPools } from "openapi/queries/queries";
 import type { ApiError } from "openapi/requests";
-import { PoolBar } from "src/components/PoolBar";
+import { PoolBar, UNLIMITED_SLOTS } from "src/components/PoolBar";
 import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
@@ -52,7 +52,10 @@ export const PoolSummary = () => {
   }
 
   const pools = data?.pools;
-  const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
+  const hasUnlimitedPool = pools?.some((pool) => pool.slots === UNLIMITED_SLOTS) ?? false;
+  const totalSlots = hasUnlimitedPool
+    ? UNLIMITED_SLOTS
+    : (pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0);
   const aggregatePool: Slots = {
     deferred_slots: 0,
     open_slots: 0,
@@ -73,8 +76,13 @@ export const PoolSummary = () => {
     slotKeys.forEach((slotKey) => {
       const slotValue = pool[slotKey];
 
-      if (slotValue > 0) {
-        aggregatePool[slotKey] += slotValue;
+      if (slotValue === UNLIMITED_SLOTS) {
+        aggregatePool[slotKey] = UNLIMITED_SLOTS;
+        poolsWithSlotType[slotKey] += 1;
+      } else if (slotValue > 0) {
+        if (aggregatePool[slotKey] !== UNLIMITED_SLOTS) {
+          aggregatePool[slotKey] += slotValue;
+        }
         poolsWithSlotType[slotKey] += 1;
       }
     });
