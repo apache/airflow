@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-04T23:56:12.053301
+# This constraints file was automatically generated on 2026-03-07T22:02:17.748277
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -43,7 +43,7 @@ alembic==1.18.4
 amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.12.1
-apispec==6.9.0
+apispec==6.10.0
 argcomplete==3.6.3
 asgiref==3.11.1
 atlasclient==1.0.0
@@ -56,7 +56,7 @@ cachelib==0.13.0
 certifi==2026.2.25
 cffi==2.0.0
 cgroupspy==0.2.3
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
 click==8.3.1
 clickclick==20.10.2
 cloudpickle==3.1.2
@@ -79,7 +79,7 @@ frozenlist==1.8.0
 fsspec==2026.2.0
 gevent==25.9.1
 google-re2==1.1.20251105
-googleapis-common-protos==1.72.0
+googleapis-common-protos==1.73.0
 graphviz==0.21
 greenlet==3.3.2
 grpcio==1.78.0
@@ -130,7 +130,7 @@ packaging==26.0
 pandas==2.1.4
 pathspec==1.0.4
 pendulum==3.2.0
-platformdirs==4.9.2
+platformdirs==4.9.4
 pluggy==1.6.0
 plyvel==1.5.1
 prison==0.2.1
@@ -148,7 +148,7 @@ pykerberos==1.2.4
 pyspnego==0.12.1
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.0
+python-discovery==1.1.1
 python-ldap==3.4.5
 python-multipart==0.0.22
 python-nvd3==0.16.0
@@ -185,7 +185,7 @@ uv==0.10.7
 vine==5.1.0
 virtualenv==21.1.0
 wirerope==1.0.0
-wrapt==2.1.1
+wrapt==2.1.2
 xmlsec==1.3.17
 yarl==1.23.0
 zipp==3.23.0
