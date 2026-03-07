@@ -99,6 +99,19 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.teradata.hooks.teradata.TeradataHook",
                 "connection-type": "teradata",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port"],
+                    "relabeling": {
+                        "host": "Database Server URL",
+                        "schema": "Database Name",
+                        "login": "Username",
+                    },
+                    "placeholders": {
+                        "extra": '{"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}',
+                        "login": "dbc",
+                        "password": "dbc",
+                    },
+                },
             }
         ],
         "triggers": [
