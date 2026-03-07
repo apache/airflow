@@ -44,11 +44,24 @@ from typing import Any
 import tomllib
 import yaml
 
+# External endpoints used by metadata extraction.
+PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
+PYPI_PACKAGE_JSON_URL = "https://pypi.org/pypi/{package_name}/json"
+S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
+AIRFLOW_PROVIDER_DOCS_URL = "https://airflow.apache.org/docs/{package_name}/stable/"
+AIRFLOW_PROVIDER_CONNECTIONS_URL = (
+    "https://airflow.apache.org/docs/{package_name}/stable/connections/index.html"
+)
+AIRFLOW_PROVIDER_SOURCE_URL = (
+    "https://github.com/apache/airflow/tree/providers-{provider_id}/{version}/providers/{provider_path}"
+)
+PYPI_PACKAGE_URL = "https://pypi.org/project/{package_name}/"
+
 
 def fetch_pypi_downloads(package_name: str) -> dict[str, int]:
     """Fetch download statistics from pypistats.org API."""
     try:
-        url = f"https://pypistats.org/api/packages/{package_name}/recent"
+        url = PYPISTATS_RECENT_URL.format(package_name=package_name)
         with urllib.request.urlopen(url, timeout=5) as response:
             data = json.loads(response.read().decode())
             return {
@@ -64,7 +77,7 @@ def fetch_pypi_downloads(package_name: str) -> dict[str, int]:
 def fetch_pypi_dates(package_name: str) -> dict[str, str]:
     """Fetch first release and latest release dates from PyPI JSON API."""
     try:
-        url = f"https://pypi.org/pypi/{package_name}/json"
+        url = PYPI_PACKAGE_JSON_URL.format(package_name=package_name)
         with urllib.request.urlopen(url, timeout=10) as response:
             data = json.loads(response.read().decode())
 
@@ -109,7 +122,6 @@ def read_inventory(inv_path: Path) -> dict[str, str]:
     return result
 
 
-S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 INVENTORY_CACHE_DIR = Path(__file__).parent / ".inventory_cache"
 INVENTORY_TTL = datetime.timedelta(hours=12)
 
@@ -520,9 +532,7 @@ def main():
         # Extract connection types from provider.yaml
         # Link to the connections index page since individual connection pages might not exist
         connection_types = []
-        connections_index_url = (
-            f"https://airflow.apache.org/docs/{package_name}/stable/connections/index.html"
-        )
+        connections_index_url = AIRFLOW_PROVIDER_CONNECTIONS_URL.format(package_name=package_name)
         for conn in provider_yaml.get("connection-types", []):
             conn_type = conn.get("connection-type", "")
             hook_class = conn.get("hook-class-name", "")
@@ -546,6 +556,7 @@ def main():
         # Airflow version compatibility (from pyproject.toml dependencies)
         airflow_versions = determine_airflow_versions(pyproject_data["dependencies"])
 
+        provider_source_path = provider_path.relative_to(PROVIDERS_DIR).as_posix()
         provider = Provider(
             id=provider_id,
             name=name,
@@ -563,9 +574,11 @@ def main():
             requires_python=pyproject_data["requires_python"],
             dependencies=pyproject_data["dependencies"],
             optional_extras=pyproject_data.get("optional_extras", {}),
-            docs_url=f"https://airflow.apache.org/docs/{package_name}/stable/",
-            source_url=f"https://github.com/apache/airflow/tree/providers-{provider_id}/{version}/providers/{provider_path.relative_to(PROVIDERS_DIR)}",
-            pypi_url=f"https://pypi.org/project/{package_name}/",
+            docs_url=AIRFLOW_PROVIDER_DOCS_URL.format(package_name=package_name),
+            source_url=AIRFLOW_PROVIDER_SOURCE_URL.format(
+                provider_id=provider_id, version=version, provider_path=provider_source_path
+            ),
+            pypi_url=PYPI_PACKAGE_URL.format(package_name=package_name),
             first_released=pypi_dates["first_released"],
             last_updated=pypi_dates["last_updated"],
         )
