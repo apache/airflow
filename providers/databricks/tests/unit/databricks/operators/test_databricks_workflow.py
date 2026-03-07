@@ -17,9 +17,13 @@
 
 from __future__ import annotations
 
+from functools import wraps
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from airflow.sdk import TaskGroup
+from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
@@ -223,6 +227,22 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         python_params=[],
         spark_submit_params=[],
     )
+
+
+def test_task_group_exception_super_exit():
+    """Test that DatabricksWorkflowTaskGroup execute super().__exit__ even with an exception."""
+
+    with patch("airflow.providers.common.compat.sdk.TaskGroup.__exit__") as mock_super_exit:
+        with pytest.raises(AirflowException):
+            with DAG(dag_id="example_databricks_workflow_dag_err", schedule=None, start_date=DEFAULT_DATE):
+                with DatabricksWorkflowTaskGroup(
+                    group_id="test_databricks_workflow_err", databricks_conn_id="databricks_conn"
+                ):
+                    # Trigger the exception that prevents normal exit
+                    raise AirflowException("Force fail")
+
+    mock_super_exit.assert_called_once()
+    TaskGroupContext._context.clear()
 
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
