@@ -56,6 +56,10 @@ from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
+# Must be imported at module level to register execute_command with the Celery app
+# and connect the celery_import_modules signal handler at worker startup.
+# See: https://github.com/apache/airflow/issues/63043
+from airflow.providers.celery.executors import celery_executor_utils as _celery_executor_utils  # noqa: F401
 
 log = logging.getLogger(__name__)
 
