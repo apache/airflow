@@ -262,7 +262,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                3,
+                4,
             ],
             [
                 "dag_with_multiple_versions",
@@ -301,7 +301,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                5,
+                6,
             ],
         ],
     )
@@ -319,7 +319,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     @mock.patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
-        return_value={"dag_with_multiple_versions"},
+        return_value=({"dag_with_multiple_versions"}, False),
     )
     def test_get_dag_versions_permission_filtering(self, _, test_client):
         """Test that listing all DAG versions with ~ only returns versions for permitted DAGs."""
@@ -382,7 +382,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                3,
+                4,
             ],
             [
                 "dag_with_multiple_versions",
@@ -421,7 +421,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                5,
+                6,
             ],
         ],
     )
@@ -508,7 +508,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_get_dag_versions_parameters(
         self, test_client, params, expected_versions, expected_total_entries
     ):
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get("/dags/~/dagVersions", params=params)
         assert response.status_code == 200
         response_payload = response.json()
