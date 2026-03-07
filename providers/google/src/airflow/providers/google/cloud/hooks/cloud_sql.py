@@ -597,10 +597,14 @@ class CloudSqlProxyRunner(LoggingMixin):
         return download_url
 
     def _get_credential_parameters(self) -> list[str]:
-        extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
+        connection = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id)
+        extras = connection.extra_dejson
         key_path = get_field(extras, "key_path")
         keyfile_dict = get_field(extras, "keyfile_dict")
-        if key_path:
+        if connection.login:
+            # if the connection already has an associated user account, then we can use auto auth
+            credential_params = ["--auto-iam-authn", self.gcp_conn_id]
+        elif key_path:
             credential_params = ["-credential_file", key_path]
         elif keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
