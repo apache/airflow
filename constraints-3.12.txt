@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-05T20:08:41.788453
+# This constraints file was automatically generated on 2026-03-07T19:52:59.265665
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -189,7 +189,7 @@ apache-airflow-providers-weaviate==3.3.1
 apache-airflow-providers-yandex==4.4.0
 apache-airflow-providers-ydb==2.5.0
 apache-airflow-providers-zendesk==4.11.1
-apispec==6.9.0
+apispec==6.10.0
 apprise==1.9.7
 argcomplete==3.6.3
 arro3-core==0.8.0
@@ -236,7 +236,7 @@ bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.0
-black==26.1.0
+black==26.3.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.42.61
@@ -250,7 +250,7 @@ celery==5.6.2
 certifi==2026.2.25
 cffi==2.0.0
 chardet==6.0.0.post1
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
 ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -322,9 +322,9 @@ google-api-core==2.30.0
 google-api-python-client==2.192.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.3.0
-google-auth==2.48.0
+google-auth==2.49.0
 google-cloud-aiplatform==1.140.0
-google-cloud-alloydb==0.7.0
+google-cloud-alloydb==0.8.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
 google-cloud-automl==2.18.1
@@ -334,7 +334,7 @@ google-cloud-bigquery-storage==2.36.2
 google-cloud-bigquery==3.40.1
 google-cloud-bigtable==2.35.0
 google-cloud-build==3.35.0
-google-cloud-compute==1.44.0
+google-cloud-compute==1.45.0
 google-cloud-container==2.63.0
 google-cloud-core==2.5.0
 google-cloud-datacatalog==3.29.0
@@ -346,7 +346,7 @@ google-cloud-dataproc==5.25.0
 google-cloud-dlp==3.34.0
 google-cloud-kms==3.11.0
 google-cloud-language==2.19.0
-google-cloud-logging==3.13.0
+google-cloud-logging==3.14.0
 google-cloud-managedkafka==0.3.0
 google-cloud-memcache==1.14.0
 google-cloud-monitoring==2.29.1
@@ -371,7 +371,7 @@ google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
 google-genai==1.66.0
 google-resumable-media==2.8.0
-googleapis-common-protos==1.72.0
+googleapis-common-protos==1.73.0
 graphviz==0.21
 greenback==1.3.0
 greenlet==3.3.2
@@ -395,7 +395,7 @@ httpcore==1.0.9
 httplib2==0.31.2
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.5.0
+huggingface_hub==1.6.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -415,7 +415,7 @@ ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.1.0
+jaraco.context==6.1.1
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
@@ -443,7 +443,7 @@ limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.82.0
 lockfile==0.12.2
-logfire-api==4.25.0
+logfire-api==4.27.0
 looker_sdk==26.2.0
 lxml==6.0.2
 lz4==4.4.5
@@ -485,7 +485,7 @@ neo4j==6.1.0
 nest-asyncio==1.6.0
 numpy==2.2.6
 oauthlib==3.3.1
-openai==2.25.0
+openai==2.26.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.44.1
@@ -512,7 +512,7 @@ oss2==2.19.1
 outcome==1.3.0.post0
 packaging==26.0
 pagerduty==6.2.1
-pandas-gbq==0.33.0
+pandas-gbq==0.34.0
 pandas-stubs==3.0.0.260204
 pandas==2.3.3
 pandocfilters==1.5.1
@@ -555,9 +555,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.66.0
+pydantic-ai-slim==1.67.0
 pydantic-extra-types==2.11.0
-pydantic-graph==1.66.0
+pydantic-graph==1.67.0
 pydantic-settings==2.13.1
 pydantic==2.12.5
 pydantic_core==2.41.5
@@ -580,7 +580,7 @@ pyspnego==0.12.1
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.0
+python-discovery==1.1.1
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -671,7 +671,7 @@ tomlkit==0.14.0
 tornado==6.5.4
 tqdm==4.67.3
 traitlets==5.14.3
-trino==0.336.0
+trino==0.337.0
 typer==0.24.1
 types-protobuf==6.32.1.20260221
 types-requests==2.32.4.20260107
@@ -685,7 +685,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.8
+uv==0.10.9
 uvicorn==0.41.0
 uvloop==0.22.1
 validators==0.35.0
@@ -701,7 +701,7 @@ websocket-client==1.9.0
 websockets==16.0
 wheel==0.46.3
 wirerope==1.0.0
-wrapt==2.1.1
+wrapt==2.1.2
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
