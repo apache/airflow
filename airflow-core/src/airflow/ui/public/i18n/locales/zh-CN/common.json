@@ -22,6 +22,7 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "审计日志",
+    "jobs": "作业",
     "requiredActions": "待响应的任务实例",
     "xcoms": "XComs"
   },
@@ -60,6 +61,8 @@
     "dataIntervalEnd": "数据区间结束",
     "dataIntervalStart": "数据区间起始",
     "lastSchedulingDecision": "最后调度决策",
+    "mappedPartitionKey": "映射分区键",
+    "partitionKey": "分区键",
     "queuedAt": "开始排队时间",
     "runAfter": "最早可执行时间",
     "runType": "执行类型",
@@ -73,18 +76,30 @@
   "dagWarnings": "Dag 警告 / 错误",
   "defaultToGraphView": "默认使用图形视图",
   "defaultToGridView": "默认使用网格视图",
+  "delete": "删除",
+  "diff": "差异对比",
+  "diffCompareWith": "比较对象",
+  "diffExit": "退出差异对比",
+  "diffSelectVersionToCompare": "选择要比较的版本",
   "direction": "书写方向",
   "docs": {
     "documentation": "文档",
     "githubRepo": "GitHub 仓库",
     "restApiReference": "REST API 参考"
   },
+  "download": {
+    "download": "下载",
+    "hotkey": "d",
+    "tooltip": "按 {{hotkey}} 下载日志"
+  },
   "duration": "执行时间",
+  "edit": "编辑",
   "endDate": "结束日期",
   "error": {
     "back": "返回",
     "defaultMessage": "发生未预期的错误",
     "home": "首页",
+    "invalidUrl": "找不到页面。请检查 URL 后重试。",
     "notFound": "找不到页面",
     "title": "错误"
   },
@@ -103,22 +118,29 @@
   },
   "filter": "筛选",
   "filters": {
+    "durationFrom": "持续时间起始",
+    "durationTo": "持续时间结束",
+    "endTime": "结束时间",
     "logicalDateFrom": "逻辑日期起始",
     "logicalDateTo": "逻辑结束日期",
     "runAfterFrom": "执行时间起始",
-    "runAfterTo": "执行时间结束"
+    "runAfterTo": "执行时间结束",
+    "selectDateRange": "选择日期范围",
+    "startTime": "开始时间"
   },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
   "mapIndex": "映射索引",
   "modal": {
+    "add": "添加",
     "cancel": "取消",
     "confirm": "确认",
     "delete": {
       "button": "删除",
       "confirmation": "确定要删除 {{resourceName}} 吗？此操作无法还原。"
-    }
+    },
+    "save": "保存"
   },
   "nav": {
     "admin": "管理",
@@ -139,15 +161,13 @@
     "placeholder": "添加笔记...",
     "taskInstance": "任务实例笔记"
   },
-  "pools": {
-    "deferred": "已延后",
-    "open": "开放",
-    "pools_one": "资源池",
-    "pools_other": "资源池",
-    "queued": "排队中",
-    "running": "执行中",
-    "scheduled": "已调度"
+  "partitionedDagRun_one": "分区 Dag 执行",
+  "partitionedDagRun_other": "分区 Dag 执行",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "接收到的资源事件"
   },
+  "pendingDagRun_one": "{{count}} 个待执行 Dag 执行",
+  "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
   "reset": "重置",
   "runId": "执行 ID",
   "runTypes": {
@@ -172,6 +192,7 @@
   },
   "selectLanguage": "选择语言",
   "showDetailsPanel": "显示详细信息",
+  "signedInAs": "当前登录身份",
   "source": {
     "hide": "隐藏来源",
     "hotkey": "s",
@@ -186,6 +207,7 @@
     "failed": "失败",
     "no_status": "无状态",
     "none": "无状态",
+    "open": "开放",
     "planned": "已计划",
     "queued": "排队中",
     "removed": "已移除",
