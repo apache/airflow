@@ -18,7 +18,6 @@ The following terms **must remain in English unchanged** (case-sensitive):
 - `Plugin` / `Plugins` — Airflow extensibility mechanism
 - `Pool` / `Pools` — Resource constraint mechanism
 - `Provider` / `Providers` — Airflow extension package name
-- `Run` / `Runs` — When used standalone
 - `Map Index`
 - `PID`
 - `ID` — Note: Sometimes used as "Azonosító" in labels
@@ -38,6 +37,7 @@ that **must be used consistently**:
 | Task Instance         | Feladatpéldány                    | Plural: "Feladatpéldányok"                 |
 | Task Group            | Feladatcsoport                    |                                            |
 | Dag Run               | Dag futás                         | Plural: "Dag futások"                      |
+| Run                   | Futás                             | Plural: "Futások"; used standalone         |
 | Backfill              | Visszatöltés / Backfill           | "Visszatöltés" is preferred                |
 | Trigger (noun)        | Indító                            |                                            |
 | Trigger Rule          | Indítási szabály                  |                                            |
@@ -141,6 +141,8 @@ task_one          → "Feladat"
 task_other        → "Feladatok" (without number)
 dagRun_one        → "Dag futás"
 dagRun_other      → "Dag futások"
+run_one           → "Futás"
+run_other         → "Futások" (without number)
 backfill_one      → "Visszatöltés"
 backfill_other    → "Visszatöltések"
 taskInstance_one  → "Feladatpéldány"
