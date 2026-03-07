@@ -25,6 +25,18 @@
                     "state": "failure"
                 }
             ]
+        },
+        "container_job_cancel": {
+            "operation": "CancelJobRun",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "status",
+                    "expected": "200",
+                    "state": "success"
+                }
+            ]
         }
     }
 }
