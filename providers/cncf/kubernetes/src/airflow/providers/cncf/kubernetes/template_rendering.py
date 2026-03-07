@@ -44,7 +44,7 @@ def _get_executor_conf(dag_id: str):
         team_name = DagModel.get_team_name(dag_id)
         if team_name:
             return ExecutorConf(team_name=team_name)
-    except Exception:
+    except (ImportError, AttributeError):
         pass
     return None
 

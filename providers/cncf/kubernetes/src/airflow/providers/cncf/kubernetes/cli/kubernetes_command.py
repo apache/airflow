@@ -32,7 +32,11 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import Kube
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.types import DagRunType
@@ -73,7 +77,7 @@ def generate_pod_yaml(args):
         dr.run_id = DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=logical_date)
 
     executor_conf = None
-    if hasattr(args, "team") and args.team:
+    if AIRFLOW_V_3_2_PLUS and args.team:
         from airflow.executors.base_executor import ExecutorConf
 
         executor_conf = ExecutorConf(team_name=args.team)
