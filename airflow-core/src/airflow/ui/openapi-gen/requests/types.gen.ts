@@ -2674,6 +2674,7 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -2789,6 +2790,7 @@ export type GetDagsUiData = {
     hasImportErrors?: boolean | null;
     hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
