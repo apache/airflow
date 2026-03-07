@@ -56,9 +56,10 @@ R = TypeVar("R")
 
 def decode_relativedelta(var: dict[str, Any]) -> dateutil.relativedelta.relativedelta:
     """Dencode a relativedelta object."""
-    if "weekday" in var:
-        var["weekday"] = dateutil.relativedelta.weekday(*var["weekday"])
-    return dateutil.relativedelta.relativedelta(**var)
+    copy_var = var.copy()
+    if "weekday" in copy_var:
+        copy_var["weekday"] = dateutil.relativedelta.weekday(*copy_var["weekday"])
+    return dateutil.relativedelta.relativedelta(**copy_var)
 
 
 def decode_interval(value: int | dict) -> datetime.timedelta | dateutil.relativedelta.relativedelta:
