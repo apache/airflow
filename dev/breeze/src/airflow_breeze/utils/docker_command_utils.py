@@ -100,6 +100,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
     ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
+    ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),

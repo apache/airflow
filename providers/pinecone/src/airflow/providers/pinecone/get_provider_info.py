@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Pinecone",
                 "external-doc-url": "https://docs.pinecone.io/docs/overview",
+                "logo": "/docs/integration-logos/Pinecone.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-pinecone/operators/pinecone.rst"],
                 "tags": ["software"],
             }

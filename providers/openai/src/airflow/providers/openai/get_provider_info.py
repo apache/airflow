@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "OpenAI",
                 "external-doc-url": "https://platform.openai.com/docs/introduction",
+                "logo": "/docs/integration-logos/OpenAI.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-openai/operators/openai.rst"],
                 "tags": ["software"],
             }

@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Qdrant",
                 "external-doc-url": "https://qdrant.tech/documentation",
+                "logo": "/docs/integration-logos/Qdrant.svg",
                 "how-to-guide": ["/docs/apache-airflow-providers-qdrant/operators/qdrant.rst"],
                 "tags": ["software"],
             }

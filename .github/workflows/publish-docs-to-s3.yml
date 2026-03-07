@@ -93,6 +93,7 @@ jobs:
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
       default-python-version: "3.10"
+      registry-providers: ${{ steps.parameters.outputs.registry-providers }}
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -160,6 +161,19 @@ jobs:
              echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
+          # Extract provider IDs for registry update
+          # include-docs contains package names like "apache-airflow-providers-amazon"
+          # Strip the "apache-airflow-providers-" prefix to get provider IDs
+          REGISTRY_PROVIDERS=""
+          for pkg in ${INCLUDE_DOCS}; do
+            case "${pkg}" in
+              apache-airflow-providers-*)
+                PROVIDER_ID="${pkg#apache-airflow-providers-}"
+                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
+                ;;
+            esac
+          done
+          echo "registry-providers=${REGISTRY_PROVIDERS}" >> ${GITHUB_OUTPUT}
 
   build-docs:
     needs: [build-info]
@@ -304,7 +318,7 @@ jobs:
         with:
           name: airflow-docs
           path: /mnt/_build
-      - name: "Move doscs to generated folder"
+      - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
@@ -377,3 +391,15 @@ jobs:
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
           --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+
+  update-registry:
+    needs: [publish-docs-to-s3, build-info]
+    if: needs.build-info.outputs.registry-providers != ''
+    name: "Update Provider Registry"
+    uses: ./.github/workflows/registry-build.yml
+    with:
+      destination: ${{ needs.build-info.outputs.destination }}
+      provider: ${{ needs.build-info.outputs.registry-providers }}
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+      DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

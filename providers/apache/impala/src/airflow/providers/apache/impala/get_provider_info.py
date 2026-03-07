@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Impala",
                 "external-doc-url": "https://impala.apache.org",
+                "logo": "/docs/integration-logos/Apache-Impala.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-apache-impala/operators.rst"],
                 "tags": ["apache"],
             }
