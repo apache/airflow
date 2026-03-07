@@ -60,14 +60,6 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-class AlreadyRunningBackfill(AirflowException):
-    """
-    Raised when attempting to create backfill and one already active.
-
-    :meta private:
-    """
-
-
 class DagNoScheduleException(AirflowException):
     """
     Raised when attempting to create backfill for a Dag with no schedule.
@@ -573,20 +565,6 @@ def _create_backfill(
                 raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
             if dag_model.timetable_summary == "None":
                 raise DagNoScheduleException(f"{dag_id} has no schedule")
-
-        num_active = session.scalar(
-            select(func.count()).where(
-                Backfill.dag_id == dag_id,
-                Backfill.completed_at.is_(None),
-            )
-        )
-        if num_active is None:
-            raise UnknownActiveBackfills(dag_id)
-        if num_active > 0:
-            raise AlreadyRunningBackfill(
-                f"Another backfill is running for Dag {dag_id}. "
-                f"There can be only one running backfill per Dag."
-            )
 
         dag = serdag.dag
         _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
