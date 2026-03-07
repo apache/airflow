@@ -59,6 +59,15 @@ jobs:
     timeout-minutes: 30
     name: "Build & Publish Registry"
     runs-on: ubuntu-latest
+    env:
+      EXISTING_REGISTRY_DIR: /tmp/existing-registry
+      REGISTRY_DATA_DIR: dev/registry
+      REGISTRY_PROVIDERS_JSON: providers.json
+      REGISTRY_MODULES_JSON: modules.json
+      REGISTRY_SITE_DATA_DIR: registry/src/_data
+      REGISTRY_SITE_VERSIONS_DIR: registry/src/_data/versions
+      REGISTRY_SITE_LOGOS_DIR: registry/public/logos
+      REGISTRY_CACHE_CONTROL: public, max-age=300
     permissions:
       contents: read
       id-token: write
@@ -142,12 +151,15 @@ jobs:
         env:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
         run: |
-          mkdir -p /tmp/existing-registry
-          PROVIDERS_URL="${S3_BUCKET}api/providers.json"
-          MODULES_URL="${S3_BUCKET}api/modules.json"
-          if aws s3 cp "${PROVIDERS_URL}" /tmp/existing-registry/providers.json 2>/dev/null; then
+          mkdir -p "${EXISTING_REGISTRY_DIR}"
+          PROVIDERS_URL="${S3_BUCKET}api/${REGISTRY_PROVIDERS_JSON}"
+          MODULES_URL="${S3_BUCKET}api/${REGISTRY_MODULES_JSON}"
+          if aws s3 cp \
+            "${PROVIDERS_URL}" \
+            "${EXISTING_REGISTRY_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            2>/dev/null; then
             echo "found=true" >> "${GITHUB_OUTPUT}"
-            aws s3 cp "${MODULES_URL}" /tmp/existing-registry/modules.json || true
+            aws s3 cp "${MODULES_URL}" "${EXISTING_REGISTRY_DIR}/${REGISTRY_MODULES_JSON}" || true
           else
             echo "found=false" >> "${GITHUB_OUTPUT}"
             echo "No existing registry data on S3"
@@ -169,24 +181,28 @@ jobs:
         if: inputs.provider != '' && steps.download-existing.outputs.found == 'true'
         run: |
           uv run dev/registry/merge_registry_data.py \
-            --existing-providers /tmp/existing-registry/providers.json \
-            --existing-modules /tmp/existing-registry/modules.json \
-            --new-providers dev/registry/providers.json \
-            --new-modules dev/registry/modules.json \
-            --output dev/registry/
+            --existing-providers "${EXISTING_REGISTRY_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            --existing-modules "${EXISTING_REGISTRY_DIR}/${REGISTRY_MODULES_JSON}" \
+            --new-providers "${REGISTRY_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            --new-modules "${REGISTRY_DATA_DIR}/${REGISTRY_MODULES_JSON}" \
+            --output "${REGISTRY_DATA_DIR}/"
 
       - name: "Copy breeze output to registry data"
         run: |
-          mkdir -p registry/src/_data/versions
-          cp dev/registry/providers.json registry/src/_data/providers.json
-          cp dev/registry/modules.json registry/src/_data/modules.json
-          if [ -d dev/registry/output/versions ]; then
-            cp -r dev/registry/output/versions/* registry/src/_data/versions/
+          mkdir -p "${REGISTRY_SITE_VERSIONS_DIR}"
+          cp \
+            "${REGISTRY_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            "${REGISTRY_SITE_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}"
+          cp \
+            "${REGISTRY_DATA_DIR}/${REGISTRY_MODULES_JSON}" \
+            "${REGISTRY_SITE_DATA_DIR}/${REGISTRY_MODULES_JSON}"
+          if [ -d "${REGISTRY_DATA_DIR}/output/versions" ]; then
+            cp -r "${REGISTRY_DATA_DIR}/output/versions/"* "${REGISTRY_SITE_VERSIONS_DIR}/"
           fi
           # Copy provider logos extracted from providers/*/docs/integration-logos/
-          if [ -d dev/registry/logos ]; then
-            mkdir -p registry/public/logos
-            cp -r dev/registry/logos/* registry/public/logos/
+          if [ -d "${REGISTRY_DATA_DIR}/logos" ]; then
+            mkdir -p "${REGISTRY_SITE_LOGOS_DIR}"
+            cp -r "${REGISTRY_DATA_DIR}/logos/"* "${REGISTRY_SITE_LOGOS_DIR}/"
           fi
 
       - name: "Setup pnpm"
@@ -224,7 +240,7 @@ jobs:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
         run: |
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
-            --cache-control "public, max-age=300"
+            --cache-control "${REGISTRY_CACHE_CONTROL}"
 
       - name: "Publish version metadata"
         env:
