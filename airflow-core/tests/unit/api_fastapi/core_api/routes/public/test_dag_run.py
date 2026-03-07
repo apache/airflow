@@ -793,6 +793,23 @@ class TestGetDagRuns:
         body = response.json()
         assert body["detail"] == expected_detail
 
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @pytest.mark.parametrize(
+        ("dag_id", "query_params", "expected_dag_run_ids"),
+        [
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash1"}, ["run1"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash3"}, ["run3"]),
+            ("~", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("~", {"bundle_version": "does_not_exist"}, []),
+        ],
+    )
+    def test_filter_by_bundle_version(self, test_client, dag_id, query_params, expected_dag_run_ids):
+        response = test_client.get(f"/dags/{dag_id}/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_run_ids
+
     def test_invalid_state(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
         assert response.status_code == 422
