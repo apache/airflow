@@ -35,6 +35,23 @@ function parseMinAirflow(dependencies) {
   return null;
 }
 
+function getAvailableVersions(provider) {
+  const versionsDir = path.join(__dirname, "versions", provider.id);
+  const builtOlderVersions = fs.existsSync(versionsDir)
+    ? fs.readdirSync(versionsDir).filter((entry) =>
+        fs.existsSync(path.join(versionsDir, entry, "metadata.json")),
+      )
+    : [];
+
+  const availableSet = new Set([provider.version, ...builtOlderVersions]);
+
+  if (Array.isArray(provider.versions) && provider.versions.length > 0) {
+    return provider.versions.filter((version) => availableSet.has(version));
+  }
+
+  return [provider.version, ...builtOlderVersions];
+}
+
 module.exports = function () {
   const result = [];
 
@@ -46,6 +63,7 @@ module.exports = function () {
   }
 
   for (const provider of providersData.providers) {
+    const availableVersions = getAvailableVersions(provider);
     const latestModules = modulesByProvider[provider.id] || [];
     const latestDir = path.join(__dirname, "versions", provider.id, provider.version);
 
@@ -63,17 +81,19 @@ module.exports = function () {
       minAirflowVersion: latestAirflow,
       parameters: tryReadJson(path.join(latestDir, "parameters.json")),
       connections: tryReadJson(path.join(latestDir, "connections.json")),
-      // Only the current version in static HTML; the JS client fetches
-      // /api/providers/{id}/versions.json at runtime to populate the full list.
-      // This avoids linking to version pages that may not exist yet.
-      availableVersions: [provider.version],
+      // Only versions with actual built data are included in static HTML.
+      // In CI this is usually just the latest version, which avoids linking
+      // to pages that were never generated. For local preview/backfills,
+      // extract_versions.py adds older versions under _data/versions/, and
+      // those are safe to include here.
+      availableVersions,
     });
 
     // Older versions from _data/versions/{id}/{version}/metadata.json
     // These are produced by extract_versions.py for backfill or targeted builds.
     const versionsDir = path.join(__dirname, "versions", provider.id);
     if (fs.existsSync(versionsDir)) {
-      for (const entry of fs.readdirSync(versionsDir)) {
+      for (const entry of availableVersions) {
         if (entry === provider.version) continue; // skip latest, already added
         const metadata = tryReadJson(path.join(versionsDir, entry, "metadata.json"));
         if (!metadata) continue;
@@ -87,7 +107,7 @@ module.exports = function () {
           minAirflowVersion: parseMinAirflow(metadata.dependencies),
           parameters: tryReadJson(path.join(versionsDir, entry, "parameters.json")),
           connections: tryReadJson(path.join(versionsDir, entry, "connections.json")),
-          availableVersions: [provider.version],
+          availableVersions,
         });
       }
     }

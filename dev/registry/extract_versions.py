@@ -28,6 +28,7 @@ Usage:
     python dev/registry/extract_versions.py                                    # 1 older version per provider
     python dev/registry/extract_versions.py --provider amazon --version 9.17.0 # single version
     python dev/registry/extract_versions.py --provider amazon --versions 3     # 3 most recent older versions
+    python dev/registry/extract_versions.py --provider "amazon google" --versions 2
     python dev/registry/extract_versions.py --all-versions                     # backfill everything
 """
 
@@ -35,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import concurrent.futures
 import io
 import json
 import re
@@ -404,9 +406,25 @@ def extract_version_data(
     }
 
 
+def extract_and_write_version_data(provider_id: str, version: str, dir_path: str) -> dict[str, Any] | None:
+    """Extract and persist a single provider version."""
+    data = extract_version_data(provider_id, version, dir_path)
+    if data is None:
+        return None
+
+    version_dir = OUTPUT_DIR / provider_id / version
+    version_dir.mkdir(parents=True, exist_ok=True)
+    with open(version_dir / "metadata.json", "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+    return data
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract version-specific provider data from git tags")
-    parser.add_argument("--provider", help="Extract for a specific provider ID only")
+    parser.add_argument(
+        "--provider",
+        help="Extract for specific provider ID(s) only. Space-separate multiple IDs.",
+    )
     parser.add_argument(
         "--versions",
         type=int,
@@ -430,13 +448,18 @@ def main():
 
     providers_list = providers_data["providers"]
     if args.provider:
-        providers_list = [p for p in providers_list if p["id"] == args.provider]
+        requested_providers = set(args.provider.split())
+        providers_list = [p for p in providers_list if p["id"] in requested_providers]
         if not providers_list:
-            print(f"ERROR: Provider '{args.provider}' not found")
+            print(f"ERROR: Provider(s) '{args.provider}' not found")
             sys.exit(1)
+        missing_providers = requested_providers - {p["id"] for p in providers_list}
+        for missing_provider in sorted(missing_providers):
+            print(f"WARN: Provider '{missing_provider}' not found")
 
     total_extracted = 0
     total_skipped = 0
+    extraction_tasks: list[tuple[str, str, str]] = []
 
     for provider in providers_list:
         pid = provider["id"]
@@ -470,18 +493,30 @@ def main():
             continue
 
         print(f"\n{pid}: extracting {len(versions_to_extract)} version(s)")
-
         for version in versions_to_extract:
-            print(f"  {version}...", end=" ", flush=True)
-            data = extract_version_data(pid, version, dir_path)
+            extraction_tasks.append((pid, version, dir_path))
+
+    if not extraction_tasks:
+        print(f"\nDone: {total_extracted} versions extracted, {total_skipped} skipped")
+        return
+
+    max_workers = min(8, len(extraction_tasks))
+    if len(extraction_tasks) > 1:
+        print(f"\nRunning {len(extraction_tasks)} extraction tasks with {max_workers} workers")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(extract_and_write_version_data, pid, version, dir_path): (pid, version)
+            for pid, version, dir_path in extraction_tasks
+        }
+        for future in concurrent.futures.as_completed(future_map):
+            pid, version = future_map[future]
+            print(f"  {pid}/{version}...", end=" ", flush=True)
+            data = future.result()
             if data is None:
+                print("SKIP")
                 total_skipped += 1
                 continue
-
-            version_dir = OUTPUT_DIR / pid / version
-            version_dir.mkdir(parents=True, exist_ok=True)
-            with open(version_dir / "metadata.json", "w") as f:
-                json.dump(data, f, separators=(",", ":"))
 
             n_modules = len(data["modules"])
             print(f"OK ({n_modules} modules, {len(data['dependencies'])} deps)")
