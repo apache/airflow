@@ -82,9 +82,26 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo
             # force reinstall all airflow + provider packages with constraints found in
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
+            if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
-                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
+                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"; then
+                set +x
+                if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                    echo
+                    echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                    echo
+                    exit 1
+                fi
+                echo
+                echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+                echo
+                set -x
+                ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
+                                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
+            fi
             set +x
             echo
             echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
