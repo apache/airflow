@@ -711,11 +711,28 @@ function install_airflow_and_providers_from_docker_context_files(){
         echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
-        set +x
+            "${install_airflow_package[@]}" "${installing_providers_packages[@]}"; then
+            set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
+            echo
+            echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+            echo
+            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            set -x
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+                    ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                    "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
+        fi
     fi
+    set +x
     common::install_packaging_tools
     pip check
 }
