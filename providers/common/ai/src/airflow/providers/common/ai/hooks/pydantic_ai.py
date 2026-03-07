@@ -58,13 +58,16 @@ class PydanticAIHook(BaseHook):
 
     def __init__(
         self,
-        llm_conn_id: str = default_conn_name,
+        llm_conn_id: str | None = None,
         model_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        self.llm_conn_id = llm_conn_id
+        # Resolve at runtime so each subclass uses its own default_conn_name.
+        # A bare `llm_conn_id: str = default_conn_name` would bind the *base*
+        # class value for all subclasses because Python evaluates default
+        # argument values at class-definition time.
+        self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
 
@@ -212,6 +215,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     """
 
     conn_type = "pydanticaiazure"
+    default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
     @staticmethod
@@ -278,6 +282,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     """
 
     conn_type = "pydanticaibedrock"
+    default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
     @staticmethod
@@ -359,6 +364,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     """
 
     conn_type = "pydanticaivertex"
+    default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
 
     @staticmethod

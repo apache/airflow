@@ -46,15 +46,15 @@ class TestPydanticAIHookInit:
     def test_azure_hook_uses_own_default_conn_name(self):
         """Subclass default_conn_name is used, not the base class value."""
         hook = PydanticAIAzureHook()
-        assert hook.llm_conn_id == "pydanticai_default"
+        assert hook.llm_conn_id == "pydanticai_azure_default"
 
     def test_bedrock_hook_uses_own_default_conn_name(self):
         hook = PydanticAIBedrockHook()
-        assert hook.llm_conn_id == "pydanticai_default"
+        assert hook.llm_conn_id == "pydanticai_bedrock_default"
 
     def test_vertex_hook_uses_own_default_conn_name(self):
         hook = PydanticAIVertexHook()
-        assert hook.llm_conn_id == "pydanticai_default"
+        assert hook.llm_conn_id == "pydanticai_vertex_default"
 
 
 class TestPydanticAIHookGetConn:
