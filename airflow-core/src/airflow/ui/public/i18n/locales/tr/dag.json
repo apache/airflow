@@ -73,6 +73,12 @@
     "navigation": "Gezin: {{arrow}}",
     "toggleGroup": "Grubu aç/kapat: Space"
   },
+  "notFound": {
+    "back": "Geri Dön",
+    "backToDags": "Dag'lere Geri Dön",
+    "message": "Dag \"{{dagId}}\" veri tabanında mevcut değil.",
+    "title": "Dag Bulunamadı"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Başarısız Çalıştırma",

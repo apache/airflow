@@ -10,6 +10,7 @@
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
     "missingRuns": "Eksik Dag Çalıştırmaları",
+    "permissionDenied": "Ön çalıştırma başarısız oldu: İzin reddedildi. Lütfen gerekli izinlere sahip olduğunuzdan emin olun.",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
@@ -116,6 +117,9 @@
     "selectLabel": "Tek Çalıştırma",
     "title": "Dag Tetikle",
     "toaster": {
+      "error": {
+        "title": "Dag tetikleme başarısız oldu."
+      },
       "success": {
         "description": "Dag çalıştırması başarıyla tetiklendi.",
         "title": "Dag Çalıştırması Tetiklendi"
