@@ -25,7 +25,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import chain, dag, task
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
+@dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"], doc_md=__doc__,)
 def example_short_circuit_decorator():
     # [START howto_operator_short_circuit]
     @task.short_circuit()
