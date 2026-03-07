@@ -31,6 +31,19 @@ from airflow.providers.hashicorp._internal_client.vault_client import _VaultClie
 
 
 class TestVaultClient:
+    @pytest.fixture(autouse=True)
+    def setup_cache_cleanup(self, monkeypatch, tmp_path):
+        """
+        Use a temporary directory for cache files during tests to avoid affecting
+        the real filesystem or interfering with other tests/processes.
+        """
+        # Create a unique cache directory for this test
+        test_cache_dir = tmp_path / "test_vault_cache"
+        test_cache_dir.mkdir()
+
+        # Patch tempfile.gettempdir() to return our test directory
+        monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_version_wrong(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -111,6 +124,216 @@ class TestVaultClient:
         mock_hvac.Client.return_value = mock_client
         with pytest.raises(VaultError, match="requires 'role_id'"):
             _VaultClient(auth_type="approle", url="http://localhost:8180", secret_id="pass")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.time")
+    def test_approle_token_caching(self, mock_time, mock_hvac):
+        """Test that approle token is cached when cache_approle_token is True"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.is_authenticated.return_value = True
+        mock_time.time.return_value = 1000.0
+
+        # Mock the login response with token and lease duration
+        mock_login_response = {
+            "auth": {
+                "client_token": "cached_token_123",
+                "lease_duration": 3600,  # 1 hour
+            }
+        }
+        mock_client.auth.approle.login.return_value = mock_login_response
+
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+            cache_approle_token=True,
+            session=None,
+        )
+
+        # First call - should authenticate and cache token
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 1
+
+        # Verify token was cached to file
+        cached_token, cached_expiry = vault_client._read_cached_token()
+        assert cached_token == "cached_token_123"
+        assert abs(cached_expiry - 4600.0) < 0.1  # 1000 + 3600
+
+        # Second call - verify cached token is reused (clear _client to force _auth_approle)
+        vault_client.__dict__.pop("_client", None)
+        mock_time.time.return_value = 2000.0  # Still within lease
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 1  # Cached token reused, no re-auth
+        assert mock_client.token == "cached_token_123"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.time")
+    def test_approle_token_caching_expires(self, mock_time, mock_hvac):
+        """Test that approle token is refreshed when cache expires"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.is_authenticated.return_value = True
+        mock_time.time.return_value = 1000.0
+
+        # Mock the login response
+        mock_login_response = {
+            "auth": {
+                "client_token": "cached_token_123",
+                "lease_duration": 3600,
+            }
+        }
+        mock_client.auth.approle.login.return_value = mock_login_response
+
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+            cache_approle_token=True,
+            session=None,
+        )
+
+        # First call - should authenticate and cache token
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 1
+
+        # Verify token was cached to file
+        cached_token, cached_expiry = vault_client._read_cached_token()
+        assert cached_token == "cached_token_123"
+        assert abs(cached_expiry - 4600.0) < 0.1  # 1000 + 3600
+
+        # Second call - token expired, should refresh automatically
+        # The client property will detect expired token and clear cache automatically
+        mock_time.time.return_value = 4600.0  # Past expiry (4600 >= 4600 - 60)
+        mock_login_response["auth"]["client_token"] = "new_token_456"
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 2  # Token expired, re-authenticated
+
+        # Verify new token was cached
+        cached_token, _ = vault_client._read_cached_token()
+        assert cached_token == "new_token_456"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_approle_token_caching_disabled(self, mock_hvac):
+        """Test that approle token is not cached when cache_approle_token is False"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.is_authenticated.return_value = True
+
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+            cache_approle_token=False,  # Explicitly disabled
+            session=None,
+        )
+
+        # First call - authenticate but don't cache token
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 1
+
+        # Verify no token was cached
+        cached_token, _ = vault_client._read_cached_token()
+        assert cached_token is None
+
+        # Second call - authenticate again (no caching, clear _client to force _auth_approle)
+        vault_client.__dict__.pop("_client", None)
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 2  # No caching, re-authenticates
+
+        # Verify still no token cached
+        cached_token, _ = vault_client._read_cached_token()
+        assert cached_token is None
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.time")
+    def test_approle_token_cache_cleared_on_auth_failure(self, mock_time, mock_hvac):
+        """Test that cached token is cleared when authentication fails"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_time.time.return_value = 1000.0
+
+        mock_login_response = {
+            "auth": {
+                "client_token": "cached_token_123",
+                "lease_duration": 3600,
+            }
+        }
+        mock_client.auth.approle.login.return_value = mock_login_response
+
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+            cache_approle_token=True,
+            session=None,
+        )
+
+        # First call - authenticate and cache
+        vault_client.client
+
+        # Verify token was cached
+        cached_token, _ = vault_client._read_cached_token()
+        assert cached_token == "cached_token_123"
+
+        # Simulate authentication failure - token becomes invalid
+        mock_client.is_authenticated.return_value = False
+        mock_client.auth.approle.login.return_value = None  # Prevent successful re-auth
+        try:
+            vault_client.client
+        except VaultError:
+            pass  # Expected to raise error when not authenticated
+
+        # Verify cache was cleared
+        cached_token, cached_expiry = vault_client._read_cached_token()
+        assert cached_token is None
+        assert cached_expiry is None
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.time")
+    def test_approle_token_caching_with_mount_point(self, mock_time, mock_hvac):
+        """Test that approle token caching works with auth_mount_point"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.is_authenticated.return_value = True
+        mock_time.time.return_value = 1000.0
+
+        mock_login_response = {
+            "auth": {
+                "client_token": "cached_token_123",
+                "lease_duration": 3600,
+            }
+        }
+        mock_client.auth.approle.login.return_value = mock_login_response
+
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+            auth_mount_point="custom",
+            cache_approle_token=True,
+            session=None,
+        )
+
+        # First call
+        vault_client.client
+        mock_client.auth.approle.login.assert_called_with(
+            role_id="role", secret_id="pass", mount_point="custom"
+        )
+
+        # Verify token was cached
+        cached_token, _ = vault_client._read_cached_token()
+        assert cached_token == "cached_token_123"
+
+        # Second call - should use cached token
+        mock_time.time.return_value = 2000.0
+        vault_client.client
+        assert mock_client.auth.approle.login.call_count == 1
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_aws_iam(self, mock_hvac):
