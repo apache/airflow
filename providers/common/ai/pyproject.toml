@@ -131,5 +131,8 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info"
 
+[project.entry-points."airflow.plugins"]
+hitl-review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
+
 [tool.flit.module]
 name = "airflow.providers.common.ai"

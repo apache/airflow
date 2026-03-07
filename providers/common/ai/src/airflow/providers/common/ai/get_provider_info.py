@@ -57,6 +57,12 @@ def get_provider_info():
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
         ],
+        "plugins": [
+            {
+                "name": "hitl-review",
+                "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",

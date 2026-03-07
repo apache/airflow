@@ -1,0 +1,161 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License. */
+
+.msg {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.assistant {
+  align-self: flex-start;
+  background: var(--bubble-ai);
+  border-bottom-left-radius: 4px;
+}
+
+.human {
+  align-self: flex-end;
+  background: var(--bubble-human);
+  color: var(--bubble-human-text);
+  border-bottom-right-radius: 4px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.human .label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.iterTag {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.human .iterTag {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Markdown content inside bubbles */
+.msg :global(pre) {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.human :global(pre) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.msg :global(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.msg :global(th),
+.msg :global(td) {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.msg :global(th) {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
+
+.human :global(th),
+.human :global(td) {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.human :global(th) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.msg :global(h1),
+.msg :global(h2),
+.msg :global(h3),
+.msg :global(h4) {
+  margin: 10px 0 4px;
+  font-weight: 600;
+}
+
+.msg :global(h1) { font-size: 18px; }
+.msg :global(h2) { font-size: 16px; }
+.msg :global(h3) { font-size: 14px; }
+.msg :global(h4) { font-size: 13px; }
+
+.msg :global(ul),
+.msg :global(ol) {
+  margin: 6px 0 6px 20px;
+}
+
+.msg :global(li) {
+  margin: 2px 0;
+}
+
+.msg :global(code) {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
