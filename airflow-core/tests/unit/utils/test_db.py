@@ -52,7 +52,6 @@ from airflow.utils.db import (
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
-from unit.cli.commands.test_kerberos_command import PY313
 
 pytestmark = pytest.mark.db_test
 
@@ -105,16 +104,12 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-        skip_fab = PY313
-        if not skip_fab:
-            # FAB DB Manager
-            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        # FAB DB Manager
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-            # test FAB models
-            for table_name, table in FABDBManager.metadata.tables.items():
-                all_meta_data._add_table(table_name, table.schema, table)
-        else:
-            print("Ignoring FAB models in Python 3.13+ as FAB is not compatible with 3.13+ yet.")
+        # test FAB models
+        for table_name, table in FABDBManager.metadata.tables.items():
+            all_meta_data._add_table(table_name, table.schema, table)
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             settings.engine.connect(),
@@ -151,20 +146,6 @@ class TestDb:
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
-
-        if skip_fab:
-            # Check structure first
-            ignores.append(lambda t: len(t) > 1 and hasattr(t[1], "name") and t[1].name.startswith("ab_"))
-            ignores.append(
-                lambda t: (
-                    len(t) > 1
-                    and t[0] == "remove_index"
-                    and hasattr(t[1], "columns")
-                    and len(t[1].columns) > 0
-                    and hasattr(t[1].columns[0], "table")
-                    and t[1].columns[0].table.name.startswith("ab_")
-                )
-            )
 
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
@@ -243,11 +224,6 @@ class TestDb:
         ],
     )
     def test_upgradedb(self, auth, expected, mocker):
-        if PY313 and "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" in str(auth):
-            pytest.skip(
-                "Skipping test for FAB Auth Manager on Python 3.13+ as FAB is not compatible with 3.13+ yet."
-            )
-
         mock_upgrade = mocker.patch("alembic.command.upgrade")
 
         with conf_vars(auth):

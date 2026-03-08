@@ -180,7 +180,7 @@ jobs:
           breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: prod-packages
           path: ./dist
@@ -235,10 +235,6 @@ jobs:
         with:
           name: prod-packages
           path: ./docker-context-files
-      - name: "Remove fab provider for python 3.13"
-        shell: bash
-        run: rm -vf ./docker-context-files/apache_airflow_providers_fab-*.whl
-        if: matrix.python-version == '3.13'
       - name: "Show downloaded packages"
         run: ls -la ./docker-context-files
       - name: "Download constraints"
