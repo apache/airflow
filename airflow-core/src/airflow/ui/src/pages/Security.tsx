@@ -43,8 +43,16 @@ export const Security = () => {
   const onLoad = () => {
     const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
 
-    if (iframe?.contentWindow && !iframe.contentWindow.location.pathname.startsWith("/auth/")) {
-      void Promise.resolve(navigate("/"));
+    if (iframe?.contentWindow) {
+      const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+      const basename = new URL(baseUrl).pathname.replace(/\/$/u, "");
+
+      const iframePath = iframe.contentWindow.location.pathname;
+      const pathWithoutBase = iframePath.startsWith(basename) ? iframePath.slice(basename.length) : iframePath;
+
+      if (!pathWithoutBase.startsWith("/auth/")) {
+        void Promise.resolve(navigate("/"));
+      }
     }
   };
 
