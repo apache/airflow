@@ -60,8 +60,7 @@ class ConnectionResponse(BaseModel):
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
-            # we can't redact fields in an unstructured `extra`
-            return v
+            return "***"
 
 
 class ConnectionCollectionResponse(BaseModel):
