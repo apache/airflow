@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-07T19:49:25.354168
+# This constraints file was automatically generated on 2026-03-08T19:51:17.382234
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -608,7 +608,7 @@ snowflake-sqlalchemy==1.9.0
 sortedcontainers==2.4.0
 soupsieve==2.8.3
 sphinx-argparse==0.5.2
-sphinx-autoapi==3.6.0
+sphinx-autoapi==3.8.0
 sphinx-autobuild==2025.8.25
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
@@ -687,7 +687,7 @@ types-pytz==2026.1.1.20260304
 types-redis==4.6.0.20241004
 types-requests==2.32.4.20260107
 types-setuptools==82.0.0.20260210
-types-tabulate==0.9.0.20241207
+types-tabulate==0.10.0.20260308
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing-inspection==0.4.2
