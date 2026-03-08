@@ -151,9 +151,7 @@ The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 - ``dag_id`` — DAG ID.
 - ``run_id`` — DAG run ID.
 - ``task_id`` — Task ID.
-- ``map_index`` — Map index for mapped tasks. Use ``-1`` for non-mapped tasks.
-  If the URL contains an unreplaced placeholder like ``{MAP_INDEX}``, invalid
-  values default to ``-1``.
+- ``map_index`` — Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
 
 
 Endpoints
