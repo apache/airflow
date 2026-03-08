@@ -310,6 +310,16 @@ If release name contains chart name it will be used as a full name.
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
   {{- if not .is_init }}
+  {{- if .Values.dags.gitSync.startupProbe.enabled }}
+  startupProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.httpPort }}
+    timeoutSeconds: {{ .Values.dags.gitSync.startupProbe.timeoutSeconds }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.startupProbe.initialDelaySeconds }}
+    periodSeconds: {{ .Values.dags.gitSync.startupProbe.periodSeconds }}
+    failureThreshold: {{ .Values.dags.gitSync.startupProbe.failureThreshold }}
+  {{- end }}
   {{- if and .Values.dags.gitSync.recommendedProbeSetting (hasKey .Values.dags.gitSync.livenessProbe "enabled") .Values.dags.gitSync.livenessProbe.enabled }}
   livenessProbe:
     httpGet:

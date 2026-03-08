@@ -113,6 +113,13 @@ class TestGitSyncSchedulerTest:
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "failureThreshold": 10,
+                "httpGet": {"path": "/", "port": 1234},
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+                "timeoutSeconds": 1,
+            },
         }
 
     def test_validate_the_git_sync_container_spec_if_wait_specified(self):
@@ -179,6 +186,13 @@ class TestGitSyncSchedulerTest:
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "failureThreshold": 10,
+                "httpGet": {"path": "/", "port": 1234},
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+                "timeoutSeconds": 1,
+            },
         }
 
     def test_validate_if_ssh_params_are_added(self):
@@ -546,6 +560,44 @@ class TestGitSyncSchedulerTest:
 
         assert jmespath.search(
             "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }
+
+    def test_startup_probe_configuration(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "startupProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].startupProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].startupProbe", docs[0]
         ) == {
             "httpGet": {"path": "/", "port": 10},
             "timeoutSeconds": 11,
