@@ -232,8 +232,20 @@ jobs:
       - name: "Download constraints"
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
         with:
-          pattern: constraints-*
-          path: ./docker-context-files
+          name: constraints-${{ matrix.python-version }}
+          path: ./docker-context-files/constraints-${{ matrix.python-version }}
+      - name: "Show downloaded files"
+        run: ls -R ./docker-context-files
+      - name: "Show constraints"
+        run: |
+          for file in ./docker-context-files/constraints*/constraints*.txt
+          do
+            echo "=== ${file} ==="
+            echo
+            cat ${file}
+            echo
+            echo "=== END ${file} ==="
+          done
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
