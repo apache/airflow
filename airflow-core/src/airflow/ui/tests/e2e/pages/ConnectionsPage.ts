@@ -42,6 +42,8 @@ export class ConnectionsPage extends BasePage {
   public readonly connectionForm: Locator;
   public readonly connectionIdHeader: Locator;
   public readonly connectionIdInput: Locator;
+  // All table body rows (for web-first assertions in specs)
+  public readonly connectionRows: Locator;
   // Core page elements
   public readonly connectionsTable: Locator;
   public readonly connectionTypeHeader: Locator;
@@ -51,12 +53,12 @@ export class ConnectionsPage extends BasePage {
   public readonly hostHeader: Locator;
   public readonly hostInput: Locator;
   public readonly loginInput: Locator;
-  public readonly passwordInput: Locator;
 
+  public readonly passwordInput: Locator;
   public readonly portInput: Locator;
   public readonly rowsPerPageSelect: Locator;
-  public readonly saveButton: Locator;
 
+  public readonly saveButton: Locator;
   public readonly schemaInput: Locator;
   public readonly searchInput: Locator;
   public readonly successAlert: Locator;
@@ -72,7 +74,7 @@ export class ConnectionsPage extends BasePage {
 
     // Action buttons
     this.addButton = page.getByRole("button", { name: "Add Connection" });
-    this.testConnectionButton = page.locator('button:has-text("Test")');
+    this.testConnectionButton = page.getByRole("button", { name: "Test" });
     this.saveButton = page.getByRole("button", { name: /^save$/i });
 
     // Form inputs (Chakra UI inputs)
@@ -91,15 +93,17 @@ export class ConnectionsPage extends BasePage {
     this.successAlert = page.locator('[data-scope="toast"][data-part="root"]');
 
     // Delete confirmation dialog
-    this.confirmDeleteButton = page.locator('button:has-text("Delete")').first();
+    this.confirmDeleteButton = page.getByRole("button", { name: "Delete" }).first();
     this.rowsPerPageSelect = page.locator("select");
 
     // Sorting and filtering
     this.tableHeader = page.locator('[role="columnheader"]').first();
-    this.connectionIdHeader = page.locator("th:has-text('Connection ID')").first();
-    this.connectionTypeHeader = page.locator('th:has-text("Connection Type")').first();
-    this.hostHeader = page.locator('th:has-text("Host")').first();
+    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" }).first();
+    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" }).first();
+    this.hostHeader = page.getByRole("columnheader", { name: "Host" }).first();
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
+    // All table body rows (used by connectionRows for web-first assertions)
+    this.connectionRows = page.locator("tbody tr");
   }
 
   // Click the Add button to create a new connection
@@ -160,18 +164,6 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`Connection ${connectionId} not found`);
     }
 
-    // Find delete button in the row
-    await this.page.evaluate(() => {
-      const backdrops = document.querySelectorAll<HTMLElement>('[data-scope="dialog"][data-part="backdrop"]');
-
-      backdrops.forEach((backdrop) => {
-        const { state } = backdrop.dataset;
-
-        if (state === "closed") {
-          backdrop.remove();
-        }
-      });
-    });
     const deleteButton = row.getByRole("button", { name: "Delete Connection" });
 
     await expect(deleteButton).toBeVisible({ timeout: 10_000 });
@@ -259,7 +251,7 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.extra !== undefined && details.extra !== "") {
-      const extraAccordion = this.page.locator('button:has-text("Extra Fields JSON")').first();
+      const extraAccordion = this.page.getByRole("button", { name: "Extra Fields JSON" }).first();
       const accordionVisible = await extraAccordion.isVisible({ timeout: 5000 }).catch(() => false);
 
       if (accordionVisible) {
@@ -309,13 +301,10 @@ export class ConnectionsPage extends BasePage {
     await expect
       .poll(
         async () => {
-          const count1 = await this.page.locator("tbody tr").count();
+          const count = await this.page.locator("tbody tr").count();
 
-          await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-          const count2 = await this.page.locator("tbody tr").count();
-
-          if (count1 === count2 && count1 > 0) {
-            stableRowCount = count1;
+          if (count > 0) {
+            stableRowCount = count;
 
             return true;
           }
@@ -360,6 +349,11 @@ export class ConnectionsPage extends BasePage {
     }
 
     return connectionIds;
+  }
+
+  // Returns a locator for a specific connection row (for web-first assertions in specs)
+  public getConnectionRow(connectionId: string): Locator {
+    return this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
   }
 
   // Navigate to Connections list page
@@ -407,7 +401,7 @@ export class ConnectionsPage extends BasePage {
             // Get count twice to ensure it's stable
             const count1 = ids.length;
 
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+            await this.page.waitForTimeout(200);
             const count2 = await this.getConnectionIds().then((allIds) => allIds.length);
 
             // Stable when count doesn't change
@@ -496,7 +490,7 @@ export class ConnectionsPage extends BasePage {
 
             if (count1 === 0) return true;
 
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+            await this.page.waitForTimeout(300);
             const count2 = await this.page.locator("tbody tr").count();
 
             return count1 === count2;
