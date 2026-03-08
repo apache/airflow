@@ -206,7 +206,7 @@ jobs:
           platform: ${{ inputs.platform }}
           save-cache: false
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: prek --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
+        run: prek --color always --verbose --stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "202"
