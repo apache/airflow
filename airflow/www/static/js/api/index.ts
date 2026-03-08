@@ -58,12 +58,12 @@ import useRenderedK8s from "./useRenderedK8s";
 import useTaskDetail from "./useTaskDetail";
 import useTIHistory from "./useTIHistory";
 
-axios.interceptors.request.use((config) => {
-  config.paramsSerializer = {
+axios.interceptors.request.use((config) => ({
+  ...config,
+  paramsSerializer: {
     indexes: null,
-  };
-  return config;
-});
+  },
+}));
 
 axios.interceptors.response.use((res: AxiosResponse) => {
   // Do not camelCase rendered_fields or extra

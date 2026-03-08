@@ -43,7 +43,7 @@ const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
   return (
     <Flex alignItems="center">
       {createdDagRuns.map((run) => {
-        const runId = (run as any).dagRunId; // For some reason the type is wrong here
+        const runId = (run as unknown as { dagRunId: string }).dagRunId;
         const url = `${gridUrl.replace(
           dagId,
           run.dagId || ""

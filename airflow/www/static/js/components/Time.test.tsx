@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global moment, describe, test, expect, document, CustomEvent */
+/* global moment, describe, test, expect, document */
 
 import React from "react";
 import { render, fireEvent, act } from "@testing-library/react";

@@ -120,6 +120,7 @@ const LogBlock = ({
       borderRadius={3}
       borderColor="blue.500"
     >
+      {/* eslint-disable-next-line react/no-danger */}
       <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
       <div ref={codeBlockBottomDiv} />
     </Code>

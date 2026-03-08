@@ -17,7 +17,7 @@
  * under the License.
  */
 
-const jsonParse = (content: any) => {
+const jsonParse = (content: unknown) => {
   let contentJson = null;
   let contentFormatted = "";
   let isJson = false;

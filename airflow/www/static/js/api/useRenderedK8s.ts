@@ -32,7 +32,7 @@ const useRenderedK8s = (
   useQuery(
     ["rendered_k8s", runId, taskId, mapIndex],
     async () =>
-      axios.get<AxiosResponse, any>(url, {
+      axios.get<AxiosResponse, unknown>(url, {
         params: { run_id: runId, task_id: taskId, map_index: mapIndex },
       }),
     {

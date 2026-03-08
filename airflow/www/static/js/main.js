@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/* global $, moment, Airflow, window, localStorage, document, hostName, csrfToken, CustomEvent */
+/* global $, moment, Airflow, window, localStorage, document, hostName, csrfToken */
 
 import {
   dateTimeAttrFormat,
