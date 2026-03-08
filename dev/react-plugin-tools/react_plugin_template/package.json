@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",
-    "@eslint/js": "^9.25.1",
+    "@eslint/js": "^9.39.4",
     "@stylistic/eslint-plugin": "^2.13.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
