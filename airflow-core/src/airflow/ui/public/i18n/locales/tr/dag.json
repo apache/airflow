@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "En son haline sıfırla",
       "toggleGroup": "Grubu aç/kapat"
-    }
+    },
+    "runTypeLegend": "Çalıştırma Türü Göstergeleri"
   },
   "header": {
     "buttons": {
@@ -72,6 +73,12 @@
   "navigation": {
     "navigation": "Gezin: {{arrow}}",
     "toggleGroup": "Grubu aç/kapat: Space"
+  },
+  "notFound": {
+    "back": "Geri Dön",
+    "backToDags": "Dag'lere Geri Dön",
+    "message": "Dag \"{{dagId}}\" veri tabanında mevcut değil.",
+    "title": "Dag Bulunamadı"
   },
   "overview": {
     "buttons": {
@@ -115,11 +122,28 @@
     "graphDirection": {
       "label": "Grafik Yönü"
     },
+    "showVersionIndicator": {
+      "label": "Versiyon Göstergesini Göster",
+      "options": {
+        "hideAll": "Hepsini gizle",
+        "showAll": "Hepsini göster",
+        "showBundleVersion": "Paket versiyonunu göster",
+        "showDagVersion": "Dag versiyonunu göster"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Aktif Filtre",
       "clearFilter": "Filtreyi Temizle",
       "clickTask": "Bir göreve tıklayarak yukarı/aşağı akışını filtreleyin",
+      "depth": "Derinlik",
+      "direction": "Yön",
       "label": "Filtre",
+      "mode": "Mod",
+      "modeTooltip": "Statik mod, farklı görevlere geçerken mevcut görünümü korurken, Gezinti modu, daha kolay Dag gezintisi için tıklanan göreve aktif filtreyi otomatik olarak günceller.",
+      "modes": {
+        "static": "Sabit",
+        "traverse": "Gezinme"
+      },
       "options": {
         "both": "Yukarı ve Aşağı akış",
         "downstream": "Aşağı akış",
