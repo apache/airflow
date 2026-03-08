@@ -59,7 +59,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
 
     def build_standard(self, directory: str, artifacts: Any, **build_data: Any) -> str:
         work_dir = Path(self.root).parents[2].resolve()
-        cmd = ["prek", "run", "compile-ai-assets", "--all-files"]
+        cmd = ["prek", "run", "compile-common-ai-provider-assets", "--all-files"]
         log.warning("Running command: %s", " ".join(cmd))
         run(cmd, cwd=work_dir.as_posix(), check=True)
         dist_path = (

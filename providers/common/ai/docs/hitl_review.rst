@@ -23,7 +23,7 @@ Human-in-the-Loop (HITL) Review For Agentic Operators
 HITL Review adds an interactive feedback loop to agentic operators. After the
 LLM Agent produces an initial output, a human reviewer can **approve**, **reject**, or
 **request changes** through a chat UI. The operator blocks until a
-terminal action, or until a timeout is reached.
+terminal action, or until a timeout is reached or max_iterations reached.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
@@ -33,14 +33,8 @@ Overview
 
 **Components**
 
-- **HITLReviewMixin** — Operator mixin that runs the review loop inside
-  :meth:`execute`. Polls XCom for human actions and drives regeneration.
-
 - **HITL Review Plugin** — FastAPI app mounted at ``/hitl-review`` on the
   Airflow API server. Provides REST endpoints and a chat UI for reviewers.
-
-- **utils.hitl_review** — Shared models, exceptions, and XCom keys used by
-  both the mixin (worker) and plugin (API server).
 
 **Storage** — All state is stored in XCom on the running task instance. The
 worker writes session and agent outputs; the plugin writes human feedback and
@@ -54,8 +48,7 @@ the API server and accesses the metadata database.
    **Worker slot usage** — Each HITL task **holds a worker slot for the entire
    review duration** (until approve, reject, or timeout or max_iterations). The operator polls
    XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
-   and review times of 30+ minutes, the worker is occupied doing nothing most
-   of the time. Size your worker pool accordingly.
+   and review times of 30+ minutes, the worker is occupied for the duration.
 
 **Implementation: XCom polling vs deferral** — This implementation uses XCom
 polling with ``time.sleep`` rather than the deferral/Triggerer pattern (as used
