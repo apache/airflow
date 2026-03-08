@@ -816,21 +816,21 @@ class TestFabAuthManager:
             (
                 "PUT",
                 [(ACTION_CAN_READ, "DAG:test_dag1")],
-                set(),
+                (set(), False),
             ),
             # Scenario 8
             # With DAG-specific permissions
             (
                 "PUT",
                 [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
-                {"test_dag1", "test_dag2"},
+                ({"test_dag1", "test_dag2"}, False),
             ),
             # Scenario 9
             # With non-DAG related permissions
             (
                 "GET",
                 [(ACTION_CAN_READ, "DAG:test_dag1"), (ACTION_CAN_READ, RESOURCE_CONNECTION)],
-                {"test_dag1"},
+                ({"test_dag1"}, False),
             ),
         ],
     )
