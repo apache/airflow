@@ -63,7 +63,7 @@ class TestLLMOperator:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
         )
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm")
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
@@ -88,7 +88,7 @@ class TestLLMOperator:
         result = op.execute(context=MagicMock())
 
         assert result == {"names": ["Alice", "Bob"]}
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm")
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
             instructions="You are an extractor.",

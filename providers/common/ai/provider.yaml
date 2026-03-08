@@ -74,7 +74,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
-    connection-type: pydanticaiazure
+    connection-type: pydanticai_azure
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -101,7 +101,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
-    connection-type: pydanticaibedrock
+    connection-type: pydanticai_bedrock
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -183,7 +183,7 @@ connection-types:
             - number
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
-    connection-type: pydanticaivertex
+    connection-type: pydanticai_vertex
     ui-field-behaviour:
       hidden-fields:
         - schema

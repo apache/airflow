@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
-from pydantic_ai.providers import infer_provider_class
+from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -155,7 +155,10 @@ class PydanticAIHook(BaseHook):
             )
 
             def _provider_factory(pname: str) -> Any:
-                return infer_provider_class(pname)(**_kwargs)
+                try:
+                    return infer_provider_class(pname)(**_kwargs)
+                except TypeError:
+                    return infer_provider(pname)
 
             self._model = infer_model(model_name, provider_factory=_provider_factory)
             return self._model
@@ -214,7 +217,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
     """
 
-    conn_type = "pydanticaiazure"
+    conn_type = "pydanticai_azure"
     default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
@@ -281,7 +284,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"bedrock:us.anthropic.claude-opus-4-5"``.
     """
 
-    conn_type = "pydanticaibedrock"
+    conn_type = "pydanticai_bedrock"
     default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
@@ -306,7 +309,16 @@ class PydanticAIBedrockHook(PydanticAIHook):
         base_url: str | None,
         extra: dict[str, Any],
     ) -> dict[str, Any]:
-        # Bedrock reads all config from extra; api_key/base_url from conn.password/host are unused.
+        """
+        Return kwargs for ``BedrockProvider``.
+
+        .. note::
+            The ``api_key`` and ``base_url`` parameters (sourced from
+            ``conn.password`` and ``conn.host``) are intentionally ignored here.
+            Bedrock connections hide those fields in the UI; all config is
+            stored in ``extra`` instead.  The ``api_key`` and ``base_url``
+            keys below refer to *extra* fields, not the method parameters.
+        """
         _str_keys = (
             "aws_access_key_id",
             "aws_secret_access_key",
@@ -363,7 +375,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"google-vertex:gemini-2.0-flash"``.
     """
 
-    conn_type = "pydanticaivertex"
+    conn_type = "pydanticai_vertex"
     default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
 

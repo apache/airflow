@@ -76,7 +76,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
-                "connection-type": "pydanticaiazure",
+                "connection-type": "pydanticai_azure",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
@@ -97,7 +97,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
-                "connection-type": "pydanticaibedrock",
+                "connection-type": "pydanticai_bedrock",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
@@ -158,7 +158,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
-                "connection-type": "pydanticaivertex",
+                "connection-type": "pydanticai_vertex",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
