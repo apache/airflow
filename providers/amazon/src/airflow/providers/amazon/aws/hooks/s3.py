@@ -1738,14 +1738,14 @@ class S3Hook(AwsBaseHook):
 
         for item in local_dir.rglob("*"):
             if item.is_file() and item.resolve() not in current_s3_keys:
-                self.log.info("Deleted stale local file: %s", item)
+                self.log.debug("Deleted stale local file: %s", item)
                 item.unlink()
         # Clean up empty directories
         for root, dirs, _ in os.walk(local_dir, topdown=False):
             for d in dirs:
                 dir_path = os.path.join(root, d)
                 if not os.listdir(dir_path):
-                    self.log.info("Deleted stale empty directory: %s", dir_path)
+                    self.log.debug("Deleted stale empty directory: %s", dir_path)
                     os.rmdir(dir_path)
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
