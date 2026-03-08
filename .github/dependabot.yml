@@ -150,6 +150,27 @@ updates:
         patterns:
           - "*"
 
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: daily
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
+
   # Repeat dependency updates on v3-1-test branch as well
   - package-ecosystem: pip
     cooldown:
