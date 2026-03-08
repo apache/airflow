@@ -38,7 +38,16 @@ if __name__ == "__main__":
     original_files = sys.argv[1:]
     print("Original files:", original_files)
     dir = (
-        AIRFLOW_PROVIDERS_ROOT_PATH / "common" / "ai" / "src" / "airflow" / "providers" / "common"  / "ai" / "plugins" / "www"
+        AIRFLOW_PROVIDERS_ROOT_PATH
+        / "common"
+        / "ai"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "common"
+        / "ai"
+        / "plugins"
+        / "www"
     )
     relative_dir = Path(dir).relative_to(AIRFLOW_ROOT_PATH)
     files = [
