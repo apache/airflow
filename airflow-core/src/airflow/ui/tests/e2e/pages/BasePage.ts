@@ -40,7 +40,13 @@ export class BasePage {
 
       return true;
     } catch {
-      return !this.page.url().includes("/login");
+      try {
+        await expect(this.page).not.toHaveURL(/\/login/, { timeout: 5_000 });
+
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 
