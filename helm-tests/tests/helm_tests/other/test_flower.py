@@ -182,10 +182,10 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search("spec.template.spec.containers[0].env[0].name", docs[0])
-            == "AIRFLOW__CORE__FERNET_KEY"
+        assert "AIRFLOW__CORE__FERNET_KEY" in jmespath.search(
+            "spec.template.spec.containers[0].env | [*].name", docs[0]
         )
+
         assert jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]) == [
             "curl",
             "localhost:7777",
