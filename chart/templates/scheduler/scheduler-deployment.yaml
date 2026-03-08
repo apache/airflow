@@ -284,6 +284,8 @@ spec:
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
@@ -304,8 +306,6 @@ spec:
             - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
               value: "{{ .Values.scheduler.logGroomerSidecar.maxSizePercent }}"
           {{- end }}
-            - name: AIRFLOW_HOME
-              value: "{{ .Values.airflowHome }}"
           {{- if .Values.scheduler.logGroomerSidecar.env }}
               {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
