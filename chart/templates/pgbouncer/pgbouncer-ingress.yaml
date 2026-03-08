@@ -21,7 +21,7 @@
 ## Airflow Pgbouncer Ingress
 #################################
 {{- if and .Values.pgbouncer.enabled .Values.ingress.pgbouncer.enabled }}
-{{- $fullname := (include "airflow.fullname" .) }}
+{{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -32,7 +32,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+    {{- if or .Values.labels .Values.pgbouncer.labels }}
       {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   {{- with .Values.ingress.pgbouncer.annotations }}
@@ -42,21 +42,17 @@ spec:
   {{- if and .Values.ingress.pgbouncer.hosts (.Values.ingress.pgbouncer.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
   {{- range .Values.ingress.pgbouncer.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
   {{- $anyTlsHosts = true -}}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
   {{- range .Values.ingress.pgbouncer.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
     - hosts:
         - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- end }}

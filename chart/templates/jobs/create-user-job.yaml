@@ -60,7 +60,7 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.createUserJob.labels) }}
+        {{- if or .Values.labels .Values.createUserJob.labels }}
           {{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}

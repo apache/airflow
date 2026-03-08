@@ -80,7 +80,7 @@ spec:
         tier: airflow
         component: api-server
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.apiServer.labels) }}
+        {{- if or .Values.labels .Values.apiServer.labels }}
           {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:

@@ -62,7 +62,7 @@ spec:
             tier: airflow
             component: database-cleanup
             release: {{ .Release.Name }}
-            {{- if or (.Values.labels) (.Values.databaseCleanup.labels) }}
+            {{- if or .Values.labels .Values.databaseCleanup.labels }}
               {{- mustMerge .Values.databaseCleanup.labels .Values.labels | toYaml | nindent 12 }}
             {{- end }}
           annotations:

@@ -111,14 +111,12 @@ If release name contains chart name it will be used as a full name.
         key: jwt-secret
   {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
-    {{- if or (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
+    {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
-    {{- end }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
@@ -128,23 +126,19 @@ If release name contains chart name it will be used as a full name.
         key: connection
     {{- end }}
   {{- end }}
-  {{- if .Values.elasticsearch.enabled }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
+  {{- if and .Values.elasticsearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
-    {{- end }}
   {{- end }}
-  {{- if .Values.opensearch.enabled }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
+  {{- if and .Values.opensearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
   - name: AIRFLOW__OPENSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "opensearch_secret" . }}
         key: connection
-    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -454,9 +448,9 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "image_pull_secrets" -}}
-  {{- $secrets := (default (list .Values.registry.secretName) .Values.imagePullSecrets) -}}
+  {{- $secrets := default (list .Values.registry.secretName) .Values.imagePullSecrets -}}
   {{- $secrets = ($secrets | compact | uniq) -}}
-  {{- if and (not $secrets) (or .Values.registry.connection) -}}
+  {{- if and (not $secrets) .Values.registry.connection -}}
     {{- $secrets = append $secrets (printf "%s-registry" (include "airflow.fullname" .)) -}}
   {{- end -}}
   {{- $out := list -}}
@@ -778,8 +772,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "registry_docker_config" }}
-  {{- $host := .Values.registry.connection.host }}
-  {{- $email := .Values.registry.connection.email }}
   {{- $user := .Values.registry.connection.user }}
   {{- $pass := .Values.registry.connection.pass }}
 
@@ -788,9 +780,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- $data := dict }}
   {{- $_ := set $data "username" $user }}
   {{- $_ := set $data "password" $pass }}
-  {{- $_ := set $data "email" $email }}
+  {{- $_ := set $data "email" .Values.registry.connection.email }}
   {{- $_ := set $data "auth" (printf "%v:%v" $user $pass | b64enc) }}
-  {{- $_ := set $auth $host $data }}
+  {{- $_ := set $auth .Values.registry.connection.host $data }}
   {{- $_ := set $config "auths" $auth }}
   {{ $config | toJson | print }}
 {{- end }}
@@ -1027,11 +1019,10 @@ Usage:
 */}}
 {{- define "airflow.revisionHistoryLimit" -}}
   {{- $result := "" -}}
-  {{- $found := false -}}
   {{- range . -}}
-    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+    {{- if and (not (kindIs "invalid" .)) -}}
       {{- $result = . -}}
-      {{- $found = true -}}
+      {{- break -}}
     {{- end -}}
   {{- end -}}
   {{- $result -}}
