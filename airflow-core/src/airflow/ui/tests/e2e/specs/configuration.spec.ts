@@ -35,10 +35,10 @@ test.describe("Configuration Page", () => {
 
     await expect(configPage.rows).not.toHaveCount(0);
 
-    const { key, section, value } = await configPage.getRowDetails(0);
+    const firstRow = configPage.rows.nth(0);
 
-    expect(section.length).toBeGreaterThan(0);
-    expect(key.length).toBeGreaterThan(0);
-    expect(value.length).toBeGreaterThan(0);
+    await expect(firstRow.locator("td").nth(0)).not.toBeEmpty();
+    await expect(firstRow.locator("td").nth(1)).not.toBeEmpty();
+    await expect(firstRow.locator("td").nth(2)).not.toBeEmpty();
   });
 });
