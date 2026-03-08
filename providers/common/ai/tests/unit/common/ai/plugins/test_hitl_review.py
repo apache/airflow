@@ -156,7 +156,7 @@ class TestReadXcomByPrefix:
     """Test _read_xcom_by_prefix."""
 
     @pytest.mark.parametrize(
-        ("xcom_entries", "prefix,expected"),
+        ("xcom_entries", "prefix", "expected"),
         [
             # ([(key_suffix, value), ...], prefix, expected_result)
             (

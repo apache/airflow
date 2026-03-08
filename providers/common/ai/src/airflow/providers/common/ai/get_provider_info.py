@@ -59,7 +59,7 @@ def get_provider_info():
         ],
         "plugins": [
             {
-                "name": "hitl-review",
+                "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
             }
         ],

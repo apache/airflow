@@ -139,19 +139,18 @@ apache-airflow-providers-standard = {workspace = true}
 provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info"
 
 [project.entry-points."airflow.plugins"]
-hitl-review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
+hitl_review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
 
 [tool.hatch.version]
-path = "src/airflow/providers/common/ai/__init__.py"
+path = "src/airflow/providers/common.ai/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "docs",
-    "src/airflow/providers/common/ai",
+    "src/airflow/providers/common.ai",
     "tests",
     "NOTICE"
 ]
-
 exclude = [
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
@@ -171,7 +170,6 @@ packages = ['src/airflow']
 artifacts = [
     "src/airflow/providers/common/ai/plugins/www/dist",
 ]
-
 exclude = [
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
