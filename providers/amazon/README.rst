@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.41.0``
 ``botocore``                                ``>=1.41.0``
@@ -117,7 +117,7 @@ Extra                 Dependencies
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
 ``apache.hive``       ``apache-airflow-providers-apache-hive``
 ``exasol``            ``apache-airflow-providers-exasol``
-``fab``               ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``fab``               ``apache-airflow-providers-fab>=2.2.0``
 ``ftp``               ``apache-airflow-providers-ftp``
 ``google``            ``apache-airflow-providers-google``
 ``imap``              ``apache-airflow-providers-imap``
@@ -129,7 +129,7 @@ Extra                 Dependencies
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``sqlalchemy``        ``sqlalchemy>=1.4.49``
+``sqlalchemy``        ``sqlalchemy>=1.4.54``
 ====================  ========================================================================================================================================
 
 The changelog for the provider package can be found in the

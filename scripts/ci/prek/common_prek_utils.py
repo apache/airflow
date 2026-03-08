@@ -113,6 +113,26 @@ def read_airflow_version() -> str:
     raise RuntimeError("Couldn't find __version__ in AST")
 
 
+GLOBAL_CONSTANTS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+)
+
+
+def read_allowed_kubernetes_versions() -> list[str]:
+    """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
+
+    Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
+    """
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
+                    versions: list[str] = ast.literal_eval(node.value)
+                    return [v.lstrip("v") for v in versions]
+    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+
+
 def pre_process_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 
@@ -345,7 +365,7 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     return None
 
 
-def get_all_provider_ids() -> list[str]:
+def get_all_provider_ids(exclude_suspended_providers: bool = False) -> list[str]:
     """
     Get all providers from the new provider structure
     """
@@ -353,6 +373,12 @@ def get_all_provider_ids() -> list[str]:
     for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
             continue
+        if exclude_suspended_providers:
+            import yaml
+
+            provider_info = yaml.safe_load(provider_file.read_text())
+            if provider_info.get("state") == "suspended":
+                continue
         provider_id = get_provider_id_from_path(provider_file)
         if provider_id:
             all_provider_ids.append(provider_id)

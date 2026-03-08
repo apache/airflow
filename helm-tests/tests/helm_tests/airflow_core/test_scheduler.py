@@ -530,39 +530,25 @@ class TestScheduler:
             "wow such test",
         ]
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "probe_command"),
-        [
-            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
-        ],
-    )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_livenessprobe_command(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
-            probe_command
+            "airflow jobs check --job-type SchedulerJob --local"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "probe_command"),
-        [
-            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
-        ],
-    )
-    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
-            probe_command
+            "airflow jobs check --job-type SchedulerJob --local"
             in jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
         )
 
@@ -818,7 +804,7 @@ class TestScheduler:
     )
     def test_dags_gitsync_sidecar_and_init_container_with_airflow_2(self, dags_values):
         docs = render_chart(
-            values={"dags": dags_values, "airflowVersion": "2.10.4"},
+            values={"dags": dags_values, "airflowVersion": "2.11.0"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
@@ -831,20 +817,20 @@ class TestScheduler:
         ("airflow_version", "dag_processor", "executor", "skip_dags_mount"),
         [
             # standalone dag_processor is optional on 2.10, so we can skip dags for non-local if its on
-            ("2.10.4", True, "LocalExecutor", False),
-            ("2.10.4", True, "CeleryExecutor", True),
-            ("2.10.4", True, "KubernetesExecutor", True),
-            ("2.10.4", True, "LocalKubernetesExecutor", False),
+            ("2.11.0", True, "LocalExecutor", False),
+            ("2.11.0", True, "CeleryExecutor", True),
+            ("2.11.0", True, "KubernetesExecutor", True),
+            ("2.11.0", True, "LocalKubernetesExecutor", False),
             # but if standalone dag_processor is off, we must always have dags
-            ("2.10.4", False, "LocalExecutor", False),
-            ("2.10.4", False, "CeleryExecutor", False),
-            ("2.10.4", False, "KubernetesExecutor", False),
-            ("2.10.4", False, "LocalKubernetesExecutor", False),
+            ("2.11.0", False, "LocalExecutor", False),
+            ("2.11.0", False, "CeleryExecutor", False),
+            ("2.11.0", False, "KubernetesExecutor", False),
+            ("2.11.0", False, "LocalKubernetesExecutor", False),
             # by default, we don't have a standalone dag_processor
-            ("2.10.4", None, "LocalExecutor", False),
-            ("2.10.4", None, "CeleryExecutor", False),
-            ("2.10.4", None, "KubernetesExecutor", False),
-            ("2.10.4", None, "LocalKubernetesExecutor", False),
+            ("2.11.0", None, "LocalExecutor", False),
+            ("2.11.0", None, "CeleryExecutor", False),
+            ("2.11.0", None, "KubernetesExecutor", False),
+            ("2.11.0", None, "LocalKubernetesExecutor", False),
             # but in airflow 3, standalone dag_processor required, so we again can skip dags for non-local
             ("3.0.0", None, "LocalExecutor", False),
             ("3.0.0", None, "CeleryExecutor", True),

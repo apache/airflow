@@ -73,17 +73,15 @@ class DeadlineAlert(Base):
             f"callback={self.callback_def}"
         )
 
-    def __eq__(self, other):
+    def matches_definition(self, other: DeadlineAlert) -> bool:
+        """Check if two DeadlineAlerts share the same reference, interval, and callback definition."""
         if not isinstance(other, DeadlineAlert):
-            return False
+            return NotImplemented
         return (
             self.reference == other.reference
             and self.interval == other.interval
             and self.callback_def == other.callback_def
         )
-
-    def __hash__(self):
-        return hash((str(self.reference), self.interval, str(self.callback_def)))
 
     @property
     def reference_class(self) -> type[SerializedReferenceModels.SerializedBaseDeadlineReference]:

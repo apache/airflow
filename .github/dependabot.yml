@@ -17,6 +17,32 @@
 ---
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v3-1-test
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v2-11-test
+
   - package-ecosystem: pip
     cooldown:
       default-days: 4
@@ -48,6 +74,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -60,6 +95,15 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -72,6 +116,15 @@ updates:
       ui-plugin-template-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      ui-plugin-template-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -131,6 +184,31 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+    schedule:
+      interval: daily
+    target-branch: v3-1-test
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip

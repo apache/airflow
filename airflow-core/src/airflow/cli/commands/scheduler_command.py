@@ -39,7 +39,11 @@ log = logging.getLogger(__name__)
 
 @enable_memray_trace(component=MemrayTraceComponents.scheduler)
 def _run_scheduler_job(args) -> None:
-    job_runner = SchedulerJobRunner(job=Job(), num_runs=args.num_runs)
+    job_runner = SchedulerJobRunner(
+        job=Job(),
+        num_runs=args.num_runs,
+        only_idle=args.only_idle,
+    )
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
         run_job(job=job_runner.job, execute_callable=job_runner._execute)
@@ -50,6 +54,9 @@ def _run_scheduler_job(args) -> None:
 def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
     print(settings.HEADER)
+
+    if args.only_idle and args.num_runs <= 0:
+        raise SystemExit("The --only-idle flag requires --num-runs to be set to a positive number.")
 
     if cli_utils.should_enable_hot_reload(args):
         from airflow.cli.hot_reload import run_with_reloader
