@@ -1,11 +1,1 @@
-Improve task instance selection in Dag callbacks to pass context-relevant tasks based on Dag state instead of arbitrary lexicographic selection.
-
-Previously, Dag callbacks received context from the lexicographically last task, which provided no meaningful correlation with the Dag's final state.
-Now callbacks receive context from a task instance that reflects the Dag's actual outcome:
-
-* On failure: the latest failed task
-* On timeout: the latest started but unfinished task
-* On deadlock: a task that should have run next but couldn't
-* On success: the latest succeeded task
-
-This change provides more meaningful context for Dag-level callbacks while maintaining backward compatibility.
+Improve Dag callback relevancy by passing a context-relevant task instance based on the Dag's final state (e.g., the last failed, timed out, or successful task) instead of an arbitrary lexicographical selection.
