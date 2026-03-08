@@ -514,3 +514,42 @@ class TestGitSyncSchedulerTest:
             )
             is None
         )
+
+    def test_liveness_probe_configuration_recommended(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "recommendedProbeSetting": True,
+                        "livenessProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].livenessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }
