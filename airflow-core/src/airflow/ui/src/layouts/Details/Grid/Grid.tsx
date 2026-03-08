@@ -52,6 +52,7 @@ dayjs.extend(dayjsDuration);
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runAfterGte?: string;
   readonly runAfterLte?: string;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
@@ -62,6 +63,7 @@ type Props = {
 export const Grid = ({
   dagRunState,
   limit,
+  runAfterGte,
   runAfterLte,
   runType,
   showGantt,
@@ -86,6 +88,7 @@ export const Grid = ({
   const { data: gridRuns, isLoading } = useGridRuns({
     dagRunState,
     limit,
+    runAfterGte,
     runAfterLte,
     runType,
     triggeringUser,

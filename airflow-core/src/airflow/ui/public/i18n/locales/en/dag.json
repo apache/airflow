@@ -122,6 +122,7 @@
     "graphDirection": {
       "label": "Graph Direction"
     },
+    "runAfterRange": "Run After Range",
     "showVersionIndicator": {
       "label": "Show Version Indicator",
       "options": {
