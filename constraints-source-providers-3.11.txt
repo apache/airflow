@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-06T19:10:21.137059
+# This constraints file was automatically generated on 2026-03-08T08:42:52.590358
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -75,7 +75,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
 apache-beam==2.70.0
-apispec==6.9.0
+apispec==6.10.0
 apprise==1.9.7
 argcomplete==3.6.3
 arro3-core==0.8.0
@@ -225,9 +225,9 @@ google-api-core==2.30.0
 google-api-python-client==2.192.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.3.0
-google-auth==2.48.0
+google-auth==2.49.0
 google-cloud-aiplatform==1.140.0
-google-cloud-alloydb==0.7.0
+google-cloud-alloydb==0.8.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
 google-cloud-automl==2.18.1
@@ -237,7 +237,7 @@ google-cloud-bigquery-storage==2.36.2
 google-cloud-bigquery==3.40.1
 google-cloud-bigtable==2.35.0
 google-cloud-build==3.35.0
-google-cloud-compute==1.44.0
+google-cloud-compute==1.45.0
 google-cloud-container==2.63.0
 google-cloud-core==2.5.0
 google-cloud-datacatalog==3.29.0
@@ -249,7 +249,7 @@ google-cloud-dataproc==5.25.0
 google-cloud-dlp==3.34.0
 google-cloud-kms==3.11.0
 google-cloud-language==2.19.0
-google-cloud-logging==3.13.0
+google-cloud-logging==3.14.0
 google-cloud-managedkafka==0.3.0
 google-cloud-memcache==1.14.0
 google-cloud-monitoring==2.29.1
@@ -274,7 +274,7 @@ google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
 google-genai==1.66.0
 google-resumable-media==2.8.0
-googleapis-common-protos==1.72.0
+googleapis-common-protos==1.73.0
 graphql-core==3.2.8
 graphviz==0.20.3
 greenback==1.3.0
@@ -325,7 +325,7 @@ ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.1.0
+jaraco.context==6.1.1
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
@@ -529,7 +529,7 @@ pytest==9.0.2
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.0
+python-discovery==1.1.1
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -600,7 +600,7 @@ snowflake-sqlalchemy==1.9.0
 sortedcontainers==2.4.0
 soupsieve==2.8.3
 sphinx-argparse==0.5.2
-sphinx-autoapi==3.6.0
+sphinx-autoapi==3.8.0
 sphinx-autobuild==2025.8.25
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
@@ -663,7 +663,7 @@ types-PyYAML==6.0.12.20250915
 types-aiofiles==25.1.0.20251011
 types-cachetools==6.2.0.20251022
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250915
+types-cffi==1.17.0.20260307
 types-croniter==6.0.0.20250809
 types-docutils==0.22.3.20260223
 types-paramiko==3.5.0.20250801
@@ -675,7 +675,7 @@ types-pytz==2026.1.1.20260304
 types-redis==4.6.0.20241004
 types-requests==2.32.4.20260107
 types-setuptools==82.0.0.20260210
-types-tabulate==0.9.0.20241207
+types-tabulate==0.10.0.20260308
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing-inspection==0.4.2
