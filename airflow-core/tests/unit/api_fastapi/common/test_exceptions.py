@@ -380,7 +380,6 @@ class TestUniqueConstraintErrorHandler:
         # the table name and is an INSERT) instead of insisting on an exact match.
         response_detail = exeinfo_response_error.value.detail
         expected_detail = expected_exception.detail
-        expected_detail.pop("statement", None)
 
         assert response_detail == expected_detail
         assert exeinfo_response_error.value.detail == expected_exception.detail
