@@ -133,7 +133,7 @@ jobs:
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2
           --previous-release helm-chart/1.15.0 --current-release helm-chart/1.16.0 --verbose
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: Helm artifacts
           path: ./dist/airflow-*
