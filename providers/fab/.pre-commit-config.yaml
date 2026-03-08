@@ -31,7 +31,6 @@ repos:
         files: ^src/airflow/providers/fab/www/
         exclude: |
           (?x)
-          ^src/airflow/providers/fab/www/api_connexion/.*|
           ^src/airflow/providers/fab/www/extensions/.*|
           ^src/airflow/providers/fab/www/security/.*
         entry: ../../scripts/ci/prek/compile_provider_assets.py fab

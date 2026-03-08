@@ -38,6 +38,7 @@ from airflow_breeze.commands.kubernetes_commands import kubernetes_group  # noqa
 from airflow_breeze.commands.production_image_commands import prod_image_group  # noqa: E402
 from airflow_breeze.commands.minor_release_command import create_minor_version_branch  # noqa: E402, F401
 from airflow_breeze.commands.release_command import airflow_release  # noqa: E402, F401
+from airflow_breeze.commands.registry_commands import registry_group  # noqa: E402
 from airflow_breeze.commands.release_candidate_command import release_management_group  # noqa: E402
 from airflow_breeze.commands import release_management_validation  # noqa: E402, F401
 from airflow_breeze.commands.sbom_commands import sbom_group  # noqa: E402
@@ -51,6 +52,7 @@ main.add_command(ci_group)
 main.add_command(ci_image_group)
 main.add_command(prod_image_group)
 main.add_command(setup_group)
+main.add_command(registry_group)
 main.add_command(release_management_group)
 main.add_command(sbom_group)
 main.add_command(ui_group)
