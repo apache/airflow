@@ -212,7 +212,6 @@ class TestBaseOperations:
     def test_execute_list_sends_limit_on_subsequent_pages(self):
         """Every paginated request must include ``limit`` so that offset
         arithmetic stays consistent with the actual page size returned."""
-        limit = 2
         mock_client = Mock()
         mock_client.get.side_effect = [
             Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 3})),
@@ -220,12 +219,12 @@ class TestBaseOperations:
         ]
         base_operation = BaseOperations(client=mock_client)
 
-        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=limit)
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=2)
 
         assert len(response.hellos) == 3
         # Verify limit is sent on both the first and second request
         for call in mock_client.get.call_args_list:
-            assert call.kwargs["params"]["limit"] == limit
+            assert call.kwargs["params"]["limit"] == 2
 
 
 class TestAssetsOperations:
