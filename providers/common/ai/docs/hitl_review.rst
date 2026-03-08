@@ -129,6 +129,13 @@ Enable the review loop with ``enable_hitl_review=True``:
 **Extra link** — When HITL review is enabled, the task instance page shows an
 **HITL Review** link that opens the chat window for that task.
 
+**Example DAG**
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_operator_agent_hitl_review]
+    :end-before: [END howto_operator_agent_hitl_review]
+
 
 REST API
 ========
