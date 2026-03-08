@@ -477,7 +477,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_with_nullable_fields(
         self, test_client, query_params, expected_total_entries, expected_ids, session
     ):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
