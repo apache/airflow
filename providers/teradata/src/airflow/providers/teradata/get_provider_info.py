@@ -107,7 +107,7 @@ def get_provider_info():
                         "login": "Username",
                     },
                     "placeholders": {
-                        "extra": '{"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}',
+                        "extra": {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"},
                         "login": "dbc",
                         "password": "dbc",
                     },
