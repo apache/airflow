@@ -60,7 +60,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_creates_agent_from_hook(self, mock_hook_cls):
         mock_agent = _make_mock_agent("The answer is 42.")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(
             task_id="test",
@@ -71,8 +71,8 @@ class TestAgentOperatorExecute:
         result = op.execute(context=MagicMock())
 
         assert result == "The answer is 42."
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id=None)
-        mock_hook_cls.return_value.create_agent.assert_called_once_with(
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
+        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions="You are helpful."
         )
         mock_agent.run_sync.assert_called_once_with("What is the answer?")
@@ -80,7 +80,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls):
         """Toolsets are passed through to the agent constructor."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("done")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("done")
 
         mock_toolset = MagicMock()
         op = AgentOperator(
@@ -91,7 +91,7 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
@@ -100,7 +100,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls):
         """enable_tool_logging=False passes toolsets through unwrapped."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("done")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("done")
 
         mock_toolset = MagicMock()
         op = AgentOperator(
@@ -112,13 +112,13 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["toolsets"] == [mock_toolset]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls):
         """agent_params are unpacked into create_agent."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
 
         op = AgentOperator(
             task_id="test",
@@ -128,7 +128,7 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
@@ -140,7 +140,7 @@ class TestAgentOperatorExecute:
             text: str
             score: float
 
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             Summary(text="Great", score=0.95)
         )
 
@@ -157,7 +157,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_model_id(self, mock_hook_cls):
         """model_id is passed to PydanticAIHook."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
 
         op = AgentOperator(
             task_id="test",
@@ -167,4 +167,4 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=MagicMock())
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id="openai:gpt-5")
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
