@@ -175,25 +175,22 @@ class DataFusionEngine(LoggingMixin):
                 extra_config = {}
 
             case "wasb":
-                try:
-                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-                except ImportError:
-                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-                    raise AirflowOptionalProviderFeatureException(
-                        "Failed to import WasbHook. To use the Azure storage functionality, please install the "
-                        "apache-airflow-providers-microsoft-azure package."
-                    )
-                wasb_hook: WasbHook = WasbHook(wasb_conn_id=conn.conn_id)
-                wasb_conn = wasb_hook.get_connection(conn.conn_id)
-                account_name = wasb_conn.login
-                account_key = wasb_conn.password or wasb_conn.extra_dejson.get("account_key")
-                if account_name:
-                    credentials["account"] = account_name
-                if account_key:
-                    credentials["access_key"] = account_key
+                account_name = conn.host or conn.login
+                tenant_id = conn.extra_dejson.get("tenant_id")
+                if tenant_id:
+                    credentials = {
+                        "account": account_name,
+                        "client_id": conn.extra_dejson.get("client_id") or conn.login,
+                        "client_secret": conn.extra_dejson.get("client_secret") or conn.password,
+                        "tenant_id": tenant_id,
+                    }
+                else:
+                    credentials = {
+                        "account": account_name,
+                        "access_key": conn.password or conn.extra_dejson.get("account_key"),
+                    }
                 credentials = self._remove_none_values(credentials)
-                extra_config = _fetch_extra_configs(["endpoint"])
+                extra_config = {}
 
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
