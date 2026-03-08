@@ -42,31 +42,29 @@ class TestSalesforceBulkOperator:
         assert operator.template_fields == ("operation", "object_name", "payload", "external_id_field")
 
     @pytest.mark.db_test
-    @pytest.mark.need_serialized_dag
-    def test_template_rendering(self, dag_maker):
+    def test_template_rendering(self, create_task_instance_of_operator):
         """
         Test that template_fields actually render Jinja templates.
         """
-        with dag_maker("test_salesforce_bulk_template"):
-            operator = SalesforceBulkOperator(
-                task_id="test_render",
-                operation="{{ params.op }}",
-                object_name="{{ params.obj }}",
-                payload="{{ params.data }}",
-                external_id_field="{{ params.ext_id }}",
-                params={
-                    "op": "upsert",
-                    "obj": "Contact",
-                    "data": "[{'Name': 'Test'}]",
-                    "ext_id": "Email",
-                },
-            )
-
-        ti = dag_maker.create_dagrun().task_instances[0]
-        ti.render_templates()
-        assert operator.operation == "upsert"
-        assert operator.object_name == "Contact"
-        assert operator.external_id_field == "Email"
+        ti = create_task_instance_of_operator(
+            SalesforceBulkOperator,
+            operation="{{ params.op }}",
+            object_name="{{ params.obj }}",
+            payload="{{ params.data }}",
+            external_id_field="{{ params.ext_id }}",
+            params={
+                "op": "upsert",
+                "obj": "Contact",
+                "data": "[{'Name': 'Test'}]",
+                "ext_id": "Email",
+            },
+            dag_id="test_salesforce_bulk_template",
+            task_id="test_render",
+        )
+        rendered = ti.render_templates()
+        assert rendered.operation == "upsert"
+        assert rendered.object_name == "Contact"
+        assert rendered.external_id_field == "Email"
 
     def test_execute_missing_operation(self):
         """
