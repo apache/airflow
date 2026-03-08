@@ -30,14 +30,6 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
-  - repo: https://github.com/eclipse-csi/octopin
-    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
-    hooks:
-      - id: pin-versions
-        name: Pin versions of dependencies in CI workflows (manual)
-        stages: ['manual']
-        language: python
-        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
     rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
