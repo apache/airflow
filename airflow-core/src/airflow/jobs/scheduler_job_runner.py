@@ -58,7 +58,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as 
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
-    DagRunContext,
     EmailRequest,
     TaskCallbackRequest,
 )
@@ -2437,7 +2436,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 select(TI)
                 .where(TI.dag_id == dag_run.dag_id)
                 .where(TI.run_id == dag_run.run_id)
-                .where(TI.state.in_(State.unfinished))
+                .where(TI.state.in_(State.unfinished) | (TI.state.is_(None)))
+            ).all()
+            last_unfinished_ti = max(
+                unfinished_task_instances,
+                key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
+                default=None,
             )
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
@@ -2465,18 +2469,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
                 return None
             dag_run = dag_run_reloaded
-            callback_to_execute = DagCallbackRequest(
-                filepath=dag_model.relative_fileloc or "",
-                dag_id=dag.dag_id,
-                run_id=dag_run.run_id,
-                bundle_name=dag_model.bundle_name,
-                bundle_version=dag_run.bundle_version,
-                context_from_server=DagRunContext(
-                    dag_run=dag_run,
-                    last_ti=dag_run.get_last_ti(dag=dag, session=session),
-                ),
-                is_failure_callback=True,
-                msg="timed_out",
+            callback_to_execute = dag_run.produce_dag_callback(
+                dag=dag,
+                success=False,
+                relevant_ti=last_unfinished_ti,
+                reason="timed_out",
+                execute=False,
             )
 
             dag_run.notify_dagrun_state_changed(msg="timed_out")
