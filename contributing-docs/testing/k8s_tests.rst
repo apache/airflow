@@ -373,15 +373,15 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Building the K8S image for Python 3.8 using airflow base image: ghcr.io/apache/airflow/main/prod/python3.8:latest
+    Building the K8S image for Python 3.10 using airflow base image: ghcr.io/apache/airflow/main/prod/python3.10:latest
 
     [+] Building 0.1s (8/8) FINISHED
      => [internal] load build definition from Dockerfile                                                                                                                                                                                                                                           0.0s
      => => transferring dockerfile: 301B                                                                                                                                                                                                                                                           0.0s
      => [internal] load .dockerignore                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 35B                                                                                                                                                                                                                                                               0.0s
-     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.8:latest                                                                                                                                                                                                             0.0s
-     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.8:latest                                                                                                                                                                                                                               0.0s
+     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                             0.0s
+     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                                               0.0s
      => [internal] load build context                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 3.00kB                                                                                                                                                                                                                                                            0.0s
      => CACHED [2/3] COPY airflow/example_dags/ /opt/airflow/dags/                                                                                                                                                                                                                                 0.0s
@@ -389,7 +389,7 @@ Should show the status of current KinD cluster.
      => exporting to image                                                                                                                                                                                                                                                                         0.0s
      => => exporting layers                                                                                                                                                                                                                                                                        0.0s
      => => writing image sha256:c0bdd363c549c3b0731b8e8ce34153d081f239ee2b582355b7b3ffd5394c40bb                                                                                                                                                                                                   0.0s
-     => => naming to ghcr.io/apache/airflow/main/prod/python3.8-kubernetes:latest
+     => => naming to ghcr.io/apache/airflow/main/prod/python3.10-kubernetes:latest
 
     NEXT STEP: You might now upload your k8s image by:
 
@@ -409,9 +409,9 @@ Should show the status of current KinD cluster.
     Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
     Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
     Stable repo is already added
-    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.8-kubernetes to cluster airflow-python-3.8-v1.24.2
-    Image: "ghcr.io/apache/airflow/main/prod/python3.8-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.8-v1.24.2-worker", loading...
-    Image: "ghcr.io/apache/airflow/main/prod/python3.8-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.8-v1.24.2-control-plane", loading...
+    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.10-kubernetes to cluster airflow-python-3.8-v1.24.2
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.8-v1.24.2-worker", loading...
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.8-v1.24.2-control-plane", loading...
 
     NEXT STEP: You might now deploy airflow by:
 

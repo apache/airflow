@@ -58,9 +58,9 @@ by running an interactive terminal as in the example below:
     >>> pprint(sys.path)
     ['',
      '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.10',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.10/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.10/site-packages']
 
 ``sys.path`` is initialized during program startup. The first precedence is
 given to the current directory, i.e, ``path[0]`` is the directory containing
@@ -237,7 +237,7 @@ specified by this command may be as follows:
 
 .. code-block:: none
 
-    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
+    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.10:/usr/lib/python3.10/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.10/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
 
 Below is the sample output of the ``airflow info`` command:
 
@@ -268,8 +268,8 @@ Below is the sample output of the ``airflow info`` command:
     Paths info
     airflow_home    | /root/airflow
     system_path     | /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/
-                    | local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/files/dags:/root/airflow/conf
+    python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.10:/usr/
+                    | local/lib/python3.10/lib-dynload:/usr/local/lib/python3.10/site-packages:/files/dags:/root/airflow/conf
                     | ig:/root/airflow/plugins
     airflow_on_path | True
 
@@ -311,9 +311,9 @@ The ``sys.path`` variable will look like below:
     ['',
      '/home/arch/projects/airflow_operators'
      '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.10',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.10/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.10/site-packages']
 
 As we can see that our provided directory is now added to the path, let's
 try to import the package now:
@@ -336,7 +336,7 @@ value as shown below:
 
 .. code-block:: none
 
-    Python PATH: [/home/arch/venv/bin:/home/arch/projects/airflow_operators:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/arch/venv/lib/python3.8/site-packages:/home/arch/airflow/dags:/home/arch/airflow/config:/home/arch/airflow/plugins]
+    Python PATH: [/home/arch/venv/bin:/home/arch/projects/airflow_operators:/usr/lib/python38.zip:/usr/lib/python3.10:/usr/lib/python3.10/lib-dynload:/home/arch/venv/lib/python3.10/site-packages:/home/arch/airflow/dags:/home/arch/airflow/config:/home/arch/airflow/plugins]
 
 Creating a package in Python
 ----------------------------
