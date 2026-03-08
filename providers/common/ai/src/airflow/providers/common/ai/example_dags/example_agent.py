@@ -188,7 +188,7 @@ example_agent_chain()
 # [START howto_operator_agent_hitl_review]
 @dag
 def example_agent_operator_hitl_review():
-    """AgentOperator with HITL review — a human approves output via /hitl-review UI."""
+    """AgentOperator with HITL review — a human approves output via hitl-review plugin UI."""
     AgentOperator(
         task_id="summarize_with_review",
         prompt="Summarize the Q4 sales report in 3 bullet points.",

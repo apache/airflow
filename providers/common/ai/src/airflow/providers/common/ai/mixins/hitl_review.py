@@ -99,7 +99,7 @@ class HITLReviewMixin:
         :raises HITLRejectException: When the reviewer rejects the output.
         :raises HITLTimeoutError: When hitl_timeout elapses with no response.
         """
-        output_str = self._to_string(output)
+        output_str = self._to_string(output)  # type: ignore[attr-defined]
         ti = context["task_instance"]
 
         session = AgentSessionData(
@@ -123,7 +123,7 @@ class HITLReviewMixin:
 
         deadline = time.monotonic() + self.hitl_timeout.total_seconds() if self.hitl_timeout else None
 
-        return self._poll_loop(
+        return self._poll_loop(  # type: ignore[attr-defined]
             ti=ti,
             session=session,
             message_history=message_history,
@@ -203,7 +203,7 @@ class HITLReviewMixin:
                     feedback_text,
                 )
 
-                new_output, message_history = self.regenerate_with_feedback(
+                new_output, message_history = self.regenerate_with_feedback(  # type: ignore[attr-defined]
                     feedback=feedback_text,
                     message_history=message_history,
                 )

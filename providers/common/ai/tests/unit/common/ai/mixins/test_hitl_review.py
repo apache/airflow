@@ -71,7 +71,7 @@ def fake_op():
 
 
 def _make_mock_ti_with_xcom_from_supervisor(mock_supervisor_comms, map_index: int = -1):
-    """Create a mock TI whose xcom_pull delegates to mock_supervisor_comms (like dbt cloud test)."""
+    """Create a mock TI whose xcom_pull delegates to mock_supervisor_comms."""
     ti = MagicMock(spec=["xcom_push", "xcom_pull", "dag_id", "run_id", "task_id", "map_index"])
     ti.dag_id = "test_dag"
     ti.run_id = "run_1"
