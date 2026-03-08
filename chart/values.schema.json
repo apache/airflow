@@ -10655,7 +10655,7 @@
                             "default": 1234
                         },
                         "recommendedProbeSetting": {
-                            "description": "Setting this to true, will remove readinessProbe usage and configure livenessProbe to use a dedicated Git-Sync liveness service.",
+                            "description": "Setting this to true, will remove readiness probe usage and configure liveness probe to use a dedicated Git-Sync liveness service.",
                             "type": "boolean",
                             "default": false
                         },

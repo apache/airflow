@@ -225,7 +225,7 @@ class TestGitSyncWorker:
         )
 
         assert livenessProbe == jmespath.search(
-            "spec.template.spec.containers[?name == 'git-sync'] | [0].livenessProbe", docs[0]
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
         )
 
     def test_readiness_probe_configuration(self):
@@ -252,13 +252,13 @@ class TestGitSyncWorker:
 
         assert (
             jmespath.search(
-                "spec.template.spec.initContainers[?name == 'git-sync-init'] | [0].readinessProbe", docs[0]
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
             )
             is None
         )
 
         assert readinessProbe == jmespath.search(
-            "spec.template.spec.containers[?name == 'git-sync'] | [0].readinessProbe", docs[0]
+            "spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0]
         )
 
     def test_readiness_probe_configuration_recommended(self):
@@ -287,15 +287,13 @@ class TestGitSyncWorker:
 
         assert (
             jmespath.search(
-                "spec.template.spec.initContainers[?name == 'git-sync-init'] | [0].readinessProbe", docs[0]
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
             )
             is None
         )
 
         assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name == 'git-sync'] | [0].readinessProbe", docs[0]
-            )
+            jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0])
             is None
         )
 
