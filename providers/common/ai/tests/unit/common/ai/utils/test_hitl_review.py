@@ -125,74 +125,187 @@ class TestHumanFeedbackRequest:
 
 
 class TestHITLReviewResponse:
-    def test_from_xcom_empty_conversation(self):
-        session = AgentSessionData(
-            status=SessionStatus.PENDING_REVIEW,
-            iteration=1,
-            max_iterations=5,
-            prompt="Summarize",
-            current_output="Initial output",
-        )
+    @pytest.mark.parametrize(
+        (
+            "session",
+            "outputs",
+            "human_entries",
+            "task_completed",
+            "expected_conv_len",
+            "expected_roles",
+            "expected_content_list",
+            "expected_status",
+            "expected_iteration",
+            "expected_current_output",
+        ),
+        [
+            # empty_conversation
+            (
+                AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=1,
+                    max_iterations=5,
+                    prompt="Summarize",
+                    current_output="Initial output",
+                ),
+                {1: "Initial output"},
+                {},
+                False,
+                1,
+                ["assistant"],
+                ["Initial output"],
+                "pending_review",
+                1,
+                "Initial output",
+            ),
+            # with_human_feedback
+            (
+                AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=2,
+                    max_iterations=3,
+                    prompt="Summarize",
+                    current_output="Revised output",
+                ),
+                {1: "v1", 2: "Revised output"},
+                {1: "Add more"},
+                True,
+                3,
+                ["assistant", "human", "assistant"],
+                ["v1", "Add more", "Revised output"],
+                "pending_review",
+                2,
+                "Revised output",
+            ),
+            # skips_missing_iterations
+            (
+                AgentSessionData(iteration=3, max_iterations=5, prompt="", current_output="out"),
+                {1: "a", 3: "out"},
+                {2: "feedback"},
+                False,
+                3,
+                ["assistant", "human", "assistant"],
+                ["a", "feedback", "out"],
+                "pending_review",
+                3,
+                "out",
+            ),
+            # single_iteration_no_human
+            (
+                AgentSessionData(iteration=1, max_iterations=2, prompt="p", current_output="o1"),
+                {1: "o1"},
+                {},
+                False,
+                1,
+                ["assistant"],
+                ["o1"],
+                "pending_review",
+                1,
+                "o1",
+            ),
+            # multi_iteration_all_feedback
+            (
+                AgentSessionData(iteration=3, max_iterations=5, prompt="p", current_output="o3"),
+                {1: "o1", 2: "o2", 3: "o3"},
+                {1: "f1", 2: "f2"},
+                False,
+                5,
+                ["assistant", "human", "assistant", "human", "assistant"],
+                ["o1", "f1", "o2", "f2", "o3"],
+                "pending_review",
+                3,
+                "o3",
+            ),
+            # sql_output
+            (
+                AgentSessionData(
+                    iteration=1,
+                    max_iterations=3,
+                    prompt="Query",
+                    current_output="SELECT id FROM t",
+                ),
+                {1: "SELECT id FROM t"},
+                {},
+                False,
+                1,
+                ["assistant"],
+                ["SELECT id FROM t"],
+                "pending_review",
+                1,
+                "SELECT id FROM t",
+            ),
+            # json_output (dict strified)
+            (
+                AgentSessionData(iteration=1, max_iterations=2, prompt="p", current_output=""),
+                {1: {"result": "ok", "count": 10}},
+                {},
+                False,
+                1,
+                ["assistant"],
+                [str({"result": "ok", "count": 10})],
+                "pending_review",
+                1,
+                "",
+            ),
+            # json_string_output
+            (
+                AgentSessionData(
+                    iteration=1,
+                    max_iterations=3,
+                    prompt="Extract",
+                    current_output='{"rows": [{"id": 1}]}',
+                ),
+                {1: '{"rows": [{"id": 1}]}'},
+                {},
+                False,
+                1,
+                ["assistant"],
+                ['{"rows": [{"id": 1}]}'],
+                "pending_review",
+                1,
+                '{"rows": [{"id": 1}]}',
+            ),
+        ],
+        ids=[
+            "empty_conversation",
+            "with_human_feedback",
+            "skips_missing_iterations",
+            "single_iteration_no_human",
+            "multi_iteration_all_feedback",
+            "sql_output",
+            "json_output",
+            "json_string_output",
+        ],
+    )
+    def test_from_xcom_output_combinations(
+        self,
+        session,
+        outputs,
+        human_entries,
+        task_completed,
+        expected_conv_len,
+        expected_roles,
+        expected_content_list,
+        expected_status,
+        expected_iteration,
+        expected_current_output,
+    ):
         resp = HITLReviewResponse.from_xcom(
             dag_id="dag1",
             run_id="run1",
             task_id="task1",
             session=session,
-            outputs={1: "Initial output"},
-            human_entries={},
+            outputs=outputs,
+            human_entries=human_entries,
+            task_completed=task_completed,
         )
         assert resp.dag_id == "dag1"
         assert resp.run_id == "run1"
         assert resp.task_id == "task1"
-        assert resp.status == "pending_review"
-        assert resp.iteration == 1
-        assert resp.max_iterations == 5
-        assert resp.prompt == "Summarize"
-        assert resp.current_output == "Initial output"
-        assert len(resp.conversation) == 1
-        entry = resp.conversation[0]
-        assert entry.role == "assistant"
-        assert entry.content == "Initial output"
-        assert entry.iteration == 1
-        assert resp.task_completed is False
-
-    def test_from_xcom_with_human_feedback(self):
-        session = AgentSessionData(
-            status=SessionStatus.PENDING_REVIEW,
-            iteration=2,
-            max_iterations=3,
-            prompt="Summarize",
-            current_output="Revised output",
-        )
-        resp = HITLReviewResponse.from_xcom(
-            dag_id="d",
-            run_id="r",
-            task_id="t",
-            session=session,
-            outputs={1: "v1", 2: "Revised output"},
-            human_entries={1: "Add more"},
-            task_completed=True,
-        )
-        assert resp.iteration == 2
-        assert resp.max_iterations == 3
-        assert resp.task_completed is True
-        assert len(resp.conversation) == 3  # assistant(1), human(1), assistant(2)
-        roles = [e.role for e in resp.conversation]
-        assert roles == ["assistant", "human", "assistant"]
-        contents = [e.content for e in resp.conversation]
-        assert "v1" in contents
-        assert "Add more" in contents
-        assert "Revised output" in contents
-
-    def test_from_xcom_skips_missing_iterations(self):
-        session = AgentSessionData(iteration=3, max_iterations=5, prompt="", current_output="out")
-        resp = HITLReviewResponse.from_xcom(
-            dag_id="test_dag",
-            run_id="test_run",
-            task_id="test_task",
-            session=session,
-            outputs={1: "a", 3: "out"},
-            human_entries={2: "feedback"},
-        )
-        assert len(resp.conversation) == 3  # assistant(1), human(2), assistant(3)
-        assert any(e.content == "feedback" and e.iteration == 2 for e in resp.conversation)
+        assert resp.status == expected_status
+        assert resp.iteration == expected_iteration
+        assert resp.current_output == expected_current_output
+        assert resp.task_completed is task_completed
+        assert len(resp.conversation) == expected_conv_len
+        assert [e.role for e in resp.conversation] == expected_roles
+        assert [e.content for e in resp.conversation] == expected_content_list

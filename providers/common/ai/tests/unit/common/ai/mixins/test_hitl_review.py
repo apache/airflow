@@ -39,14 +39,7 @@ from airflow.providers.standard.exceptions import (
     HITLMaxIterationsError,
     HITLRejectException,
 )
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
-if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("HITL Review is only compatible with Airflow >= 3.1.0", allow_module_level=True)
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.execution_time.comms import GetXCom, XComResult
+from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
 
 class FakeAgenticOperator(HITLReviewMixin):

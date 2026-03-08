@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -111,7 +111,7 @@ def _read_xcom(session: Session, *, dag_id: str, run_id: str, task_id: str, map_
 
 def _read_xcom_by_prefix(
     session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, prefix: str
-) -> dict[int, str]:
+) -> dict[int, Any]:
     """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
     query = select(XComModel.key, XComModel.value).where(
         XComModel.dag_id == dag_id,
@@ -120,7 +120,7 @@ def _read_xcom_by_prefix(
         XComModel.map_index == map_index,
         XComModel.key.like(f"{prefix}%"),
     )
-    result: dict[int, str] = {}
+    result: dict[int, Any] = {}
     for key, value in session.execute(query).all():
         suffix = key[len(prefix) :]
         if suffix.isdigit():
