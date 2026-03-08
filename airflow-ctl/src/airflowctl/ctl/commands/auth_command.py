@@ -33,6 +33,22 @@ from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
+def _maybe_print_token(token: str, yes: bool) -> None:
+    """Warn the user on stderr, confirm, then print the token to stdout."""
+    if not yes:
+        rich.print(
+            "[yellow]Warning: printing your auth token to stdout exposes it in your terminal "
+            "history and to anyone who can see your screen.[/yellow]",
+            file=sys.stderr,
+        )
+        rich.print("Are you sure you want to print the token? [y/N]: ", end="", file=sys.stderr)
+        answer = input().strip().lower()
+        if answer not in ("y", "yes"):
+            rich.print("[red]Aborted.[/red]")
+            return
+    print(token)
+
+
 @provide_api_client(kind=ClientKind.AUTH)
 def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
@@ -81,6 +97,8 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             credentials.api_token = login_response.access_token
             credentials.save()
             rich.print(success_message)
+            if args.print_token:
+                _maybe_print_token(credentials.api_token, args.yes)
             return
         except Exception as e:
             rich.print(f"[red]Login failed: {e}")
@@ -102,6 +120,8 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         api_environment=args.env,
     ).save(args.skip_keyring)
     rich.print(success_message)
+    if args.print_token:
+        _maybe_print_token(token, args.yes)
 
 
 def list_envs(args) -> None:

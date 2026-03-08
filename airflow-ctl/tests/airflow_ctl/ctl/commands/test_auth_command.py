@@ -256,6 +256,137 @@ class TestCliAuthCommands:
             )
 
 
+class TestPrintToken:
+    """Tests for --print-token and --yes flags on auth login."""
+
+    parser = cli_parser.get_parser()
+    login_response = LoginResponse(access_token="TEST_TOKEN")
+
+    def _make_args(self, extra: list[str]):
+        return self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"] + extra)
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_print_token_with_yes_prints_to_stdout(self, mock_keyring, api_client_maker, capsys):
+        """--print-token --yes prints the token to stdout without prompting."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        auth_command.login(self._make_args(["--print-token", "--yes"]), api_client=api_client)
+
+        captured = capsys.readouterr()
+        assert "TEST_TOKEN" in captured.out
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_print_token_user_confirms(self, mock_keyring, api_client_maker, capsys):
+        """--print-token prints the token when the user answers 'y' at the prompt."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        with patch("builtins.input", return_value="y"):
+            auth_command.login(self._make_args(["--print-token"]), api_client=api_client)
+
+        captured = capsys.readouterr()
+        assert "TEST_TOKEN" in captured.out
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_print_token_user_declines(self, mock_keyring, api_client_maker, capsys):
+        """--print-token does not print the token when the user answers 'n'."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        with patch("builtins.input", return_value="n"):
+            auth_command.login(self._make_args(["--print-token"]), api_client=api_client)
+
+        captured = capsys.readouterr()
+        assert "TEST_TOKEN" not in captured.out
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_no_print_token_flag_does_not_print(self, mock_keyring, api_client_maker, capsys):
+        """Without --print-token, the token never appears on stdout."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        auth_command.login(self._make_args([]), api_client=api_client)
+
+        captured = capsys.readouterr()
+        assert "TEST_TOKEN" not in captured.out
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_print_token_warning_goes_to_stderr(self, mock_keyring, api_client_maker, capsys):
+        """The security warning is written to stderr, not stdout."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        with patch("builtins.input", return_value="y"):
+            auth_command.login(self._make_args(["--print-token"]), api_client=api_client)
+
+        captured = capsys.readouterr()
+        assert "Warning" in captured.err
+        assert "TEST_TOKEN" not in captured.err
+
+    @patch("airflowctl.api.client.keyring")
+    def test_print_token_with_username_password_and_yes(self, mock_keyring, api_client_maker, capsys):
+        """--print-token --yes also works for username/password login."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        auth_command.login(
+            self.parser.parse_args(
+                [
+                    "auth",
+                    "login",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--username",
+                    "user",
+                    "--password",
+                    "pass",
+                    "--print-token",
+                    "--yes",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        captured = capsys.readouterr()
+        assert "TEST_TOKEN" in captured.out
+
+
 class TestListEnvs:
     parser = cli_parser.get_parser()
 

@@ -246,6 +246,20 @@ ARG_AUTH_PASSWORD = Arg(
     dest="password",
     help="The password to use for authentication",
 )
+ARG_AUTH_PRINT_TOKEN = Arg(
+    flags=("--print-token",),
+    dest="print_token",
+    default=False,
+    action="store_true",
+    help="Print the auth token to stdout after a successful login",
+)
+ARG_AUTH_YES = Arg(
+    flags=("-y", "--yes"),
+    dest="yes",
+    default=False,
+    action="store_true",
+    help="Skip the confirmation prompt when --print-token is used",
+)
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
@@ -833,6 +847,8 @@ AUTH_COMMANDS = (
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
             ARG_AUTH_SKIP_KEYRING,
+            ARG_AUTH_PRINT_TOKEN,
+            ARG_AUTH_YES,
         ),
     ),
     ActionCommand(
