@@ -306,7 +306,7 @@ class TestUniqueConstraintErrorHandler:
         with pytest.raises(HTTPException) as exeinfo_response_error:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
-        del exeinfo_response_error.value.detail["message"]
+        exeinfo_response_error.value.detail.pop("message", None)  # type: ignore[attr-defined]
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
@@ -455,7 +455,7 @@ class TestUniqueConstraintErrorHandler:
         expected_detail.pop("statement", None)
 
         # Removes the stacktrace from response to remove during comparison.
-        del response_detail["message"]
+        response_detail.pop("message", None)  # type: ignore[attr-defined]
         assert response_detail == expected_detail
         assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail
