@@ -24,6 +24,10 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -33,6 +37,10 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
     target-branch: v3-1-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -42,6 +50,10 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
     target-branch: v2-11-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: pip
     cooldown:
