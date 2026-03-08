@@ -80,7 +80,7 @@ jobs:
           echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
           echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
       # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous

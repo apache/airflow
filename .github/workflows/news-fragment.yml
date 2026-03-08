@@ -30,7 +30,7 @@ jobs:
     if: "contains(github.event.pull_request.labels.*.name, 'airflow3.0:breaking')"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           # `towncrier check` runs `git diff --name-only origin/main...`, which
