@@ -94,7 +94,10 @@ class AgentOperator(BaseOperator):
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
         """Return PydanticAIHook for the configured LLM connection."""
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        hook_params = {
+            "model_id": self.model_id,
+        }
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def execute(self, context: Context) -> Any:
         extra_kwargs = dict(self.agent_params)
