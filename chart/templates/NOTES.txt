@@ -509,6 +509,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.dags.gitSync.recommendedProbeSetting }}
+
+ DEPRECATION WARNING:
+    Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
