@@ -134,13 +134,14 @@ connection-types:
         schema: Database Name
         login: Username
       placeholders:
-        extra: {
-          tmode: "TERA",
-          sslmode: "verify-ca",
-          sslca: "/tmp/server-ca.pem"
-        }
-        login: dbc
-        password: dbc
+        extra: |
+          {
+            "tmode": "TERA",
+            "sslmode": "verify-ca",
+            "sslca": "/tmp/server-ca.pem"
+          }
+        login: "dbc"
+        password: "dbc"
 
 triggers:
   - integration-name: Teradata
