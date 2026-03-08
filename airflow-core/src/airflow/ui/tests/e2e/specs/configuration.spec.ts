@@ -33,9 +33,7 @@ test.describe("Configuration Page", () => {
     await expect(configPage.heading).toBeVisible();
     await expect(configPage.table).toBeVisible();
 
-    const count = await configPage.getRowCount();
-
-    expect(count).toBeGreaterThan(0);
+    await expect(configPage.rows).not.toHaveCount(0);
 
     const { key, section, value } = await configPage.getRowDetails(0);
 
