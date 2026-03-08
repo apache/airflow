@@ -229,9 +229,9 @@ class Connection(Base, LoggingMixin):
             raise AirflowException("Invalid connection string.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
-        conn_type = uri_parts.scheme
-        self.conn_type = self._normalize_conn_type(conn_type)
-        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        self._prenormalized_conn_type = uri_parts.scheme
+        self.conn_type = self._normalize_conn_type(self._prenormalized_conn_type)
+        rest_of_the_url = uri.replace(f"{self._prenormalized_conn_type}://", ("" if host_with_protocol else "//"))
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
@@ -274,10 +274,13 @@ class Connection(Base, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        if self.conn_type and "_" in self.conn_type:
+        if "_" in getattr(self, "_prenormalized_conn_type", ""):
+            # if a connection is instantiated using a URI then the connection's `conn_type` will be normalized
+            # via `_normalize_conn_type` to replace hyphens with underscores and thereby would always generate
+            # this warning if the normalized conn type were used
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                self.conn_type,
+                self._prenormalized_conn_type,
             )
 
         if self.conn_type:
