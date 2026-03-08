@@ -291,14 +291,8 @@ class JWTValidator:
             raise ValueError("Exactly one of private_key and secret_key must be specified")
 
         if self.algorithm == ["GUESS"]:
-            if self.jwks:
-                # TODO: We could probably populate this from the jwks document, but we don't have that at
-                # construction time.
-                raise ValueError(
-                    "Cannot guess the algorithm when using JWKS - please specify it in the config option "
-                    "[api_auth] jwt_algorithm"
-                )
-            self.algorithm = ["HS512"]
+            if not self.jwks:
+                self.algorithm = ["HS512"]
 
     def _get_kid_from_header(self, unvalidated: str) -> str:
         header = jwt.get_unverified_header(unvalidated)
@@ -326,13 +320,20 @@ class JWTValidator:
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
         key = await self._get_validation_key(unvalidated)
+        algorithms = self.algorithm
+        validation_key: str | jwt.PyJWK | Any = key
+        if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
+            header = jwt.get_unverified_header(unvalidated)
+            algorithms = [header.get("alg") or key.algorithm_name]
+            validation_key = key.key
+
         claims = jwt.decode(
             unvalidated,
-            key,
+            validation_key,
             audience=self.audience,
             issuer=self.issuer,
             options={"require": list(self.required_claims)},
-            algorithms=self.algorithm,
+            algorithms=algorithms,
             leeway=self.leeway,
         )
 
