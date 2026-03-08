@@ -40,6 +40,7 @@ from airflow.sdk.bases.sensor import (
     PokeReturnValue as PokeReturnValue,
 )
 from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
+from airflow.sdk.bases.xcom import BaseXCom as BaseXCom
 from airflow.sdk.configuration import AirflowSDKConfigParser
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
@@ -112,6 +113,7 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
     "BranchMixIn",
     "Connection",
     "Context",
