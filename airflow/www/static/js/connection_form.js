@@ -44,7 +44,7 @@ function getConnTypesToControlsMap() {
   const connTypesToControlsMap = new Map();
 
   const extraFormControls = Array.from(
-    document.querySelectorAll("[id^='extra__'")
+    document.querySelectorAll("[id^='extra__'"),
   );
   extraFormControls.forEach((control) => {
     const connTypeEnd = control.id.indexOf("__", "extra__".length);
@@ -80,7 +80,7 @@ function restoreFieldBehaviours() {
       elem.innerText = elem.dataset.origText;
       // eslint-disable-next-line no-param-reassign
       delete elem.dataset.origText;
-    }
+    },
   );
 
   Array.from(document.querySelectorAll(".form-control")).forEach((elem) => {
@@ -145,7 +145,7 @@ function handleTestConnection(connectionType, testableConnections) {
       .prop("disabled", true)
       .attr(
         "title",
-        "Testing connections is disabled in Airflow configuration. Contact your deployment admin to enable it."
+        "Testing connections is disabled in Airflow configuration. Contact your deployment admin to enable it.",
       );
     return;
   }
@@ -163,7 +163,7 @@ function handleTestConnection(connectionType, testableConnections) {
       .attr(
         "title",
         "This connection type does not currently support testing via " +
-          "Airflow REST API."
+          "Airflow REST API.",
       );
   }
 }
@@ -172,7 +172,7 @@ $(document).ready(() => {
   const fieldBehavioursElem = document.getElementById("field_behaviours");
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
   const testableConnsElem = document.getElementById(
-    "testable_connection_types"
+    "testable_connection_types",
   );
   const testableConns = decode(testableConnsElem.textContent);
 
@@ -187,7 +187,7 @@ $(document).ready(() => {
   // Create a test connection button & insert it right next to the save (submit) button
   const testConnBtn = $(
     '<button id="test-connection" type="button" class="btn btn-sm btn-primary" ' +
-      'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>'
+      'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>',
   );
 
   // Disable the Test Connection button if Airflow REST APIs are not enabled.
@@ -197,12 +197,12 @@ $(document).ready(() => {
       .attr(
         "title",
         "Airflow REST APIs have been disabled. " +
-          "See api->auth_backends section of the Airflow configuration."
+          "See api->auth_backends section of the Airflow configuration.",
       );
   }
 
   $(testConnBtn).insertAfter(
-    $("form#model_form div.well.well-sm button:submit")
+    $("form#model_form div.well.well-sm button:submit"),
   );
 
   /**
@@ -248,7 +248,7 @@ $(document).ready(() => {
     } else {
       alertBox = $(
         `<div class="alert ${alertClass}">\n` +
-          `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`
+          `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`,
       );
 
       $(".container .row").prepend(alertBox).show();
@@ -257,7 +257,7 @@ $(document).ready(() => {
 
   displayAlert(
     "warning",
-    "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one."
+    "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one.",
   );
 
   function hideAlert() {

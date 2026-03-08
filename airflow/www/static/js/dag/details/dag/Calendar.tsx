@@ -92,7 +92,7 @@ const Calendar = () => {
         type: "heatmap",
         coordinateSystem: "calendar",
         data: proportions.filter(
-          (p) => typeof p[0] === "string" && p[0].startsWith(y.toString())
+          (p) => typeof p[0] === "string" && p[0].startsWith(y.toString()),
         ),
       });
       seriesOption.push({
@@ -102,7 +102,7 @@ const Calendar = () => {
         symbolSize: 4,
         data: dagStates
           .filter(
-            (ds) => ds.date.startsWith(y.toString()) && ds.state === "planned"
+            (ds) => ds.date.startsWith(y.toString()) && ds.state === "planned",
           )
           .map((ds) => [ds.date, ds.count]),
       });

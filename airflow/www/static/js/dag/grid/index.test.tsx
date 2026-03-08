@@ -195,7 +195,7 @@ describe("Test ToggleGroups", () => {
   test("Group defaults to closed", () => {
     const { getByText, getAllByTestId } = render(
       <Grid openGroupIds={[]} onToggleGroups={() => {}} />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const groupName1 = getByText("group_1");
@@ -232,7 +232,7 @@ describe("Test ToggleGroups", () => {
   test("Expand/collapse buttons toggle nested groups", async () => {
     const { getByText, queryAllByTestId, getByTitle } = render(
       <GridWithGroups />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const expandButton = getByTitle(EXPAND);
@@ -248,21 +248,21 @@ describe("Test ToggleGroups", () => {
     fireEvent.click(collapseButton);
 
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(2)
+      expect(queryAllByTestId("task-instance")).toHaveLength(2),
     );
     expect(queryAllByTestId("close-group")).toHaveLength(0);
 
     fireEvent.click(expandButton);
 
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(6)
+      expect(queryAllByTestId("task-instance")).toHaveLength(6),
     );
   });
 
   test("Toggling a group does not affect groups with the same label", async () => {
     const { getByTitle, getByTestId, queryAllByTestId } = render(
       <GridWithGroups />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const expandButton = getByTitle(EXPAND);
@@ -270,7 +270,7 @@ describe("Test ToggleGroups", () => {
     fireEvent.click(expandButton);
 
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(6)
+      expect(queryAllByTestId("task-instance")).toHaveLength(6),
     );
 
     const group2Task1 = getByTestId("group_2.task_1");
@@ -280,7 +280,7 @@ describe("Test ToggleGroups", () => {
 
     // We only expect group_2.task_1 to be affected, not group_1.task_1
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(5)
+      expect(queryAllByTestId("task-instance")).toHaveLength(5),
     );
   });
 
@@ -288,7 +288,7 @@ describe("Test ToggleGroups", () => {
     const openGroupIds = ["group_1", "group_1.task_1"];
     const { rerender, queryAllByTestId } = render(
       <Grid openGroupIds={openGroupIds} onToggleGroups={() => {}} />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const taskElements = queryAllByTestId("task-instance");
@@ -303,7 +303,7 @@ describe("Test ToggleGroups", () => {
         hoveredTaskState="success"
         openGroupIds={openGroupIds}
         onToggleGroups={() => {}}
-      />
+      />,
     );
 
     taskElements.forEach((taskElement) => {
@@ -315,7 +315,7 @@ describe("Test ToggleGroups", () => {
         hoveredTaskState="failed"
         openGroupIds={openGroupIds}
         onToggleGroups={() => {}}
-      />
+      />,
     );
 
     taskElements.forEach((taskElement) => {

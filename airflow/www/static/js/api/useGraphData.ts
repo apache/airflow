@@ -54,7 +54,7 @@ const useGraphData = () => {
         [FILTER_DOWNSTREAM_PARAM]: filterDownstream,
       };
       return axios.get<AxiosResponse, GraphData>(graphDataUrl, { params });
-    }
+    },
   );
 };
 

@@ -79,7 +79,7 @@ const XcomEntry = ({
     if (typeof xcom.value !== "string") {
       try {
         xcomString = JSON.stringify(xcom.value);
-      } catch (e) {
+      } catch (_e) {
         // skip
       }
     } else {

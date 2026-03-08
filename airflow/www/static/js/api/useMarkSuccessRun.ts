@@ -55,6 +55,6 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

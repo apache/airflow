@@ -143,7 +143,7 @@ const FilterBar = () => {
                 typeOptions.every((typeOption) => "value" in typeOption)
               ) {
                 onRunTypeChange(
-                  typeOptions.map((typeOption) => typeOption.value)
+                  typeOptions.map((typeOption) => typeOption.value),
                 );
               }
             }}
@@ -162,7 +162,7 @@ const FilterBar = () => {
                 stateOptions.every((stateOption) => "value" in stateOption)
               ) {
                 onRunStateChange(
-                  stateOptions.map((stateOption) => stateOption.value)
+                  stateOptions.map((stateOption) => stateOption.value),
                 );
               }
             }}

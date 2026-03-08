@@ -43,13 +43,13 @@ export default function useCreateDatasetEvent({ datasetId, uri }: Props) {
         {
           dataset_uri: uri,
           extra: extra || {},
-        }
+        },
       ),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["datasets-events", datasetId]);
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

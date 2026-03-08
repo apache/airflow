@@ -43,8 +43,8 @@ export const useTaskXcomCollection = ({
       getMetaValue("task_xcom_entries_api")
         .replace("_DAG_RUN_ID_", dagRunId)
         .replace("_TASK_ID_", taskId),
-      { params: { map_index: mapIndex } }
-    )
+      { params: { map_index: mapIndex } },
+    ),
   );
 
 export const useTaskXcomEntry = ({
@@ -69,5 +69,5 @@ export const useTaskXcomEntry = ({
     },
     {
       enabled: !!xcomKey,
-    }
+    },
   );

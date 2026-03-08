@@ -45,7 +45,7 @@ interface Props {
 function checkJsonString(str: string) {
   try {
     JSON.parse(str);
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
   return true;

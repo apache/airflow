@@ -34,7 +34,7 @@ const usePools = () => {
     async () => axios.get<AxiosResponse, API.PoolCollection>(poolsUrl),
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
-    }
+    },
   );
 };
 

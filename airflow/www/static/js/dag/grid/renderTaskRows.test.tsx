@@ -71,7 +71,7 @@ describe("Test renderTaskRows", () => {
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
-      { wrapper: TableWrapper }
+      { wrapper: TableWrapper },
     );
 
     expect(getByText("group_1")).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("Test renderTaskRows", () => {
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: [] })}</>,
-      { wrapper: TableWrapper }
+      { wrapper: TableWrapper },
     );
 
     expect(getByText("group_1")).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe("Test renderTaskRows", () => {
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
-      { wrapper: TableWrapper }
+      { wrapper: TableWrapper },
     );
 
     expect(getByText("group_1")).toBeInTheDocument();

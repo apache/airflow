@@ -27,8 +27,10 @@ import type { SetOptional } from "type-fest";
 
 const taskInstanceApi = getMetaValue("task_instance_api");
 
-interface Props
-  extends SetOptional<API.GetMappedTaskInstanceVariables, "mapIndex"> {
+interface Props extends SetOptional<
+  API.GetMappedTaskInstanceVariables,
+  "mapIndex"
+> {
   options?: UseQueryOptions<API.TaskInstance>;
 }
 
@@ -59,7 +61,7 @@ const useTaskInstance = ({
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       ...options,
-    }
+    },
   );
 };
 

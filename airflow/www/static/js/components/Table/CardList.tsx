@@ -122,7 +122,7 @@ export const CardList = <TData extends Record<string, unknown>>({
     },
     useSortBy,
     usePagination,
-    ...selectProps
+    ...selectProps,
   );
 
   const handleNext = () => {

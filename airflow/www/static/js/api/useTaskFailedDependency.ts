@@ -48,7 +48,7 @@ export default function useTaskFailedDependency({
         .replace("_DAG_RUN_ID_", runId)
         .replace(
           "_TASK_ID_/0/dependencies",
-          `_TASK_ID_/${mapIndex}/dependencies`
+          `_TASK_ID_/${mapIndex}/dependencies`,
         )
         .replace("_TASK_ID_", taskId);
 
@@ -58,6 +58,6 @@ export default function useTaskFailedDependency({
       >(url);
       return datum;
     },
-    { refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000 }
+    { refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000 },
   );
 }

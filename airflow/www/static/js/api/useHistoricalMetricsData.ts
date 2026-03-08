@@ -34,7 +34,7 @@ const useHistoricalMetricsData = (startDate: string, endDate: string) =>
       }),
     {
       refetchInterval: (autoRefreshInterval || 1) * 1000,
-    }
+    },
   );
 
 export default useHistoricalMetricsData;

@@ -31,7 +31,7 @@ const duration = 500;
 let nodes = dagNodes;
 const fullNodes = nodes;
 const filteredNodes = nodes.filter((n) =>
-  edges.some((e) => e.u === n.id || e.v === n.id)
+  edges.some((e) => e.u === n.id || e.v === n.id),
 );
 
 // Preparation of DagreD3 data structures
@@ -70,7 +70,7 @@ function setUpZoomSupport() {
   zoom = d3.behavior.zoom().on("zoom", () => {
     innerSvg.attr(
       "transform",
-      `translate(${d3.event.translate})scale(${d3.event.scale})`
+      `translate(${d3.event.translate})scale(${d3.event.scale})`,
     );
   });
   svg.call(zoom);
@@ -88,7 +88,7 @@ function setUpZoomSupport() {
   // Calculate applicable scale for zoom
   const zoomScale = Math.min(
     Math.min(width / graphWidth, height / graphHeight),
-    1.5 // cap zoom level to 1.5 so nodes are not too large
+    1.5, // cap zoom level to 1.5 so nodes are not too large
   );
 
   zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);

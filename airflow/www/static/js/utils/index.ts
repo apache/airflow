@@ -88,7 +88,7 @@ const getGroupAndMapSummary = ({
 
 const appendSearchParams = (
   url: string | null,
-  params: URLSearchParams | string
+  params: URLSearchParams | string,
 ) => {
   if (!url) return "";
   const separator = url.includes("?") ? "&" : "?";
@@ -192,7 +192,7 @@ const highlightByKeywords = (
   errorKeywords: string[],
   warningKeywords: string[],
   logGroupStart: RegExp,
-  logGroupEnd: RegExp
+  logGroupEnd: RegExp,
 ): string => {
   // Don't color log marker lines that are already highlighted.
   if (logGroupStart.test(parsedLine) || logGroupEnd.test(parsedLine)) {
@@ -204,7 +204,7 @@ const highlightByKeywords = (
   const yellow = (line: string) => `\x1b[1m\x1b[33m${line}\x1b[39m\x1b[0m`;
 
   const containsError = errorKeywords.some((keyword) =>
-    lowerParsedLine.includes(keyword)
+    lowerParsedLine.includes(keyword),
   );
 
   if (containsError || currentLogLevel === (LogLevel.ERROR as string)) {
@@ -212,7 +212,7 @@ const highlightByKeywords = (
   }
 
   const containsWarning = warningKeywords.some((keyword) =>
-    lowerParsedLine.includes(keyword)
+    lowerParsedLine.includes(keyword),
   );
 
   if (containsWarning || currentLogLevel === (LogLevel.WARNING as string)) {

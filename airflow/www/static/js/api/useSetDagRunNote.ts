@@ -53,7 +53,7 @@ export default function useSetDagRunNote({ dagId, runId }: Props) {
             : {
                 ...oldGridData,
                 dagRuns: oldGridData.dagRuns.map((dr) =>
-                  dr.runId === runId ? { ...dr, note } : dr
+                  dr.runId === runId ? { ...dr, note } : dr,
                 ),
               };
 
@@ -61,6 +61,6 @@ export default function useSetDagRunNote({ dagId, runId }: Props) {
         queryClient.setQueriesData("gridData", updateGridData);
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

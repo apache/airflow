@@ -87,7 +87,7 @@ const useMarkTaskDryRun = ({
         params,
       });
     },
-    { enabled }
+    { enabled },
   );
 
 export default useMarkTaskDryRun;

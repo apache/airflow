@@ -112,6 +112,6 @@ export default function useClearTask({
       onError: (error: Error, { confirmed }) => {
         if (confirmed) errorToast({ error });
       },
-    }
+    },
   );
 }

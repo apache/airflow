@@ -162,7 +162,7 @@ export const Table = ({
     },
     useSortBy,
     usePagination,
-    ...selectProps
+    ...selectProps,
   );
 
   const handleNext = () => {

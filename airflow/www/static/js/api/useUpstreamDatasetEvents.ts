@@ -39,7 +39,7 @@ const useUpstreamDatasetEvents = ({ dagId, dagRunId, options }: Props) => {
   const query = useQuery<DatasetEventCollection>(
     ["upstreamDatasetEvents", dagRunId],
     () => axios.get(upstreamEventsUrl),
-    options
+    options,
   );
 
   return {

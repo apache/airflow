@@ -58,7 +58,7 @@ const DatasetDetails = ({ uri }: Props) => {
               if (!task.taskId || !task.dagId) return null;
               const url = `${gridUrl?.replace(
                 "__DAG_ID__",
-                task.dagId
+                task.dagId,
               )}?&task_id=${encodeURIComponent(task.taskId)}`;
               return (
                 <Link

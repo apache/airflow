@@ -63,7 +63,7 @@ const Nav = forwardRef<HTMLDivElement, Props>(
 
     const subDagLink = appendSearchParams(
       gridUrl.replace(dagId, `${dagId}.${taskId}`),
-      subDagParams
+      subDagParams,
     );
 
     // TODO: base subdag zooming as its own attribute instead of via operator name
@@ -84,7 +84,7 @@ const Nav = forwardRef<HTMLDivElement, Props>(
         </LinkButton>
       </Flex>
     );
-  }
+  },
 );
 
 export default Nav;

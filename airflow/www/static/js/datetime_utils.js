@@ -48,7 +48,7 @@ export function isoDateToTimeEl(datetime, options) {
   if (addTitle) {
     el.setAttribute(
       "title",
-      dateTimeObj.isUTC() ? "" : `UTC: ${dateTimeObj.clone().utc().format()}`
+      dateTimeObj.isUTC() ? "" : `UTC: ${dateTimeObj.clone().utc().format()}`,
     );
   }
   el.innerText = dateTimeObj.format(defaultFormat);
@@ -90,7 +90,7 @@ export function updateAllDateTimes() {
     // eslint-disable-next-line no-underscore-dangle
     if (dt._isValid) {
       $el.text(
-        dt.format($el.data("with-tz") ? defaultFormatWithTZ : defaultFormat)
+        dt.format($el.data("with-tz") ? defaultFormatWithTZ : defaultFormat),
       );
     }
     if ($el.attr("title") !== undefined) {

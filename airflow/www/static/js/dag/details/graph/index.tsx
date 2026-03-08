@@ -66,7 +66,7 @@ type DatasetExpression = {
 const getUpstreamDatasets = (
   datasetExpression: DatasetExpression,
   firstChildId: string,
-  level = 0
+  level = 0,
 ) => {
   let edges: WebserverEdge[] = [];
   let nodes: DepNode[] = [];
@@ -119,7 +119,7 @@ const getUpstreamDatasets = (
       const data = getUpstreamDatasets(
         nestedExpression,
         `${type}-${level}`,
-        level + 1
+        level + 1,
       );
       edges = [...edges, ...data.edges];
       nodes = [...nodes, ...data.nodes];
@@ -160,7 +160,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { nodes: upstreamDatasetNodes, edges: upstreamDatasetEdges } =
     getUpstreamDatasets(
       dagDetails.datasetExpression as DatasetExpression,
-      data?.nodes?.children?.[0]?.id ?? ""
+      data?.nodes?.children?.[0]?.id ?? "",
     );
 
   const {
@@ -187,7 +187,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     datasetEdges = [...upstreamDatasetEdges];
     datasetsCollection?.datasets?.forEach((dataset) => {
       const producingTask = dataset?.producingTasks?.find(
-        (t) => t.dagId === dagId
+        (t) => t.dagId === dagId,
       );
       if (dataset.uri) {
         // check that the task is in the graph
@@ -279,7 +279,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       isZoomedOut,
       upstreamDatasetEvents,
       downstreamDatasetEvents,
-    ]
+    ],
   );
 
   // Zoom to/from nodes when changing selection, maintain zoom level when changing task selection
@@ -299,7 +299,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   // merge & dedupe edges
   const flatEdges = [...(graphData?.edges || []), ...(nodeEdges || [])].filter(
-    (value, index, self) => index === self.findIndex((t) => t.id === value.id)
+    (value, index, self) => index === self.findIndex((t) => t.id === value.id),
   );
 
   const edges = buildEdges({

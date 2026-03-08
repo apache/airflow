@@ -52,7 +52,7 @@ const ViewTimeDelta = ({ data }: Props) => {
               <Text mr={1} key={unit}>
                 {data[unit]} {unit}
               </Text>
-            )
+            ),
         )}
     </Flex>
   );

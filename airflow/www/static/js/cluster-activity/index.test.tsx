@@ -111,7 +111,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockHistoricalMetricsData,
           isSuccess: true,
-        } as never as UseQueryResult<HistoricalMetricsData>)
+        }) as never as UseQueryResult<HistoricalMetricsData>,
     );
 
     jest.spyOn(useHealthModule, "default").mockImplementation(
@@ -119,7 +119,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockHealthData,
           isSuccess: true,
-        } as never as UseQueryResult<API.HealthInfo>)
+        }) as never as UseQueryResult<API.HealthInfo>,
     );
 
     jest.spyOn(useDagsModule, "default").mockImplementation(
@@ -127,7 +127,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockDagsData,
           isSuccess: true,
-        } as never as UseQueryResult<API.DAGCollection>)
+        }) as never as UseQueryResult<API.DAGCollection>,
     );
 
     jest.spyOn(useDagRunsModule, "default").mockImplementation(
@@ -135,7 +135,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockDagRunsData,
           isSuccess: true,
-        } as never as UseQueryResult<API.DAGRunCollection>)
+        }) as never as UseQueryResult<API.DAGRunCollection>,
     );
 
     jest.spyOn(usePoolsModule, "default").mockImplementation(
@@ -143,7 +143,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockPoolsData,
           isSuccess: true,
-        } as never as UseQueryResult<API.PoolCollection>)
+        }) as never as UseQueryResult<API.PoolCollection>,
     );
   });
 
@@ -152,7 +152,7 @@ describe("Test ToggleGroups", () => {
       <ClusterActivity />,
       {
         wrapper: Wrapper,
-      }
+      },
     );
 
     expect(getAllByTestId("echart-container")).toHaveLength(4);

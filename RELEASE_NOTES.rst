@@ -41,6 +41,7 @@ Bug Fixes
 Updated dependencies
 """"""""""""""""""""
 
+- Upgrade airflow UI to latest reasonable dependencies. (#63158)
 - Bump the core-ui-package-updates group across 1 directory with 87 updates (#61091)
 - bump filelock (#62952)
 - Limit Celery Provider to not install 3.17.0 as it breaks airflow 2.11 (#63046)

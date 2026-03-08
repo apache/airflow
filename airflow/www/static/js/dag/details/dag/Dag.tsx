@@ -117,7 +117,7 @@ const Dag = () => {
             </Flex>
           </Td>
           <Td>{key}</Td>
-        </Tr>
+        </Tr>,
       );
     }
   });
@@ -142,7 +142,7 @@ const Dag = () => {
   // render dag and dag_details data
   const renderDagDetailsData = (
     data: DAG | DAGDetail,
-    excludekeys: Array<string>
+    excludekeys: Array<string>,
   ) => (
     <>
       {Object.entries(data).map(
@@ -152,7 +152,7 @@ const Dag = () => {
               <Td>{toSentenceCase(key)}</Td>
               <Td>{parseStringData(String(value))}</Td>
             </Tr>
-          )
+          ),
       )}
     </>
   );
@@ -251,7 +251,7 @@ const Dag = () => {
                         {JSON.stringify(
                           dagDetailsData.datasetExpression,
                           null,
-                          2
+                          2,
                         )}
                       </pre>
                     </Code>
@@ -284,7 +284,7 @@ const Dag = () => {
                           size="xs"
                           href={tagIndexUrl.replace(
                             "_TAG_NAME_",
-                            tag?.name || ""
+                            tag?.name || "",
                           )}
                           mr={3}
                         >

@@ -46,11 +46,11 @@ const LogLink = ({
   let fullMetadataUrl = `${
     isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)}&task_id=${encodeURIComponent(
-    taskId
+    taskId,
   )}&execution_date=${encodeURIComponent(
-    executionDate
+    executionDate,
   )}&map_index=${encodeURIComponent(
-    mapIndex?.toString() ?? "-1"
+    mapIndex?.toString() ?? "-1",
   )}&try_number=${tryNumber}`;
 
   if (isInternal) {

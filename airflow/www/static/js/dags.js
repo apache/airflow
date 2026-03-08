@@ -102,7 +102,7 @@ $.each($("[id^=toggle]"), function toggleId() {
   $input.on("change", () => {
     const isPaused = $input.is(":checked");
     const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(
-      dagId
+      dagId,
     )}`;
     $input.removeClass("switch-input--error");
     // Remove focus on element so the tooltip will go away
@@ -177,8 +177,8 @@ function lastDagRunsHandler(error, json) {
       .attr(
         "href",
         `${graphUrl}?dag_id=${encodeURIComponent(
-          dagId
-        )}&execution_date=${encodeURIComponent(executionDate)}`
+          dagId,
+        )}&execution_date=${encodeURIComponent(executionDate)}`,
       )
       .html("")
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
@@ -196,7 +196,7 @@ d3.selectAll(".js-last-run-tooltip").on(
   function mouseoverLastRun() {
     const lastRunData = JSON.parse(d3.select(this).attr("data-lastrun"));
     d3.select(this).attr("data-original-title", tiTooltip(lastRunData));
-  }
+  },
 );
 
 function formatCount(count) {
@@ -240,7 +240,7 @@ function drawDagStats(selector, dagId, states) {
     .append("circle")
     .attr(
       "id",
-      (d) => `${selector}-${dagId.replace(/\./g, "_")}-${d.state || "none"}`
+      (d) => `${selector}-${dagId.replace(/\./g, "_")}-${d.state || "none"}`,
     )
     .attr("class", "has-svg-tooltip")
     .attr("stroke-width", (d) => {
@@ -314,7 +314,7 @@ function nextRunDatasetsSummaryHandler(_, json) {
           $(el).text(newSummary);
         }
       }
-    }
+    },
   );
 }
 
@@ -439,7 +439,7 @@ function handleRefresh({ activeDagsOnly = false } = {}) {
     d3.json(taskStatsUrl)
       .header("X-CSRFToken", csrfToken)
       .post(params, (error, json) =>
-        refreshDagStatsHandler(TASK_INSTANCE, json)
+        refreshDagStatsHandler(TASK_INSTANCE, json),
       );
     d3.json(nextRunDatasetsSummaryUrl)
       .header("X-CSRFToken", csrfToken)
@@ -502,7 +502,7 @@ $(".js-next-run-tooltip").each((i, run) => {
       const [createAfter, intervalStart, intervalEnd] = nextRunData.split(",");
       let newTitle = "";
       newTitle += `<strong>Run After:</strong> ${formatDateTime(
-        createAfter
+        createAfter,
       )}<br>`;
       newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
       newTitle += "<strong>Data Interval</strong><br>";
@@ -536,7 +536,7 @@ $(".next-dataset-triggered").on("click", (e) => {
       openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
   } else {
     window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(
-      singleDatasetUri
+      singleDatasetUri,
     )}`;
   }
 });
@@ -544,7 +544,7 @@ $(".next-dataset-triggered").on("click", (e) => {
 const getTooltipInfo = throttle(
   (dagId, run, setNextDatasets) =>
     getDatasetTooltipInfo(dagId, run, setNextDatasets),
-  1000
+  1000,
 );
 
 $(".js-dataset-triggered").each((i, cell) => {

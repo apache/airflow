@@ -63,7 +63,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   });
 
   const [selectedTryNumber, setSelectedTryNumber] = useState(
-    finalTryNumber || 1
+    finalTryNumber || 1,
   );
 
   // update state if the final try number changes
@@ -72,7 +72,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   }, [finalTryNumber]);
 
   const tryInstance = tiHistory?.taskInstances?.find(
-    (ti) => ti.tryNumber === selectedTryNumber
+    (ti) => ti.tryNumber === selectedTryNumber,
   );
 
   const instance =
@@ -121,7 +121,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                 {key}
               </Flex>
             </Td>
-          </Tr>
+          </Tr>,
         );
       }
     });
@@ -334,7 +334,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                   if (typeof field !== "string") {
                     try {
                       field = JSON.stringify(field);
-                    } catch (e) {
+                    } catch (_e) {
                       // skip
                     }
                   }

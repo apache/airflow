@@ -94,7 +94,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
         },
         isSelected: selectedNodeId === c.value.label,
         isHighlighted: edges.some(
-          (e) => e.data.rest.isSelected && e.id.includes(c.id)
+          (e) => e.data.rest.isSelected && e.id.includes(c.id),
         ),
       },
       type: "custom",
@@ -114,7 +114,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
         y + (node.data.height || 0) / 2,
         {
           duration: 1000,
-        }
+        },
       );
     }
   }, [setCenter, node]);

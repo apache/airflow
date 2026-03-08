@@ -61,7 +61,7 @@ export const parseLogs = (
   timezone: string | null,
   logLevelFilters: Array<string>,
   fileSourceFilters: Array<string>,
-  unfoldedLogGroups: Array<string>
+  unfoldedLogGroups: Array<string>,
 ) => {
   if (!data) {
     return {};
@@ -72,7 +72,7 @@ export const parseLogs = (
 
   try {
     lines = data.split("\n");
-  } catch (err) {
+  } catch (_err) {
     warning = "Unable to show logs. There was an error parsing logs.";
     return { warning };
   }
@@ -141,7 +141,7 @@ export const parseLogs = (
       errorKeywords,
       warningKeywords,
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     // for lines with color convert to nice HTML
     const coloredLine = ansiUp.ansi_to_html(parsedLine);
@@ -151,7 +151,7 @@ export const parseLogs = (
       .replace(
         urlRegex,
         (url) =>
-          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`,
       )
       .replace(logGroupStart, (textLine) => {
         const unfoldIdSuffix = "_unfold";
@@ -167,7 +167,7 @@ export const parseLogs = (
       })
       .replace(
         logGroupEnd,
-        " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
+        " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>",
       );
     parsedLines.push(lineWithHyperlinks);
   });

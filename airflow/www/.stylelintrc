@@ -1,3 +1,24 @@
 {
-  "extends": ["stylelint-config-standard", "stylelint-config-prettier"]
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "alpha-value-notation": null,
+    "color-function-alias-notation": null,
+    "color-function-notation": null,
+    "declaration-property-value-no-unknown": null,
+    "function-url-quotes": null,
+    "media-feature-range-notation": null,
+    "number-max-precision": null,
+    "property-no-deprecated": null,
+    "property-no-vendor-prefix": null,
+    "selector-class-pattern": null,
+    "selector-id-pattern": null,
+    "selector-not-notation": null,
+    "value-keyword-case": null,
+    "value-no-vendor-prefix": null,
+    "at-rule-no-vendor-prefix": null,
+    "selector-no-vendor-prefix": null,
+    "media-feature-name-no-vendor-prefix": null,
+    "declaration-block-no-redundant-longhand-properties": null,
+    "keyframes-name-pattern": null
+  }
 }

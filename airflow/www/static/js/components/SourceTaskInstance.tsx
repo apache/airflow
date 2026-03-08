@@ -58,9 +58,9 @@ const SourceTaskInstance = ({
 
   let url = `${gridUrl?.replace(
     dagId,
-    sourceDagId || ""
+    sourceDagId || "",
   )}?dag_run_id=${encodeURIComponent(
-    sourceRunId || ""
+    sourceRunId || "",
   )}&task_id=${encodeURIComponent(sourceTaskId || "")}`;
 
   if (

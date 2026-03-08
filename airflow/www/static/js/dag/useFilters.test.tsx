@@ -51,7 +51,7 @@ describe("Test useFilters hook", () => {
   test("Initial values when url does not have query params", async () => {
     const { result } = renderHook<FilterHookReturn, undefined>(
       () => useFilters(),
-      { wrapper: RouterWrapper }
+      { wrapper: RouterWrapper },
     );
     const {
       filters: {
@@ -109,12 +109,12 @@ describe("Test useFilters hook", () => {
   ])("Test $fnName functions", async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook<FilterHookReturn, undefined>(
       () => useFilters(),
-      { wrapper: RouterWrapper }
+      { wrapper: RouterWrapper },
     );
 
     await act(async () => {
       result.current[fnName](
-        paramValue as "string" & string[] & FilterTasksProps
+        paramValue as "string" & string[] & FilterTasksProps,
       );
     });
 
@@ -138,7 +138,7 @@ describe("Test useFilters hook", () => {
   test("Test onFilterTasksChange ", async () => {
     const { result } = renderHook<FilterHookReturn, undefined>(
       () => useFilters(),
-      { wrapper: RouterWrapper }
+      { wrapper: RouterWrapper },
     );
 
     await act(async () => {

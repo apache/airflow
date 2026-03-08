@@ -43,7 +43,7 @@ const useDagRuns = ({
       }),
     {
       refetchInterval: (autoRefreshInterval || 1) * 1000,
-    }
+    },
   );
 };
 

@@ -27,7 +27,7 @@ const isInputInFocus = "isInputInFocus";
 const useKeysPress = (
   keyboardShortcutKeys: KeyboardShortcutKeys,
   callback: Function,
-  node = null
+  node = null,
 ) => {
   const callbackRef = useRef(callback);
   useLayoutEffect(() => {
@@ -42,13 +42,13 @@ const useKeysPress = (
         !JSON.parse(localStorage.getItem(isInputInFocus) || "true") &&
         event[keyboardShortcutKeys.primaryKey] &&
         keyboardShortcutKeys.secondaryKey.some(
-          (key: String) => event.key === key
+          (key: String) => event.key === key,
         )
       ) {
         callbackRef.current(event);
       }
     },
-    [keyboardShortcutKeys]
+    [keyboardShortcutKeys],
   );
 
   useEffect(() => {

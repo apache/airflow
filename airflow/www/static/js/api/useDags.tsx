@@ -34,7 +34,7 @@ const useDags = ({ paused }: API.GetDagsVariables) =>
       }),
     {
       refetchInterval: (autoRefreshInterval || 1) * 1000,
-    }
+    },
   );
 
 export default useDags;

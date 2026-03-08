@@ -43,7 +43,6 @@ rect.state {
 
 .tooltip.in {
   opacity: 1;
-  filter: alpha(opacity=100);
 }
 
 .axis path,

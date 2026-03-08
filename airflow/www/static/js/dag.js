@@ -59,7 +59,7 @@ $("#pause_resume").on("change", function onChange() {
   if (requireConfirmation) {
     // eslint-disable-next-line no-alert
     const confirmation = window.confirm(
-      `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`
+      `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`,
     );
     if (!confirmation) {
       $input.prop("checked", !isPaused);
@@ -67,7 +67,7 @@ $("#pause_resume").on("change", function onChange() {
     }
   }
   const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(
-    id
+    id,
   )}`;
   // Remove focus on element so the tooltip will go away
   $input.trigger("blur");
@@ -92,7 +92,7 @@ $("#next-run").on("mouseover", () => {
     let newTitle = "";
     if (nextRun.createAfter) {
       newTitle += `<strong>Run After:</strong> ${formatDateTime(
-        nextRun.createAfter
+        nextRun.createAfter,
       )}<br>`;
       newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
     }
@@ -113,7 +113,7 @@ $(".next-dataset-triggered").on("click", (e) => {
     openDatasetModal(dagId, summary, nextDatasets, nextDatasetsError);
   } else {
     window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(
-      singleDatasetUri
+      singleDatasetUri,
     )}`;
   }
 });

@@ -31,7 +31,7 @@ interface Props {
 }
 export default function CodeBlock({ code }: Props) {
   const [codeWrap, setCodeWrap] = useState(
-    getMetaValue("default_wrap") === "True"
+    getMetaValue("default_wrap") === "True",
   );
   const toggleCodeWrap = () => setCodeWrap(!codeWrap);
 

@@ -29,7 +29,7 @@ const jsonParse = (content: unknown) => {
     }
     contentFormatted = JSON.stringify(contentJson, null, 4);
     isJson = contentJson != null && typeof contentJson === "object"; // ensure numbers/bool are not treated as JSON
-  } catch (e) {
+  } catch (_e) {
     // skip
   }
   return [isJson, contentJson, contentFormatted];

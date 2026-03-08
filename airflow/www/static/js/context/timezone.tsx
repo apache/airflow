@@ -34,7 +34,7 @@ const TimezoneContext = React.createContext({ timezone: "UTC" });
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
   const [timezone, setTimezone] = useState(
     // @ts-ignores: defaultZone not recognize in moment.
-    (moment.defaultZone && moment.defaultZone.name) || "UTC"
+    (moment.defaultZone && moment.defaultZone.name) || "UTC",
   );
 
   const handleChange = (e: CustomEvent<string>) => {
@@ -46,7 +46,7 @@ export const TimezoneProvider = ({ children }: PropsWithChildren) => {
     return () => {
       document.removeEventListener(
         TimezoneEvent,
-        handleChange as EventListener
+        handleChange as EventListener,
       );
     };
   });

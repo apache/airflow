@@ -54,6 +54,6 @@ export default function useQueueRun(dagId: string, runId: string) {
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

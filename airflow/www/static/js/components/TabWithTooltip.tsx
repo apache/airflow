@@ -43,7 +43,7 @@ const TabWithTooltip = React.forwardRef<HTMLDivElement, TabProps>(
         </Button>
       </Box>
     );
-  }
+  },
 );
 
 export default TabWithTooltip;

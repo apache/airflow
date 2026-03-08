@@ -49,6 +49,6 @@ if (mainElement) {
   reactRoot.render(
     <App cache={cache}>
       <Main />
-    </App>
+    </App>,
   );
 }

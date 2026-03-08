@@ -31,7 +31,7 @@ const useHealth = () =>
     async () => axios.get<AxiosResponse, API.HealthInfo>(healthUrl),
     {
       refetchInterval: (autoRefreshInterval || 1) * 1000,
-    }
+    },
   );
 
 export default useHealth;

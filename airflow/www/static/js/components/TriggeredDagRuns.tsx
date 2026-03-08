@@ -46,7 +46,7 @@ const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
         const runId = (run as unknown as { dagRunId: string }).dagRunId;
         const url = `${gridUrl.replace(
           dagId,
-          run.dagId || ""
+          run.dagId || "",
         )}?dag_run_id=${encodeURIComponent(runId)}`;
 
         return (

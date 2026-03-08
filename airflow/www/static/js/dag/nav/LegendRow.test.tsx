@@ -29,7 +29,7 @@ describe("Test LegendRow", () => {
     const onStatusHover = jest.fn();
     const onStatusLeave = jest.fn();
     const { getByText } = render(
-      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
+      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />,
     );
 
     Object.keys(stateColors).forEach((taskState) => {
@@ -52,15 +52,15 @@ describe("Test LegendRow", () => {
         <LegendRow
           onStatusHover={onStatusHover}
           onStatusLeave={onStatusLeave}
-        />
+        />,
       );
       const successElement = getByText(state);
       fireEvent.mouseEnter(successElement);
       await waitFor(() =>
-        expect(onStatusHover).toHaveBeenCalledWith(expectedSetValue)
+        expect(onStatusHover).toHaveBeenCalledWith(expectedSetValue),
       );
       fireEvent.mouseLeave(successElement);
       await waitFor(() => expect(onStatusLeave).toHaveBeenLastCalledWith());
-    }
+    },
   );
 });

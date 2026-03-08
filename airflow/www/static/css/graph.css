@@ -25,7 +25,9 @@ svg {
   stroke: #51504f;
   stroke-width: 1px;
   fill: #fff;
-  transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition:
+    stroke 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .node rect[data-highlight="highlight"] {
@@ -53,7 +55,9 @@ svg {
   stroke: #51504f;
   stroke-width: 1px;
   fill: none;
-  transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition:
+    stroke 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .edgePath[data-highlight="fade"],
@@ -70,7 +74,9 @@ svg {
   stroke: none !important;
   fill: #51504f;
   stroke-width: 0 !important;
-  transition: fill 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition:
+    fill 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .edgePath[data-highlight="highlight"] .arrowhead {

@@ -117,7 +117,7 @@ export const NewTable = <TData extends RowData>({
         if (!isEqual(old, updated)) onStateChange(updated);
       }
     },
-    [onStateChange]
+    [onStateChange],
   );
 
   const tableInstance = useReactTable({
@@ -149,7 +149,7 @@ export const NewTable = <TData extends RowData>({
   const upperCount = Math.min(
     (pageIndex + 1) * pageSize,
     pageIndex * pageSize + data.length,
-    total
+    total,
   );
   const canPrevious = tableInstance.getCanPreviousPage();
   const canNext = tableInstance.getCanNextPage() && data.length === pageSize;
@@ -205,7 +205,7 @@ export const NewTable = <TData extends RowData>({
                         ))}
                     </Th>
                   );
-                }
+                },
               )}
             </Tr>
           ))}

@@ -57,7 +57,7 @@ export interface UtilFunctions {
   onRunStateChange: (values: string[]) => void;
   onFilterTasksChange: (args: FilterTasksProps) => void;
   transformArrayToMultiSelectOptions: (
-    options: string[] | null
+    options: string[] | null,
   ) => { label: string; value: string }[];
   clearFilters: () => void;
   resetRoot: () => void;
@@ -133,7 +133,7 @@ const useFilters = (): FilterHookReturn => {
     };
 
   const transformArrayToMultiSelectOptions = (
-    options: string[] | null
+    options: string[] | null,
   ): { label: string; value: string }[] =>
     options === null
       ? []
@@ -142,16 +142,16 @@ const useFilters = (): FilterHookReturn => {
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
     // @ts-ignore
-    (localDate: string) => moment(localDate).utc().format()
+    (localDate: string) => moment(localDate).utc().format(),
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeMultiSelectOnChangeFn(
     RUN_TYPE_PARAM,
-    filtersOptions.runTypes
+    filtersOptions.runTypes,
   );
   const onRunStateChange = makeMultiSelectOnChangeFn(
     RUN_STATE_PARAM,
-    filtersOptions.dagStates
+    filtersOptions.dagStates,
   );
 
   const onFilterTasksChange = ({

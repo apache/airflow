@@ -52,7 +52,7 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
   if (localTZ !== "UTC") {
     startDate.tz(localTZ);
     tooltipHTML += `<br><strong>Local: ${startDate.format(
-      tzFormat
+      tzFormat,
     )}</strong><br>`;
     const localEndDate =
       endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
@@ -63,7 +63,7 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
   if (dagTz !== "UTC" && dagTz !== localTZ) {
     startDate.tz(dagTz);
     tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(
-      tzFormat
+      tzFormat,
     )}</strong><br>`;
     const dagTZEndDate =
       endDate && endDate instanceof moment ? endDate.tz(dagTz) : endDate;
@@ -90,7 +90,7 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
     numMap.forEach((key, val) => {
       if (key > 0) {
         tt += `<span style="margin-left: 15px">${escapeHtml(val)}: ${escapeHtml(
-          key
+          key,
         )}</span><br />`;
       }
     });

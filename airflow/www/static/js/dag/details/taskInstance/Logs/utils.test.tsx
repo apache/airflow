@@ -81,7 +81,7 @@ describe("Test Logs Utils.", () => {
       "UTC",
       [],
       [],
-      []
+      [],
     );
 
     expect(parsedLogs).toContain("2022-06-04, 00:00:01 UTC");
@@ -102,7 +102,7 @@ describe("Test Logs Utils.", () => {
       expectedNumberOfFileSources: 4,
       expectedLogs: `${mockTaskLogInfoBegin}${mockTaskLogInfoEndWithWarningAndUrl.replace(
         mockTaskLogWarning,
-        ""
+        "",
       )}`,
     },
     {
@@ -124,7 +124,7 @@ describe("Test Logs Utils.", () => {
         null,
         logLevelFilters,
         [],
-        []
+        [],
       );
 
       expect(fileSources).toHaveLength(expectedNumberOfFileSources);
@@ -135,7 +135,7 @@ describe("Test Logs Utils.", () => {
       lines.forEach((line, index) => {
         expect(line).toContain(expectedLines[index]);
       });
-    }
+    },
   );
 
   test("parseLogs function with file source filter", () => {
@@ -144,7 +144,7 @@ describe("Test Logs Utils.", () => {
       null,
       [],
       ["taskinstance.py"],
-      []
+      [],
     );
     const expectedLogs = `[2022-06-04 00:00:01,901] {taskinstance.py:1132} INFO - Dependencies all met for <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [queued]>
 [2022-06-04 00:00:01,906] {taskinstance.py:1132} INFO - Dependencies all met for <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [queued]>
@@ -175,7 +175,7 @@ ${mockTaskLogWarning}
       null,
       [LogLevel.INFO, LogLevel.WARNING],
       ["taskinstance.py"],
-      []
+      [],
     );
 
     expect(fileSources).toEqual([
@@ -195,19 +195,19 @@ ${mockTaskLogWarning}
       null,
       [LogLevel.INFO, LogLevel.WARNING],
       ["taskinstance.py"],
-      []
+      [],
     );
 
     // remove the last line which is empty
     const lines = parsedLogs!.split("\n").filter((line) => line.length > 0);
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://apple.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://apple.com</a>'
+      '<a href="https://apple.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://apple.com</a>',
     );
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://google.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://google.com</a>'
+      '<a href="https://google.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://google.com</a>',
     );
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))</a>'
+      '<a href="https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))</a>',
     );
   });
 });

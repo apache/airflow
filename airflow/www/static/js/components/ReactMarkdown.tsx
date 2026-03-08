@@ -56,12 +56,11 @@ const fontSizeMapping = {
 
 const makeHeading =
   (h: keyof typeof fontSizeMapping) =>
-  ({ children, ...props }: PropsWithChildren) =>
-    (
-      <Heading as={h} fontSize={fontSizeMapping[h]} {...props} my={3}>
-        {children}
-      </Heading>
-    );
+  ({ children, ...props }: PropsWithChildren) => (
+    <Heading as={h} fontSize={fontSizeMapping[h]} {...props} my={3}>
+      {children}
+    </Heading>
+  );
 
 const components = {
   p: ({ children }: PropsWithChildren) => <Text>{children}</Text>,

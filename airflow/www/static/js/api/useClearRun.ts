@@ -36,6 +36,7 @@ export default function useClearRun(dagId: string, runId: string) {
     ["dagRunClear", dagId, runId],
     ({
       confirmed = false,
+      // eslint-disable-next-line camelcase
       only_failed = false,
     }: {
       confirmed: boolean;
@@ -44,6 +45,7 @@ export default function useClearRun(dagId: string, runId: string) {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         confirmed,
+        // eslint-disable-next-line camelcase
         only_failed,
         dag_id: dagId,
         dag_run_id: runId,
@@ -63,6 +65,6 @@ export default function useClearRun(dagId: string, runId: string) {
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

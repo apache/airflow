@@ -44,7 +44,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         replace: true,
       });
     },
-    [setSearchParams]
+    [setSearchParams],
   );
 
   const tableURLState = useMemo(
@@ -53,12 +53,12 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         ...defaultTableState,
         ...defaultState,
       }),
-    [searchParams, defaultState]
+    [searchParams, defaultState],
   );
 
   const requestParams = useMemo(
     () => buildQueryParams(tableURLState),
-    [tableURLState]
+    [tableURLState],
   );
 
   return {

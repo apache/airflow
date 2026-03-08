@@ -54,7 +54,7 @@ describe("Test Time and TimezoneProvider", () => {
     expect(samoaTime).toBeDefined();
     expect(samoaTime.title).toEqual(
       // @ts-ignore
-      moment.utc(now).format(defaultFormatWithTZ)
+      moment.utc(now).format(defaultFormatWithTZ),
     );
   });
 
@@ -62,7 +62,7 @@ describe("Test Time and TimezoneProvider", () => {
     const now = new Date();
     const { getByText, queryByText } = render(
       <Time dateTime={now.toISOString()} />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     // @ts-ignore
@@ -80,7 +80,7 @@ describe("Test Time and TimezoneProvider", () => {
     expect(utcTime).toBeNull();
     const estTime = getByText(
       // @ts-ignore
-      moment(now).tz("EST").format(defaultFormatWithTZ)
+      moment(now).tz("EST").format(defaultFormatWithTZ),
     );
     expect(estTime).toBeDefined();
     // @ts-ignore

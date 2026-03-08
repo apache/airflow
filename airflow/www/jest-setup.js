@@ -1,5 +1,5 @@
 // We need this lint rule for now because these are only dev-dependencies
-/* eslint-disable import/no-extraneous-dependencies */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -24,10 +24,9 @@ import axios from "axios";
 import { setLogger } from "react-query";
 import "jest-canvas-mock";
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import moment from "moment-timezone";
 
-axios.defaults.adapter = require("axios/lib/adapters/http");
+axios.defaults.adapter = "http";
 
 axios.interceptors.response.use((res) => res.data || res);
 

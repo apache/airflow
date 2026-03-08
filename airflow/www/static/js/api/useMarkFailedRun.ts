@@ -56,6 +56,6 @@ export default function useMarkFailedRun(dagId: string, runId: string) {
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

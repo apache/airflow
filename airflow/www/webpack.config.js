@@ -195,52 +195,51 @@ const config = {
       patterns: [
         {
           from: "node_modules/d3/d3.min.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/dagre-d3/dist/*.min.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/d3-shape/dist/*.min.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/d3-tip/dist/index.js",
           to: "d3-tip.js",
-          flatten: true,
         },
         {
           from: "node_modules/bootstrap-3-typeahead/*min.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/redoc/bundles/redoc.standalone.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/codemirror/lib/codemirror.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/codemirror/addon/lint/**.*",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/codemirror/mode/javascript/javascript.js",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "node_modules/jshint/dist/jshint.js",
-          flatten: true,
+          to: "[name][ext]",
         },
         {
           from: "templates/swagger-ui",

@@ -59,6 +59,6 @@ if (mainElement) {
   reactRoot.render(
     <App cache={cache}>
       <ClusterActivity />
-    </App>
+    </App>,
   );
 }

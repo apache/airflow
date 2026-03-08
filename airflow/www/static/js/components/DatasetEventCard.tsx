@@ -85,7 +85,7 @@ const DatasetEventCard = ({
                 color="blue.600"
                 ml={2}
                 href={`${datasetsUrl}?uri=${encodeURIComponent(
-                  datasetEvent.datasetUri
+                  datasetEvent.datasetUri,
                 )}`}
               >
                 {datasetEvent.datasetUri}

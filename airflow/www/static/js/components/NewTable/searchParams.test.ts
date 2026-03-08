@@ -31,7 +31,7 @@ describe("searchParams", () => {
         sorting: [{ id: "name", desc: false }],
       };
       expect(stateToSearchParams(state).toString()).toEqual(
-        "limit=20&offset=1&sort.name=asc"
+        "limit=20&offset=1&sort.name=asc",
       );
     });
   });
@@ -46,8 +46,8 @@ describe("searchParams", () => {
               pageSize: 5,
             },
             sorting: [],
-          }
-        )
+          },
+        ),
       ).toEqual({
         pagination: {
           pageIndex: 0,

@@ -32,7 +32,7 @@ export default function useDagCode() {
       const fileToken = dagData?.fileToken || "";
       const dagSourceApiUrl = getMetaValue("dag_source_api").replace(
         "_FILE_TOKEN_",
-        fileToken
+        fileToken,
       );
       return axios.get<AxiosResponse, string>(dagSourceApiUrl, {
         headers: { Accept: "text/plain" },
@@ -40,6 +40,6 @@ export default function useDagCode() {
     },
     {
       enabled: !!dagData?.fileToken,
-    }
+    },
   );
 }

@@ -92,7 +92,7 @@ describe("Test Graph Node", () => {
       />,
       {
         wrapper: Wrapper,
-      }
+      },
     );
 
     expect(getByText("success")).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe("Test Graph Node", () => {
       />,
       {
         wrapper: Wrapper,
-      }
+      },
     );
 
     expect(getByText("success")).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe("Test Graph Node", () => {
       <DagNode {...mockNode} data={{ ...mockNode.data, isActive: false }} />,
       {
         wrapper: Wrapper,
-      }
+      },
     );
 
     expect(getByTestId("node")).toHaveStyle("opacity: 0.3");

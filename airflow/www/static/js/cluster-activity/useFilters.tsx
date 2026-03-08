@@ -73,12 +73,12 @@ const useFilters = (): FilterHookReturn => {
   const onStartDateChange = makeOnChangeFn(
     START_DATE_PARAM,
     // @ts-ignore
-    (localDate: string) => moment(localDate).utc().format()
+    (localDate: string) => moment(localDate).utc().format(),
   );
 
   const onEndDateChange = makeOnChangeFn(END_DATE_PARAM, (localDate: string) =>
     // @ts-ignore
-    moment(localDate).utc().format()
+    moment(localDate).utc().format(),
   );
 
   const clearFilters = () => {

@@ -29,7 +29,7 @@ const dagDetailsApiUrl = getMetaValue("dag_details_api");
 
 const combineResults = (
   dagData: DAG,
-  dagDetailsData: DAGDetail
+  dagDetailsData: DAGDetail,
 ): Omit<DAGDetail, "defaultView"> => ({ ...dagData, ...dagDetailsData });
 
 const useDagDetails = () => {
@@ -39,13 +39,13 @@ const useDagDetails = () => {
     () => axios.get<AxiosResponse, API.DAGDetail>(dagDetailsApiUrl),
     {
       enabled: !!dagData,
-    }
+    },
   );
   return {
     ...dagDetailsResult,
     data: combineResults(
       dagData || {},
-      dagDetailsResult.data ? dagDetailsResult.data : {}
+      dagDetailsResult.data ? dagDetailsResult.data : {},
     ),
   };
 };
