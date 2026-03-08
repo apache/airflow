@@ -226,6 +226,41 @@ class TestCliAuthCommands:
             )
 
     @patch("airflowctl.api.client.keyring")
+    def test_login_with_username_password_skip_keyring_and_print_token(
+        self, mock_keyring, api_client_maker, capsys
+    ):
+        """--username --password --skip-keyring --print-token --yes succeeds without touching keyring."""
+        api_client = api_client_maker(
+            path="/auth/token/cli",
+            response_json=self.login_response.model_dump(),
+            expected_http_status_code=201,
+            kind=ClientKind.AUTH,
+        )
+        mock_keyring.set_password = mock.MagicMock()
+
+        auth_command.login(
+            self.parser.parse_args(
+                [
+                    "auth",
+                    "login",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--username",
+                    "test_user",
+                    "--password",
+                    "test_password",
+                    "--skip-keyring",
+                    "--print-token",
+                    "--yes",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        mock_keyring.set_password.assert_not_called()
+        assert "TEST_TOKEN" in capsys.readouterr().out
+
+    @patch("airflowctl.api.client.keyring")
     def test_login_with_username_and_password_no_keyring_backend(self, mock_keyring, api_client_maker):
         """Test that login fails when no keyring backend is available."""
         from keyring.errors import NoKeyringError

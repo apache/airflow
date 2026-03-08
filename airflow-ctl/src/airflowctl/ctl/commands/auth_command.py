@@ -76,9 +76,6 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 
     # Username + password login (from args or interactively prompted)
     if username and password:
-        if args.skip_keyring:
-            rich.print("[red]The --skip-keyring is not compatible with username and password login.")
-            sys.exit(1)
         credentials = Credentials(
             api_url=args.api_url,
             api_token="",
@@ -95,7 +92,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
                 )
             )
             credentials.api_token = login_response.access_token
-            credentials.save()
+            credentials.save(args.skip_keyring)
             rich.print(success_message, file=sys.stderr)
             if args.print_token:
                 _maybe_print_token(credentials.api_token, args.yes)
