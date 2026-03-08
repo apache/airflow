@@ -200,3 +200,10 @@ class WorkerSetStateReturn(BaseModel):
         str | None,
         Field(description="Comments about the maintenance state of the worker."),
     ] = None
+    concurrency: Annotated[
+        int | None,
+        Field(
+            description="Desired concurrency for the worker set by an administrator. "
+            "None means no remote override; the worker uses its startup value.",
+        ),
+    ] = None

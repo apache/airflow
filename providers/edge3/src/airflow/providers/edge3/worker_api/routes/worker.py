@@ -238,7 +238,10 @@ def set_state(
     )
     _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(
-        state=worker.state, queues=worker.queues, maintenance_comments=worker.maintenance_comment
+        state=worker.state,
+        queues=worker.queues,
+        maintenance_comments=worker.maintenance_comment,
+        concurrency=worker.concurrency,
     )
 
 

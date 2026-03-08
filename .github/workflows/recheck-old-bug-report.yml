@@ -28,7 +28,7 @@ jobs:
   recheck-old-bug-report:
     runs-on: ["ubuntu-22.04"]
     steps:
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
         with:
           only-issue-labels: 'kind:bug'
           stale-issue-label: 'Stale Bug Report'
