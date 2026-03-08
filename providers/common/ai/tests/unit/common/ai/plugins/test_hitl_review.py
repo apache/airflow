@@ -132,7 +132,6 @@ def _create_hitl_session(
     )
 
 
-
 @pytest.fixture
 def test_client():
     """Test client for HITL Review plugin endpoints. Use full paths like /hitl-review/sessions/find."""

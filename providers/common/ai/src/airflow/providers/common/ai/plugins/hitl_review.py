@@ -78,7 +78,7 @@ def _get_session():
         yield session
 
 
-SessionDep = Annotated[Session, Depends(_get_session, scope="function")]
+SessionDep = Annotated[Session, Depends(_get_session)]
 
 
 def _get_map_index(q: str = Query("-1", alias="map_index")) -> int:
