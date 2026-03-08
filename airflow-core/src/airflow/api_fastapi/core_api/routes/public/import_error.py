@@ -133,7 +133,7 @@ def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     auth_manager = get_auth_manager()
-    readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
+    readable_dag_ids, _ = auth_manager.get_authorized_dag_ids(method="GET", user=user)
 
     # Subquery for files that have any DAGs
     files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
