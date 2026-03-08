@@ -53,6 +53,9 @@ class TestAgentOperatorValidation:
         with pytest.raises(TypeError):
             AgentOperator(task_id="test", prompt="hello")
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     def test_hitl_params_stored(self):
         """HITL parameters are stored on the operator."""
         op = AgentOperator(

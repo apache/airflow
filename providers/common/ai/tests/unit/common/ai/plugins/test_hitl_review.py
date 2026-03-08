@@ -89,6 +89,50 @@ def _clear_db():
     clear_db_xcom()
 
 
+@provide_session
+def _create_hitl_session(
+    session=None,
+    *,
+    dag_id=TEST_DAG_ID,
+    run_id=TEST_RUN_ID,
+    task_id=TEST_TASK_ID,
+    map_index=MAP_INDEX,
+    status=SessionStatus.PENDING_REVIEW,
+    iteration=1,
+    prompt="Summarize",
+    current_output="Initial output",
+):
+    """Create HITL session and output XCom entries in the database."""
+    sess = AgentSessionData(
+        status=status,
+        iteration=iteration,
+        max_iterations=5,
+        prompt=prompt,
+        current_output=current_output,
+    )
+    XComModel.set(
+        key=XCOM_AGENT_SESSION,
+        value=sess.model_dump(mode="json"),
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=run_id,
+        map_index=map_index,
+        serialize=False,
+        session=session,
+    )
+    XComModel.set(
+        key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
+        value=current_output,
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=run_id,
+        map_index=map_index,
+        serialize=False,
+        session=session,
+    )
+
+
+
 @pytest.fixture
 def test_client():
     """Test client for HITL Review plugin endpoints. Use full paths like /hitl-review/sessions/find."""
@@ -641,49 +685,6 @@ class TestHITLReviewPlugin:
         assert len(HITLReviewPlugin.fastapi_apps) == 1
         assert HITLReviewPlugin.fastapi_apps[0]["name"] == "hitl-review"
         assert "url_prefix" in HITLReviewPlugin.fastapi_apps[0]
-
-
-@provide_session
-def _create_hitl_session(
-    session=None,
-    *,
-    dag_id=TEST_DAG_ID,
-    run_id=TEST_RUN_ID,
-    task_id=TEST_TASK_ID,
-    map_index=MAP_INDEX,
-    status=SessionStatus.PENDING_REVIEW,
-    iteration=1,
-    prompt="Summarize",
-    current_output="Initial output",
-):
-    """Create HITL session and output XCom entries in the database."""
-    sess = AgentSessionData(
-        status=status,
-        iteration=iteration,
-        max_iterations=5,
-        prompt=prompt,
-        current_output=current_output,
-    )
-    XComModel.set(
-        key=XCOM_AGENT_SESSION,
-        value=sess.model_dump(mode="json"),
-        dag_id=dag_id,
-        task_id=task_id,
-        run_id=run_id,
-        map_index=map_index,
-        serialize=False,
-        session=session,
-    )
-    XComModel.set(
-        key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
-        value=current_output,
-        dag_id=dag_id,
-        task_id=task_id,
-        run_id=run_id,
-        map_index=map_index,
-        serialize=False,
-        session=session,
-    )
 
 
 class TestFindSessionEndpoint:

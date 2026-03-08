@@ -183,7 +183,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         output = result.output
 
         if self.enable_hitl_review:
-            return self.run_hitl_review(
+            return self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
                 message_history=result.all_messages(),
