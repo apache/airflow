@@ -66,20 +66,6 @@ export class ConfigurationPage extends BasePage {
   }
 
   private async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        const cells = table.querySelectorAll("tbody tr td");
-
-        return cells.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
   }
 }
