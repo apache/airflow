@@ -96,7 +96,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             )
             credentials.api_token = login_response.access_token
             credentials.save()
-            rich.print(success_message)
+            rich.print(success_message, file=sys.stderr)
             if args.print_token:
                 _maybe_print_token(credentials.api_token, args.yes)
             return
