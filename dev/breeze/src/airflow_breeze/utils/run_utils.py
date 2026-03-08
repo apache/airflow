@@ -537,7 +537,7 @@ def run_compile_ui_assets(
         "-m",
         "prek",
         "run",
-        "--hook-stage",
+        "--stage",
         "manual",
         "compile-ui-assets-dev" if dev else "compile-ui-assets",
         *additional_ui_hooks,

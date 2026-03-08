@@ -32,8 +32,8 @@
 - **Type-check:** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
-- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --hook-stage pre-commit`
-- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --hook-stage manual`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
 
@@ -122,9 +122,9 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
-4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --hook-stage pre-commit`)
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
    and fix any failures.
-5. Run manual (slower) checks (`prek run --from-ref <target_branch> --hook-stage manual`) and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.

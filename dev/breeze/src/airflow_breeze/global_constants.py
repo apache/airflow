@@ -181,6 +181,26 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
+ALLOWED_LLM_MODELS = [
+    # Claude models (via claude CLI)
+    "claude/claude-opus-4-6",
+    "claude/claude-sonnet-4-6",
+    "claude/claude-opus-4-20250514",
+    "claude/claude-sonnet-4-20250514",
+    "claude/claude-haiku-4-5-20251001",
+    "claude/sonnet",
+    "claude/opus",
+    "claude/haiku",
+    # OpenAI Codex models (via codex CLI)
+    "codex/gpt-5.3-codex",
+    "codex/gpt-5.3-codex-spark",
+    "codex/gpt-5.2-codex",
+    "codex/gpt-5.1-codex",
+    "codex/gpt-5-codex",
+    "codex/gpt-5-codex-mini",
+    "codex/gpt-5",
+]
+
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
 
