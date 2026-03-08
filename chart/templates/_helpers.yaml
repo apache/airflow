@@ -186,7 +186,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/*  Git ssh key volume */}}
+{{/* Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
   secret:
@@ -194,7 +194,7 @@ If release name contains chart name it will be used as a full name.
     defaultMode: 288
 {{- end }}
 
-{{/*  Git sync container */}}
+{{/* Git sync container */}}
 {{- define "git_sync_container" }}
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
@@ -837,9 +837,9 @@ fsGroup: {{ $.gid }}
 Set the default value for pod securityContext
 If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------+      +------------------------+      +-------------+
+    +-----------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -860,9 +860,9 @@ runAsUser: {{ .uid }}
 Set the default value for container securityContext
 If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------------+      +------------------------+      +-------------+
+    +-----------------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localContainerSecurityContext" .Values.statsd

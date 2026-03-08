@@ -102,7 +102,7 @@ spec:
           {{- end }}
       {{- $hostname := . -}}
       {{- if . | kindIs "string" | not }}
-      {{- $hostname = .name -}}
+        {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
       host: {{ tpl $hostname $ | quote }}
