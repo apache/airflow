@@ -16,9 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
+
 from datetime import datetime, timezone
 
-import pytest
 from pydantic import ValidationError
 
 from airflow.providers.common.ai.utils.hitl_review import (

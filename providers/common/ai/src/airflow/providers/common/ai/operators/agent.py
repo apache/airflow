@@ -29,6 +29,8 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -146,6 +148,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
+
+        if self.enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException(
+                "Human in the loop functionality needs Airflow 3.1+."
+            )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:

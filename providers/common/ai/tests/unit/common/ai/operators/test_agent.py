@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.standard.exceptions import HITLMaxIterationsError
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 def _make_mock_run_result(output):
@@ -187,6 +188,9 @@ class TestAgentOperatorExecute:
 
         mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id="openai:gpt-5")
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_enable_hitl_review_delegates_to_run_hitl_review(
@@ -216,6 +220,9 @@ class TestAgentOperatorExecute:
             op, context, "Initial output", message_history=msg_history
         )
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_propagates_hitl_max_iterations_error(
@@ -244,6 +251,9 @@ class TestAgentOperatorExecute:
             op.execute(context=context)
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestHITLReviewLink:
     def test_get_link_returns_empty_when_hitl_disabled(self):
         """HITLReviewLink returns empty string when operator has enable_hitl_review=False."""
@@ -287,6 +297,9 @@ class TestHITLReviewLink:
         )
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestAgentOperatorRegenerateWithFeedback:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_calls_agent_with_feedback_and_history(self, mock_hook_cls):

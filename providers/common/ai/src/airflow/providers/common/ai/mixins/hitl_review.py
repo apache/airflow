@@ -66,8 +66,8 @@ class HITLReviewMixin:
     The loop stops after ``hitl_timeout``.
 
     All agent outputs and human feedback are persisted as iteration-keyed
-    XCom entries (``airflow_hitl_review_agent_output_1``, ``airflow_hitl_review_human_feedback_1``, etc.) for full
-    auditability.
+    XCom entries (``airflow_hitl_review_agent_output_1``, ``airflow_hitl_review_human_feedback_1``, etc.)
+    for full auditability.
 
     Operators using this mixin must set:
 

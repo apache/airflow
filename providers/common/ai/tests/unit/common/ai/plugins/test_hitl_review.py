@@ -16,15 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if not AIRFLOW_V_3_1_PLUS:
+    pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
+
 import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
 import time_machine
 
-from airflow._shared.timezones import timezone
+from airflow.utils import timezone
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XComModel
 from airflow.providers.common.ai.plugins.hitl_review import (

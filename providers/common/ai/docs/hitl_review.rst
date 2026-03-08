@@ -182,13 +182,9 @@ Endpoints
      - ``/sessions/reject``
      - Reject the output. Session must be ``pending_review``.
    * - GET
-     - ``/chat``
+     - ``/chat-by-task``
      - Serve the interactive chat HTML for a session. Requires
        ``dag_id``, ``run_id``, ``task_id``, ``map_index``.
-   * - GET
-     - ``/chat-by-task``
-     - Same as ``/chat`` but with ``map_index`` handling for dynamic
-       task mapping.
 
 
 Response model: HITLReviewResponse
