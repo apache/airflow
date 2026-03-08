@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.standard.exceptions import HITLMaxIterationsError
 
 
 def _make_mock_run_result(output):
@@ -48,6 +50,22 @@ class TestAgentOperatorValidation:
     def test_requires_llm_conn_id(self):
         with pytest.raises(TypeError):
             AgentOperator(task_id="test", prompt="hello")
+
+    def test_hitl_params_stored(self):
+        """HITL parameters are stored on the operator."""
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            enable_hitl_review=True,
+            max_hitl_iterations=3,
+            hitl_timeout=timedelta(minutes=15),
+            hitl_poll_interval=5.0,
+        )
+        assert op.enable_hitl_review is True
+        assert op.max_hitl_iterations == 3
+        assert op.hitl_timeout == timedelta(minutes=15)
+        assert op.hitl_poll_interval == 5.0
 
 
 class TestAgentOperatorTemplateFields:
@@ -168,3 +186,157 @@ class TestAgentOperatorExecute:
         op.execute(context=MagicMock())
 
         mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id="openai:gpt-5")
+
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_enable_hitl_review_delegates_to_run_hitl_review(
+        self, mock_hook_cls, mock_run_hitl
+    ):
+        """When enable_hitl_review=True, execute delegates to run_hitl_review with output and message_history."""
+        msg_history = [MagicMock()]
+        mock_result = _make_mock_run_result("Initial output")
+        mock_result.all_messages.return_value = msg_history
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = "Approved output"
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        context = MagicMock()
+        result = op.execute(context=context)
+
+        assert result == "Approved output"
+        mock_run_hitl.assert_called_once_with(
+            op, context, "Initial output", message_history=msg_history
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_propagates_hitl_max_iterations_error(
+        self, mock_hook_cls, mock_run_hitl
+    ):
+        """When run_hitl_review raises HITLMaxIterationsError, execute propagates it."""
+        mock_result = _make_mock_run_result("Initial output")
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.side_effect = HITLMaxIterationsError(
+            "Max iterations (5) reached without approval."
+        )
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            enable_hitl_review=True,
+            max_hitl_iterations=5,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        context = MagicMock()
+
+        with pytest.raises(HITLMaxIterationsError, match="Max iterations"):
+            op.execute(context=context)
+
+
+class TestHITLReviewLink:
+    def test_get_link_returns_empty_when_hitl_disabled(self):
+        """HITLReviewLink returns empty string when operator has enable_hitl_review=False."""
+        op = AgentOperator(
+            task_id="task",
+            prompt="test",
+            llm_conn_id="my_llm",
+            enable_hitl_review=False,
+        )
+        ti_key = MagicMock()
+        ti_key.dag_id = "my_dag"
+        ti_key.run_id = "run_1"
+        ti_key.task_id = "task"
+        ti_key.map_index = -1
+
+        link = HITLReviewLink()
+        result = link.get_link(op, ti_key=ti_key)
+
+        assert result == ""
+
+    def test_get_link_returns_url_with_params_when_hitl_enabled(self):
+        """HITLReviewLink returns chat URL with dag_id, run_id, task_id, map_index when HITL enabled."""
+        op = AgentOperator(
+            task_id="my_task",
+            prompt="test",
+            llm_conn_id="my_llm",
+            enable_hitl_review=True,
+        )
+        ti_key = MagicMock()
+        ti_key.dag_id = "my_dag"
+        ti_key.run_id = "run_1"
+        ti_key.task_id = "my_task"
+        ti_key.map_index = 2
+
+        link = HITLReviewLink()
+        result = link.get_link(op, ti_key=ti_key)
+
+        assert result == (
+            "/hitl-review/chat-by-task"
+            "?dag_id=my_dag&run_id=run_1&task_id=my_task&map_index=2"
+        )
+
+
+class TestAgentOperatorRegenerateWithFeedback:
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_calls_agent_with_feedback_and_history(self, mock_hook_cls):
+        """regenerate_with_feedback builds agent and calls run_sync with feedback and message_history."""
+        msg_history = [MagicMock()]
+        mock_result = _make_mock_run_result("Revised output")
+        mock_result.all_messages.return_value = msg_history + [MagicMock()]
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+        )
+        output, new_history = op.regenerate_with_feedback(
+            feedback="Add more detail",
+            message_history=msg_history,
+        )
+
+        assert output == "Revised output"
+        assert new_history == mock_result.all_messages.return_value
+        mock_agent.run_sync.assert_called_once_with(
+            "Add more detail",
+            message_history=msg_history,
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls):
+        """regenerate_with_feedback returns JSON string for BaseModel output."""
+
+        class Summary(BaseModel):
+            text: str
+
+        mock_result = _make_mock_run_result(Summary(text="Revised"))
+        mock_result.all_messages.return_value = []
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            output_type=Summary,
+        )
+        output, _ = op.regenerate_with_feedback(
+            feedback="Expand",
+            message_history=[],
+        )
+
+        assert output == '{"text":"Revised"}'

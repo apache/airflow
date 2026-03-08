@@ -35,6 +35,7 @@ export type PluginComponentProps = object;
 const PluginComponent: FC<PluginComponentProps> = () => {
   const params = new URLSearchParams(globalThis.location.search);
   const dagId = params.get("dag_id") ?? "";
+  // Backward compatibility: older Airflow may not encode run_id; + in query params decodes as space
   const runId = (params.get("run_id") ?? "").replace(/ /g, "+");
   const taskId = params.get("task_id") ?? "";
   const rawMapIndex = params.get("map_index") ?? "-1";

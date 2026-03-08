@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -27,6 +29,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 from airflow.plugins_manager import AirflowPlugin
@@ -42,11 +47,32 @@ from airflow.providers.common.ai.utils.hitl_review import (
     SessionStatus,
 )
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
 
 _PLUGIN_PREFIX = "/hitl-review"
 
+
+def _get_base_url_path(path: str) -> str:
+    """Construct URL path with webserver base_url prefix for non-root deployments."""
+    base_url = conf.get("api", "base_url", fallback="/")
+    if base_url.startswith(("http://", "https://")):
+
+        base_path = urlparse(base_url).path
+    else:
+        base_path = base_url
+    base_path = base_path.rstrip("/")
+    return base_path + path
+
+
+def _get_chat_html() -> str:
+    base_prefix = _get_base_url_path(_PLUGIN_PREFIX)
+    static_prefix = _get_base_url_path(f"{_PLUGIN_PREFIX}/static")
+    return (
+        _CHAT_HTML_SHELL.replace("__BASE_PREFIX__", base_prefix)
+        .replace("__STATIC_PREFIX__", static_prefix)
+    )
 
 def _get_session():
     with create_session(scoped=False) as session:
@@ -99,7 +125,8 @@ def _read_xcom_by_prefix(
     for key, value in session.execute(query).all():
         suffix = key[len(prefix) :]
         if suffix.isdigit():
-            result[int(suffix)] = value
+            row = SimpleNamespace(value=value)
+            result[int(suffix)] = XComModel.deserialize_value(row)
     return result
 
 
@@ -132,7 +159,13 @@ def _parse_model(model_cls, raw):
     return model_cls.model_validate(raw)
 
 
-_RUNNING_TI_STATES = frozenset({"running", "deferred", "up_for_retry", "queued", "scheduled"})
+_RUNNING_TI_STATES = frozenset({
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+})
 
 
 def _is_task_completed(
@@ -216,7 +249,11 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@hitl_review_app.get("/sessions/find", response_model=HITLReviewResponse)
+@hitl_review_app.get(
+    "/sessions/find",
+    response_model=HITLReviewResponse,
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def find_session(
     db: SessionDep,
     dag_id: str,
@@ -247,7 +284,11 @@ async def find_session(
     return resp
 
 
-@hitl_review_app.post("/sessions/feedback", response_model=HITLReviewResponse)
+@hitl_review_app.post(
+    "/sessions/feedback",
+    response_model=HITLReviewResponse,
+    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def submit_feedback(
     body: HumanFeedbackRequest,
     db: SessionDep,
@@ -319,7 +360,11 @@ async def submit_feedback(
     return resp
 
 
-@hitl_review_app.post("/sessions/approve", response_model=HITLReviewResponse)
+@hitl_review_app.post(
+    "/sessions/approve",
+    response_model=HITLReviewResponse,
+    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def approve_session(
     db: SessionDep,
     dag_id: str,
@@ -380,7 +425,11 @@ async def approve_session(
     return resp
 
 
-@hitl_review_app.post("/sessions/reject", response_model=HITLReviewResponse)
+@hitl_review_app.post(
+    "/sessions/reject",
+    response_model=HITLReviewResponse,
+    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def reject_session(
     db: SessionDep,
     dag_id: str,
@@ -440,14 +489,13 @@ async def reject_session(
     return resp
 
 
-# -- Chat UI ----------------------------------------------------------------
-
 _CHAT_HTML_SHELL = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="__BASE_PREFIX__/">
 <title>HITL Review</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}</style>
 </head>
@@ -459,7 +507,11 @@ _CHAT_HTML_SHELL = """\
 """
 
 
-@hitl_review_app.get("/chat", response_class=HTMLResponse)
+@hitl_review_app.get(
+    "/chat",
+    response_class=HTMLResponse,
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def chat_page(
     db: SessionDep,
     dag_id: str,
@@ -468,7 +520,6 @@ async def chat_page(
     map_index: int = -1,
 ) -> HTMLResponse:
     """Serve the interactive chat window for a feedback session."""
-    run_id = run_id.replace(" ", "+")
     raw = _read_xcom(
         db,
         dag_id=dag_id,
@@ -479,11 +530,15 @@ async def chat_page(
     )
     if raw is None:
         raise HTTPException(status_code=404, detail="No matching session found.")
-    html = _CHAT_HTML_SHELL.replace("__STATIC_PREFIX__", f"{_PLUGIN_PREFIX}/static")
+    html = _get_chat_html()
     return HTMLResponse(html)
 
 
-@hitl_review_app.get("/chat-by-task", response_class=HTMLResponse)
+@hitl_review_app.get(
+    "/chat-by-task",
+    response_class=HTMLResponse,
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
 async def chat_by_task(
     db: SessionDep,
     dag_id: str,
@@ -492,7 +547,7 @@ async def chat_by_task(
     map_index: MapIndexDep,
 ) -> HTMLResponse:
     """Serve the chat window for the active feedback session of a task instance."""
-    html = _CHAT_HTML_SHELL.replace("__STATIC_PREFIX__", f"{_PLUGIN_PREFIX}/static")
+    html = _get_chat_html()
     return HTMLResponse(html)
 
 

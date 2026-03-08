@@ -19,7 +19,14 @@
 
 import type { SessionResponse } from "src/types/feedback";
 
-const BASE = "/hitl-review";
+function getBase(): string {
+  if (typeof document === "undefined") return "/hitl-review";
+  const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+  const baseUrl = new URL(baseHref, globalThis.location.origin);
+  return baseUrl.pathname.replace(/\/$/, "") || "/hitl-review";
+}
+
+const BASE = getBase();
 
 function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number): string {
   return (

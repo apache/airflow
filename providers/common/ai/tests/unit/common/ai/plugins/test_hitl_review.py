@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi.testclient import TestClient
+import time_machine
 
 from airflow._shared.timezones import timezone
 from airflow.models.dagrun import DagRun
@@ -31,6 +34,11 @@ from airflow.providers.common.ai.plugins.hitl_review import (
     _read_xcom_by_prefix,
     hitl_review_app,
 )
+from fastapi.testclient import TestClient
+
+from airflow.api_fastapi.app import create_app, purge_cached_app
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow import plugins_manager
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
@@ -54,7 +62,59 @@ if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("HITL Review is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 
-# --- Non-DB tests (pure functions, no database) ---
+
+from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+
+BASE_URL = "http://tes-server"
+
+DAG_ID = "hitl_test_dag"
+TASK_ID = "hitl_test_task"
+LOGICAL_DATE_STR = "2025-01-01T00:00:00+00:00"
+logical_date = timezone.parse(LOGICAL_DATE_STR)
+RUN_ID = DagRun.generate_run_id(
+    run_type=DagRunType.MANUAL,
+    logical_date=logical_date,
+    run_after=logical_date,
+)
+MAP_INDEX = -1
+
+@pytest.fixture
+def test_client():
+    """Test client for HITL Review plugin endpoints. Use full paths like /hitl-review/sessions/find."""
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            ("core", "lazy_discover_providers"): "false",
+        }
+    ), mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False):
+        plugins_manager._get_plugins.cache_clear()
+        plugins_manager.get_fastapi_plugins.cache_clear()
+        purge_cached_app()
+        app = create_app()
+        auth_manager: SimpleAuthManager = app.state.auth_manager
+        time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
+        time_after = datetime.datetime.now() + datetime.timedelta(days=1)
+        with time_machine.travel(time_very_before, tick=False):
+            token = auth_manager._get_token_signer(
+                expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
+            ).generate(
+                auth_manager.serialize_user(
+                    SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
+                ),
+            )
+        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+            yield TestClient(
+                app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=BASE_URL,
+            )
+
 
 
 class TestGetMapIndex:
@@ -140,19 +200,6 @@ class TestHITLReviewPlugin:
         assert "url_prefix" in HITLReviewPlugin.fastapi_apps[0]
 
 
-# --- DB-dependent API tests ---
-
-DAG_ID = "hitl_test_dag"
-TASK_ID = "hitl_test_task"
-LOGICAL_DATE_STR = "2025-01-01T00:00:00+00:00"
-logical_date = timezone.parse(LOGICAL_DATE_STR)
-RUN_ID = DagRun.generate_run_id(
-    run_type=DagRunType.MANUAL,
-    logical_date=logical_date,
-    run_after=logical_date,
-)
-MAP_INDEX = -1
-
 
 def _clear_db():
     clear_db_dags()
@@ -178,6 +225,7 @@ def _create_hitl_session(
     sess = AgentSessionData(
         status=status,
         iteration=iteration,
+        max_iterations=5,
         prompt=prompt,
         current_output=current_output,
     )
@@ -201,7 +249,6 @@ def _create_hitl_session(
         serialize=False,
         session=session,
     )
-    session.commit()
 
 
 @pytest.mark.db_test
@@ -223,10 +270,9 @@ class TestFindSessionEndpoint:
         yield
         _clear_db()
 
-    def test_returns_session_when_found(self):
-        client = TestClient(hitl_review_app)
-        response = client.get(
-            "/sessions/find",
+    def test_returns_session_when_found(self, test_client):
+        response = test_client.get(
+            "/hitl-review/sessions/find",
             params={"dag_id": DAG_ID, "run_id": RUN_ID, "task_id": TASK_ID},
         )
         assert response.status_code == 200
@@ -234,12 +280,12 @@ class TestFindSessionEndpoint:
         assert data["dag_id"] == DAG_ID
         assert data["status"] == "pending_review"
         assert data["iteration"] == 1
+        assert data["max_iterations"] == 5
         assert data["current_output"] == "Initial output"
 
-    def test_404_when_session_not_found(self):
-        client = TestClient(hitl_review_app)
-        response = client.get(
-            "/sessions/find",
+    def test_404_when_session_not_found(self, test_client):
+        response = test_client.get(
+            "/hitl-review/sessions/find",
             params={
                 "dag_id": DAG_ID,
                 "run_id": "nonexistent_run",
@@ -269,10 +315,9 @@ class TestSubmitFeedbackEndpoint:
         yield
         _clear_db()
 
-    def test_submit_feedback_returns_updated_session(self):
-        client = TestClient(hitl_review_app)
-        response = client.post(
-            "/sessions/feedback",
+    def test_submit_feedback_returns_updated_session(self, test_client):
+        response = test_client.post(
+            "/hitl-review/sessions/feedback",
             params={"dag_id": DAG_ID, "run_id": RUN_ID, "task_id": TASK_ID},
             json={"feedback": "Add more detail"},
         )
@@ -282,10 +327,9 @@ class TestSubmitFeedbackEndpoint:
         assert data["iteration"] == 1
         assert any(e["role"] == "human" and "Add more detail" in e["content"] for e in data["conversation"])
 
-    def test_submit_feedback_404_when_no_session(self):
-        client = TestClient(hitl_review_app)
-        response = client.post(
-            "/sessions/feedback",
+    def test_submit_feedback_404_when_no_session(self, test_client):
+        response = test_client.post(
+            "/hitl-review/sessions/feedback",
             params={
                 "dag_id": DAG_ID,
                 "run_id": "nonexistent_run",
@@ -315,10 +359,9 @@ class TestApproveEndpoint:
         yield
         _clear_db()
 
-    def test_approve_returns_session(self):
-        client = TestClient(hitl_review_app)
-        response = client.post(
-            "/sessions/approve",
+    def test_approve_returns_session(self, test_client):
+        response = test_client.post(
+            "/hitl-review/sessions/approve",
             params={"dag_id": DAG_ID, "run_id": RUN_ID, "task_id": TASK_ID},
         )
         assert response.status_code == 200
@@ -344,10 +387,9 @@ class TestRejectEndpoint:
         yield
         _clear_db()
 
-    def test_reject_returns_session(self):
-        client = TestClient(hitl_review_app)
-        response = client.post(
-            "/sessions/reject",
+    def test_reject_returns_session(self, test_client):
+        response = test_client.post(
+            "/hitl-review/sessions/reject",
             params={"dag_id": DAG_ID, "run_id": RUN_ID, "task_id": TASK_ID},
         )
         assert response.status_code == 200

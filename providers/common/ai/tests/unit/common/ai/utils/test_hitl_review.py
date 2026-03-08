@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
+from pydantic import ValidationError
+
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
-    XCOM_HITL_CHAT_URL,
     XCOM_HUMAN_ACTION,
     XCOM_HUMAN_FEEDBACK_PREFIX,
     AgentSessionData,
@@ -37,7 +39,6 @@ class TestXComConstants:
     def test_xcom_keys_have_expected_prefix(self):
         assert XCOM_AGENT_SESSION.startswith("airflow_hitl_review_")
         assert XCOM_HUMAN_ACTION.startswith("airflow_hitl_review_")
-        assert XCOM_HITL_CHAT_URL.startswith("airflow_hitl_review_")
         assert XCOM_AGENT_OUTPUT_PREFIX.startswith("airflow_hitl_review_")
         assert XCOM_HUMAN_FEEDBACK_PREFIX.startswith("airflow_hitl_review_")
 
@@ -65,6 +66,7 @@ class TestAgentSessionData:
         session = AgentSessionData()
         assert session.status == SessionStatus.PENDING_REVIEW
         assert session.iteration == 1
+        assert session.max_iterations == 5
         assert session.prompt == ""
         assert session.current_output == ""
 
@@ -72,11 +74,13 @@ class TestAgentSessionData:
         session = AgentSessionData(
             status=SessionStatus.CHANGES_REQUESTED,
             iteration=2,
+            max_iterations=3,
             prompt="Summarize",
             current_output="Draft text",
         )
         assert session.status == SessionStatus.CHANGES_REQUESTED
         assert session.iteration == 2
+        assert session.max_iterations == 3
         assert session.prompt == "Summarize"
         assert session.current_output == "Draft text"
 
@@ -98,6 +102,15 @@ class TestHumanActionData:
         assert action.feedback == "Add more detail"
         assert action.iteration == 2
 
+    def test_invalid_action_rejects_at_parse_time(self):
+        """Invalid action (e.g. typo 'approved') fails validation to avoid worker looping forever."""
+        with pytest.raises(ValidationError, match="action"):
+            HumanActionData(action="approved")
+        with pytest.raises(ValidationError, match="action"):
+            HumanActionData(action="rejected")
+        with pytest.raises(ValidationError, match="action"):
+            HumanActionData(action="unknown")
+
 
 class TestHumanFeedbackRequest:
     def test_feedback_field(self):
@@ -110,6 +123,7 @@ class TestHITLReviewResponse:
         session = AgentSessionData(
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
+            max_iterations=5,
             prompt="Summarize",
             current_output="Initial output",
         )
@@ -126,6 +140,7 @@ class TestHITLReviewResponse:
         assert resp.task_id == "task1"
         assert resp.status == "pending_review"
         assert resp.iteration == 1
+        assert resp.max_iterations == 5
         assert resp.prompt == "Summarize"
         assert resp.current_output == "Initial output"
         assert len(resp.conversation) == 1
@@ -139,6 +154,7 @@ class TestHITLReviewResponse:
         session = AgentSessionData(
             status=SessionStatus.PENDING_REVIEW,
             iteration=2,
+            max_iterations=3,
             prompt="Summarize",
             current_output="Revised output",
         )
@@ -152,6 +168,7 @@ class TestHITLReviewResponse:
             task_completed=True,
         )
         assert resp.iteration == 2
+        assert resp.max_iterations == 3
         assert resp.task_completed is True
         assert len(resp.conversation) == 3  # assistant(1), human(1), assistant(2)
         roles = [e.role for e in resp.conversation]
@@ -162,7 +179,9 @@ class TestHITLReviewResponse:
         assert "Revised output" in contents
 
     def test_from_xcom_skips_missing_iterations(self):
-        session = AgentSessionData(iteration=3, prompt="", current_output="out")
+        session = AgentSessionData(
+            iteration=3, max_iterations=5, prompt="", current_output="out"
+        )
         resp = HITLReviewResponse.from_xcom(
             dag_id="test_dag",
             run_id="test_run",

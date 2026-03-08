@@ -38,7 +38,7 @@ export const Iframe = ({
       src = src.replaceAll("{DAG_ID}", dagId);
     }
     if (runId !== undefined) {
-      src = src.replaceAll("{RUN_ID}", runId);
+      src = src.replaceAll("{RUN_ID}", encodeURIComponent(runId));
     }
     if (taskId !== undefined) {
       src = src.replaceAll("{TASK_ID}", taskId);

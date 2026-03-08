@@ -29,9 +29,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+HumanActionType = Literal["approve", "reject", "changes_requested"]
 
 """
 These xcom keys are reserved for agentic operator with HITL feedback loop.
@@ -42,7 +44,7 @@ _XCOM_PREFIX = "airflow_hitl_review_"
 XCOM_AGENT_SESSION = f"{_XCOM_PREFIX}agent_session"
 """Session metadata written by the **worker**.
 
-Value: ``{"status": "...", "iteration": N,
+Value: ``{"status": "...", "iteration": N, "max_iterations": M,
 "prompt": "...", "current_output": "..."}``.
 """
 
@@ -52,9 +54,6 @@ XCOM_HUMAN_ACTION = f"{_XCOM_PREFIX}human_action"
 Value: ``{"action": "approve"|"reject"|"changes_requested",
 "feedback": "...", "iteration": N}``.
 """
-
-XCOM_HITL_CHAT_URL = f"{_XCOM_PREFIX}chat_url"
-"""Chat page URL, written by the worker."""
 
 XCOM_AGENT_OUTPUT_PREFIX = f"{_XCOM_PREFIX}agent_output_"
 """Per-iteration AI output (append-only, written by worker).
@@ -99,6 +98,7 @@ class AgentSessionData(BaseModel):
 
     status: SessionStatus = SessionStatus.PENDING_REVIEW
     iteration: int = 1
+    max_iterations: int = 5
     prompt: str = ""
     current_output: str = ""
 
@@ -107,10 +107,12 @@ class HumanActionData(BaseModel):
     """
     Human action payload stored in the ``airflow_hitl_review_human_action`` XCom.
 
-    Written by the **plugin** only.
+    Written by the **plugin** only. Invalid ``action`` values (e.g. typos like
+    "approved") fail validation at parse time instead of causing the worker to
+    loop indefinitely.
     """
 
-    action: str
+    action: HumanActionType
     feedback: str = ""
     iteration: int = 1
 
@@ -129,6 +131,7 @@ class HITLReviewResponse(BaseModel):
     task_id: str
     status: str
     iteration: int
+    max_iterations: int = 5
     prompt: str
     current_output: str
     conversation: list[ConversationEntry] = []
@@ -160,6 +163,7 @@ class HITLReviewResponse(BaseModel):
             task_id=task_id,
             status=session.status.value,
             iteration=session.iteration,
+            max_iterations=session.max_iterations,
             prompt=session.prompt,
             current_output=session.current_output,
             conversation=conversation,

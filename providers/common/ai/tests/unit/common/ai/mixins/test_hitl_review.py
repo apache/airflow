@@ -20,14 +20,19 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic import BaseModel
 
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
     XCOM_HUMAN_ACTION,
+    AgentSessionData,
     HumanActionData,
+    SessionStatus,
+)
+from airflow.providers.standard.exceptions import (
+    HITLMaxIterationsError,
+    HITLRejectException,
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -37,11 +42,6 @@ if not AIRFLOW_V_3_1_PLUS:
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.execution_time.comms import GetXCom, XComResult
-
-
-class Summary(BaseModel):
-    text: str
-    score: float
 
 
 class FakeAgenticOperator(HITLReviewMixin):
@@ -293,3 +293,105 @@ class TestHITLReviewMixin:
         result = fake_op.run_hitl_review(context, "Initial")
 
         assert result == "Revised output"
+
+
+    def test_max_iterations_reached_raises(self, time_machine):
+        """When max iterations is exceeded after changes_requested, raise HITLMaxIterationsError."""
+        time_machine.move_to("2025-01-01 12:00:00Z")
+        op = FakeAgenticOperator()
+        op.max_hitl_iterations = 1
+
+        ti = MagicMock()
+        ti.dag_id = "d"
+        ti.run_id = "r"
+        ti.task_id = "t"
+        ti.map_index = -1
+
+        session = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=1,
+            max_iterations=1,
+            prompt="p",
+            current_output="initial",
+        )
+
+        # First poll: changes_requested → regenerate → new_iteration=2 > max → raise
+        ti.xcom_pull.return_value = HumanActionData(
+            action="changes_requested",
+            feedback="Add more",
+            iteration=1,
+        ).model_dump(mode="json")
+
+        with pytest.raises(HITLMaxIterationsError, match="Max iterations \\(1\\) reached"):
+            op._poll_loop(
+                ti=ti,
+                session=session,
+                message_history=[],
+                deadline=None,
+            )
+
+    def test_approve_before_max_returns_output(self, time_machine):
+        """When human approves before max iterations, return output."""
+        time_machine.move_to("2025-01-01 12:00:00Z")
+        op = FakeAgenticOperator()
+        op.max_hitl_iterations = 5
+
+        ti = MagicMock()
+        ti.dag_id = "d"
+        ti.run_id = "r"
+        ti.task_id = "t"
+        ti.map_index = -1
+
+        session = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=1,
+            max_iterations=5,
+            prompt="p",
+            current_output="approved output",
+        )
+
+        ti.xcom_pull.return_value = HumanActionData(
+            action="approve",
+            iteration=1,
+        ).model_dump(mode="json")
+
+        result = op._poll_loop(
+            ti=ti,
+            session=session,
+            message_history=[],
+            deadline=None,
+        )
+
+        assert result == "approved output"
+
+    def test_reject_raises(self, time_machine):
+        """When human rejects, raise HITLRejectException."""
+        time_machine.move_to("2025-01-01 12:00:00Z")
+        op = FakeAgenticOperator()
+
+        ti = MagicMock()
+        ti.dag_id = "d"
+        ti.run_id = "r"
+        ti.task_id = "t"
+        ti.map_index = -1
+
+        session = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=1,
+            max_iterations=5,
+            prompt="p",
+            current_output="output",
+        )
+
+        ti.xcom_pull.return_value = HumanActionData(
+            action="reject",
+            iteration=1,
+        ).model_dump(mode="json")
+
+        with pytest.raises(HITLRejectException, match="rejected at iteration 1"):
+            op._poll_loop(
+                ti=ti,
+                session=session,
+                message_history=[],
+                deadline=None,
+            )

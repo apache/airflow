@@ -21,13 +21,19 @@ import { type FC, useEffect } from "react";
 
 import styles from "./NoSession.module.css";
 
-const AUTO_REFRESH_MS = 5000;
+const POLL_INTERVAL_MS = 5000;
 
-export const NoSession: FC = () => {
+interface NoSessionProps {
+  /** When provided, polls periodically to check if a session appears. */
+  onRefetch?: () => Promise<void>;
+}
+
+export const NoSession: FC<NoSessionProps> = ({ onRefetch }) => {
   useEffect(() => {
-    const timer = setTimeout(() => location.reload(), AUTO_REFRESH_MS);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!onRefetch) return;
+    const timer = setInterval(() => void onRefetch(), POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [onRefetch]);
 
   return (
     <div className={styles.container}>
@@ -41,8 +47,8 @@ export const NoSession: FC = () => {
         </p>
         <div className={styles.hint}>
           <span className={styles.pulse}>&#x25CF;</span>&nbsp; If the task is
-          currently running, the session may still be initialising. This page
-          will auto-refresh.
+          currently running, the session may still be initialising. Checking
+          periodically for updates.
         </div>
       </div>
     </div>

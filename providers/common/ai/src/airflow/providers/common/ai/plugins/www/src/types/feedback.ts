@@ -36,6 +36,7 @@ export interface SessionResponse {
   task_id: string;
   status: SessionStatus;
   iteration: number;
+  max_iterations: number;
   prompt: string;
   current_output: string;
   conversation: ConversationEntry[];

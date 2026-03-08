@@ -50,6 +50,21 @@ actions. Both sides read and write the same keys.
 where workers communicate via the Execution API and XCom; the plugin runs on
 the API server and accesses the metadata database.
 
+.. important::
+   **Worker slot usage** — Each HITL task **holds a worker slot for the entire
+   review duration** (until approve, reject, or timeout or max_iterations). The operator polls
+   XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
+   and review times of 30+ minutes, the worker is occupied doing nothing most
+   of the time. Size your worker pool accordingly.
+
+**Implementation: XCom polling vs deferral** — This implementation uses XCom
+polling with ``time.sleep`` rather than the deferral/Triggerer pattern (as used
+by the standard provider's ``HITLOperator``). Deferral would free the worker
+during review but adds cross-process coordination complexity: the agent state
+(message history, tool results) lives in the worker process and would need to
+be serialized and restored across defer/resume. XCom polling keeps the flow
+simple and keeps all agent context in-process. Future versions may have different approaches.
+
 
 Workflow
 ========
@@ -71,10 +86,12 @@ Workflow
          | 6. Read action from XCom        |
          |                                 |
          | 7a. approve → return output     |
-         | 7b. reject  → raise HITLRejectionException
+         | 7b. reject  → raise HITLRejectException
          | 7c. changes_requested           |
          |     → regenerate_with_feedback  |
          |     → push output_2, loop to 3  |
+         | 7d. max_iterations reached      |
+         |     → raise HITLMaxIterationsError
 
 
 Using HITL Review with AgentOperator
@@ -103,13 +120,11 @@ Enable the review loop with ``enable_hitl_review=True``:
 - ``enable_hitl_review`` — When ``True``, the operator enters the review loop
   after the first generation. Default ``False``.
 - ``max_hitl_iterations`` — Maximum generate–review cycles. After this, the
-  last output is returned. Default ``5``.
+  task fails with ``HITLMaxIterationsError``. Default ``5``.
 - ``hitl_timeout`` — Maximum wall-clock time to wait for all review rounds.
   ``None`` = no timeout (blocks until a terminal action).
 - ``hitl_poll_interval`` — Seconds between XCom polls while waiting for a
   human response. Default ``10``.
-- ``webhook_url`` — Optional URL to POST a JSON notification when a session is
-  created or a new output is generated.
 
 **Extra link** — When HITL review is enabled, the task instance page shows an
 **HITL Review** link that opens the chat window for that task.
@@ -182,6 +197,7 @@ Response model: HITLReviewResponse
         "task_id": str,
         "status": "pending_review" | "changes_requested" | "approved" | "rejected",
         "iteration": int,
+        "max_iterations": int,
         "prompt": str,
         "current_output": str,
         "conversation": [{"role": "assistant" | "human", "content": str, "iteration": int}],

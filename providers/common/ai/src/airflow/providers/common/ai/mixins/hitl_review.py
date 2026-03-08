@@ -42,6 +42,7 @@ class HITLReviewProtocol(Protocol):
     """Attributes that the host operator must provide."""
 
     enable_hitl_review: bool
+    max_hitl_iterations: int
     hitl_timeout: timedelta | None
     hitl_poll_interval: float
     prompt: str
@@ -93,7 +94,10 @@ class HITLReviewMixin:
         :param message_history: Provider-specific conversation state (e.g.
             pydantic-ai ``list[ModelMessage]``).  Passed to
             :meth:`regenerate_with_feedback` on each iteration.
-        :returns: The final approved (or max-iteration) output as a string.
+        :returns: The final approved output as a string.
+        :raises HITLMaxIterationsError: When max iterations reached without approval.
+        :raises HITLRejectException: When the reviewer rejects the output.
+        :raises HITLTimeoutError: When hitl_timeout elapses with no response.
         """
         output_str = self._to_string(output)
         ti = context["task_instance"]
@@ -101,6 +105,7 @@ class HITLReviewMixin:
         session = AgentSessionData(
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
+            max_iterations=self.max_hitl_iterations,
             prompt=self.prompt,
             current_output=output_str,
         )
@@ -136,9 +141,10 @@ class HITLReviewMixin:
         """
         Block until the session reaches a terminal state.
 
-        This loops until the human actions approved or rejected or the timeout expires.
+        This loops until the human approves, rejects, or the timeout/max iterations is reached.
         """
         from airflow.providers.standard.exceptions import (
+            HITLMaxIterationsError,
             HITLRejectException,
             HITLTimeoutError,
         )
@@ -149,10 +155,18 @@ class HITLReviewMixin:
                 raise HITLTimeoutError(f"No response within {self.hitl_timeout}.")
 
             time.sleep(self.hitl_poll_interval)
-            action_raw = ti.xcom_pull(key=XCOM_HUMAN_ACTION, task_ids=ti.task_id, map_indexes=ti.map_index)
+            try:
+                action_raw = ti.xcom_pull(
+                    key=XCOM_HUMAN_ACTION, task_ids=ti.task_id, map_indexes=ti.map_index
+                )
+            except Exception:
+                self.log.warning("Failed to pull XCom", exc_info=True)
+                continue
+
             if action_raw is None:
-                # Human action may take some time to propagate; it must be performed in the UI, after which
-                # the plugin updates XCom with this XCOM_HUMAN_ACTION. Until then, continue looping.
+                # Human action may take some time to propagate; it must be performed in the UI,
+                # after which the plugin updates XCom with this XCOM_HUMAN_ACTION. Until then,
+                # continue looping.
                 continue
 
             try:
@@ -194,9 +208,15 @@ class HITLReviewMixin:
                 )
 
                 new_iteration = session.iteration + 1
+                if new_iteration > self.max_hitl_iterations:
+                    raise HITLMaxIterationsError(
+                        f"Max iterations ({self.max_hitl_iterations}) reached without approval or rejection."
+                    )
+
                 session = AgentSessionData(
                     status=SessionStatus.PENDING_REVIEW,
                     iteration=new_iteration,
+                    max_iterations=self.max_hitl_iterations,
                     prompt=self.prompt,
                     current_output=new_output,
                 )

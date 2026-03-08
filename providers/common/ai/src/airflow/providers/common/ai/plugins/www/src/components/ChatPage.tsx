@@ -49,12 +49,13 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
 };
 
 export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) => {
-  const { session, error, loading, taskActive, sendFeedback, approve, reject } =
+  const { session, error, loading, taskActive, sendFeedback, approve, reject, refetch } =
     useSession(dagId, runId, taskId, mapIndex);
 
   const [feedbackText, setFeedbackText] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -81,15 +82,18 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
 
   const handleSend = useCallback(async () => {
     const text = feedbackText.trim();
-    if (!text) return;
+    if (!text || isSending) return;
+    setIsSending(true);
     try {
       await sendFeedback(text);
       setFeedbackText("");
       setToast({ msg: "Feedback sent", ok: true });
     } catch (err) {
       setToast({ msg: err instanceof Error ? err.message : "Error", ok: false });
+    } finally {
+      setIsSending(false);
     }
-  }, [feedbackText, sendFeedback]);
+  }, [feedbackText, sendFeedback, isSending]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -103,6 +107,8 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
   const execConfirm = useCallback(async () => {
     const action = confirmAction;
     setConfirmAction(null);
+    if (!action || isSending) return;
+    setIsSending(true);
     try {
       if (action === "approve") {
         await approve();
@@ -113,8 +119,10 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
       }
     } catch (err) {
       setToast({ msg: err instanceof Error ? err.message : "Error", ok: false });
+    } finally {
+      setIsSending(false);
     }
-  }, [confirmAction, approve, reject]);
+  }, [confirmAction, approve, reject, isSending]);
 
   if (loading) {
     return (
@@ -132,7 +140,7 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
 
   if (!session) {
     if (taskActive === false) {
-      return <NoSession />;
+      return <NoSession onRefetch={refetch} />;
     }
 
     return (
@@ -178,8 +186,11 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
       </header>
 
       <div className={styles.chat} ref={chatRef}>
-        {session.conversation.map((entry, idx) => (
-          <MessageBubble key={idx} entry={entry} />
+        {session.conversation.map((entry) => (
+          <MessageBubble
+            key={`${entry.role}-${entry.iteration}`}
+            entry={entry}
+          />
         ))}
         {session.status === "pending_review" && !isTerminal && (
           <div className={styles.waiting}>
@@ -217,10 +228,10 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
                 <textarea
                   ref={textareaRef}
                   className={styles.textarea}
-                  placeholder="Type feedback for the LLM..."
+                  placeholder="Type feedback for the LLM... (Ctrl+Enter to send)"
                   rows={1}
                   value={feedbackText}
-                  disabled={!canAct}
+                  disabled={!canAct || isSending}
                   onChange={(e) => {
                     setFeedbackText(e.target.value);
                     autoResize();
@@ -229,7 +240,7 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
                 />
                 <button
                   className={styles.btnSend}
-                  disabled={!canAct}
+                  disabled={!canAct || isSending}
                   onClick={() => void handleSend()}
                 >
                   Send
@@ -238,14 +249,14 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
               <div className={styles.actions}>
                 <button
                   className={styles.btnApprove}
-                  disabled={!canAct}
+                  disabled={!canAct || isSending}
                   onClick={() => setConfirmAction("approve")}
                 >
                   Approve
                 </button>
                 <button
                   className={styles.btnReject}
-                  disabled={!canAct}
+                  disabled={!canAct || isSending}
                   onClick={() => setConfirmAction("reject")}
                 >
                   Reject
@@ -264,6 +275,7 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
               <div className={styles.actions}>
                 <button
                   className={styles.btnApprove}
+                  disabled={isSending}
                   onClick={() => void execConfirm()}
                 >
                   Yes

@@ -60,6 +60,7 @@ class HITLReviewLink(BaseOperatorLink):
         return (
             f"/hitl-review/chat-by-task"
             f"?dag_id={ti_key.dag_id}&run_id={ti_key.run_id}&task_id={ti_key.task_id}"
+            f"&map_index={ti_key.map_index}"
         )
 
 
@@ -94,14 +95,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         at ``/hitl-review`` or through the **HITL Review** extra link
         on the task instance.  Default ``False``.
     :param max_hitl_iterations: Maximum generate-review cycles.
-        After this limit the last output is returned.  Default ``5``.
+        After this limit the task fails with ``HITLMaxIterationsError``.  Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
         all review rounds combined.  ``None`` means no timeout (the
         operator blocks until a terminal action).
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
-    :param webhook_url: Optional URL to POST a JSON notification to
-        whenever a session is created or a new output is generated.
     """
 
     template_fields: Sequence[str] = (
@@ -130,7 +129,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         max_hitl_iterations: int = 5,
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 10.0,
-        webhook_url: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -148,7 +146,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
-        self.webhook_url = webhook_url
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:

@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, createApi } from "src/hooks/useApi";
+import { ApiError, createApi } from "src/api";
 import type { SessionResponse } from "src/types/feedback";
 
 const POLL_INTERVAL_MS = 3000;
@@ -33,6 +33,8 @@ interface UseSessionReturn {
   sendFeedback: (text: string) => Promise<void>;
   approve: () => Promise<void>;
   reject: () => Promise<void>;
+  /** Refetch session (e.g. when polling from NoSession). */
+  refetch: () => Promise<void>;
 }
 
 export function useSession(
@@ -93,6 +95,21 @@ export function useSession(
 
   const sendFeedback = useCallback(
     async (text: string) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: "changes_requested" as const,
+          conversation: [
+            ...prev.conversation,
+            {
+              role: "human" as const,
+              content: text,
+              iteration: prev.iteration,
+            },
+          ],
+        };
+      });
       try {
         const data = await apiRef.current.submitFeedback(text);
         setSession(data);
@@ -123,5 +140,5 @@ export function useSession(
     }
   }, [stopPolling]);
 
-  return { session, error, loading, taskActive, sendFeedback, approve, reject };
+  return { session, error, loading, taskActive, sendFeedback, approve, reject, refetch: fetchSession };
 }
