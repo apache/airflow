@@ -1,0 +1,53 @@
+airflow/www/static/js/dag/details/graph/index.tsx
+  be37790f5d21f3e8 122
+airflow/www/static/js/dag.js
+  be37790f5d21f3e8 60
+airflow/www/static/js/dag/details/dag/Calendar.tsx
+  be37790f5d21f3e8 54-55,142,194
+airflow/www/static/js/main.js
+  be37790f5d21f3e8 19
+airflow/www/static/js/components/NewTable/NewTable.tsx
+  be37790f5d21f3e8 67,74
+airflow/www/static/js/dag/details/taskInstance/Logs/LogBlock.tsx
+  be37790f5d21f3e8 123
+airflow/www/static/js/components/utils.ts
+  be37790f5d21f3e8 20
+airflow/www/static/js/components/Time.test.tsx
+  be37790f5d21f3e8 20
+airflow/www/static/js/components/ReactECharts.tsx
+  be37790f5d21f3e8 31
+airflow/www/static/js/components/Table/CardList.tsx
+  be37790f5d21f3e8 49,76
+airflow/www/static/js/api/useRenderedK8s.ts
+  be37790f5d21f3e8 35
+airflow/www/static/js/utils/handleError.ts
+  be37790f5d21f3e8 22,24-26,33
+airflow/www/static/js/dag/nav/FilterBar.tsx
+  be37790f5d21f3e8 82
+airflow/www/static/js/api/index.ts
+  be37790f5d21f3e8 61-63,65-66
+airflow/www/static/js/components/TriggeredDagRuns.tsx
+  be37790f5d21f3e8 46
+airflow/www/static/js/components/NewTable/searchParams.ts
+  be37790f5d21f3e8 95,119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "51ee87b5922302186961ad54f1e519797e8e779b",
+  "prompts": {
+    "be37790f5d21f3e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4ce144ad-eb8d-40c5-b3f7-cc163698aa45",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jarek Potiuk <jarek@potiuk.com>",
+      "messages": [],
+      "total_additions": 36,
+      "total_deletions": 29,
+      "accepted_lines": 32,
+      "overriden_lines": 0
+    }
+  }
+}
