@@ -138,6 +138,13 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.upload-package-artifact == 'true'
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: inputs.upload-package-artifact == 'true'
@@ -224,7 +231,7 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
         with:
           name: prod-packages
           path: ./docker-context-files
@@ -235,10 +242,12 @@ jobs:
       - name: "Show downloaded packages"
         run: ls -la ./docker-context-files
       - name: "Download constraints"
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
         with:
-          pattern: constraints-*
-          path: ./docker-context-files
+          name: constraints-${{ matrix.python-version }}
+          path: ./docker-context-files/constraints-${{ matrix.python-version }}
+      - name: "Show downloaded files"
+        run: ls -R ./docker-context-files
       - name: "Show constraints"
         run: |
           for file in ./docker-context-files/constraints*/constraints*.txt
