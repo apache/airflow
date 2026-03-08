@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.standard.exceptions import HITLMaxIterationsError
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
@@ -193,9 +194,7 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_enable_hitl_review_delegates_to_run_hitl_review(
-        self, mock_hook_cls, mock_run_hitl
-    ):
+    def test_execute_with_enable_hitl_review_delegates_to_run_hitl_review(self, mock_hook_cls, mock_run_hitl):
         """When enable_hitl_review=True, execute delegates to run_hitl_review with output and message_history."""
         msg_history = [MagicMock()]
         mock_result = _make_mock_run_result("Initial output")
@@ -216,26 +215,20 @@ class TestAgentOperatorExecute:
         result = op.execute(context=context)
 
         assert result == "Approved output"
-        mock_run_hitl.assert_called_once_with(
-            op, context, "Initial output", message_history=msg_history
-        )
+        mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_propagates_hitl_max_iterations_error(
-        self, mock_hook_cls, mock_run_hitl
-    ):
+    def test_execute_propagates_hitl_max_iterations_error(self, mock_hook_cls, mock_run_hitl):
         """When run_hitl_review raises HITLMaxIterationsError, execute propagates it."""
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.side_effect = HITLMaxIterationsError(
-            "Max iterations (5) reached without approval."
-        )
+        mock_run_hitl.side_effect = HITLMaxIterationsError("Max iterations (5) reached without approval.")
 
         op = AgentOperator(
             task_id="test",
@@ -291,10 +284,7 @@ class TestHITLReviewLink:
         link = HITLReviewLink()
         result = link.get_link(op, ti_key=ti_key)
 
-        assert result == (
-            "/hitl-review/chat-by-task"
-            "?dag_id=my_dag&run_id=run_1&task_id=my_task&map_index=2"
-        )
+        assert result == ("/hitl-review/chat-by-task?dag_id=my_dag&run_id=run_1&task_id=my_task&map_index=2")
 
 
 @pytest.mark.skipif(

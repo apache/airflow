@@ -148,6 +148,7 @@ class HITLReviewMixin:
             HITLRejectException,
             HITLTimeoutError,
         )
+
         last_seen_iteration = 0
 
         while True:

@@ -58,7 +58,6 @@ def _get_base_url_path(path: str) -> str:
     """Construct URL path with webserver base_url prefix for non-root deployments."""
     base_url = conf.get("api", "base_url", fallback="/")
     if base_url.startswith(("http://", "https://")):
-
         base_path = urlparse(base_url).path
     else:
         base_path = base_url
@@ -69,10 +68,10 @@ def _get_base_url_path(path: str) -> str:
 def _get_chat_html() -> str:
     base_prefix = _get_base_url_path(_PLUGIN_PREFIX)
     static_prefix = _get_base_url_path(f"{_PLUGIN_PREFIX}/static")
-    return (
-        _CHAT_HTML_SHELL.replace("__BASE_PREFIX__", base_prefix)
-        .replace("__STATIC_PREFIX__", static_prefix)
+    return _CHAT_HTML_SHELL.replace("__BASE_PREFIX__", base_prefix).replace(
+        "__STATIC_PREFIX__", static_prefix
     )
+
 
 def _get_session():
     with create_session(scoped=False) as session:
@@ -159,13 +158,15 @@ def _parse_model(model_cls, raw):
     return model_cls.model_validate(raw)
 
 
-_RUNNING_TI_STATES = frozenset({
-    TaskInstanceState.RUNNING,
-    TaskInstanceState.DEFERRED,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.QUEUED,
-    TaskInstanceState.SCHEDULED,
-})
+_RUNNING_TI_STATES = frozenset(
+    {
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.SCHEDULED,
+    }
+)
 
 
 def _is_task_completed(

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -297,7 +298,6 @@ class TestHITLReviewMixin:
         result = fake_op.run_hitl_review(context, "Initial")
 
         assert result == "Revised output"
-
 
     def test_max_iterations_reached_raises(self, time_machine):
         """When max iterations is exceeded after changes_requested, raise HITLMaxIterationsError."""

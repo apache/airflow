@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -184,9 +185,7 @@ class TestHITLReviewResponse:
         assert "Revised output" in contents
 
     def test_from_xcom_skips_missing_iterations(self):
-        session = AgentSessionData(
-            iteration=3, max_iterations=5, prompt="", current_output="out"
-        )
+        session = AgentSessionData(iteration=3, max_iterations=5, prompt="", current_output="out")
         resp = HITLReviewResponse.from_xcom(
             dag_id="test_dag",
             run_id="test_run",

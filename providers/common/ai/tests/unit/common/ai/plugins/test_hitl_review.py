@@ -29,8 +29,11 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import time_machine
+from fastapi.testclient import TestClient
 
-from airflow.utils import timezone
+from airflow import plugins_manager
+from airflow.api_fastapi.app import create_app, purge_cached_app
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XComModel
 from airflow.providers.common.ai.plugins.hitl_review import (
@@ -40,11 +43,6 @@ from airflow.providers.common.ai.plugins.hitl_review import (
     _read_xcom_by_prefix,
     hitl_review_app,
 )
-from fastapi.testclient import TestClient
-
-from airflow.api_fastapi.app import create_app, purge_cached_app
-from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow import plugins_manager
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
@@ -53,6 +51,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     SessionStatus,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
@@ -66,7 +65,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("HITL Review is only compatible with Airflow >= 3.1.0", allow_module_level=True)
-
 
 
 from tests_common.test_utils.config import conf_vars
@@ -87,18 +85,22 @@ RUN_ID = DagRun.generate_run_id(
 )
 MAP_INDEX = -1
 
+
 @pytest.fixture
 def test_client():
     """Test client for HITL Review plugin endpoints. Use full paths like /hitl-review/sessions/find."""
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
-            ("core", "lazy_discover_providers"): "false",
-        }
-    ), mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False):
+    with (
+        conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+                ("core", "lazy_discover_providers"): "false",
+            }
+        ),
+        mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+    ):
         plugins_manager._get_plugins.cache_clear()
         plugins_manager.get_fastapi_plugins.cache_clear()
         purge_cached_app()
@@ -120,7 +122,6 @@ def test_client():
                 headers={"Authorization": f"Bearer {token}"},
                 base_url=BASE_URL,
             )
-
 
 
 class TestGetMapIndex:
@@ -204,7 +205,6 @@ class TestHITLReviewPlugin:
         assert len(HITLReviewPlugin.fastapi_apps) == 1
         assert HITLReviewPlugin.fastapi_apps[0]["name"] == "hitl-review"
         assert "url_prefix" in HITLReviewPlugin.fastapi_apps[0]
-
 
 
 def _clear_db():
