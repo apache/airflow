@@ -1,4 +1,4 @@
-Improve task instance selection in Dag callbacks to pass context-relevant tasks based on Dag state instead of arbitrary lexicographic selection.  
+Improve task instance selection in Dag callbacks to pass context-relevant tasks based on Dag state instead of arbitrary lexicographic selection.
 
 Previously, Dag callbacks received context from the lexicographically last task, which provided no meaningful correlation with the Dag's final state.
 Now callbacks receive context from a task instance that reflects the Dag's actual outcome:
@@ -7,5 +7,5 @@ Now callbacks receive context from a task instance that reflects the Dag's actua
 * On timeout: the latest started but unfinished task
 * On deadlock: a task that should have run next but couldn't
 * On success: the latest succeeded task
-  
+
 This change provides more meaningful context for Dag-level callbacks while maintaining backward compatibility.
