@@ -109,7 +109,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      core-ui-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
@@ -130,7 +130,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      auth-ui-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
@@ -187,13 +187,13 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      core-ui-package-updates:
+      registry-package-updates:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      registry-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
