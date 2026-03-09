@@ -38,7 +38,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.taskinstance import run_task_instance
 
-API_VERSION = "v4"
+API_VERSION = "v5"
 GCP_CONN_ID = "google_cloud_default"
 
 CONVERSION = {

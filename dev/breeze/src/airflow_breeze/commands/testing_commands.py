@@ -86,6 +86,7 @@ from airflow_breeze.commands.release_management_commands import option_distribut
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
+    ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
     all_selective_core_test_types,
@@ -571,6 +572,16 @@ option_test_type_helm = click.option(
     envvar="TEST_TYPE",
     show_default=True,
     type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.HELM]),
+)
+# Strip "v" prefix from ALLOWED_KUBERNETES_VERSIONS for helm tests (schemas use bare versions)
+_HELM_K8S_VERSIONS = [v.lstrip("v") for v in ALLOWED_KUBERNETES_VERSIONS]
+option_helm_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version to validate helm templates against",
+    default=_HELM_K8S_VERSIONS[0],
+    envvar="HELM_TEST_KUBERNETES_VERSION",
+    show_default=True,
+    type=BetterChoice(_HELM_K8S_VERSIONS),
 )
 option_test_type_task_sdk_group = click.option(
     "--test-type",
@@ -1243,6 +1254,7 @@ def system_tests(
 @option_test_timeout
 @option_parallelism
 @option_test_type_helm
+@option_helm_kubernetes_version
 @option_use_xdist
 @option_verbose
 @option_dry_run
@@ -1253,6 +1265,7 @@ def helm_tests(
     github_repository: str,
     test_timeout: int,
     test_type: str,
+    kubernetes_version: str,
     parallelism: int,
     use_xdist: bool,
 ):
@@ -1263,6 +1276,7 @@ def helm_tests(
         test_type=test_type,
     )
     env = shell_params.env_variables_for_docker_commands
+    env["HELM_TEST_KUBERNETES_VERSION"] = kubernetes_version
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1373,7 +1387,7 @@ option_e2e_test_mode = click.option(
     default="basic",
     show_default=True,
     envvar="E2E_TEST_MODE",
-    type=click.Choice(["basic", "remote_log"], case_sensitive=False),
+    type=click.Choice(["basic", "remote_log", "xcom_object_storage"], case_sensitive=False),
 )
 
 
@@ -1594,17 +1608,18 @@ def ui_e2e_tests(
         if report_path.exists():
             get_console().print(f"[info]Report: file://{report_path}[/]")
 
-        stop_docker_compose(tmp_dir)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
         if result.returncode != 0:
             sys.exit(result.returncode)
 
+    except KeyboardInterrupt:
+        get_console().print("\n[warning]Interrupted by user.[/]")
+        sys.exit(1)
     except Exception as e:
         get_console().print(f"[error]{str(e)}[/]")
+        sys.exit(1)
+    finally:
         stop_docker_compose(tmp_dir)
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        sys.exit(1)
 
 
 class TimeoutHandler:

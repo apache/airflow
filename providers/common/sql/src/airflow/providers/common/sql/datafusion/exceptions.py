@@ -29,3 +29,7 @@ class FileFormatRegistrationException(AirflowException):
 
 class QueryExecutionException(AirflowException):
     """Error while executing query."""
+
+
+class IcebergRegistrationException(AirflowException):
+    """Error while registering Iceberg table with DataFusion."""
