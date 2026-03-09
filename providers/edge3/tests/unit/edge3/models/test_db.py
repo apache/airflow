@@ -176,16 +176,11 @@ class TestEdgeDBManager:
         mock_get_rev.return_value = None
         mock_inspect.return_value.get_table_names.return_value = []  # no tables exist
 
-        mock_inspector = mock.MagicMock()
+        manager = EdgeDBManager(session)
+        manager.initdb()
 
-        # Setup mock inspector to make databases clean
-        mock_inspector.has_table.return_value = False
-        with mock.patch("airflow.providers.edge3.models.db.inspect", return_value=mock_inspector):
-            manager = EdgeDBManager(session)
-            manager.initdb()
-
-            mock_create.assert_called_once()
-            mock_upgrade.assert_not_called()
+        mock_create.assert_called_once()
+        mock_upgrade.assert_not_called()
 
     @mock.patch.object(
         __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
@@ -199,22 +194,17 @@ class TestEdgeDBManager:
         __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
         "get_current_revision",
     )
-    def test_initdb_table_already_exist(self, mock_get_rev, mock_create, mock_upgrade, session):
-        """Test that initdb calls upgradedb for databases tables already exists."""
+    def test_initdb_existing_db(self, mock_get_rev, mock_create, mock_upgrade, session):
+        """Test that initdb calls upgradedb for existing databases."""
         from airflow.providers.edge3.models.db import EdgeDBManager
 
-        mock_get_rev.return_value = None
+        mock_get_rev.return_value = "9d34dfc2de06"
 
-        mock_inspector = mock.MagicMock()
+        manager = EdgeDBManager(session)
+        manager.initdb()
 
-        # Setup mock inspector to make databases table already exists
-        mock_inspector.has_table.return_value = True
-        with mock.patch("airflow.providers.edge3.models.db.inspect", return_value=mock_inspector):
-            manager = EdgeDBManager(session)
-            manager.initdb()
-
-            mock_create.assert_not_called()
-            mock_upgrade.assert_called_once()
+        mock_upgrade.assert_called_once()
+        mock_create.assert_not_called()
 
     def test_revision_heads_map_populated(self):
         """Test that _REVISION_HEADS_MAP is populated with all known migrations."""
