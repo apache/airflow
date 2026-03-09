@@ -17,20 +17,15 @@
 
 [build-system]
 requires = [
-    "distlib==0.4.0",
-    "filelock==3.24.3",
     "gitdb==4.0.12",
     "GitPython==3.1.46",
     "hatchling==1.29.0",
     "packaging==26.0",
     "pathspec==1.0.4",
-    "platformdirs==4.9.2",
     "pluggy==1.6.0",
-    "smmap==5.0.2",
+    "smmap==5.0.3",
     "tomli==2.4.0; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
-    "typing-extensions==4.15.0; python_version < '3.11'",
-    "virtualenv==20.39.1",
 ]
 build-backend = "hatchling.build"
 
@@ -91,8 +86,11 @@ dependencies = [
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
-    "cryptography>=41.0.0,<46.0.0",
+    # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
+    # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
+    # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
+    # support for Airflow 3.1.
+    "cryptography>=44.0.3",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
@@ -289,7 +287,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
+    "apache-airflow-providers-fab>=2.2.0",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]

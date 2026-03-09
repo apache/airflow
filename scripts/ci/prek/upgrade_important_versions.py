@@ -241,8 +241,8 @@ def get_latest_image_version(image: str) -> str:
     version_tags = []
     for tag in tags:
         tag_name = tag["name"]
-        # Skip tags like 'latest', 'stable', etc.
-        if tag_name in ["latest", "stable", "main", "master"]:
+        # Skip tags like 'latest', 'stable', '0', 'v0', etc.
+        if tag_name in ["latest", "stable", "main", "master", "0", "v0"]:
             continue
         try:
             # Try to parse as version to filter out non-version tags
@@ -691,12 +691,12 @@ def sync_breeze_lock_file() -> None:
 
 def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
     """
-    Resolve the full transitive dependency list for hatchling (with virtualenv<21) using uv pip compile.
+    Resolve the full transitive dependency list for hatchling using uv pip compile.
 
     When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
     Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
     """
-    packages = ["hatchling", "virtualenv<21"]
+    packages = ["hatchling"]
     if with_gitpython:
         packages.append("gitpython")
 

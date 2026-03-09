@@ -30,7 +30,7 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       # Handle all PRs (45-day stale) and pending-response issues (14-day stale)
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
         with:
           stale-pr-message: >
             This pull request has been automatically marked as stale because it has not had
@@ -50,7 +50,7 @@ jobs:
           close-issue-message: >
             This issue has been closed because it has not received response from the issue author.
       # Handle PRs with pending-response label (7-day stale, faster response expected)
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
         with:
           only-pr-labels: 'pending-response'
           days-before-pr-stale: 7

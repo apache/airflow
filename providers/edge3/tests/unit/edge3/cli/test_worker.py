@@ -393,6 +393,33 @@ class TestEdgeWorker:
         assert "queue2" in (queue_list)
 
     @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_heartbeat_adopts_remote_concurrency(self, mock_set_state, worker_with_job: EdgeWorker):
+        EdgeWorker.jobs = []
+        EdgeWorker.drain = False
+        EdgeWorker.maintenance_mode = False
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.IDLE, queues=None, concurrency=32
+        )
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job.heartbeat()
+        assert worker_with_job.concurrency == 32
+
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_heartbeat_no_concurrency_override_keeps_startup_value(
+        self, mock_set_state, worker_with_job: EdgeWorker
+    ):
+        EdgeWorker.jobs = []
+        EdgeWorker.drain = False
+        EdgeWorker.maintenance_mode = False
+        original_concurrency = worker_with_job.concurrency
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.IDLE, queues=None, concurrency=None
+        )
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job.heartbeat()
+        assert worker_with_job.concurrency == original_concurrency
+
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
     async def test_version_mismatch(self, mock_set_state, worker_with_job):
         mock_set_state.side_effect = EdgeWorkerVersionException("")
         await worker_with_job.heartbeat()

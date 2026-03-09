@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 __all__ = [
     "__version__",
+    "AllowedKeyMapper",
     "Asset",
     "AssetAlias",
     "AssetAll",
@@ -28,11 +29,14 @@ __all__ = [
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
+    "BaseBranchOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
+    "BranchMixIn",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -59,9 +63,12 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
+    "ProductMapper",
     "QuarterlyMapper",
+    "SkipMixin",
     "SyncCallback",
     "TaskGroup",
+    "TaskInstance",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
@@ -90,6 +97,7 @@ __version__ = "1.2.0"
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
+    from airflow.sdk.bases.branch import BaseBranchOperator, BranchMixIn
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import (
@@ -101,6 +109,8 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.skipmixin import SkipMixin
+    from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
@@ -114,8 +124,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+    from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
         DailyMapper,
         HourlyMapper,
@@ -146,10 +158,12 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
+    from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
+    "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
@@ -158,11 +172,14 @@ __lazy_imports: dict[str, str] = {
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
+    "BaseBranchOperator": ".bases.branch",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "BaseXCom": ".bases.xcom",
+    "BranchMixIn": ".bases.branch",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -189,10 +206,13 @@ __lazy_imports: dict[str, str] = {
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
+    "ProductMapper": ".definitions.partition_mappers.product",
     "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
+    "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
+    "TaskInstance": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",

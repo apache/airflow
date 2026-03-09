@@ -265,6 +265,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--test-type",
                 "--test-timeout",
+                "--kubernetes-version",
                 "--use-xdist",
                 "--parallelism",
             ],

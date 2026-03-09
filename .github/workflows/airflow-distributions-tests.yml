@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
@@ -115,7 +115,7 @@ jobs:
         # Pin on virtualenv is temporary for pypa/hatch#2193
         run: |
           uv tool uninstall hatch || true
-          uv tool install hatch==1.16.4 --with 'virtualenv<21'
+          uv tool install hatch==1.16.5
           breeze release-management "${DISTRIBUTION_TYPE}" --distribution-format wheel
         if: ${{ matrix.python-version == inputs.default-python-version }}
       - name: "Verify wheel packages with twine"

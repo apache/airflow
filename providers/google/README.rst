@@ -92,7 +92,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.21.0``
+``google-cloud-dataproc``                   ``>=5.25.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``
@@ -182,7 +182,7 @@ Extra                 Dependencies
 ====================  ================================================================
 ``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
-``fab``               ``apache-airflow-providers-fab>=2.0.0; python_version < '3.13'``
+``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``

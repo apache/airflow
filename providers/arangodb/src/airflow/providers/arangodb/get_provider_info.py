@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "ArangoDB",
                 "external-doc-url": "https://www.arangodb.com/",
+                "logo": "/docs/integration-logos/ArangoDB.svg",
                 "tags": ["software"],
             }
         ],
