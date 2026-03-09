@@ -1137,7 +1137,10 @@ export type LastAssetEventResponse = {
  * Request body for patching the state of all task instances in a task group.
  */
 export type PatchTaskGroupBody = {
-    new_state: TaskInstanceState;
+    new_state?: TaskInstanceState | null;
+    note?: string | null;
+    include_upstream?: boolean;
+    include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
 };
@@ -3164,6 +3167,7 @@ export type PatchTaskGroupInstancesData = {
     dagRunId: string;
     groupId: string;
     requestBody: PatchTaskGroupBody;
+    updateMask?: Array<(string)> | null;
 };
 
 export type PatchTaskGroupInstancesResponse = TaskInstanceCollectionResponse;

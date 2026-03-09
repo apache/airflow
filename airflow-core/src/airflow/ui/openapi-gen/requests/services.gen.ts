@@ -2581,6 +2581,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.groupId
      * @param data.requestBody
+     * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2592,6 +2593,9 @@ export class TaskInstanceService {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
                 group_id: data.groupId
+            },
+            query: {
+                update_mask: data.updateMask
             },
             body: data.requestBody,
             mediaType: 'application/json',

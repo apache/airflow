@@ -4457,7 +4457,36 @@ export const $LastAssetEventResponse = {
 export const $PatchTaskGroupBody = {
     properties: {
         new_state: {
-            '$ref': '#/components/schemas/TaskInstanceState'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        include_upstream: {
+            type: 'boolean',
+            title: 'Include Upstream',
+            default: false
+        },
+        include_downstream: {
+            type: 'boolean',
+            title: 'Include Downstream',
+            default: false
         },
         include_future: {
             type: 'boolean',
@@ -4472,7 +4501,6 @@ export const $PatchTaskGroupBody = {
     },
     additionalProperties: false,
     type: 'object',
-    required: ['new_state'],
     title: 'PatchTaskGroupBody',
     description: 'Request body for patching the state of all task instances in a task group.'
 } as const;

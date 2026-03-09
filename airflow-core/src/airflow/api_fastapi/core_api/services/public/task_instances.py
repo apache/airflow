@@ -30,7 +30,6 @@ from sqlalchemy.orm.session import Session
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
-    BulkAction,
     BulkActionNotOnExistence,
     BulkActionResponse,
     BulkBody,
@@ -51,6 +50,17 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
+
+
+def _collect_unique_tis(
+    affected_tis_dict: dict[tuple[str, str, str, int], TI],
+    tis: list[TI] | None,
+) -> None:
+    """Collect unique task instances into a dictionary keyed by (dag_id, run_id, task_id, map_index)."""
+    if tis:
+        for ti in tis:
+            key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index)
+            affected_tis_dict[key] = ti
 
 
 def _patch_ti_validate_request(
@@ -98,6 +108,64 @@ def _patch_ti_validate_request(
     return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
 
 
+def _get_task_group_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag: SerializedDAG,
+    session: Session,
+) -> list[TI]:
+    """Get all task instances in a task group for a specific DAG run."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id.in_(task_ids),
+        )
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+        .order_by(TI.task_id, TI.map_index)
+    )
+
+    group_tis = list(session.scalars(query).all())
+
+    return group_tis
+
+
+def _patch_ti_group_validate_request(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskGroupBody,
+    session: SessionDep,
+    update_mask: list[str] | None = Query(None),
+) -> tuple[SerializedDAG, list[TI], dict]:
+    """Validate and prepare data for task group patch request."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
+
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskGroupBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return dag, tis, body.model_dump(include=fields_to_update, by_alias=True)
+
+
 def _patch_task_instance_state(
     task_id: str,
     dag_run_id: str,
@@ -105,7 +173,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -142,9 +210,11 @@ def _patch_task_instance_state(
         except Exception:
             log.exception("error calling listener")
 
+    return updated_tis
+
 
 def _patch_task_instance_note(
-    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
+    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody | PatchTaskGroupBody,
     tis: list[TI],
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
@@ -184,71 +254,107 @@ def _get_task_group_task_ids(
             f"Task group '{group_id}' not found in DAG '{dag.dag_id}'",
         )
 
-    task_ids = [task.task_id for task in task_group.iter_tasks()]
-    if not task_ids:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Task group '{group_id}' in DAG '{dag.dag_id}' has no tasks",
-        )
-
-    return task_ids
+    return [task.task_id for task in task_group.iter_tasks()]
 
 
-def _patch_task_group_state(
-    *,
+def _patch_task_group_state_bulk(
+    dag: SerializedDAG,
     dag_id: str,
     dag_run_id: str,
-    group_id: str,
-    body: PatchTaskGroupBody,
-    dag_bag: DagBagDep,
-    user: GetUserDep,
+    task_ids: list[str],
+    new_state: TaskInstanceState,
+    include_upstream: bool,
+    include_downstream: bool,
+    include_future: bool,
+    include_past: bool,
     session: Session,
-) -> None:
+) -> list[TI]:
     """
-    Set the state of all task instances in a task group.
+    Bulk update state for multiple task instances in a task group.
 
-    Uses BulkTaskInstanceService to update each task in the group.
+    Optimized for the common case where no upstream/downstream/future/past traversal is needed.
+    Uses a single SELECT query with eager loading and a single UPDATE query.
+    Falls back to per-task state updates when dependency traversal is required.
 
-    :param dag_id: The DAG ID.
-    :param dag_run_id: The run_id of the DAG run.
-    :param group_id: The ID of the task group.
-    :param body: The request body with the new state and options.
-    :param dag_bag: The DAG bag for DAG resolution.
-    :param user: The authenticated user.
-    :param session: The database session.
+    :param dag: Serialized DAG object
+    :param dag_id: DAG ID
+    :param dag_run_id: DAG run ID
+    :param task_ids: List of task IDs to update
+    :param new_state: New state to set
+    :param include_upstream: Include upstream tasks
+    :param include_downstream: Include downstream tasks
+    :param include_future: Include future runs
+    :param include_past: Include past runs
+    :param session: Database session
+    :return: List of updated TaskInstance objects
+    :raises HTTPException: If no task instances found
     """
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    task_ids = _get_task_group_task_ids(dag, group_id)
+    from sqlalchemy import select, update
+    from sqlalchemy.orm import joinedload
 
-    entities = [
-        BulkTaskInstanceBody(
-            task_id=task_id,
-            dag_id=dag_id,
-            dag_run_id=dag_run_id,
-            new_state=body.new_state,
-            include_future=body.include_future,
-            include_past=body.include_past,
+    from airflow.models import DagRun
+    from airflow.models.trigger import Trigger
+
+    # Check if we can use the optimized bulk update path
+    if not any([include_upstream, include_downstream, include_future, include_past]):
+        # Fast path: bulk update without dependency traversal
+        # Fetch all TIs with eager loading of relationships in a single query
+        tis = list(
+            session.scalars(
+                select(TI)
+                .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id.in_(task_ids))
+                .join(TI.dag_run)
+                .options(joinedload(TI.rendered_task_instance_fields))
+                .options(joinedload(TI.dag_version))
+                .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+                .options(joinedload(TI.trigger).joinedload(Trigger.triggerer_job))
+            )
+            .unique()
+            .all()
         )
-        for task_id in task_ids
-    ]
 
-    action = BulkUpdateAction(
-        action=BulkAction.UPDATE,
-        entities=entities,
-        update_mask=["new_state"],
-        action_on_non_existence=BulkActionNotOnExistence.SKIP,
-    )
-    results = BulkActionResponse()
+        if not tis:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"No task instances found for the specified tasks in DAG run '{dag_run_id}'",
+            )
 
-    service = BulkTaskInstanceService(
-        session=session,
-        request=BulkBody(actions=[]),  # unused, but required by base class
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        dag_bag=dag_bag,
-        user=user,
-    )
-    service.handle_bulk_update(action, results)
+        # Perform a single bulk UPDATE query
+        session.execute(
+            update(TI)
+            .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id.in_(task_ids))
+            .values(state=new_state)
+        )
+        session.flush()
+
+        # Update in-memory objects to reflect the change
+        for ti in tis:
+            ti.state = new_state
+
+        return tis
+    # Complex path: use dag.set_task_instance_state for dependency traversal
+    all_updated_tis: list[TI] = []
+    for task_id in task_ids:
+        updated_tis = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=None,
+            state=new_state,
+            upstream=include_upstream,
+            downstream=include_downstream,
+            future=include_future,
+            past=include_past,
+            commit=True,
+            session=session,
+        )
+        if not updated_tis:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Task id {task_id} is already in {new_state} state",
+            )
+        all_updated_tis.extend(updated_tis)
+
+    return all_updated_tis
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
@@ -366,39 +472,34 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         results: BulkActionResponse,
         update_mask: list[str] | None = Query(None),
     ) -> None:
-        try:
-            dag, tis, data = _patch_ti_validate_request(
-                dag_id=dag_id,
-                dag_run_id=dag_run_id,
-                task_id=task_id,
-                dag_bag=self.dag_bag,
-                body=entity,
-                session=self.session,
-                update_mask=update_mask,
-            )
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            dag_bag=self.dag_bag,
+            body=entity,
+            session=self.session,
+            update_mask=update_mask,
+        )
 
-            for key, _ in data.items():
-                if key == "new_state":
-                    _patch_task_instance_state(
-                        task_id=task_id,
-                        dag_run_id=dag_run_id,
-                        dag=dag,
-                        task_instance_body=entity,
-                        data=data,
-                        session=self.session,
-                    )
-                elif key == "note":
-                    _patch_task_instance_note(
-                        task_instance_body=entity,
-                        tis=tis,
-                        user=self.user,
-                    )
+        for key, _ in data.items():
+            if key == "new_state":
+                _patch_task_instance_state(
+                    task_id=task_id,
+                    dag_run_id=dag_run_id,
+                    dag=dag,
+                    task_instance_body=entity,
+                    data=data,
+                    session=self.session,
+                )
+            elif key == "note":
+                _patch_task_instance_note(
+                    task_instance_body=entity,
+                    tis=tis,
+                    user=self.user,
+                )
 
-            results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
-        except HTTPException as e:
-            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
-        except ValidationError as e:
-            results.errors.append({"error": f"{e.errors()}"})
+        results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse

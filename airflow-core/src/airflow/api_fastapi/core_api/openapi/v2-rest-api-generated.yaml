@@ -7321,6 +7321,16 @@ paths:
         schema:
           type: string
           title: Group Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
       requestBody:
         required: true
         content:
@@ -12094,7 +12104,23 @@ components:
     PatchTaskGroupBody:
       properties:
         new_state:
-          $ref: '#/components/schemas/TaskInstanceState'
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        include_upstream:
+          type: boolean
+          title: Include Upstream
+          default: false
+        include_downstream:
+          type: boolean
+          title: Include Downstream
+          default: false
         include_future:
           type: boolean
           title: Include Future
@@ -12105,8 +12131,6 @@ components:
           default: false
       additionalProperties: false
       type: object
-      required:
-      - new_state
       title: PatchTaskGroupBody
       description: Request body for patching the state of all task instances in a
         task group.

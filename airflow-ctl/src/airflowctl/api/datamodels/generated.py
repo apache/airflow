@@ -1619,7 +1619,10 @@ class PatchTaskGroupBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    new_state: TaskInstanceState
+    new_state: TaskInstanceState | None = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
+    include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
 

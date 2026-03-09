@@ -2247,6 +2247,7 @@ export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInsta
 * @param data.dagRunId
 * @param data.groupId
 * @param data.requestBody
+* @param data.updateMask
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -2255,12 +2256,14 @@ export const useTaskInstanceServicePatchTaskGroupInstances = <TData = Common.Tas
   dagRunId: string;
   groupId: string;
   requestBody: PatchTaskGroupBody;
+  updateMask?: string[];
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   groupId: string;
   requestBody: PatchTaskGroupBody;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody }) => TaskInstanceService.patchTaskGroupInstances({ dagId, dagRunId, groupId, requestBody }) as unknown as Promise<TData>, ...options });
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, groupId, requestBody, updateMask }) => TaskInstanceService.patchTaskGroupInstances({ dagId, dagRunId, groupId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Group Instances Dry Run
 * Dry-run of updating the state of all task instances in a task group.

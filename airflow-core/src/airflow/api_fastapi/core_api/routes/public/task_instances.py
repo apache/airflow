@@ -83,10 +83,11 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
-    _get_task_group_task_ids,
-    _patch_task_group_state,
+    _collect_unique_tis,
+    _get_task_group_task_instances,
     _patch_task_instance_note,
     _patch_task_instance_state,
+    _patch_ti_group_validate_request,
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -874,37 +875,52 @@ def patch_task_group_instances(
     body: PatchTaskGroupBody,
     session: SessionDep,
     user: GetUserDep,
+    update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update the state of all task instances in a task group."""
-    _patch_task_group_state(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        group_id=group_id,
-        body=body,
-        dag_bag=dag_bag,
-        user=user,
-        session=session,
+    dag, tis, data = _patch_ti_group_validate_request(
+        dag_id, dag_run_id, group_id, dag_bag, body, session, update_mask
     )
+    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
-    # Collect all TIs for the task group to build the response
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    task_ids = _get_task_group_task_ids(dag, group_id)
-    tis = (
-        session.scalars(
-            select(TI)
-            .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id.in_(task_ids))
-            .join(TI.dag_run)
-            .options(joinedload(TI.rendered_task_instance_fields))
-            .options(joinedload(TI.dag_version))
-            .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
-        )
-        .unique()
-        .all()
-    )
+    for key, _ in data.items():
+        if key == "new_state":
+            # Iterate over all task instances in the task group
+            for ti in tis:
+                bulk_ti_body = BulkTaskInstanceBody(
+                    task_id=ti.task_id,
+                    map_index=ti.map_index,
+                    new_state=body.new_state,
+                    note=body.note,
+                    include_upstream=body.include_upstream,
+                    include_downstream=body.include_downstream,
+                    include_future=body.include_future,
+                    include_past=body.include_past,
+                )
+
+                updated_tis = _patch_task_instance_state(
+                    task_id=ti.task_id,
+                    dag_run_id=dag_run_id,
+                    dag=dag,
+                    task_instance_body=bulk_ti_body,
+                    data=data,
+                    session=session,
+                )
+
+                _collect_unique_tis(affected_tis_dict, updated_tis)
+
+        elif key == "note":
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=tis,
+                user=user,
+                update_mask=update_mask,
+            )
+            _collect_unique_tis(affected_tis_dict, tis)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],
-        total_entries=len(tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+        total_entries=len(affected_tis_dict),
     )
 
 
@@ -925,18 +941,25 @@ def patch_task_group_instances_dry_run(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Dry-run of updating the state of all task instances in a task group."""
+    # Get DAG and fetch all TIs in bulk with eager loading to avoid N+1 queries
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    task_ids = _get_task_group_task_ids(dag, group_id)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
 
+    # new_state is validated to be non-None by PatchTaskInstanceBaseBody validator
+    if body.new_state is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "new_state is required")
+
+    # Collect all affected TIs (including upstream/downstream/future/past)
     all_tis: list[TI] = []
-    for task_id in task_ids:
-        tis = (
+    for ti in tis:
+        affected_tis = (
             dag.set_task_instance_state(
-                task_id=task_id,
+                task_id=ti.task_id,
                 run_id=dag_run_id,
+                map_indexes=[ti.map_index],
                 state=body.new_state,
-                upstream=False,
-                downstream=False,
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
                 future=body.include_future,
                 past=body.include_past,
                 commit=False,
@@ -944,7 +967,7 @@ def patch_task_group_instances_dry_run(
             )
             or []
         )
-        all_tis.extend(tis)
+        all_tis.extend(affected_tis)
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_tis],
