@@ -182,7 +182,10 @@ class DagBundlesManager(LoggingMixin):
 
         config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
         if not config_list:
-            return
+            raise AirflowConfigException(
+                "Section `dag_processor` key `dag_bundle_config_list` is not set or empty. "
+                "Please add at least one bundle configuration to your config."
+            )
         if not isinstance(config_list, list):
             raise AirflowConfigException(
                 "Section `dag_processor` key `dag_bundle_config_list` "
@@ -207,6 +210,11 @@ class DagBundlesManager(LoggingMixin):
                 team_name=bundle_config.team_name,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+
+    @property
+    def bundle_names(self) -> list[str]:
+        """Return the list of bundle names."""
+        return list(self._bundle_config.keys())
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
