@@ -945,33 +945,31 @@ def patch_task_group_instances_dry_run(
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
 
-    # new_state is validated to be non-None by PatchTaskInstanceBaseBody validator
-    if body.new_state is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "new_state is required")
-
-    # Collect all affected TIs (including upstream/downstream/future/past)
-    all_tis: list[TI] = []
-    for ti in tis:
-        affected_tis = (
-            dag.set_task_instance_state(
-                task_id=ti.task_id,
-                run_id=dag_run_id,
-                map_indexes=[ti.map_index],
-                state=body.new_state,
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
-                commit=False,
-                session=session,
+    # Only perform state changes if new_state is provided
+    if body.new_state:
+        all_tis: list[TI] = []
+        for ti in tis:
+            affected_tis = (
+                dag.set_task_instance_state(
+                    task_id=ti.task_id,
+                    run_id=dag_run_id,
+                    map_indexes=[ti.map_index],
+                    state=body.new_state,
+                    upstream=body.include_upstream,
+                    downstream=body.include_downstream,
+                    future=body.include_future,
+                    past=body.include_past,
+                    commit=False,
+                    session=session,
+                )
+                or []
             )
-            or []
-        )
-        all_tis.extend(affected_tis)
+            all_tis.extend(affected_tis)
+        tis = all_tis
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_tis],
-        total_entries=len(all_tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in tis],
+        total_entries=len(tis),
     )
 
 
