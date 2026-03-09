@@ -156,13 +156,6 @@ def _write_xcom(
     )
 
 
-def _parse_model(model_cls, raw):
-    """Parse a Pydantic model from a value that may be a dict or a JSON string."""
-    if isinstance(raw, str):
-        return model_cls.model_validate_json(raw)
-    return model_cls.model_validate(raw)
-
-
 _RUNNING_TI_STATES = frozenset(
     {
         TaskInstanceState.RUNNING,
@@ -205,7 +198,7 @@ def _build_session_response(
     )
     if raw is None:
         return None
-    sess_data = _parse_model(AgentSessionData, raw)
+    sess_data = AgentSessionData.model_validate(raw)
     outputs = _read_xcom_by_prefix(
         session,
         dag_id=dag_id,
@@ -314,7 +307,7 @@ async def submit_feedback(
     )
     if raw is None:
         raise HTTPException(status_code=404, detail="No matching session found.")
-    sess_data = _parse_model(AgentSessionData, raw)
+    sess_data = AgentSessionData.model_validate(raw)
     if sess_data.status != SessionStatus.PENDING_REVIEW:
         raise HTTPException(
             status_code=409,
@@ -390,7 +383,7 @@ async def approve_session(
     if raw is None:
         raise HTTPException(status_code=404, detail="No matching session found.")
 
-    sess_data = _parse_model(AgentSessionData, raw)
+    sess_data = AgentSessionData.model_validate(raw)
     if sess_data.status != SessionStatus.PENDING_REVIEW:
         raise HTTPException(
             status_code=409,
@@ -454,7 +447,7 @@ async def reject_session(
     )
     if raw is None:
         raise HTTPException(status_code=404, detail="No matching session found.")
-    sess_data = _parse_model(AgentSessionData, raw)
+    sess_data = AgentSessionData.model_validate(raw)
     if sess_data.status != SessionStatus.PENDING_REVIEW:
         raise HTTPException(
             status_code=409,
@@ -581,7 +574,7 @@ class HITLReviewPlugin(AirflowPlugin):
     external_views = [
         {
             "name": "HITL Review",
-            "href": (
+            "href": _get_base_url_path(
                 f"{_PLUGIN_PREFIX}/chat-by-task"
                 "?dag_id={DAG_ID}&run_id={RUN_ID}&task_id={TASK_ID}&map_index={MAP_INDEX}"
             ),

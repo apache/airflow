@@ -41,7 +41,6 @@ from airflow.providers.common.ai.plugins.hitl_review import (
     _get_chat_html,
     _get_map_index,
     _is_task_completed,
-    _parse_model,
     _read_xcom,
     _read_xcom_by_prefix,
     _write_xcom,
@@ -51,7 +50,6 @@ from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
     AgentSessionData,
-    HumanActionData,
     SessionStatus,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -183,20 +181,6 @@ class TestGetMapIndex:
     def test_invalid_returns_minus_one(self):
         assert _get_map_index("{MAP_INDEX}") == -1
         assert _get_map_index("") == -1
-
-
-class TestParseModel:
-    def test_from_dict(self):
-        data = {"action": "approve", "iteration": 1}
-        obj = _parse_model(HumanActionData, data)
-        assert obj.action == "approve"
-        assert obj.iteration == 1
-
-    def test_from_json_string(self):
-        data = '{"action": "reject", "iteration": 2}'
-        obj = _parse_model(HumanActionData, data)
-        assert obj.action == "reject"
-        assert obj.iteration == 2
 
 
 class TestReadXcomByPrefix:
