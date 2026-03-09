@@ -931,6 +931,7 @@ class Client(httpx.Client):
         super().__init__(
             auth=auth,
             headers={
+                "content-type": "application/json",
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
