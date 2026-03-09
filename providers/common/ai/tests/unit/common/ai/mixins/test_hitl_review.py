@@ -215,7 +215,7 @@ class TestHITLReviewMixin:
         mock_monotonic.side_effect = [0.0, 0.1, 35.0]
         mock_supervisor_comms.send.return_value = XComResult(key=XCOM_HUMAN_ACTION, value=None)
 
-        with pytest.raises(HITLTimeoutError, match="No response within"):
+        with pytest.raises(HITLTimeoutError, match="Task exceeded timeout"):
             fake_op.run_hitl_review(context, "Output")
 
     @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
@@ -315,7 +315,7 @@ class TestHITLReviewMixin:
             iteration=1,
         ).model_dump(mode="json")
 
-        with pytest.raises(HITLMaxIterationsError, match="Max iterations \\(1\\) reached"):
+        with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op._poll_loop(
                 ti=ti,
                 session=session,

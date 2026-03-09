@@ -612,8 +612,30 @@ class TestBuildSessionResponse:
                 "approved",
                 "Done",
             ),
+            (
+                SessionStatus.MAX_ITERATIONS_EXCEEDED,
+                5,
+                "p",
+                "output",
+                "max_iterations_exceeded",
+                "output",
+            ),
+            (
+                SessionStatus.TIMEOUT_EXCEEDED,
+                2,
+                "p",
+                "output",
+                "timeout_exceeded",
+                "output",
+            ),
         ],
-        ids=["pending_review", "changes_requested", "approved"],
+        ids=[
+            "pending_review",
+            "changes_requested",
+            "approved",
+            "max_iterations_exceeded",
+            "timeout_exceeded",
+        ],
     )
     def test_build_session_response_combinations(
         self,
@@ -716,6 +738,62 @@ class TestFindSessionEndpoint:
         )
         assert response.status_code == 404
         assert "task_active" in response.json()["detail"]
+
+    def test_returns_max_iterations_exceeded_status(self, test_client, session, dag_maker):
+        """Find endpoint returns max_iterations_exceeded when session has that status."""
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(
+            run_id=TEST_RUN_ID,
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+        )
+        dag_maker.sync_dagbag_to_db()
+        _create_hitl_session(
+            session=session,
+            status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
+            iteration=5,
+            prompt="p",
+            current_output="output",
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "max_iterations_exceeded"
+        _clear_db()
+
+    def test_returns_timeout_exceeded_status(self, test_client, session, dag_maker):
+        """Find endpoint returns timeout_exceeded when session has that status."""
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(
+            run_id=TEST_RUN_ID,
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+        )
+        dag_maker.sync_dagbag_to_db()
+        _create_hitl_session(
+            session=session,
+            status=SessionStatus.TIMEOUT_EXCEEDED,
+            iteration=2,
+            prompt="p",
+            current_output="output",
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "timeout_exceeded"
+        _clear_db()
 
 
 class TestSubmitFeedbackEndpoint:

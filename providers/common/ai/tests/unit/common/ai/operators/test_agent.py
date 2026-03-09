@@ -232,7 +232,7 @@ class TestAgentOperatorExecute:
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.side_effect = HITLMaxIterationsError("Max iterations (5) reached without approval.")
+        mock_run_hitl.side_effect = HITLMaxIterationsError("Task exceeded max iterations.")
 
         op = AgentOperator(
             task_id="test",
@@ -244,7 +244,7 @@ class TestAgentOperatorExecute:
         )
         context = MagicMock()
 
-        with pytest.raises(HITLMaxIterationsError, match="Max iterations"):
+        with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op.execute(context=context)
 
 

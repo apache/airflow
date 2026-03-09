@@ -54,6 +54,8 @@ export function useSession(
     return (
       s.status === "approved" ||
       s.status === "rejected" ||
+      s.status === "max_iterations_exceeded" ||
+      s.status === "timeout_exceeded" ||
       s.task_completed
     );
   }, []);

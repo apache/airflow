@@ -46,6 +46,8 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   approved: { cls: styles.badgeApproved!, label: "Approved" },
   rejected: { cls: styles.badgeRejected!, label: "Rejected" },
   changes_requested: { cls: styles.badgeChanges!, label: "Regenerating..." },
+  max_iterations_exceeded: { cls: styles.badgeError!, label: "Max iterations exceeded" },
+  timeout_exceeded: { cls: styles.badgeError!, label: "Timeout exceeded" },
 };
 
 export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) => {
@@ -167,6 +169,8 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
   const isTerminal =
     session.status === "approved" ||
     session.status === "rejected" ||
+    session.status === "max_iterations_exceeded" ||
+    session.status === "timeout_exceeded" ||
     session.task_completed;
   const canAct = session.status === "pending_review" && !session.task_completed;
   const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE["pending_review"]!;
@@ -206,7 +210,9 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
         <div className={styles.terminalArea}>
           <div
             className={`${styles.terminalBanner} ${
-              session.status === "rejected"
+              session.status === "rejected" ||
+              session.status === "max_iterations_exceeded" ||
+              session.status === "timeout_exceeded"
                 ? styles.bannerRejected
                 : styles.bannerApproved
             }`}
@@ -215,7 +221,11 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
               ? "Output Approved"
               : session.status === "rejected"
                 ? "Output Rejected"
-                : "Task Completed — Session Ended"}
+                : session.status === "max_iterations_exceeded"
+                  ? "Max iterations exceeded"
+                  : session.status === "timeout_exceeded"
+                    ? "Timeout exceeded"
+                    : "Task Completed — Session Ended"}
           </div>
         </div>
       )}

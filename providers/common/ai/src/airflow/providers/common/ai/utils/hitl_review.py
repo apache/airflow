@@ -68,10 +68,6 @@ Actual key: ``airflow_hitl_review_human_feedback_1``, ``_2``, ...
 """
 
 
-class HITLSessionError(Exception):
-    """Raised when a session is in an unexpected state or goes missing."""
-
-
 class SessionStatus(str, Enum):
     """Lifecycle states of a HITL review session."""
 
@@ -79,6 +75,8 @@ class SessionStatus(str, Enum):
     CHANGES_REQUESTED = "changes_requested"
     APPROVED = "approved"
     REJECTED = "rejected"
+    MAX_ITERATIONS_EXCEEDED = "max_iterations_exceeded"
+    TIMEOUT_EXCEEDED = "timeout_exceeded"
 
 
 class ConversationEntry(BaseModel):

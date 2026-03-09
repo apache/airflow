@@ -21,7 +21,9 @@ export type SessionStatus =
   | "pending_review"
   | "changes_requested"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "max_iterations_exceeded"
+  | "timeout_exceeded";
 
 export interface ConversationEntry {
   role: "assistant" | "human";

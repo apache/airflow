@@ -95,6 +95,7 @@
 .badgeApproved { background: #d1fae5; color: #065f46; }
 .badgeRejected { background: #fee2e2; color: #991b1b; }
 .badgeChanges { background: #dbeafe; color: #1e40af; }
+.badgeError { background: #fee2e2; color: #991b1b; }
 
 /* Chat area */
 .chat {

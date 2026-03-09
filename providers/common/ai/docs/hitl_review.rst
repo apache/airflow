@@ -84,7 +84,9 @@ Workflow
          |     → regenerate_with_feedback  |
          |     → push output_2, loop to 3  |
          | 7d. max_iterations reached      |
-         |     → raise HITLMaxIterationsError
+         |     → push status max_iterations_exceeded, raise HITLMaxIterationsError
+         | 7e. hitl_timeout elapsed        |
+         |     → push status timeout_exceeded, raise HITLTimeoutError
 
 
 Using HITL Review with AgentOperator
