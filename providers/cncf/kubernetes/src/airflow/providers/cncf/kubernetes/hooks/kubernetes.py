@@ -1004,6 +1004,13 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
                 logs_list: list[str] = logs.splitlines()
                 return logs_list
+            except UnicodeDecodeError as e:
+                self.log.warning(
+                    "Failed to decode pod logs as UTF-8 (possibly truncated multi-byte sequence). "
+                    "Skipping this log interval: %s",
+                    e,
+                )
+                return []
             except HTTPError as e:
                 raise KubernetesApiError from e
 
