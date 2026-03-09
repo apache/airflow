@@ -87,6 +87,12 @@ def _clear_db():
     clear_db_xcom()
 
 
+if AIRFLOW_V_3_2_PLUS:
+    serialize = {"serialize": False}
+else:
+    serialize = {}
+
+
 @provide_session
 def _create_hitl_session(
     session=None,
@@ -101,10 +107,6 @@ def _create_hitl_session(
     current_output="Initial output",
 ):
     """Create HITL session and output XCom entries in the database."""
-    if AIRFLOW_V_3_2_PLUS:
-        serialize = {"serialize": False}
-    else:
-        serialize = {}
     sess = AgentSessionData(
         status=status,
         iteration=iteration,
@@ -235,8 +237,8 @@ class TestReadXcomByPrefix:
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                serialize=False,
                 session=session,
+                **serialize,
             )
         session.commit()
 
@@ -308,8 +310,8 @@ class TestReadXcomByPrefix:
             task_id="t",
             run_id="r",
             map_index=-1,
-            serialize=False,
             session=session,
+            **serialize,
         )
         session.commit()
 
@@ -346,8 +348,8 @@ class TestReadXcomByPrefix:
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                serialize=False,
                 session=session,
+                **serialize,
             )
         session.commit()
 
@@ -435,8 +437,8 @@ class TestReadXcom:
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                serialize=False,
                 session=session,
+                **serialize,
             )
         session.commit()
 
