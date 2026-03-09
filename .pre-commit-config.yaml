@@ -247,6 +247,16 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: generate-agent-skills
+        name: Generate agent skills from Breeze CLI
+        entry: ./scripts/ci/prek/generate_agent_skills.py
+        language: python
+        files: >
+          (?x)
+          ^dev/breeze/src/airflow_breeze/commands/.*\.py$|
+          ^dev/agent_skills/skills\.json$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:

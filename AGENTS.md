@@ -66,6 +66,46 @@ UV workspace monorepo. Key paths:
 5. API Server serves the React UI and handles all client-database interactions.
 6. Triggerer evaluates deferred tasks/sensors in isolated processes.
 
+## Agent Skills System
+
+Airflow provides a machine-readable agent skills system to help AI coding assistants work effectively with the Breeze development environment.
+
+### Environment Detection
+
+Use the environment detection script to determine the current context:
+
+```bash
+python3 dev/detect_breeze_environment.py
+```
+
+This script detects whether you're running on the host or inside a Breeze container and provides context information.
+
+### Available Skills
+
+The agent skills are defined in `dev/agent_skills/skills.json` and include:
+
+- **static_checks**: Run pre-commit hooks and static analysis
+- **run_unit_tests**: Execute unit tests in the Breeze environment
+- **start_airflow**: Start Airflow services with all dependencies
+
+### Command Mappings
+
+Common Breeze commands are mapped for easy access:
+
+- `breeze shell` - Enter the Breeze development environment
+- `breeze start-airflow` - Start Airflow services
+- `prek run --from-ref main` - Run static checks
+
+### Evaluation
+
+Test the skills system with:
+
+```bash
+python3 dev/agent_skills/evaluate_skills.py
+```
+
+This validates that the environment detection and skill definitions are working correctly.
+
 ## Coding Standards
 
 - No `assert` in production code.
