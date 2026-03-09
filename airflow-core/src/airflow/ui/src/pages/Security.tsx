@@ -44,8 +44,8 @@ export const Security = () => {
     const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
 
     if (iframe?.contentWindow) {
-      const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
-      const basename = new URL(baseUrl).pathname.replace(/\/$/u, "");
+      const baseHref = document.querySelector("base")?.href;
+      const basename = baseHref === undefined ? "" : new URL(baseHref).pathname.replace(/\/$/u, "");
 
       const iframePath = iframe.contentWindow.location.pathname;
       const pathWithoutBase = iframePath.startsWith(basename)
