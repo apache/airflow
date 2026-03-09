@@ -50,6 +50,8 @@ from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
+SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials"}
+
 T = TypeVar("T")
 
 
@@ -239,6 +241,18 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    def _validate_grant_type(self, grant_type: str | None) -> str:
+        """Validate OAuth grant_type."""
+        if not grant_type:
+            raise ValueError("Grant type must be provided for OAuth authentication.")
+
+        if grant_type not in SUPPORTED_GRANT_TYPES:
+            supported = ", ".join(sorted(SUPPORTED_GRANT_TYPES))
+
+            raise ValueError(f"Unsupported grant_type '{grant_type}'. Supported values: {supported}")
+
+        return grant_type
+
     @property
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
@@ -317,9 +331,8 @@ class SnowflakeHook(DbApiHook):
             if azure_conn_id:
                 conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
             else:
-                grant_type = conn_config.get("grant_type")
-                if not grant_type:
-                    raise ValueError("Grant_type not provided")
+                grant_type = self._validate_grant_type(conn_config.get("grant_type"))
+
                 conn_config["token"] = self._get_valid_oauth_token(
                     conn_config=conn_config,
                     token_endpoint=conn_config.get("token_endpoint"),
@@ -515,14 +528,12 @@ class SnowflakeHook(DbApiHook):
         if scope:
             data["scope"] = scope
 
+        grant_type = self._validate_grant_type(grant_type)
+
         if grant_type == "refresh_token":
             data |= {
                 "refresh_token": conn_config["refresh_token"],
             }
-        elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
-        else:
-            raise ValueError(f"Unknown grant_type: {grant_type}")
 
         response = self._request_oauth_token(
             url=url,
