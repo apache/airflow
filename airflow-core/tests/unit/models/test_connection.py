@@ -272,22 +272,52 @@ class TestConnection:
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        ("conn_id", "conn_uri", "expected_warned"),
+        ("connection", "expected_warned"),
         [
             (
-                "test-hyphens-in-conn-type",
-                "google-cloud-platform://test:test@",
+                Connection(
+                    conn_id="test-uri-1",
+                    uri="google-cloud-platform://testlogin:testpassword@"
+                ),
                 False
             ),
             (
-                "test-no-hyphens-in-conn-type",
-                "amazon://test:test@",
+                Connection(
+                    conn_id="test-uri-2",
+                    uri="amazon://test:test@"
+                ),
+                False
+            ),
+            (
+                Connection(
+                    conn_id="test-non-uri-1",
+                    conn_type="google-cloud-platform",
+                    login="testlogin",
+                    password="testpassword"
+                ),
+                False
+            ),
+            (
+                Connection(
+                    conn_id="test-non-uri-2",
+                    conn_type="google_cloud_platform",
+                    login="testlogin",
+                    password="testpassword"
+                ),
+                True
+            ),
+            (
+                Connection(
+                    conn_id="test-non-uri-3",
+                    conn_type="amazon",
+                    login="testlogin",
+                    password="testpassword"
+                ),
                 False
             )
         ]
     )
-    def test_get_uri_conn_type_warning(self, conn_id: str, conn_uri: str, expected_warned: bool):
-        connection = Connection(conn_id=conn_id, uri=conn_uri)
+    def test_get_uri_conn_type_warning(self, connection: Connection, expected_warned: bool):
         with capture_logs() as captured_logs:
             connection.get_uri()
         conn_type_warnings = list(filter(
@@ -295,9 +325,9 @@ class TestConnection:
             captured_logs
         ))
         if expected_warned:
-            assert conn_type_warnings, f"RFC3986 warning expected for connection URI '{conn_uri}'."
+            assert conn_type_warnings, f"RFC3986 warning expected for connection URI '{connection.conn_id}'."
         else:
-            assert not conn_type_warnings, f"RFC3986 warning not expected for connection URI '{conn_uri}'."
+            assert not conn_type_warnings, f"RFC3986 warning not expected for connection URI '{connection.conn_id}'."
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
