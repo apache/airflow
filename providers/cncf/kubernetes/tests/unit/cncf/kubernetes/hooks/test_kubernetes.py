@@ -1580,6 +1580,26 @@ class TestAsyncKubernetesHook:
         assert "2023-01-11 Some string logs..." in logs
 
     @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs_unicode_decode_error(self, lib_method, kube_config_loader):
+        lib_method.side_effect = UnicodeDecodeError("utf-8", b"\xff\xfe", 0, 1, "invalid start byte")
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        logs = await hook.read_logs(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            container_name=CONTAINER_NAME,
+            since_seconds=10,
+        )
+
+        assert logs == []
+
+    @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
     async def test_get_job_status(self, lib_method, kube_config_loader):
         lib_method.return_value = self.mock_await_result(None)
