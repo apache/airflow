@@ -885,7 +885,6 @@ def patch_task_group_instances(
 
     for key, _ in data.items():
         if key == "new_state":
-            # Iterate over all task instances in the task group
             for ti in tis:
                 bulk_ti_body = BulkTaskInstanceBody(
                     task_id=ti.task_id,
