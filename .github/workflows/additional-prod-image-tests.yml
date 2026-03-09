@@ -226,6 +226,17 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log"
 
+  test-e2e-integration-tests-xcom-object-storage:
+    name: "XCom object storage backend tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "XCom object storage backend e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "xcom_object_storage"
+
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
