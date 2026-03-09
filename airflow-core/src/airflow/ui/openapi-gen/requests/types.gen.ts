@@ -540,6 +540,7 @@ export type DAGDetailsResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -618,6 +619,7 @@ export type DAGResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -1893,6 +1895,7 @@ export type DAGWithLatestDagRunsResponse = {
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
+    timetable_partitioned: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -3852,10 +3855,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -3930,10 +3929,6 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -5544,6 +5539,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

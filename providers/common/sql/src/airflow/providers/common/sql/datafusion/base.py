@@ -24,7 +24,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from datafusion import SessionContext
 
-    from airflow.providers.common.sql.config import ConnectionConfig, FormatType, StorageType
+    from airflow.providers.common.sql.config import (
+        ConnectionConfig,
+        DataSourceConfig,
+        FormatType,
+        StorageType,
+    )
 
 
 class ObjectStorageProvider(LoggingMixin, ABC):
@@ -56,12 +61,16 @@ class ObjectStorageProvider(LoggingMixin, ABC):
 class FormatHandler(LoggingMixin, ABC):
     """Abstract base class for format handlers."""
 
+    def __init__(self, datasource_config: DataSourceConfig):
+        super().__init__()
+        self.datasource_config = datasource_config
+
     @property
     def get_format(self) -> FormatType:
         """Return file format type."""
         raise NotImplementedError
 
     @abstractmethod
-    def register_data_source_format(self, ctx: SessionContext, table_name: str, path: str) -> None:
+    def register_data_source_format(self, ctx: SessionContext) -> None:
         """Register data source format."""
         raise NotImplementedError

@@ -756,12 +756,12 @@ class TestPytestSnowflakeHook:
             mock.patch.dict(
                 "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
             ),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
-            mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
-            assert mock_connector.connect.return_value == conn
+            mock_connect.assert_called_once_with(**hook._get_conn_params())
+            assert mock_connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
         with (
@@ -1076,6 +1076,24 @@ class TestPytestSnowflakeHook:
                     "airflow_provider_version": provider_version,
                 }
             )
+
+    @pytest.mark.parametrize(
+        ("grant_type", "expected", "match"),
+        [
+            ("refresh_token", "refresh_token", None),
+            ("client_credentials", "client_credentials", None),
+            ("invalid_grant", ValueError, r"Unsupported grant_type"),
+            (None, ValueError, r"Grant type must be provided"),
+        ],
+    )
+    def test_validate_grant_type(self, grant_type, expected, match):
+        hook = SnowflakeHook(snowflake_conn_id="test")
+
+        if expected is ValueError:
+            with pytest.raises(ValueError, match=match):
+                hook._validate_grant_type(grant_type)
+        else:
+            assert hook._validate_grant_type(grant_type) == expected
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
@@ -1503,12 +1521,12 @@ class TestPytestSnowflakeHook:
 
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             hook.get_conn()
 
-            call_args = mock_connector.connect.call_args[1]
+            call_args = mock_connect.call_args[1]
             assert call_args["proxy_host"] == "proxy.example.com"
             assert call_args["proxy_port"] == 8080
             assert call_args["proxy_user"] == "proxy_user"
