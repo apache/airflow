@@ -94,7 +94,7 @@ export class BackfillPage extends BasePage {
     super(page);
     this.triggerButton = page.getByTestId("trigger-dag-button");
     // Chakra UI radio cards: target the label directly since <input> is hidden.
-    this.backfillModeRadio = page.locator('label:has-text("Backfill")');
+    this.backfillModeRadio = page.locator("label").getByText("Backfill", { exact: true });
     this.backfillFromDateInput = page.getByTestId("datetime-input").first();
     this.backfillToDateInput = page.getByTestId("datetime-input").nth(1);
     this.backfillRunButton = page.getByRole("button", { name: "Run Backfill" });
@@ -374,10 +374,6 @@ export class BackfillPage extends BasePage {
     return this.page.getByRole("button", { name: /filter table columns/i });
   }
 
-  public async getTableColumnCount(): Promise<number> {
-    return this.backfillsTable.locator("thead th").count();
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
     await expect(this.backfillsTable).toBeVisible({ timeout: 15_000 });
@@ -400,31 +396,50 @@ export class BackfillPage extends BasePage {
   }
 
   public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {
-    // Retry: the server may not have fully initialized the backfill yet.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/pause`, {
-        timeout: 30_000,
-      });
+    let isPaused = false;
 
-      if (response.ok()) {
-        return true;
-      }
+    try {
+      // Retry: the server may not have fully initialized the backfill yet.
+      await expect
+        .poll(
+          async () => {
+            const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/pause`, {
+              timeout: 30_000,
+            });
 
-      // 409 means the backfill already completed — not retriable.
-      if (response.status() === 409) {
-        return false;
-      }
+            if (response.ok()) {
+              isPaused = true;
 
-      await this.page.waitForTimeout(2000);
+              return true;
+            }
+
+            // 409 means the backfill already completed — not retriable.
+            if (response.status() === 409) {
+              isPaused = false;
+
+              return true;
+            }
+
+            return false;
+          },
+          {
+            intervals: [2000],
+            message: `Failed to pause backfill ${backfillId}`,
+            timeout: 10_000,
+          },
+        )
+        .toBeTruthy();
+    } catch {
+      return false;
     }
 
-    return false;
+    return isPaused;
   }
 
   public async selectReprocessBehavior(behavior: ReprocessBehaviorApi): Promise<void> {
     const label = REPROCESS_API_TO_UI[behavior];
 
-    await this.page.locator(`label:has-text("${label}")`).first().click({ timeout: 5000 });
+    await this.page.locator("label").getByText(label, { exact: true }).click({ timeout: 5000 });
   }
 
   public async toggleColumn(columnName: string): Promise<void> {
