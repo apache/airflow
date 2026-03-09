@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from structlog.testing import capture_logs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
@@ -269,6 +270,34 @@ class TestConnection:
     )
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
+
+    @pytest.mark.parametrize(
+        ("conn_id", "conn_uri", "expected_warned"),
+        [
+            (
+                "test-hyphens-in-conn-type",
+                "google-cloud-platform://test:test@",
+                False
+            ),
+            (
+                "test-no-hyphens-in-conn-type",
+                "amazon://test:test@",
+                False
+            )
+        ]
+    )
+    def test_get_uri_conn_type_warning(self, conn_id: str, conn_uri: str, expected_warned: bool):
+        connection = Connection(conn_id=conn_id, uri=conn_uri)
+        with capture_logs() as captured_logs:
+            connection.get_uri()
+        conn_type_warnings = list(filter(
+            lambda captured_log: captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"],
+            captured_logs
+        ))
+        if expected_warned:
+            assert conn_type_warnings, f"RFC3986 warning expected for connection URI '{conn_uri}'."
+        else:
+            assert not conn_type_warnings, f"RFC3986 warning not expected for connection URI '{conn_uri}'."
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
