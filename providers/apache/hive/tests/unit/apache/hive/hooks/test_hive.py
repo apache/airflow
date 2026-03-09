@@ -1023,18 +1023,22 @@ class TestHiveCli:
         [
             (
                 {"high_availability": "true"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
             (
                 {"high_availability": "false"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
-            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            (
+                {"high_availability": "true", "ssl": "false", "zoo_keeper_namespace": "custom_hive_server"},
+                "serviceDiscoveryMode=zooKeeper;ssl=false;zooKeeperNamespace=custom_hive_server",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2"),
             # with proxy user
             (
                 {"proxy_user": "a_user_proxy", "high_availability": "true"},
                 "hive.server2.proxy.user=a_user_proxy;"
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
         ],
     )
