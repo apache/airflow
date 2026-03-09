@@ -21,7 +21,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -1633,6 +1633,40 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_cancel_previous_runs_without_job_id_raises(self, db_mock_class):
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            json=run,
+            cancel_previous_runs=True,
+        )
+
+        db_mock = db_mock_class.return_value
+
+        with pytest.raises(
+            ValueError,
+            match="cancel_previous_runs=True requires either job_id or job_name",
+        ):
+            op.execute(None)
+
+        assert db_mock_class.mock_calls == [
+            call(
+                DEFAULT_CONN_ID,
+                retry_limit=op.databricks_retry_limit,
+                retry_delay=op.databricks_retry_delay,
+                retry_args=None,
+                caller="DatabricksRunNowOperator",
+            )
+        ]
+        assert db_mock.cancel_all_runs.mock_calls == []
+        assert db_mock.run_now.mock_calls == []
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
