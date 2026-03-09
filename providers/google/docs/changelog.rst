@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * Remove ``CloudDataCatalogCreateEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`` instead
+  * Remove ``CloudDataCatalogCreateEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator``, ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator``, ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogDeleteEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator`` instead
+  * Remove ``CloudDataCatalogDeleteEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogGetEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`` instead
+  * Remove ``CloudDataCatalogGetEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogGetTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogListTagsOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`` instead
+  * Remove ``CloudDataCatalogLookupEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`` instead
+  * Remove ``CloudDataCatalogRenameTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogSearchCatalogOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator`` instead
+  * Remove ``CloudDataCatalogUpdateEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateEmbeddingsOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICountTokensOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator`` use ``airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator`` instead
+
+* Hooks
+
+  * Remove ``CloudDataCatalogHook`` use ``airflow.providers.google.cloud.hooks.dataplex.DataplexHook`` instead
+  * Remove ``airflow.providers.google.cloud.hooks.vertex_ai.generative_model.ExperimentRunHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook`` instead
+
 20.0.0
 ......
 
