@@ -687,3 +687,26 @@ class TestMultiTeamCeleryExecutor:
             # Critical: task belongs to team A's app, not module-level app
             assert task_from_call.app is team_a_executor.celery_app
             assert task_from_call.name == "execute_command"
+
+
+def test_celery_tasks_registered_on_import():
+    """
+    Ensure execute_workload (and execute_command for Airflow 2.x) are registered
+    with the Celery app when celery_executor is imported.
+
+    Regression test for https://github.com/apache/airflow/issues/63043
+    Celery provider 3.17.0 exposed that celery_executor_utils was never imported
+    at module level, so tasks were never registered at worker startup.
+    """
+    from airflow.providers.celery.executors.celery_executor_utils import app
+
+    registered_tasks = list(app.tasks.keys())
+    assert "execute_workload" in registered_tasks, (
+        "execute_workload must be registered with the Celery app at import time. "
+        "Workers need this to receive tasks without KeyError."
+    )
+    # TODO: remove this block when min supported Airflow version is >= 3.0
+    if not AIRFLOW_V_3_0_PLUS:
+        assert "execute_command" in registered_tasks, (
+            "execute_command must be registered for Airflow 2.x compatibility."
+        )
