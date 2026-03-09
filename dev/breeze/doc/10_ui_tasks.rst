@@ -89,5 +89,5 @@ Example usage:
 
 -----
 
-Next step: Follow the `Issues tasks <11_issues_tasks.rst>`__ instructions to learn about
-Breeze commands for managing GitHub issues.
+Next step: Follow the `Registry tasks <11_registry_tasks.rst>`__ instructions to learn about
+the provider registry commands.
