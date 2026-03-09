@@ -118,7 +118,7 @@ const Gantt = ({
     (
       queued: string | null | undefined,
       start: string | null | undefined,
-      end: string | null | undefined
+      end: string | null | undefined,
     ) => {
       if (
         queued &&
@@ -139,7 +139,7 @@ const Gantt = ({
         setEndDate(moment().add(1, "s").toString());
       }
     },
-    [startDate, endDate, setStartDate, setEndDate]
+    [startDate, endDate, setStartDate, setEndDate],
   );
 
   // Reset state when the dagrun changes

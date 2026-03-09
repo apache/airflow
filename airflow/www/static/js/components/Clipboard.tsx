@@ -41,7 +41,7 @@ export const ClipboardButton = forwardRef(
       "aria-label": ariaLabel = "Copy",
       ...rest
     },
-    ref
+    ref,
   ) => {
     const { setValue, hasCopied, onCopy } = useClipboard(value);
     const containerRef = useContainerRef();
@@ -80,7 +80,7 @@ export const ClipboardButton = forwardRef(
         )}
       </Tooltip>
     );
-  }
+  },
 );
 
 interface Props {

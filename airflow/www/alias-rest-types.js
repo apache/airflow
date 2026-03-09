@@ -64,14 +64,14 @@ const generateVariableAliases = (node, operationPath, operationName) => {
     node,
     "requestBody",
     "content",
-    "application/json"
+    "application/json",
   );
 
   if (hasPath) variableTypes.push(`${operationPath}['parameters']['path']`);
   if (hasQuery) variableTypes.push(`${operationPath}['parameters']['query']`);
   if (hasBody)
     variableTypes.push(
-      `${operationPath}['requestBody']['content']['application/json']`
+      `${operationPath}['requestBody']['content']['application/json']`,
     );
 
   if (variableTypes.length === 0) return "";
@@ -79,7 +79,7 @@ const generateVariableAliases = (node, operationPath, operationName) => {
   return [
     typeName,
     `export type ${typeName} = CamelCasedPropertiesDeep<${variableTypes.join(
-      " & "
+      " & ",
     )}>;`,
   ];
 };
@@ -91,14 +91,14 @@ const generateAliases = (rootNode, writeText, prefix = "") => {
     // Response Data Types
     if (ts.isInterfaceDeclaration(node) && node.name?.text === "components") {
       const schemaMemberNames = findNode(node, "schemas").type.members.map(
-        (n) => n.name?.text
+        (n) => n.name?.text,
       );
 
       const types = schemaMemberNames.map((n) => [
         `${n}`,
         `export type ${n} = CamelCasedPropertiesDeep<${prefixPath(
           prefix,
-          "components"
+          "components",
         )}['schemas']['${n}']>;`,
       ]);
       if (types.length) {
@@ -122,8 +122,8 @@ const generateAliases = (rootNode, writeText, prefix = "") => {
           generateVariableAliases(
             findNode(path, m),
             `${prefixPath(prefix, "paths")}['${path.name?.text}']['${m}']`,
-            `${path.name.text}${toPascalCase(m)}`
-          )
+            `${path.name.text}${toPascalCase(m)}`,
+          ),
         );
         types.push(...methodTypes.filter((m) => !!m));
       });
@@ -148,8 +148,8 @@ const generateAliases = (rootNode, writeText, prefix = "") => {
         generateVariableAliases(
           operation,
           `${prefixPath(prefix, "operations")}['${operation.name.text}']`,
-          operation.name.text
-        )
+          operation.name.text,
+        ),
       );
       if (types.length) {
         writeText.push(["comment", `Types for operation variables ${prefix}`]);
@@ -164,7 +164,7 @@ const generateAliases = (rootNode, writeText, prefix = "") => {
         generateAliases(
           external.type,
           writeText,
-          `external['${external.name.text}']`
+          `external['${external.name.text}']`,
         );
       });
     }
@@ -198,7 +198,7 @@ function generate(file) {
   const writeText = [];
   writeText.push(["block", license]);
   writeText.push(["comment", "eslint-disable"]);
-  // eslint-disable-next-line quotes
+
   writeText.push([
     "block",
     `import type { CamelCasedPropertiesDeep } from 'type-fest';`,

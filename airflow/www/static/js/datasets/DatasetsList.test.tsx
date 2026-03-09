@@ -88,7 +88,7 @@ describe("Test Datasets List", () => {
 
     const { getByText, queryAllByTestId } = render(
       <DatasetsList onSelect={() => {}} />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const listItems = queryAllByTestId("dataset-list-item");
@@ -112,7 +112,7 @@ describe("Test Datasets List", () => {
 
     const { getByText, queryAllByTestId, getByTestId } = render(
       <DatasetsList onSelect={() => {}} />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const listItems = queryAllByTestId("dataset-list-item");

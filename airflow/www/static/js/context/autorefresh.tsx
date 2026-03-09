@@ -34,7 +34,7 @@ const autoRefreshKey = "disabledAutoRefresh";
 
 const initialIsPaused = getMetaValue("is_paused") === "True";
 const isRefreshDisabled = JSON.parse(
-  localStorage.getItem(autoRefreshKey) || "false"
+  localStorage.getItem(autoRefreshKey) || "false",
 );
 
 type RefreshContext = {
@@ -67,7 +67,7 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
 
   const startRefresh = useCallback(
     () => isRefreshAllowed && setRefresh(true),
-    [isRefreshAllowed, setRefresh]
+    [isRefreshAllowed, setRefresh],
   );
 
   const refetchInterval = isRefreshOn && (autoRefreshInterval || 1) * 1000;
@@ -85,7 +85,7 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
         onToggle();
       }
     },
-    [isRefreshAllowed, isRefreshOn, onToggle]
+    [isRefreshAllowed, isRefreshOn, onToggle],
   );
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
       startRefresh,
       isPaused,
     }),
-    [isPaused, isRefreshOn, startRefresh, toggleRefresh, refetchInterval]
+    [isPaused, isRefreshOn, startRefresh, toggleRefresh, refetchInterval],
   );
 
   return (

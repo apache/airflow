@@ -44,6 +44,6 @@ export default function useDatasets({ dagIds, enabled = true }: Props) {
     },
     {
       enabled,
-    }
+    },
   );
 }

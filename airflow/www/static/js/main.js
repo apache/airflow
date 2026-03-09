@@ -161,8 +161,8 @@ function initializeUITimezone() {
   if (Airflow.serverTimezone !== "UTC") {
     $("#timezone-server a").html(
       `${formatTimezone(
-        Airflow.serverTimezone
-      )} <span class="label label-primary">Server</span>`
+        Airflow.serverTimezone,
+      )} <span class="label label-primary">Server</span>`,
     );
     $("#timezone-server").show();
   }
@@ -171,7 +171,7 @@ function initializeUITimezone() {
     $("#timezone-local a")
       .attr("data-timezone", local)
       .html(
-        `${formatTimezone(local)} <span class="label label-info">Local</span>`
+        `${formatTimezone(local)} <span class="label label-info">Local</span>`,
       );
   } else {
     $("#timezone-local").hide();
@@ -186,7 +186,7 @@ function initializeUITimezone() {
       moment.tz.names().map((tzName) => {
         const category = tzName.split("/", 1)[0];
         return { category, name: tzName.replace("_", " "), tzName };
-      })
+      }),
     ),
     showHintOnFocus: "all",
     showCategoryHeader: true,

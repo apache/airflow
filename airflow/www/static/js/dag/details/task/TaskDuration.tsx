@@ -65,7 +65,7 @@ const TaskDuration = () => {
     const runDuration = moment.duration(
       instance.startDate
         ? getDuration(instance.startDate, instance?.endDate)
-        : 0
+        : 0,
     );
 
     // @ts-ignore
@@ -74,7 +74,7 @@ const TaskDuration = () => {
         instance.startDate &&
         instance.startDate > instance.queuedDttm
         ? getDuration(instance.queuedDttm, instance.startDate)
-        : 0
+        : 0,
     );
 
     if (runDuration.asSeconds() > maxDuration) {
@@ -139,7 +139,7 @@ const TaskDuration = () => {
       ${
         queuedDttm
           ? `Total duration: ${(queuedDurationUnit + runDurationUnit).toFixed(
-              2
+              2,
             )} ${unit}<br>`
           : ""
       }

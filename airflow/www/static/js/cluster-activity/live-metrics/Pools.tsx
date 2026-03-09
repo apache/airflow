@@ -33,7 +33,7 @@ import type { API } from "src/types";
 import LoadingWrapper from "src/components/LoadingWrapper";
 
 const formatData = (
-  data?: API.PoolCollection
+  data?: API.PoolCollection,
 ): Array<[string, number, number, number, number, number]> =>
   data?.pools?.map((pool) => [
     pool.name || "",

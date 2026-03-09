@@ -71,7 +71,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
   console.debug(
     `Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, ` +
       `execution_date: ${executionDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, ` +
-      `metadata: ${JSON.stringify(metadata)}`
+      `metadata: ${JSON.stringify(metadata)}`,
   );
 
   return Promise.resolve(
@@ -85,7 +85,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         try_number: tryNumber,
         metadata: JSON.stringify(metadata),
       },
-    })
+    }),
   ).then((res) => {
     // Stop recursive call to backend when error occurs.
     if (!res) {
@@ -147,21 +147,21 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           .replace(
             urlRegex,
             (url) =>
-              `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+              `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`,
           )
           .replaceAll(
             dateRegex,
             (date) =>
               `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(
-                `${date}+00:00`
-              )}</time>`
+                `${date}+00:00`,
+              )}</time>`,
           )
           .replaceAll(
             iso8601Regex,
             (date) =>
               `<time datetime="${date}" data-with-tz="true">${formatDateTime(
-                `${date}`
-              )}</time>`
+                `${date}`,
+              )}</time>`,
           )
           .replaceAll(logGroupStart, (line) => {
             const gName = line.substring(17);
@@ -172,7 +172,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           })
           .replaceAll(
             logGroupEnd,
-            " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
+            " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>",
           );
         logBlock.innerHTML += `${linkifiedMessage}`;
       });
@@ -242,7 +242,7 @@ $(document).ready(() => {
   });
 
   console.debug(
-    `Attaching log grouping event handler for ${TOTAL_ATTEMPTS} attempts`
+    `Attaching log grouping event handler for ${TOTAL_ATTEMPTS} attempts`,
   );
   for (let i = 1; i <= TOTAL_ATTEMPTS; i += 1) {
     document.getElementById(`log-group-${i}`).onclick = handleLogGroupClick;

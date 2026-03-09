@@ -28,7 +28,7 @@ export const SORT_PARAM = "sort.";
 
 export const stateToSearchParams = (
   state: TableState,
-  defaultTableState?: TableState
+  defaultTableState?: TableState,
 ): URLSearchParams => {
   const queryParams = new URLSearchParams(window.location.search);
   if (isEqual(state.pagination, defaultTableState?.pagination)) {
@@ -54,7 +54,7 @@ export const stateToSearchParams = (
 
 export const searchParamsToState = (
   searchParams: URLSearchParams,
-  defaultState: TableState
+  defaultState: TableState,
 ) => {
   let urlState: Partial<TableState> = {};
   const pageIndex = searchParams.get(OFFSET_PARAM);
@@ -102,7 +102,7 @@ interface CoreServiceQueryParams {
  * @returns
  */
 export const buildQueryParams = (
-  state?: Partial<TableState>
+  state?: Partial<TableState>,
 ): CoreServiceQueryParams => {
   let queryParams = {};
   if (state?.pagination) {
@@ -115,7 +115,7 @@ export const buildQueryParams = (
   }
   if (state?.sorting) {
     const sorts = state.sorting.map(
-      ({ id, desc }) => `${id}:${desc ? "desc" : "asc"}`
+      ({ id, desc }) => `${id}:${desc ? "desc" : "asc"}`,
     );
     queryParams = {
       ...queryParams,

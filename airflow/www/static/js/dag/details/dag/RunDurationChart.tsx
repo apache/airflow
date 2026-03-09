@@ -58,19 +58,19 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
   const durations: (RunDuration | {})[] = dagRuns.map((dagRun) => {
     // @ts-ignore
     const landingDuration = moment.duration(
-      getDuration(dagRun.dataIntervalEnd, dagRun.queuedAt || dagRun.startDate)
+      getDuration(dagRun.dataIntervalEnd, dagRun.queuedAt || dagRun.startDate),
     );
 
     // @ts-ignore
     const runDuration = moment.duration(
-      dagRun.startDate ? getDuration(dagRun.startDate, dagRun?.endDate) : 0
+      dagRun.startDate ? getDuration(dagRun.startDate, dagRun?.endDate) : 0,
     );
 
     // @ts-ignore
     const queuedDuration = moment.duration(
       dagRun.queuedAt && dagRun.startDate && dagRun.startDate > dagRun.queuedAt
         ? getDuration(dagRun.queuedAt, dagRun.startDate)
-        : 0
+        : 0,
     );
 
     if (showLandingTimes) {

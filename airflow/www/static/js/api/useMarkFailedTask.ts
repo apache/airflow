@@ -101,6 +101,6 @@ export default function useMarkFailedTask({
         startRefresh();
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

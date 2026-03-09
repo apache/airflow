@@ -82,7 +82,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
         .duration(
           instance.startDate
             ? getDuration(instance.startDate, instance?.endDate)
-            : 0
+            : 0,
         )
         .asSeconds();
 

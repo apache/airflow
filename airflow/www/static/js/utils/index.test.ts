@@ -167,7 +167,7 @@ describe("Test highlightByKeywords", () => {
       ["error"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(expected);
   });
@@ -180,7 +180,7 @@ describe("Test highlightByKeywords", () => {
       ["error"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(expected);
   });
@@ -193,7 +193,7 @@ describe("Test highlightByKeywords", () => {
       ["error"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(expected);
   });
@@ -205,7 +205,7 @@ describe("Test highlightByKeywords", () => {
       ["error"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(originalLine);
   });
@@ -217,7 +217,7 @@ describe("Test highlightByKeywords", () => {
       ["endgroup"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(originalLine);
   });
@@ -229,7 +229,7 @@ describe("Test highlightByKeywords", () => {
       ["error"],
       ["warn"],
       logGroupStart,
-      logGroupEnd
+      logGroupEnd,
     );
     expect(highlightedLine).toBe(originalLine);
   });

@@ -27,7 +27,7 @@ const url = getMetaValue("rendered_k8s_data_url");
 const useRenderedK8s = (
   runId: string | null,
   taskId: string | null,
-  mapIndex?: number
+  mapIndex?: number,
 ) =>
   useQuery(
     ["rendered_k8s", runId, taskId, mapIndex],
@@ -37,7 +37,7 @@ const useRenderedK8s = (
       }),
     {
       enabled: !!runId && !!taskId,
-    }
+    },
   );
 
 export default useRenderedK8s;

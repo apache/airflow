@@ -101,10 +101,10 @@ const useClearTaskDryRun = ({
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        }
+        },
       );
     },
-    { enabled }
+    { enabled },
   );
 
 export default useClearTaskDryRun;

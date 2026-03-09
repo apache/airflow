@@ -75,7 +75,7 @@ function updateJSONconf() {
           } else {
             params[keyName] = null;
           }
-        } catch (e) {
+        } catch (_e) {
           // ignore JSON parsing errors
           // we don't want to bother users during entry, error will be displayed before submit
         }
@@ -206,7 +206,7 @@ function initForm() {
           if (textValue.trim().length > 0) {
             JSON.parse(textValue);
           }
-        } catch (ex) {
+        } catch (_ex) {
           // eslint-disable-next-line no-alert
           window.alert(`Invalid JSON entered, please correct:\n\n${textValue}`);
           cm.focus();
@@ -241,7 +241,7 @@ function setRecentConfig(e) {
   try {
     dropdownJson = JSON.parse(dropdownValue);
     value = JSON.stringify(dropdownJson, null, 4);
-  } catch (err) {
+  } catch (_err) {
     // eslint-disable-next-line no-console
     console.error(`config is not valid JSON format: ${dropdownValue}`);
   }

@@ -80,8 +80,6 @@ FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
-LEGACY_UI_LABEL = "legacy ui"
-LEGACY_API_LABEL = "legacy api"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
@@ -99,12 +97,12 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
-    LEGACY_API_FILES = "legacy_api_files"
+    API_FILES = "api files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    LEGACY_WWW_FILES = "legacy_www_files"
+    WWW_FILES = "www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
@@ -163,7 +161,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^clients/gen",
         ],
-        FileGroupForCi.LEGACY_API_FILES: [
+        FileGroupForCi.API_FILES: [
             r"^airflow/api_connexion/",
         ],
         FileGroupForCi.HELM_FILES: [
@@ -188,7 +186,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
-        FileGroupForCi.LEGACY_WWW_FILES: [
+        FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
             r"^airflow/www/[^/]+\.json$",
@@ -700,7 +698,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
+        return self._should_be_run(FileGroupForCi.WWW_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -1109,9 +1107,7 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the prek hooks just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(prek_hooks_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
+        if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             prek_hooks_to_skip.add("ts-compile-format-lint-www")
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
@@ -1467,41 +1463,6 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
-
-    @cached_property
-    def is_legacy_ui_api_labeled(self) -> bool:
-        # Selective check for legacy UI/API updates.
-        # It is to ping the maintainer to add the label and make them aware of the changes.
-        if self._is_canary_run() or self._github_event not in (
-            GithubEvents.PULL_REQUEST,
-            GithubEvents.PULL_REQUEST_TARGET,
-        ):
-            return False
-
-        if (
-            self._matching_files(
-                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_API_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        elif (
-            self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_UI_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        else:
-            return True
 
     @cached_property
     def force_pip(self):

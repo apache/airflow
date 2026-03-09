@@ -55,7 +55,7 @@ describe("Test Table", () => {
   test("Displays correct data", async () => {
     const { getAllByRole, getByText, queryByTitle } = render(
       <Table data={data} columns={columns} />,
-      { wrapper: ChakraWrapper }
+      { wrapper: ChakraWrapper },
     );
 
     const rows = getAllByRole("row");
@@ -84,7 +84,7 @@ describe("Test Table", () => {
   test("Shows empty state", async () => {
     const { getAllByRole, getByText } = render(
       <Table data={[]} columns={columns} />,
-      { wrapper: ChakraWrapper }
+      { wrapper: ChakraWrapper },
     );
 
     const rows = getAllByRole("row");
@@ -116,7 +116,7 @@ describe("Test Table", () => {
   test("With manual pagination", async () => {
     const { getAllByRole, queryByText, getByTitle } = render(
       <PaginatedTable />,
-      { wrapper: ChakraWrapper }
+      { wrapper: ChakraWrapper },
     );
 
     const name1 = data[0].firstName;
@@ -215,10 +215,10 @@ describe("Test Table", () => {
     const ascendingData = sortBy(data, [(o) => o.firstName]);
 
     const ascendingFirstRowName = within(ascendingRows[1]).queryByText(
-      ascendingData[0].firstName
+      ascendingData[0].firstName,
     );
     const ascendingLastRowName = within(ascendingRows[5]).queryByText(
-      ascendingData[4].firstName
+      ascendingData[4].firstName,
     );
     expect(ascendingFirstRowName).toBeInTheDocument();
     expect(ascendingLastRowName).toBeInTheDocument();
@@ -230,10 +230,10 @@ describe("Test Table", () => {
     const descendingData = sortBy(data, [(o) => o.firstName]).reverse();
 
     const descendingFirstRowName = within(descendingRows[1]).queryByText(
-      descendingData[0].firstName
+      descendingData[0].firstName,
     );
     const descendingLastRowName = within(descendingRows[5]).queryByText(
-      descendingData[4].firstName
+      descendingData[4].firstName,
     );
     expect(descendingFirstRowName).toBeInTheDocument();
     expect(descendingLastRowName).toBeInTheDocument();
@@ -242,7 +242,7 @@ describe("Test Table", () => {
   test("Shows checkboxes", async () => {
     const { getAllByTitle } = render(
       <Table data={data} columns={columns} selectRows={() => {}} />,
-      { wrapper: ChakraWrapper }
+      { wrapper: ChakraWrapper },
     );
 
     const checkboxes = getAllByTitle("Toggle Row Selected");

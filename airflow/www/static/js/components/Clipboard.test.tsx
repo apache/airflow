@@ -35,7 +35,7 @@ describe("ClipboardButton", () => {
     fireEvent.click(button);
     expect(window.prompt).toHaveBeenCalledWith(
       "Copy to clipboard: Ctrl+C, Enter",
-      "lorem ipsum"
+      "lorem ipsum",
     );
     window.prompt = windowPrompt;
   });

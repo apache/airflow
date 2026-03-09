@@ -66,7 +66,7 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
         accessor: "extra",
       },
     ],
-    []
+    [],
   );
 
   const data = useMemo(() => datasetEvents, [datasetEvents]);

@@ -61,7 +61,7 @@ const NotesAccordion = ({
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
   const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
-    canEdit ? [0] : []
+    canEdit ? [0] : [],
   );
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 

@@ -53,22 +53,22 @@ const collapsedWidth = "32px";
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(
   (w) => localStorage.setItem(gridWidthKey, w),
-  hoverDelay
+  hoverDelay,
 );
 
 const footerHeight =
   parseInt(
     getComputedStyle(
-      document.getElementsByTagName("body")[0]
+      document.getElementsByTagName("body")[0],
     ).paddingBottom.replace("px", ""),
-    10
+    10,
   ) || 0;
 const headerHeight =
   parseInt(
     getComputedStyle(
-      document.getElementsByTagName("body")[0]
+      document.getElementsByTagName("body")[0],
     ).paddingTop.replace("px", ""),
-    10
+    10,
   ) || 0;
 
 const Main = () => {
@@ -101,7 +101,7 @@ const Main = () => {
   // Add a debounced delay to not constantly trigger highlighting certain task states
   const onStatusHover = debounce(
     (state) => setHoveredTaskState(state),
-    hoverDelay
+    hoverDelay,
   );
 
   const onStatusLeave = () => {
@@ -126,7 +126,7 @@ const Main = () => {
           setIsGridCollapsed(collapse);
         }
     },
-    [isGridCollapsed]
+    [isGridCollapsed],
   );
 
   const resize = useCallback(
@@ -157,7 +157,7 @@ const Main = () => {
       }
       oldGridElX.current = e.x;
     },
-    [gridRef, onToggleGridCollapse]
+    [gridRef, onToggleGridCollapse],
   );
 
   useEffect(() => {
@@ -182,7 +182,7 @@ const Main = () => {
 
   useKeysPress(
     keyboardShortcutIdentifier.toggleShortcutCheatSheet,
-    onToggleShortcut
+    onToggleShortcut,
   );
 
   const isFullScreen = isFilterCollapsed && isGridCollapsed;

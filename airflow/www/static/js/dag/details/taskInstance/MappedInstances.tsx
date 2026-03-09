@@ -85,7 +85,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
         startDate: <Time dateTime={mi.startDate} />,
         endDate: <Time dateTime={mi.endDate} />,
       })),
-    [taskInstances]
+    [taskInstances],
   );
 
   const columns = useMemo(
@@ -121,7 +121,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
         disableSortBy: true,
       },
     ],
-    []
+    [],
   );
 
   return (

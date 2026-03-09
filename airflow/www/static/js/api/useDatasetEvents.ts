@@ -76,7 +76,7 @@ const useDatasetEvents = ({
     {
       keepPreviousData: true,
       ...options,
-    }
+    },
   );
   return {
     ...query,

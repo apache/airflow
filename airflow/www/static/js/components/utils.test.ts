@@ -79,6 +79,6 @@ describe("JSON Parsing.", () => {
         expect(contentJson).not.toBeNull();
         expect(contentFormatted.length).toBeGreaterThan(0);
       }
-    }
+    },
   );
 });

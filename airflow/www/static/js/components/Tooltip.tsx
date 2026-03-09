@@ -35,9 +35,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface TooltipProps
-  extends HTMLChakraProps<"div">,
-    ThemingProps<"Tooltip">,
-    UseTooltipProps {
+  extends HTMLChakraProps<"div">, ThemingProps<"Tooltip">, UseTooltipProps {
   /**
    * The React component to use as the
    * trigger for the tooltip
@@ -140,7 +138,7 @@ const Tooltip = forwardRef<TooltipProps, "div">((props, ref) => {
   };
   const trigger: React.ReactElement = React.cloneElement(
     child,
-    tooltip.getTriggerProps(child.props, child.ref)
+    tooltip.getTriggerProps(child.props, child.ref),
   );
 
   const tooltipProps = tooltip.getTooltipProps({}, ref);

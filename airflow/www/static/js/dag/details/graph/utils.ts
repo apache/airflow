@@ -153,7 +153,7 @@ export const nodeColor = ({
 
 export const nodeStrokeColor = (
   { data: { isSelected } }: ReactFlowNode<CustomNodeProps>,
-  colors: Record<string, string>
+  colors: Record<string, string>,
 ) => (isSelected ? colors.blue[500] : "");
 
 interface Edge extends ElkExtendedEdge {
@@ -200,7 +200,7 @@ export const buildEdges = ({
               isZoomedOut,
               ...e.data.rest,
               labels: e.data.rest.labels?.map((l) =>
-                l.x && l.y ? { ...l, x: l.x + parentX, y: l.y + parentY } : l
+                l.x && l.y ? { ...l, x: l.x + parentX, y: l.y + parentY } : l,
               ),
               isSelected,
               sections: e.data.rest.sections.map((s) => ({

@@ -117,7 +117,7 @@ const indexToTab = (
   runId: string | null,
   taskId: string | null,
   isGroup: boolean,
-  isMappedTaskSummary: boolean
+  isMappedTaskSummary: boolean,
 ) => {
   const isTaskInstance = !!(
     taskId &&
@@ -210,13 +210,20 @@ const Details = ({
         runId,
         taskId,
         isGroup,
-        isMappedTaskSummary
+        isMappedTaskSummary,
       );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, runId, taskId, isGroup, isMappedTaskSummary]
+    [
+      setSearchParams,
+      searchParams,
+      runId,
+      taskId,
+      isGroup,
+      isMappedTaskSummary,
+    ],
   );
 
   useEffect(() => {

@@ -177,7 +177,7 @@ if __name__ == "__main__":
                     line_pattern, get_replacement(uv_version, quoting), new_content, keep_length
                 )
         if UPGRADE_PRE_COMMIT:
-            prek_version = "0.3.2"
+            prek_version = "0.3.5"
             console.print(f"[bright_blue]Latest prek version: {prek_version}")
             for line_pattern, quoting in PRE_COMMIT_PATTERNS:
                 new_content = replace_version(

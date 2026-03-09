@@ -76,12 +76,12 @@ const reducer = (state: State, action: Action): State => {
 const ClearRun = ({ runId, ...otherProps }: Props) => {
   const { mutateAsync: onClear, isLoading: isClearLoading } = useClearRun(
     dagId,
-    runId
+    runId,
   );
 
   const { mutateAsync: onQueue, isLoading: isQueueLoading } = useQueueRun(
     dagId,
-    runId
+    runId,
   );
 
   const clearExistingTasks = () => {
@@ -100,7 +100,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
 
   const storedValue = localStorage.getItem("doNotShowClearRunModal");
   const [doNotShowAgain, setDoNotShowAgain] = useState(
-    storedValue ? JSON.parse(storedValue) : false
+    storedValue ? JSON.parse(storedValue) : false,
   );
 
   const confirmClearExisting = () => {
@@ -124,7 +124,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
   const confirmAction = () => {
     localStorage.setItem(
       "doNotShowClearRunModal",
-      JSON.stringify(doNotShowAgain)
+      JSON.stringify(doNotShowAgain),
     );
     if (stateReducer.confirmingAction === "failed") {
       clearFailedTasks();

@@ -84,7 +84,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
 
   const storedValue = localStorage.getItem("doNotShowMarkRunModal");
   const [doNotShowAgain, setDoNotShowAgain] = useState(
-    storedValue ? JSON.parse(storedValue) : false
+    storedValue ? JSON.parse(storedValue) : false,
   );
 
   const markAsFailed = () => {
@@ -114,7 +114,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   const confirmAction = () => {
     localStorage.setItem(
       "doNotShowMarkRunModal",
-      JSON.stringify(doNotShowAgain)
+      JSON.stringify(doNotShowAgain),
     );
     if (stateReducer.confirmingAction === "failed") {
       markAsFailed();

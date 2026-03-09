@@ -19,7 +19,6 @@
 
 import React, { PropsWithChildren, useContext, useRef } from "react";
 
-// eslint-disable-next-line max-len
 const ContainerRefContext = React.createContext<
   React.RefObject<HTMLDivElement> | undefined
 >(undefined);

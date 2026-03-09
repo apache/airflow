@@ -46,7 +46,7 @@ describe("Test DagRun / Task Instance Notes", () => {
 
     const { getByText } = render(
       <NotesAccordion dagId="dagId" runId="runId" />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     await waitFor(() => expect(getByText("Add Note")).toBeVisible());
@@ -60,7 +60,7 @@ describe("Test DagRun / Task Instance Notes", () => {
 
     const { queryByText, getByText } = render(
       <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const changeButton = getByText("Edit Note");
@@ -82,7 +82,7 @@ describe("Test DagRun / Task Instance Notes", () => {
 
     const { getByText } = render(
       <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const changeButton = getByText("Edit Note");
@@ -99,7 +99,7 @@ describe("Test DagRun / Task Instance Notes", () => {
 
     const { getByTestId, getByText, queryByText } = render(
       <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     const changeButton = getByText("Edit Note");

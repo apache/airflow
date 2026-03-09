@@ -204,7 +204,6 @@ Github Actions to pass the list of parameters to a command to execute
 | is-arm-runner                                  | Whether runner used is an ARM one                                                                      | false                                   |      |
 | is-committer-build                             | Whether the build is triggered by a committer                                                          | false                                   |      |
 | is-k8s-runner                                  | Whether the build runs on our k8s infrastructure                                                       | false                                   |      |
-| is-legacy-ui-api-labeled                       | Whether the PR is labeled as legacy UI/API                                                             | false                                   |      |
 | is-self-hosted-runner                          | Whether the runner is self-hosted                                                                      | false                                   |      |
 | is-vm-runner                                   | Whether the runner uses VM to run                                                                      | true                                    |      |
 | kind-version                                   | Which Kind version to use for tests                                                                    | v0.24.0                                 |      |

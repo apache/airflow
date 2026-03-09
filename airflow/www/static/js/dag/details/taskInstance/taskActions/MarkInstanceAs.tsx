@@ -109,7 +109,7 @@ const MarkAsModal = ({
       downstream,
       mapIndexes,
       enabled: isOpen,
-    }
+    },
   );
 
   const { mutateAsync: markFailedMutation, isLoading: isMarkFailedLoading } =

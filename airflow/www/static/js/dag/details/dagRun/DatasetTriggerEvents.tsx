@@ -63,7 +63,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
         accessor: "extra",
       },
     ],
-    []
+    [],
   );
 
   const data = useMemo(() => datasetEvents, [datasetEvents]);

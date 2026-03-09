@@ -76,7 +76,7 @@ export default function useDatasetsSummary({
     },
     {
       keepPreviousData: true,
-    }
+    },
   );
   return {
     ...query,

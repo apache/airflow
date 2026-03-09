@@ -81,7 +81,7 @@ const DagRuns = (props: BoxProps) => {
                             href={`dags/${
                               dagRun.dagId
                             }/grid?dag_run_id=${encodeURIComponent(
-                              dagRun.dagRunId as string
+                              dagRun.dagRunId as string,
                             )}`}
                           >
                             {dagRun.dagId}
@@ -90,7 +90,7 @@ const DagRuns = (props: BoxProps) => {
                         <Td>{dagRun.runType}</Td>
                         <Td>
                           {formatDuration(
-                            getDuration(dagRun.startDate, dagRun.endDate)
+                            getDuration(dagRun.startDate, dagRun.endDate),
                           )}
                         </Td>
                       </Tr>

@@ -52,13 +52,13 @@ export default function useExtraLinks({
           const tryNumberParam =
             tryNumber !== undefined ? `&try_number=${tryNumber}` : "";
           const url = `${extraLinksUrl}?task_id=${encodeURIComponent(
-            taskId
+            taskId,
           )}&dag_id=${encodeURIComponent(
-            dagId
+            dagId,
           )}&execution_date=${encodeURIComponent(
-            executionDate
+            executionDate,
           )}&link_name=${encodeURIComponent(
-            link
+            link,
           )}&map_index=${definedMapIndex}${tryNumberParam}`;
           try {
             const datum = await axios.get<AxiosResponse, LinkData>(url);
@@ -74,9 +74,9 @@ export default function useExtraLinks({
               url: "",
             };
           }
-        })
+        }),
       );
       return data;
-    }
+    },
   );
 }

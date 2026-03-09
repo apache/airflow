@@ -99,11 +99,11 @@ const Datasets = () => {
   const containerRef = useContainerRef();
 
   const selectedUri = decodeURIComponent(
-    searchParams.get(DATASET_URI_PARAM) || ""
+    searchParams.get(DATASET_URI_PARAM) || "",
   );
 
   const selectedTimestamp = decodeURIComponent(
-    searchParams.get(TIMESTAMP_PARAM) || ""
+    searchParams.get(TIMESTAMP_PARAM) || "",
   );
   const selectedDagId = searchParams.get(DAG_ID_PARAM) || undefined;
 
@@ -118,7 +118,7 @@ const Datasets = () => {
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, selectedUri]
+    [setSearchParams, searchParams, selectedUri],
   );
 
   const onSelect = ({ uri, timestamp, dagId }: OnSelectProps = {}) => {

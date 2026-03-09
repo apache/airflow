@@ -57,6 +57,6 @@ export default function useTIHistory({
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       ...options,
-    }
+    },
   );
 }

@@ -28,7 +28,7 @@ const LANDING_TIME_KEY = "showLandingTimes";
 const RunDuration = () => {
   const storedValue = localStorage.getItem(LANDING_TIME_KEY);
   const [showLandingTimes, setShowLandingTimes] = useState(
-    storedValue ? JSON.parse(storedValue) : true
+    storedValue ? JSON.parse(storedValue) : true,
   );
   const onChange = () => {
     localStorage.setItem(LANDING_TIME_KEY, (!showLandingTimes).toString());

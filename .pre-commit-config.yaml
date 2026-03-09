@@ -18,8 +18,8 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.2.0
-minimum_prek_version: '0.3.2'
+  node: 22.13.0
+minimum_prek_version: '0.3.5'
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -244,7 +244,7 @@ repos:
         name: Check XML files with xmllint
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
+        exclude: ^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$|^airflow/www/static/js/types/api-generated\.ts$
       - id: pretty-format-json
         name: Format JSON files
         args:
@@ -732,11 +732,11 @@ repos:
         exclude: ^dev/breeze/autocomplete/.*$
       - id: lint-css
         name: stylelint
-        entry: "stylelint"
+        entry: bash -c 'stylelint --config-basedir "$(dirname "$(which stylelint)")/../lib" "$@"' --
         language: node
         files: ^airflow/www/.*\.(css|sass|scss)$
         # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
+        additional_dependencies: ['stylelint@17.4.0', 'stylelint-config-standard@40.0.0']
       - id: compile-www-assets
         name: Compile www assets (manual)
         language: node

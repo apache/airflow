@@ -79,7 +79,7 @@ const InstanceTooltip = ({
             {childState}
             {": "}
             {key}
-          </Text>
+          </Text>,
         );
       }
     });

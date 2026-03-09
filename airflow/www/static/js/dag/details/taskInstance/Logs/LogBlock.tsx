@@ -74,7 +74,7 @@ const LogBlock = ({
     if (target.id?.endsWith(unfoldIdSuffix)) {
       const gId = target.id.substring(
         0,
-        target.id.length - unfoldIdSuffix.length
+        target.id.length - unfoldIdSuffix.length,
       );
       // remember the folding state if logs re-loaded
       unfoldedGroups.push(gId);
@@ -87,7 +87,7 @@ const LogBlock = ({
     } else if (target.id?.endsWith(foldIdSuffix)) {
       const gId = target.id.substring(
         0,
-        target.id.length - foldIdSuffix.length
+        target.id.length - foldIdSuffix.length,
       );
       // remember the folding state if logs re-loaded
       if (unfoldedGroups.indexOf(gId) >= 0) {

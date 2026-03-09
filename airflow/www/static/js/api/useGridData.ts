@@ -122,13 +122,13 @@ const useGridData = () => {
         // If the run id cannot be found in the response, try fetching it to see if its real and then adjust the base date filter
         try {
           const selectedRun = await axios.get<AxiosResponse, API.DAGRun>(
-            dagRunUrl
+            dagRunUrl,
           );
           if (selectedRun?.executionDate) {
             onBaseDateChange(selectedRun.executionDate);
           }
           // otherwise the run_id isn't valid and we should unselect it
-        } catch (e) {
+        } catch (_e) {
           onSelect({ taskId });
         }
       }
@@ -160,7 +160,7 @@ const useGridData = () => {
         throw error;
       },
       select: formatOrdering,
-    }
+    },
   );
   return {
     ...query,

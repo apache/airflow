@@ -48,7 +48,7 @@ describe("Test Task InstanceTooltip", () => {
         }}
         instance={instance}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     expect(getByText("Trigger Rule: all_failed")).toBeDefined();
@@ -68,7 +68,7 @@ describe("Test Task InstanceTooltip", () => {
         }}
         instance={{ ...instance, mappedStates: { success: 2 } }}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     expect(getByText("Overall Status: success")).toBeDefined();
@@ -102,7 +102,7 @@ describe("Test Task InstanceTooltip", () => {
         }}
         instance={instance}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     expect(getByText("Overall Status: success")).toBeDefined();
@@ -116,7 +116,7 @@ describe("Test Task InstanceTooltip", () => {
         group={{ id: "task", label: "task", instances: [] }}
         instance={{ ...instance, note: "note" }}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     expect(getByText("Contains a note")).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe("Test Task InstanceTooltip", () => {
         group={{ id: "task", label: "task", instances: [] }}
         instance={{ ...instance, startDate: null }}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
 
     expect(getByText("Status: success")).toBeDefined();

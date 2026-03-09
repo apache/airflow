@@ -90,7 +90,7 @@ describe("Test DagRuns", () => {
       () =>
         ({
           data,
-        } as any)
+        }) as any,
     );
     const { queryAllByTestId, getByText, queryByText } = render(<DagRuns />, {
       wrapper: TableWrapper,
@@ -102,7 +102,7 @@ describe("Test DagRuns", () => {
     expect(getByText("00:01:26")).toBeInTheDocument();
     expect(
       // @ts-ignore
-      queryByText(moment.utc(dagRuns[0].executionDate).format("MMM DD, HH:mm"))
+      queryByText(moment.utc(dagRuns[0].executionDate).format("MMM DD, HH:mm")),
     ).toBeNull();
 
     spy.mockRestore();
@@ -117,12 +117,12 @@ describe("Test DagRuns", () => {
       () =>
         ({
           data,
-        } as any)
+        }) as any,
     );
     const { getByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
       // @ts-ignore
-      getByText(moment.utc(datestring).format("MMM DD, HH:mm"))
+      getByText(moment.utc(datestring).format("MMM DD, HH:mm")),
     ).toBeInTheDocument();
     spy.mockRestore();
   });
@@ -136,12 +136,12 @@ describe("Test DagRuns", () => {
       () =>
         ({
           data,
-        } as any)
+        }) as any,
     );
     const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
       // @ts-ignore
-      queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
+      queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm")),
     ).toHaveLength(1);
     spy.mockRestore();
   });
@@ -155,12 +155,12 @@ describe("Test DagRuns", () => {
       () =>
         ({
           data,
-        } as any)
+        }) as any,
     );
     const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
       // @ts-ignore
-      queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
+      queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm")),
     ).toHaveLength(2);
     spy.mockRestore();
   });
@@ -170,7 +170,7 @@ describe("Test DagRuns", () => {
       () =>
         ({
           data: { groups: {}, dagRuns: [] },
-        } as any)
+        }) as any,
     );
 
     const { queryByTestId } = render(<DagRuns />, { wrapper: TableWrapper });

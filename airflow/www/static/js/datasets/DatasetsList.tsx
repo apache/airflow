@@ -93,7 +93,7 @@ const DatasetsList = ({ onSelect }: Props) => {
         Cell: TimeCell,
       },
     ],
-    []
+    [],
   );
 
   const data = useMemo(() => datasets, [datasets]);

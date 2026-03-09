@@ -29,7 +29,7 @@ describe("Test LinkButton Component.", () => {
     const { getByText, container } = render(
       <LinkButton>
         <div>The link</div>
-      </LinkButton>
+      </LinkButton>,
     );
 
     expect(getByText("The link")).toBeDefined();

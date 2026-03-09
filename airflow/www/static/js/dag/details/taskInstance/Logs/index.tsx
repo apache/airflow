@@ -56,7 +56,7 @@ const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
     label: value,
     value,
     color: logLevelColorMapping[value],
-  })
+  }),
 );
 
 interface Props {
@@ -79,11 +79,11 @@ const Logs = ({
   state,
 }: Props) => {
   const [selectedTryNumber, setSelectedTryNumber] = useState(
-    finalTryNumber || 1
+    finalTryNumber || 1,
   );
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
-    []
+    [],
   );
   const [fileSourceFilters, setFileSourceFilters] = useState<
     Array<FileSourceOption>
@@ -127,9 +127,9 @@ const Logs = ({
         timezone,
         logLevelFilters.map((option) => option.value),
         fileSourceFilters.map((option) => option.value),
-        unfoldedLogGroups
+        unfoldedLogGroups,
       ),
-    [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
+    [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups],
   );
 
   useEffect(() => {
@@ -145,7 +145,7 @@ const Logs = ({
       fileSourceFilters.reduce(
         (isSourceMissing, option) =>
           isSourceMissing || !fileSources.includes(option.value),
-        false
+        false,
       )
     ) {
       setFileSourceFilters([]);
@@ -168,7 +168,7 @@ const Logs = ({
                   tryNumber={tryNumber}
                   mapIndex={mapIndex}
                 />
-              )
+              ),
             )}
           </Flex>
         </Box>

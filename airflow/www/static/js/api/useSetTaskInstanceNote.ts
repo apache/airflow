@@ -27,7 +27,7 @@ import type { API } from "src/types";
 
 const setTaskInstancesNoteURI = getMetaValue("set_task_instance_note");
 const setMappedTaskInstancesNoteURI = getMetaValue(
-  "set_mapped_task_instance_note"
+  "set_mapped_task_instance_note",
 );
 
 interface Props {
@@ -64,7 +64,7 @@ export default function useSetTaskInstanceNote({
         const note = data.note ?? null;
 
         const updateMappedInstancesResult = (
-          oldMappedInstances?: API.TaskInstanceCollection
+          oldMappedInstances?: API.TaskInstanceCollection,
         ) => {
           if (!oldMappedInstances) {
             return {
@@ -80,13 +80,13 @@ export default function useSetTaskInstanceNote({
               ti.taskId === taskId &&
               ti.mapIndex === mapIndex
                 ? { ...ti, note }
-                : ti
+                : ti,
             ),
           };
         };
 
         const updateTaskInstanceResult = (
-          oldTaskInstance?: API.TaskInstance
+          oldTaskInstance?: API.TaskInstance,
         ) => {
           if (!oldTaskInstance) throw new Error("Unknown value...");
           if (
@@ -113,17 +113,17 @@ export default function useSetTaskInstanceNote({
           await queryClient.cancelQueries("mappedInstances");
           queryClient.setQueriesData(
             "mappedInstances",
-            updateMappedInstancesResult
+            updateMappedInstancesResult,
           );
         }
 
         await queryClient.cancelQueries("taskInstance");
         queryClient.setQueriesData(
           ["taskInstance", dagId, runId, taskId, mapIndex],
-          updateTaskInstanceResult
+          updateTaskInstanceResult,
         );
       },
       onError: (error: Error) => errorToast({ error }),
-    }
+    },
   );
 }

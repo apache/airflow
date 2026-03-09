@@ -37,7 +37,7 @@ interface Props {
   setGanttDuration?: (
     queued: string | null | undefined,
     start: string | null | undefined,
-    end: string | null | undefined
+    end: string | null | undefined,
   ) => void;
 }
 
@@ -75,7 +75,7 @@ const Row = ({
       setGanttDuration(
         instance?.queuedDttm,
         instance?.startDate,
-        instance?.endDate
+        instance?.endDate,
       );
     }
   }, [instance, setGanttDuration]);
@@ -85,7 +85,7 @@ const Row = ({
     tiHistory?.taskInstances?.forEach(
       (tih) =>
         setGanttDuration &&
-        setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
+        setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate),
     );
   }, [tiHistory, setGanttDuration]);
 
@@ -125,7 +125,7 @@ const Row = ({
                 ganttStartDate={ganttStartDate}
                 ganttEndDate={ganttEndDate}
               />
-            )
+            ),
         )}
       </Box>
       {isOpen &&

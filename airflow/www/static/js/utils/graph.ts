@@ -110,7 +110,7 @@ const generateGraph = ({
   };
 
   const formatChildNode = (
-    node: DepNode
+    node: DepNode,
   ): DepNode & {
     label: string;
     layoutOptions?: Record<string, string>;
@@ -145,7 +145,7 @@ const generateGraph = ({
               // Remove edge from array when we add it here
               filteredEdges = filteredEdges.filter(
                 (fe) =>
-                  !(fe.sourceId === e.sourceId && fe.targetId === e.targetId)
+                  !(fe.sourceId === e.sourceId && fe.targetId === e.targetId),
               );
               return true;
             }
@@ -165,7 +165,7 @@ const generateGraph = ({
             !(
               childIds.indexOf(e.sourceId) > -1 &&
               childIds.indexOf(e.targetId) > -1
-            )
+            ),
         )
         // For external group edges, point to the group itself instead of a child node
         .map((e) => ({
@@ -251,9 +251,9 @@ export const useGraphLayout = ({
           font,
           openGroupIds,
           arrange,
-        })
+        }),
       );
       return data as Graph;
-    }
+    },
   );
 };

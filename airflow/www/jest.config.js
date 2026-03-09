@@ -23,6 +23,7 @@ const config = {
     "^.+\\.[jt]sx?$": "babel-jest",
   },
   testEnvironment: "jsdom",
+  setupFiles: ["./jest-globals-setup.js"],
   setupFilesAfterEnv: ["./jest-setup.js"],
   moduleDirectories: ["node_modules"],
   moduleNameMapper: {
@@ -30,34 +31,8 @@ const config = {
     "^src/(.*)$": "<rootDir>/static/js/$1",
   },
   transformIgnorePatterns: [
-    `node_modules/(?!${[
-      // specify modules that needs to be transformed for jest. (esm modules)
-      "ansi_up",
-      "axios",
-      "bail",
-      "ccount",
-      "character-entities",
-      "comma-separated-tokens",
-      "decode-named-character-reference",
-      "escape-string-regexp",
-      "hast",
-      "is-plain-obj",
-      "markdown-table",
-      "mdast",
-      "micromark",
-      "property-information",
-      "react-markdown",
-      "remark-gfm",
-      "remark-parse",
-      "remark-rehype",
-      "space-separated-tokens",
-      "trim-lines",
-      "trough",
-      "unified",
-      "unist",
-      "vfile",
-      "vfile-message",
-    ].join("|")})`,
+    // Many dependencies are ESM-only, so we transform all node_modules via babel-jest.
+    "/node_modules/.cache/",
   ],
 };
 

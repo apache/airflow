@@ -21,6 +21,7 @@
 
 import React from "react";
 import { render, fireEvent } from "@testing-library/react";
+import { ChakraProvider } from "@chakra-ui/react";
 import type { UseQueryResult } from "react-query";
 
 import * as utils from "src/utils";
@@ -104,27 +105,29 @@ describe("Test Logs Component.", () => {
   test("Test Logs Content", () => {
     const tryNumber = 2;
     const { getByText } = render(
-      <Logs
-        dagId="dummyDagId"
-        dagRunId="dummyDagRunId"
-        taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
-        tryNumber={tryNumber}
-      />
+      <ChakraProvider>
+        <Logs
+          dagId="dummyDagId"
+          dagRunId="dummyDagRunId"
+          taskId="dummyTaskId"
+          executionDate="2020:01:01T01:00+00:00"
+          tryNumber={tryNumber}
+        />
+      </ChakraProvider>,
     );
     expect(
       getByText("[2022-06-04, 00:00:01 UTC] {taskinstance.py:1329} INFO -", {
         exact: false,
-      })
+      }),
     ).toBeDefined();
     expect(
       getByText(
         "[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group",
-        { exact: false }
-      )
+        { exact: false },
+      ),
     ).toBeDefined();
     expect(
-      getByText("AIRFLOW_CTX_DAG_ID=test_ui_grid", { exact: false })
+      getByText("AIRFLOW_CTX_DAG_ID=test_ui_grid", { exact: false }),
     ).toBeDefined();
 
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
@@ -149,14 +152,16 @@ describe("Test Logs Component.", () => {
 
       const tryNumber = 2;
       const { getByTestId } = render(
-        <Logs
-          dagId="dummyDagId"
-          dagRunId="dummyDagRunId"
-          taskId="dummyTaskId"
-          executionDate="2020:01:01T01:00+00:00"
-          mapIndex={1}
-          tryNumber={tryNumber}
-        />
+        <ChakraProvider>
+          <Logs
+            dagId="dummyDagId"
+            dagRunId="dummyDagRunId"
+            taskId="dummyTaskId"
+            executionDate="2020:01:01T01:00+00:00"
+            mapIndex={1}
+            tryNumber={tryNumber}
+          />
+        </ChakraProvider>,
       );
 
       const wrapCheckbox = getByTestId("wrap-checkbox");
@@ -165,34 +170,36 @@ describe("Test Logs Component.", () => {
       } else {
         expect(wrapCheckbox.getAttribute("data-checked")).toBeNull();
       }
-    }
+    },
   );
 
   test("Test Logs Content Mapped Task", () => {
     const tryNumber = 2;
     const { getByText } = render(
-      <Logs
-        dagId="dummyDagId"
-        dagRunId="dummyDagRunId"
-        taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
-        mapIndex={1}
-        tryNumber={tryNumber}
-      />
+      <ChakraProvider>
+        <Logs
+          dagId="dummyDagId"
+          dagRunId="dummyDagRunId"
+          taskId="dummyTaskId"
+          executionDate="2020:01:01T01:00+00:00"
+          mapIndex={1}
+          tryNumber={tryNumber}
+        />
+      </ChakraProvider>,
     );
     expect(
       getByText("[2022-06-04, 00:00:01 UTC] {taskinstance.py:1329} INFO -", {
         exact: false,
-      })
+      }),
     ).toBeDefined();
     expect(
       getByText(
         "[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group",
-        { exact: false }
-      )
+        { exact: false },
+      ),
     ).toBeDefined();
     expect(
-      getByText("AIRFLOW_CTX_DAG_ID=test_ui_grid", { exact: false })
+      getByText("AIRFLOW_CTX_DAG_ID=test_ui_grid", { exact: false }),
     ).toBeDefined();
 
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
@@ -207,13 +214,15 @@ describe("Test Logs Component.", () => {
   test("Test Logs Attempt Select Button", () => {
     const tryNumber = 2;
     const { getByText, getByTestId } = render(
-      <Logs
-        dagId="dummyDagId"
-        dagRunId="dummyDagRunId"
-        taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
-        tryNumber={tryNumber}
-      />
+      <ChakraProvider>
+        <Logs
+          dagId="dummyDagId"
+          dagRunId="dummyDagRunId"
+          taskId="dummyTaskId"
+          executionDate="2020:01:01T01:00+00:00"
+          tryNumber={tryNumber}
+        />
+      </ChakraProvider>,
     );
     // Internal Log Attempt buttons.
     expect(getByText("1")).toBeDefined();

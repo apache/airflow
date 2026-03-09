@@ -571,8 +571,7 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
+    - airflow/www/eslint.config.mjs
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
 
@@ -592,8 +591,7 @@ labelPRBasedOnFilePath:
   area:UI:
     - airflow/www/static/**/*
     - airflow/www/templates/**/*
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
+    - airflow/www/eslint.config.mjs
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
     - airflow/www/package.json

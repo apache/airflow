@@ -41,7 +41,7 @@ type SeriesData = Array<SeriesPoint>;
 const camelCaseColorPalette = mapKeys(stateColors, (_, k) => camelCase(k));
 
 const formatData = (
-  data: HistoricalMetricsData[keyof HistoricalMetricsData] | undefined
+  data: HistoricalMetricsData[keyof HistoricalMetricsData] | undefined,
 ): [number, SeriesData] => {
   if (data === undefined) return [0, []];
 
@@ -96,7 +96,7 @@ const PieChart = ({
       if (color === undefined) {
         // eslint-disable-next-line no-console
         console.warn(
-          `The color for ${d.name} is missing from the palette, defaulting to black`
+          `The color for ${d.name} is missing from the palette, defaulting to black`,
         );
         color = "black";
       }

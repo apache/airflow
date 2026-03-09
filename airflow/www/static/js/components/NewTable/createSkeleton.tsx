@@ -24,7 +24,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 function createSkeleton<TData, TValue>(
   skeletonCount: number,
-  columnDefs: ColumnDef<TData, TValue>[]
+  columnDefs: ColumnDef<TData, TValue>[],
 ) {
   const colDefs = columnDefs.map((colDef) => ({
     ...colDef,
@@ -39,7 +39,7 @@ function createSkeleton<TData, TValue>(
     ),
   }));
 
-  const data = [...Array(skeletonCount)].map(() => ({} as TData));
+  const data = [...Array(skeletonCount)].map(() => ({}) as TData);
 
   return { columns: colDefs, data };
 }

@@ -66,8 +66,8 @@ const DagRunBar = ({
     if (!isSelected) {
       const els = Array.from(
         containerRef?.current?.getElementsByClassName(
-          `js-${runId}`
-        ) as HTMLCollectionOf<HTMLElement>
+          `js-${runId}`,
+        ) as HTMLCollectionOf<HTMLElement>,
       );
       els.forEach((e) => {
         e.style.backgroundColor = hoverBlue;
@@ -77,8 +77,8 @@ const DagRunBar = ({
   const onMouseLeave = () => {
     const els = Array.from(
       containerRef?.current?.getElementsByClassName(
-        `js-${runId}`
-      ) as HTMLCollectionOf<HTMLElement>
+        `js-${runId}`,
+      ) as HTMLCollectionOf<HTMLElement>,
     );
     els.forEach((e) => {
       e.style.backgroundColor = "";

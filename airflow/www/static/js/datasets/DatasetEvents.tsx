@@ -80,7 +80,7 @@ const Events = ({ datasetId, showLabel }: Props) => {
         accessor: "extra",
       },
     ],
-    []
+    [],
   );
 
   const data = useMemo(() => datasetEvents, [datasetEvents]);
