@@ -1735,27 +1735,37 @@ class S3Hook(AwsBaseHook):
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
 
     def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
-        current_s3_keys = {key for key in current_s3_objects}
+        current_s3_keys = {p.resolve() for p in current_s3_objects}
 
-        for item in local_dir.iterdir():
-            item: Path  # type: ignore[no-redef]
-            absolute_item_path = item.resolve()
+        # Recursively collect all paths (Path.iterdir() is not recursive; rglob is)
+        try:
+            all_paths = list(local_dir.rglob("*"))
+        except OSError as e:
+            self.log.error("Error listing local dir %s: %s", local_dir, e)
+            raise e
 
-            if absolute_item_path not in current_s3_keys:
+        files = [p for p in all_paths if p.is_file()]
+        dirs = [p for p in all_paths if p.is_dir()]
+        # Remove empty dirs deepest-first so parent dirs become empty after children
+        dirs_sorted = sorted(dirs, key=lambda p: len(p.parts), reverse=True)
+
+        for item in files:
+            if item.resolve() not in current_s3_keys:
                 try:
-                    if item.is_file():
-                        item.unlink(missing_ok=True)
-                        self.log.debug("Deleted stale local file: %s", item)
-                    elif item.is_dir():
-                        # delete only when the folder is empty
-                        if not os.listdir(item):
-                            item.rmdir()
-                            self.log.debug("Deleted stale empty directory: %s", item)
-                    else:
-                        self.log.debug("Skipping stale item of unknown type: %s", item)
+                    item.unlink(missing_ok=True)
+                    self.log.debug("Deleted stale local file: %s", item)
                 except OSError as e:
-                    self.log.error("Error deleting stale item %s: %s", item, e)
+                    self.log.error("Error deleting stale file %s: %s", item, e)
                     raise e
+
+        for item in dirs_sorted:
+            try:
+                if item.exists() and not any(item.iterdir()):
+                    item.rmdir()
+                    self.log.debug("Deleted stale empty directory: %s", item)
+            except OSError as e:
+                self.log.error("Error deleting stale directory %s: %s", item, e)
+                raise e
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False

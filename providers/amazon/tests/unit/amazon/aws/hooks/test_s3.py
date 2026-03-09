@@ -1879,6 +1879,20 @@ class TestAwsS3Hook:
 
         assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
 
+        # Recursive stale delete: stale file in a subfolder must be removed (#62622)
+        nested_stale_dir = Path(sync_local_dir).joinpath("nested").joinpath("subdir")
+        nested_stale_dir.mkdir(parents=True, exist_ok=True)
+        nested_stale_file = nested_stale_dir / "stale_in_subdir.py"
+        nested_stale_file.write_text("stale")
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Deleted stale local file: {nested_stale_file.as_posix()}" in logs_string
+        assert not nested_stale_file.exists()
+        assert not nested_stale_dir.exists()
+
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
         hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
