@@ -345,6 +345,14 @@ class Templater:
                                 log.exception("Failed to get source %s", item)
         self.prepare_template()
 
+    def _should_render_native(self, dag: DAG | None = None) -> bool:
+        # Operator explicitly set? Use that value, otherwise inherit from DAG
+        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
+        if render_op_template_as_native_obj is not None:
+            return render_op_template_as_native_obj
+
+        return dag.render_template_as_native_obj if dag else False
+
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -363,14 +371,6 @@ class Templater:
             )
             if rendered_content:
                 setattr(parent, attr_name, rendered_content)
-
-    def _should_render_native(self, dag: DAG | None = None) -> bool:
-        # Operator explicitly set? Use that value, otherwise inherit from DAG
-        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
-        if render_op_template_as_native_obj is not None:
-            return render_op_template_as_native_obj
-
-        return dag.render_template_as_native_obj if dag else False
 
     def _render(self, template, context, dag=None) -> Any:
         if self._should_render_native(dag):
