@@ -49,6 +49,7 @@ from airflow.providers.common.ai.plugins.hitl_review import (
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
+    XCOM_HUMAN_FEEDBACK_PREFIX,
     AgentSessionData,
     SessionStatus,
 )
@@ -548,16 +549,19 @@ class TestGetChatHtml:
 class TestIsTaskCompleted:
     """Test _is_task_completed."""
 
-    def test_returns_true_when_no_ti(self, session, dag_maker):
+    @pytest.fixture(autouse=True)
+    def setup(self):
         _clear_db()
+        yield
+        _clear_db()
+
+    def test_returns_true_when_no_ti(self, session, dag_maker):
         result = _is_task_completed(session, dag_id="x", run_id="y", task_id="z", map_index=-1)
         assert result is True
-        _clear_db()
 
     def test_returns_false_when_ti_running(self, session, dag_maker):
         from airflow.utils.state import TaskInstanceState
 
-        _clear_db()
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -569,14 +573,18 @@ class TestIsTaskCompleted:
 
         result = _is_task_completed(session, dag_id="d", run_id="r", task_id="t", map_index=-1)
         assert result is False
-        _clear_db()
 
 
 class TestBuildSessionResponse:
     """Test _build_session_response."""
 
-    def test_returns_none_when_no_session(self, session, dag_maker):
+    @pytest.fixture(autouse=True)
+    def setup(self):
         _clear_db()
+        yield
+        _clear_db()
+
+    def test_returns_none_when_no_session(self, session, dag_maker):
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -585,7 +593,6 @@ class TestBuildSessionResponse:
 
         result = _build_session_response(session, dag_id="d", run_id="r", task_id="t", map_index=-1)
         assert result is None
-        _clear_db()
 
     @pytest.mark.parametrize(
         ("status", "iteration", "prompt", "current_output", "expected_status", "expected_output"),
@@ -650,7 +657,6 @@ class TestBuildSessionResponse:
         expected_status,
         expected_output,
     ):
-        _clear_db()
         with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id=TEST_TASK_ID)
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -675,7 +681,165 @@ class TestBuildSessionResponse:
         assert result.dag_id == TEST_DAG_ID
         assert result.status == expected_status
         assert result.current_output == expected_output
-        _clear_db()
+
+    def test_build_session_response_single_conversation(self, session, dag_maker):
+        """Response conversation has one assistant entry when only agent output exists."""
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        _create_hitl_session(
+            session=session,
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=1,
+            prompt="Summarize",
+            current_output="First output",
+        )
+        session.commit()
+
+        result = _build_session_response(
+            session,
+            dag_id=TEST_DAG_ID,
+            run_id=TEST_RUN_ID,
+            task_id=TEST_TASK_ID,
+            map_index=-1,
+        )
+        assert result is not None
+        assert len(result.conversation) == 1
+        assert result.conversation[0].role == "assistant"
+        assert result.conversation[0].content == "First output"
+        assert result.conversation[0].iteration == 1
+
+    def test_build_session_response_single_conversation_with_human_feedback(self, session, dag_maker):
+        """Response conversation order: assistant then human for one iteration."""
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        _create_hitl_session(
+            session=session,
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=1,
+            prompt="p",
+            current_output="Initial",
+        )
+        XComModel.set(
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
+            value="Please add more detail",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        session.commit()
+
+        result = _build_session_response(
+            session,
+            dag_id=TEST_DAG_ID,
+            run_id=TEST_RUN_ID,
+            task_id=TEST_TASK_ID,
+            map_index=-1,
+        )
+        assert result is not None
+        assert len(result.conversation) == 2
+        assert result.conversation[0].role == "assistant"
+        assert result.conversation[0].content == "Initial"
+        assert result.conversation[0].iteration == 1
+        assert result.conversation[1].role == "human"
+        assert result.conversation[1].content == "Please add more detail"
+        assert result.conversation[1].iteration == 1
+
+    def test_build_session_response_multiple_conversation_order(self, session, dag_maker):
+        """Response conversation order: assistant 1, human 1, assistant 2, human 2."""
+
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        sess = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=2,
+            max_iterations=5,
+            prompt="p",
+            current_output="Output 2",
+        )
+        XComModel.set(
+            key=XCOM_AGENT_SESSION,
+            value=sess.model_dump(mode="json"),
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+            value="Output 1",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
+            value="Output 2",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
+            value="Feedback 1",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}2",
+            value="Feedback 2",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        session.commit()
+
+        result = _build_session_response(
+            session,
+            dag_id=TEST_DAG_ID,
+            run_id=TEST_RUN_ID,
+            task_id=TEST_TASK_ID,
+            map_index=-1,
+        )
+        assert result is not None
+        assert result.iteration == 2
+        assert len(result.conversation) == 4
+        # Order: assistant 1, human 1, assistant 2, human 2
+        assert result.conversation[0].role == "assistant"
+        assert result.conversation[0].content == "Output 1"
+        assert result.conversation[0].iteration == 1
+        assert result.conversation[1].role == "human"
+        assert result.conversation[1].content == "Feedback 1"
+        assert result.conversation[1].iteration == 1
+        assert result.conversation[2].role == "assistant"
+        assert result.conversation[2].content == "Output 2"
+        assert result.conversation[2].iteration == 2
+        assert result.conversation[3].role == "human"
+        assert result.conversation[3].content == "Feedback 2"
+        assert result.conversation[3].iteration == 2
 
 
 class TestHealthEndpoint:
@@ -712,11 +876,11 @@ class TestFindSessionEndpoint:
             logical_date=logical_date,
         )
         dag_maker.sync_dagbag_to_db()
-        _create_hitl_session()
         yield
         _clear_db()
 
     def test_returns_session_when_found(self, test_client):
+        _create_hitl_session()
         response = test_client.get(
             "/hitl-review/sessions/find",
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
@@ -724,10 +888,18 @@ class TestFindSessionEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["dag_id"] == TEST_DAG_ID
+        assert data["run_id"] == TEST_RUN_ID
+        assert data["task_id"] == TEST_TASK_ID
         assert data["status"] == "pending_review"
         assert data["iteration"] == 1
         assert data["max_iterations"] == 5
+        assert data["prompt"] == "Summarize"
         assert data["current_output"] == "Initial output"
+        assert data["task_completed"] is True
+        assert len(data["conversation"]) == 1
+        assert data["conversation"][0]["role"] == "assistant"
+        assert data["conversation"][0]["content"] == "Initial output"
+        assert data["conversation"][0]["iteration"] == 1
 
     def test_404_when_session_not_found(self, test_client):
         response = test_client.get(
@@ -743,15 +915,6 @@ class TestFindSessionEndpoint:
 
     def test_returns_max_iterations_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns max_iterations_exceeded when session has that status."""
-        _clear_db()
-        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
-            EmptyOperator(task_id=TEST_TASK_ID)
-        dag_maker.create_dagrun(
-            run_id=TEST_RUN_ID,
-            run_type=DagRunType.MANUAL,
-            logical_date=logical_date,
-        )
-        dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
             session=session,
             status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
@@ -766,20 +929,18 @@ class TestFindSessionEndpoint:
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "max_iterations_exceeded"
-        _clear_db()
+        data = response.json()
+        assert data["status"] == "max_iterations_exceeded"
+        assert data["iteration"] == 5
+        assert data["max_iterations"] == 5
+        assert data["prompt"] == "p"
+        assert data["current_output"] == "output"
+        assert len(data["conversation"]) == 1
+        assert data["conversation"][0]["role"] == "assistant"
+        assert data["conversation"][0]["content"] == "output"
 
     def test_returns_timeout_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns timeout_exceeded when session has that status."""
-        _clear_db()
-        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
-            EmptyOperator(task_id=TEST_TASK_ID)
-        dag_maker.create_dagrun(
-            run_id=TEST_RUN_ID,
-            run_type=DagRunType.MANUAL,
-            logical_date=logical_date,
-        )
-        dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
             session=session,
             status=SessionStatus.TIMEOUT_EXCEEDED,
@@ -794,8 +955,87 @@ class TestFindSessionEndpoint:
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "timeout_exceeded"
-        _clear_db()
+        data = response.json()
+        assert data["status"] == "timeout_exceeded"
+        assert data["iteration"] == 2
+        assert data["prompt"] == "p"
+        assert data["current_output"] == "output"
+        assert len(data["conversation"]) == 1
+        assert data["conversation"][0]["content"] == "output"
+
+    def test_find_returns_full_response_content_multiple_conversation(self, test_client, session, dag_maker):
+        """Find endpoint returns ordered conversation (assistant 1, human 1, assistant 2)."""
+        sess = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=2,
+            max_iterations=5,
+            prompt="Summarize",
+            current_output="Revised output",
+        )
+        XComModel.set(
+            key=XCOM_AGENT_SESSION,
+            value=sess.model_dump(mode="json"),
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+            value="First output",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
+            value="Revised output",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        XComModel.set(
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
+            value="Add more detail",
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=-1,
+            session=session,
+            **serialize,
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_id"] == TEST_DAG_ID
+        assert data["status"] == "pending_review"
+        assert data["iteration"] == 2
+        assert data["max_iterations"] == 5
+        assert data["prompt"] == "Summarize"
+        assert data["current_output"] == "Revised output"
+        assert len(data["conversation"]) == 3
+        assert data["conversation"][0]["role"] == "assistant"
+        assert data["conversation"][0]["content"] == "First output"
+        assert data["conversation"][0]["iteration"] == 1
+        assert data["conversation"][1]["role"] == "human"
+        assert data["conversation"][1]["content"] == "Add more detail"
+        assert data["conversation"][1]["iteration"] == 1
+        assert data["conversation"][2]["role"] == "assistant"
+        assert data["conversation"][2]["content"] == "Revised output"
+        assert data["conversation"][2]["iteration"] == 2
 
 
 class TestSubmitFeedbackEndpoint:
@@ -812,11 +1052,11 @@ class TestSubmitFeedbackEndpoint:
             logical_date=logical_date,
         )
         dag_maker.sync_dagbag_to_db()
-        _create_hitl_session()
         yield
         _clear_db()
 
     def test_submit_feedback_returns_updated_session(self, test_client):
+        _create_hitl_session()
         response = test_client.post(
             "/hitl-review/sessions/feedback",
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
@@ -826,7 +1066,14 @@ class TestSubmitFeedbackEndpoint:
         data = response.json()
         assert data["status"] == "changes_requested"
         assert data["iteration"] == 1
-        assert any(e["role"] == "human" and "Add more detail" in e["content"] for e in data["conversation"])
+        assert data["current_output"] == "Initial output"
+        assert len(data["conversation"]) == 2
+        assert data["conversation"][0]["role"] == "assistant"
+        assert data["conversation"][0]["content"] == "Initial output"
+        assert data["conversation"][0]["iteration"] == 1
+        assert data["conversation"][1]["role"] == "human"
+        assert data["conversation"][1]["content"] == "Add more detail"
+        assert data["conversation"][1]["iteration"] == 1
 
     def test_submit_feedback_404_when_no_session(self, test_client):
         response = test_client.post(
@@ -855,11 +1102,11 @@ class TestApproveEndpoint:
             logical_date=logical_date,
         )
         dag_maker.sync_dagbag_to_db()
-        _create_hitl_session()
         yield
         _clear_db()
 
     def test_approve_returns_session(self, test_client):
+        _create_hitl_session()
         response = test_client.post(
             "/hitl-review/sessions/approve",
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
@@ -882,11 +1129,11 @@ class TestRejectEndpoint:
             logical_date=logical_date,
         )
         dag_maker.sync_dagbag_to_db()
-        _create_hitl_session()
         yield
         _clear_db()
 
     def test_reject_returns_session(self, test_client):
+        _create_hitl_session()
         response = test_client.post(
             "/hitl-review/sessions/reject",
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
@@ -909,11 +1156,11 @@ class TestChatEndpoints:
             logical_date=logical_date,
         )
         dag_maker.sync_dagbag_to_db()
-        _create_hitl_session()
         yield
         _clear_db()
 
     def test_chat_page_returns_html_when_session_exists(self, test_client):
+        _create_hitl_session()
         response = test_client.get(
             "/hitl-review/chat",
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
