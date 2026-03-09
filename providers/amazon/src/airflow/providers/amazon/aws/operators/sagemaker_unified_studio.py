@@ -105,7 +105,16 @@ class SageMakerNotebookOperator(BaseOperator):
     # (e.g. task_instance.xcom_pull(...)) to actual string values before execute() is called.
     # Without this, the hook would be instantiated with unresolved PlainXComArg objects,
     # causing a ParamValidationError when the underlying SDK tries to use them as strings.
-    template_fields = ("domain_id", "project_id", "domain_region")
+    template_fields = (
+        "domain_id",
+        "project_id",
+        "domain_region",
+        "input_config",
+        "output_config",
+        "compute",
+        "termination_condition",
+        "tags",
+    )
 
     def __init__(
         self,

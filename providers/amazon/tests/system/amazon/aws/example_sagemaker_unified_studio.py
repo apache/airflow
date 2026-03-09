@@ -43,7 +43,10 @@ Prerequisites: The account which runs this test must manually have the following
 
 This test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
 The setup tasks will set up the project and configure the test runner to emulate an MWAA instance.
-Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
+Then, the SageMakerNotebookOperator will run a test notebook twice:
+  1. With all environment variables set (legacy MWAA-style, for SDK backwards compatibility)
+  2. With domain_id/project_id passed explicitly as operator parameters and no environment variables
+     (verifies the SDK can resolve S3 path and region from domain_id and project_id alone)
 """
 
 DAG_ID = "example_sagemaker_unified_studio"
@@ -51,6 +54,7 @@ DAG_ID = "example_sagemaker_unified_studio"
 # Externally fetched variables:
 DOMAIN_ID_KEY = "DOMAIN_ID"
 PROJECT_ID_KEY = "PROJECT_ID"
+ENVIRONMENT_ID_KEY = "ENVIRONMENT_ID"
 S3_PATH_KEY = "S3_PATH"
 REGION_NAME_KEY = "REGION_NAME"
 
@@ -58,6 +62,7 @@ sys_test_context_task = (
     SystemTestContextBuilder()
     .add_variable(DOMAIN_ID_KEY)
     .add_variable(PROJECT_ID_KEY)
+    .add_variable(ENVIRONMENT_ID_KEY)
     .add_variable(S3_PATH_KEY)
     .add_variable(REGION_NAME_KEY)
     .build()
@@ -67,6 +72,7 @@ sys_test_context_task = (
 def get_mwaa_environment_params(
     domain_id: str,
     project_id: str,
+    environment_id: str,
     s3_path: str,
     region_name: str,
 ):
@@ -75,6 +81,10 @@ def get_mwaa_environment_params(
     parameters = {}
     parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
     parameters[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = f"https://datazone.{region_name}.api.aws"
     parameters[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
     parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
     return parameters
@@ -96,6 +106,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -103,21 +114,24 @@ with DAG(
     test_env_id = test_context[ENV_ID_KEY]
     domain_id = test_context[DOMAIN_ID_KEY]
     project_id = test_context[PROJECT_ID_KEY]
+    environment_id = test_context[ENVIRONMENT_ID_KEY]
     s3_path = test_context[S3_PATH_KEY]
     region_name = test_context[REGION_NAME_KEY]
 
     mock_mwaa_environment_params = get_mwaa_environment_params(
         domain_id,
         project_id,
+        environment_id,
         s3_path,
         region_name,
     )
 
     setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
 
-    # [START howto_operator_sagemaker_unified_studio_notebook]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
 
+    # [START howto_operator_sagemaker_unified_studio_notebook]
+    # Run notebook with all environment variables set (legacy MWAA-style)
     run_notebook = SageMakerNotebookOperator(
         task_id="run-notebook",
         input_config={"input_path": notebook_path, "input_params": {}},
@@ -147,12 +161,35 @@ with DAG(
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
 
+    # [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+    # Run notebook with domain_id/project_id passed explicitly as operator parameters.
+    # No environment variables needed — the SDK resolves the S3 path and region from domain_id and project_id.
+    run_notebook_explicit_params = SageMakerNotebookOperator(
+        task_id="run-notebook-explicit",
+        domain_id=domain_id,
+        project_id=project_id,
+        input_config={"input_path": notebook_path, "input_params": {}},
+        output_config={"output_formats": ["NOTEBOOK"]},  # optional
+        compute={
+            "instance_type": "ml.m5.large",
+            "volume_size_in_gb": 30,
+        },  # optional
+        termination_condition={"max_runtime_in_seconds": 600},  # optional
+        tags={},  # optional
+        wait_for_completion=True,  # optional
+        waiter_delay=5,  # optional
+        deferrable=False,  # optional
+    )
+    # [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+
     chain(
         # TEST SETUP
         test_context,
         setup_mwaa_environment,
-        # TEST BODY
+        # TEST BODY: legacy env-var-based resolution
         run_notebook,
+        # TEST BODY: explicit params, no env vars required
+        run_notebook_explicit_params,
     )
 
     from tests_common.test_utils.watcher import watcher
