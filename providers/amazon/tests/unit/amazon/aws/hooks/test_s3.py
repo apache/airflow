@@ -1870,14 +1870,28 @@ class TestAwsS3Hook:
         local_file_that_should_be_deleted.write_text("test dag")
         local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
         local_folder_should_be_deleted.mkdir(exist_ok=True)
+        nested_stale_file = Path(sync_local_dir).joinpath("subproject1", "stale_nested.py")
+        nested_stale_file.write_text("stale nested file")
+        deep_nested_dir = Path(sync_local_dir).joinpath("subproject1", "deep")
+        deep_nested_dir.mkdir()
+        deep_stale_file = deep_nested_dir.joinpath("stale_deep.py")
+        deep_stale_file.write_text("stale deep file")
         hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {nested_stale_file.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {deep_stale_file.as_posix()}" in logs_string
 
         assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale empty directory: {deep_nested_dir.as_posix()}" in logs_string
+        assert not nested_stale_file.exists()
+        assert not deep_stale_file.exists()
+        assert not deep_nested_dir.exists()
+        assert Path(sync_local_dir).joinpath("dag_01.py").exists()
+        assert Path(sync_local_dir).joinpath("subproject1", "dag_a.py").exists()
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
         hook.log.debug = MagicMock()
