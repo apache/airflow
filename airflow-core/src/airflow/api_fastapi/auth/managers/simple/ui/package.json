@@ -18,7 +18,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.33.0",
+    "@chakra-ui/react": "^3.34.0",
     "@hey-api/client-axios": "^0.9.1",
     "@hey-api/openapi-ts": "^0.93.1",
     "@tanstack/react-query": "^5.90.21",
@@ -54,7 +54,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "eslint-plugin-unicorn": "^63.0.0",
-    "happy-dom": "^20.7.0",
+    "happy-dom": "^20.8.3",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2",
     "typescript": "~5.9.3",
