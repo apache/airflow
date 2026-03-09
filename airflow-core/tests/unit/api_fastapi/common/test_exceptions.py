@@ -121,69 +121,32 @@ class TestUniqueConstraintErrorHandler:
 
     @pytest.mark.parametrize(
         ("table", "expected_exception"),
-        generate_test_cases_parametrize(
-            ["Pool", "Variable"],
+        [
             [
-                [  # Pool
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                ],
-                [  # Variable
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                ],
+                "Pool",
+                HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "reason": "Unique constraint violation",
+                        "statement": "hidden",
+                        "orig_error": "hidden",
+                        "message": MESSAGE,
+                    },
+                ),
             ],
-        ),
+            [
+                "Variable",
+                HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "reason": "Unique constraint violation",
+                        "statement": "hidden",
+                        "orig_error": "hidden",
+                        "message": MESSAGE,
+                    },
+                ),
+            ],
+        ],
     )
     @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
@@ -310,43 +273,6 @@ class TestUniqueConstraintErrorHandler:
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
-    @pytest.mark.parametrize(
-        ("table", "expected_exception"),
-        generate_test_cases_parametrize(
-            ["DagRun"],
-            [
-                [  # DagRun
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                    HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "reason": "Unique constraint violation",
-                            "statement": "hidden",
-                            "orig_error": "hidden",
-                            "message": MESSAGE,
-                        },
-                    ),
-                ],
-            ],
-        ),
-    )
     @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
@@ -354,21 +280,22 @@ class TestUniqueConstraintErrorHandler:
         self,
         mock_get_random_string,
         session,
-        table,
-        expected_exception,
     ) -> None:
-        if table == "DagRun":
-            session.add(
-                DagRun(
-                    dag_id="test_dag_id", run_id="test_run_id", run_type="manual", state=DagRunState.RUNNING
-                )
-            )
-            session.add(
-                DagRun(
-                    dag_id="test_dag_id", run_id="test_run_id", run_type="manual", state=DagRunState.RUNNING
-                )
-            )
-
+        expected_exception = HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "Unique constraint violation",
+                "statement": "hidden",
+                "orig_error": "hidden",
+                "message": MESSAGE,
+            },
+        )
+        session.add(
+            DagRun(dag_id="test_dag_id", run_id="test_run_id", run_type="manual", state=DagRunState.RUNNING)
+        )
+        session.add(
+            DagRun(dag_id="test_dag_id", run_id="test_run_id", run_type="manual", state=DagRunState.RUNNING)
+        )
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
             session.commit()
 
