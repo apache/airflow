@@ -2090,7 +2090,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_runs=active_runs_of_dags.get(dag_model.dag_id),
                 )
                 continue
-            if dag_model.next_dagrun is None:
+            if dag_model.next_dagrun is None and dag_model.timetable_partitioned is False:
                 self.log.error(
                     "dag_model.next_dagrun is None; expected datetime",
                     dag_id=dag_model.dag_id,
