@@ -44,7 +44,7 @@
     "@stylistic/eslint-plugin": "^2.13.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
-    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^25.3.3",
     "@types/react": "^18.3.19",
     "@types/react-dom": "^19.0.1",
