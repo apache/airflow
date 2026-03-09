@@ -254,12 +254,11 @@ ARG_DAG_ID = Arg(
     help="The DAG ID of the DAG to pause or unpause",
 )
 
-# Variable Commands Args
-ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
+ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
     default="overwrite",
-    help="Action to take if we encounter a variable key that already exists.",
+    help="Action to take if the entity already exists.",
     choices=("overwrite", "fail", "skip"),
 )
 
@@ -865,7 +864,10 @@ CONNECTION_COMMANDS = (
         name="import",
         help="Import connections from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
-        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+        args=(
+            Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),
+            ARG_ACTION_ON_EXISTING_KEY,
+        ),
     ),
 )
 
@@ -895,7 +897,7 @@ POOL_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
-        args=(ARG_FILE,),
+        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
     ),
     ActionCommand(
         name="export",
@@ -913,7 +915,7 @@ VARIABLE_COMMANDS = (
         name="import",
         help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
-        args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
+        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
     ),
 )
 
