@@ -34,6 +34,7 @@ from airflow.api_fastapi.execution_api.versions.v2025_12_08 import (
     MovePreviousRunEndpoint,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_03_31 import (
+    AddBundleVersionField,
     AddNoteField,
     MakeDagRunStartDateNullable,
     ModifyDeferredTaskKwargsToJsonValue,
@@ -44,6 +45,7 @@ bundle = VersionBundle(
     HeadVersion(),
     Version(
         "2026-03-31",
+        AddBundleVersionField,
         MakeDagRunStartDateNullable,
         ModifyDeferredTaskKwargsToJsonValue,
         RemoveUpstreamMapIndexesField,
