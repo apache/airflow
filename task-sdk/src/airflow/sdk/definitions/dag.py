@@ -362,7 +362,7 @@ class DAG:
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :param max_active_tasks: the number of task instances allowed to run
-        concurrently
+        concurrently per Dag run. Note that in Airflow 2 this was a global limit on the Dag, since Airflow 3 it is per run.
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
