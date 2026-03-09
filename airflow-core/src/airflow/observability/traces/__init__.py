@@ -136,12 +136,15 @@ def configure_otel():
     # ideally both endpoint and resource are None here
     # they would only be something other than None if user is using deprecated
     # Airflow-defined otel configs
-    endpoint, resource = _get_backcompat_config()
+    backcompat_endpoint, resource = _get_backcompat_config()
 
     # backcompat: if old-style host/port config provided an endpoint, set the
     # env var so the exporter (loaded below) picks it up automatically
-    if endpoint and not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
-        os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = endpoint
+
+    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    otlp_traces_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    if backcompat_endpoint and not (otlp_endpoint or otlp_traces_endpoint):
+        os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = backcompat_endpoint
 
     provider = TracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
     provider.add_span_processor(BatchSpanProcessor(_load_exporter_from_env()))
