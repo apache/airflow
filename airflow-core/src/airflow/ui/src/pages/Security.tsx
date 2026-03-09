@@ -48,7 +48,9 @@ export const Security = () => {
       const basename = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
       const iframePath = iframe.contentWindow.location.pathname;
-      const pathWithoutBase = iframePath.startsWith(basename) ? iframePath.slice(basename.length) : iframePath;
+      const pathWithoutBase = iframePath.startsWith(basename)
+        ? iframePath.slice(basename.length)
+        : iframePath;
 
       if (!pathWithoutBase.startsWith("/auth/")) {
         void Promise.resolve(navigate("/"));
