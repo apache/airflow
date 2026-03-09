@@ -299,9 +299,16 @@ This means that the ``get_array`` is not executed as top-level code, but ``get_t
 Code Quality and Linting
 ------------------------
 
-Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
+Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows.
+The following points summarize how this relates to Ruff:
 
-ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues. The full list is detailed in `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
+1. This page documents Airflow best practices. Some of those practices are also supported by Ruff ``AIR`` rules,
+   which help detect and enforce Airflow-specific best practices, including deprecated patterns and migration issues.
+   The full list is available in
+   `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
+2. If you want to suggest a new Airflow best practice and add a matching Ruff ``AIR`` rule, follow the contributor
+   process described in
+   `Proposing Airflow Best Practices and Ruff AIR Rules <https://github.com/apache/airflow/blob/main/contributing-docs/24_proposing_best_practices_and_air_rules.rst>`_.
 
 Installing and Using ruff
 -------------------------
