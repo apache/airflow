@@ -841,6 +841,20 @@ AUTH_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.list_envs"),
         args=(ARG_OUTPUT,),
     ),
+    ActionCommand(
+        name="token",
+        help="Generate and print a JWT token for the given credentials",
+        description=(
+            "Authenticate with username and password and print the access token to stdout. "
+            "Username and password are prompted interactively if not provided."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.auth_command.get_token"),
+        args=(
+            ARG_AUTH_URL,
+            ARG_AUTH_USERNAME,
+            ARG_AUTH_PASSWORD,
+        ),
+    ),
 )
 
 CONFIG_COMMANDS = (
