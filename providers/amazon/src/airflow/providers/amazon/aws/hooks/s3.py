@@ -1107,14 +1107,16 @@ class S3Hook(AwsBaseHook):
         """
         expression = expression or "SELECT * FROM S3Object"
         expression_type = expression_type or "SQL"
-        extra_args = {}
 
         if input_serialization is None:
             input_serialization = {"CSV": {}}
         if output_serialization is None:
             output_serialization = {"CSV": {}}
         if self._requester_pays:
-            extra_args["RequestPayer"] = "requester"
+            raise ValueError(
+                "select_key cannot be used with requester_pays=True. "
+                "S3 Select does not support the RequestPayer parameter."
+            )
 
         response = self.get_conn().select_object_content(
             Bucket=bucket_name,
@@ -1123,7 +1125,6 @@ class S3Hook(AwsBaseHook):
             ExpressionType=expression_type,
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization,
-            ExtraArgs=extra_args,
         )
 
         return b"".join(

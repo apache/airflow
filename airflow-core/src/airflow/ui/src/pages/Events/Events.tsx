@@ -77,7 +77,7 @@ const eventsColumn = (
         try {
           const parsed = JSON.parse(original.extra) as Record<string, unknown>;
 
-          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: !open }} />;
+          return <RenderedJsonField collapsed={!open} content={parsed} />;
         } catch {
           return <Code>{original.extra}</Code>;
         }
