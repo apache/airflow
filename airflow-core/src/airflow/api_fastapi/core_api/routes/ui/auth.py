@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
@@ -28,6 +30,8 @@ from airflow.api_fastapi.core_api.datamodels.ui.auth import (
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 auth_router = AirflowRouter(tags=["Auth Links"])
 
@@ -68,6 +72,13 @@ def generate_token(
         expiration_seconds = conf.getint("api_auth", "jwt_expiration_time")
 
     access_token = get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_seconds)
+
+    log.info(
+        "User %s generated a %s token (expires in %d seconds)",
+        user.get_name(),
+        body.token_type.value,
+        expiration_seconds,
+    )
 
     return GenerateTokenResponse(
         access_token=access_token,

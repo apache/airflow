@@ -21,7 +21,9 @@ import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle } from "react-icons/fi";
 
-import { Dialog } from "src/components/ui";
+import { useAuthLinksServiceGenerateToken } from "openapi/queries";
+import type { GenerateTokenResponse } from "openapi/requests/types.gen";
+import { Dialog, toaster } from "src/components/ui";
 import { ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/components/ui/Clipboard";
 
 type TokenGenerationModalProps = {
@@ -49,7 +51,20 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
   const [tokenType, setTokenType] = useState<TokenType>("api");
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [expiresIn, setExpiresIn] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { isPending, mutate: generateToken } = useAuthLinksServiceGenerateToken({
+    onError: (error: unknown) => {
+      toaster.create({
+        description: error instanceof Error ? error.message : translate("tokenGeneration.errorDescription"),
+        title: translate("tokenGeneration.errorTitle"),
+        type: "error",
+      });
+    },
+    onSuccess: (data: GenerateTokenResponse) => {
+      setGeneratedToken(data.access_token);
+      setExpiresIn(data.expires_in_seconds);
+    },
+  });
 
   const handleClose = useCallback(() => {
     setGeneratedToken(null);
@@ -59,29 +74,8 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
   }, [onClose]);
 
   const handleGenerate = useCallback(() => {
-    setIsLoading(true);
-    void fetch("/ui/auth/token", {
-      body: JSON.stringify({ token_type: tokenType }),
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    })
-      .then(async (response) => {
-        if (response.ok) {
-          const data = (await response.json()) as {
-            access_token: string;
-            expires_in_seconds: number;
-            token_type: string;
-          };
-
-          setGeneratedToken(data.access_token);
-          setExpiresIn(data.expires_in_seconds);
-        }
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [tokenType]);
+    generateToken({ requestBody: { token_type: tokenType } });
+  }, [generateToken, tokenType]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={handleClose} open={isOpen} size="xl">
@@ -129,7 +123,7 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
                   {translate("tokenGeneration.cliToken")}
                 </Button>
               </HStack>
-              <Button loading={isLoading} onClick={handleGenerate} width="full">
+              <Button loading={isPending} onClick={handleGenerate} width="full">
                 {translate("tokenGeneration.generate")}
               </Button>
             </Box>
