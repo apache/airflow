@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+7.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add validation for table_name and expression_list in DatabricksCopyIntoOperator (#62499)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise ValueError instead of KeyError when cancel_previous_runs=True and no job identifier is provided (#62393)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.10.0
 ......
 
