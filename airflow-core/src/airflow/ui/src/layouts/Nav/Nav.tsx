@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -194,7 +194,7 @@ export const Nav = () => {
         <SecurityButton />
         <PluginMenus navItems={navItemsWithLegacy} />
       </Flex>
-      <Flex flexDir="column" gap={1}>
+      <Flex alignItems="center" flexDir="column" gap={1}>
         <DocsButton
           externalViews={docsItems}
           showAPI={authLinks?.authorized_menu_items.includes("Docs")}
@@ -206,6 +206,12 @@ export const Nav = () => {
           </Box>
         </Tooltip>
         <UserSettingsButton externalViews={userItems} />
+        <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
+          {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
+          <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
+            Apache Airflow®
+          </a>
+        </Text>
       </Flex>
       <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
     </VStack>
