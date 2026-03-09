@@ -62,28 +62,28 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     }
   };
 
- const onError = (err: unknown) => {
-  let message = "Unknown error";
+  const onError = (err: unknown) => {
+    let message = "Unknown error";
 
- if (err instanceof Error) {
-  const { message: errMessage } = err;
+    if (err instanceof Error) {
+      const { message: errMessage } = err;
 
-  message = errMessage;
-}
-if (typeof err === "object" && err !== null && "response" in err) {
-  const { response } = err as { response?: { status?: number } };
+      message = errMessage;
+    }
+    if (typeof err === "object" && err !== null && "response" in err) {
+      const { response } = err as { response?: { status?: number } };
 
-  if (response?.status === 403) {
-    message = translate("triggerDag.permissionDenied");
-  }
-}
-  toaster.create({
-    description: message,
-    title: translate("triggerDag.toaster.error.title"),
-    type: "error",
-  });
-  setError(err);
-};
+      if (response?.status === 403) {
+        message = translate("triggerDag.permissionDenied");
+      }
+    }
+    toaster.create({
+      description: message,
+      title: translate("triggerDag.toaster.error.title"),
+      type: "error",
+    });
+    setError(err);
+  };
   const { isPending, mutate } = useDagRunServiceTriggerDagRun({
     onError,
     onSuccess,
