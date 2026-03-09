@@ -14,18 +14,12 @@
     "lightMode": "Modo Claro",
     "systemMode": "Seguir Configuração do Sistema"
   },
-  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "asset_zero": "Nenhum asset",
-  "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
-  "assetEvent_zero": "Nenhum evento de asset",
-  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
-  "backfill_zero": "Nenhum backfill",
   "browse": {
     "auditLog": "Log de Auditoria",
     "jobs": "Jobs",
@@ -34,14 +28,10 @@
   },
   "collapseAllExtra": "Recolher todos os extra json",
   "collapseDetailsPanel": "Recolher Painel de Detalhes",
-  "createdAssetEvent_many": "Eventos de Asset Criados",
   "createdAssetEvent_one": "Evento de Asset Criado",
   "createdAssetEvent_other": "Eventos de Asset Criados",
-  "createdAssetEvent_zero": "Nenhum evento de asset criado",
-  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
-  "dag_zero": "Nenhum Dag",
   "dagDetails": {
     "catchup": "Catchup",
     "dagRunTimeout": "Tempo Limite da Execução do Dag",
@@ -80,10 +70,8 @@
     "triggeredBy": "Acionado por",
     "triggeringUser": "Nome do Usuário que Disparou"
   },
-  "dagRun_many": "Execuções do Dag",
   "dagRun_one": "Execução do Dag",
   "dagRun_other": "Execuções do Dag",
-  "dagRun_zero": "Nenhuma execução do Dag",
   "dagRunId": "ID da Execução do Dag",
   "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
@@ -173,24 +161,18 @@
     "placeholder": "Adicionar uma nota...",
     "taskInstance": "Nota da Instância de Tarefa"
   },
-  "partitionedDagRun_many": "Execuções particionadas do DAG",
   "partitionedDagRun_one": "Execução particionada do DAG",
   "partitionedDagRun_other": "Execuções particionadas do DAG",
-  "partitionedDagRun_zero": "Nenhuma execução particionada do DAG",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Eventos de asset recebidos"
   },
-  "pendingDagRun_many": "{{count}} execuções do DAG pendentes",
   "pendingDagRun_one": "{{count}} execução do DAG pendente",
   "pendingDagRun_other": "{{count}} execuções do DAG pendentes",
-  "pendingDagRun_zero": "Nenhuma execução do DAG pendente",
   "pools": {
     "deferred": "Deferido",
     "open": "Aberto",
-    "pools_many": "pools",
     "pools_one": "pool",
     "pools_other": "pools",
-    "pools_zero": "nenhum pool",
     "queued": "Enfileirado",
     "running": "Executando",
     "scheduled": "Agendado"
@@ -201,7 +183,8 @@
     "asset_triggered": "Asset Acionado",
     "backfill": "Backfill",
     "manual": "Manual",
-    "scheduled": "Agendado"
+    "scheduled": "Agendado",
+    "asset_materialization": "Materialização de Asset"
   },
   "scroll": {
     "direction": {
@@ -225,10 +208,8 @@
     "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
     "show": "Mostrar"
   },
-  "sourceAssetEvent_many": "Eventos de Asset de Origem",
   "sourceAssetEvent_one": "Evento de Asset de Origem",
   "sourceAssetEvent_other": "Eventos de Asset de Origem",
-  "sourceAssetEvent_zero": "Nenhum evento de asset de origem",
   "startDate": "Data Inicial",
   "state": "Estado",
   "states": {
@@ -254,10 +235,8 @@
     "createdAt": "Criado em",
     "filterByTag": "Filtrar Dags por tag",
     "filterColumns": "Filtrar colunas da tabela",
-    "filterReset_many": "Resetar filtros",
     "filterReset_one": "Resetar filtro",
     "filterReset_other": "Resetar filtros",
-    "filterReset_zero": "Nenhum filtro para resetar",
     "from": "De",
     "maxActiveRuns": "Máximo de Execuções Ativas",
     "noTagsFound": "Nenhuma tag encontrada",
@@ -274,10 +253,8 @@
     "operator": "Operador",
     "triggerRule": "Regra de Trigger"
   },
-  "task_many": "Tarefas",
   "task_one": "Tarefa",
   "task_other": "Tarefas",
-  "task_zero": "Nenhuma tarefa",
   "taskGroup": "Grupo de Tarefas",
   "taskId": "ID da Tarefa",
   "taskInstance": {
@@ -303,10 +280,8 @@
     },
     "unixname": "Nome do Unix"
   },
-  "taskInstance_many": "Instâncias de Tarefa",
   "taskInstance_one": "Instância de Tarefa",
   "taskInstance_other": "Instâncias de Tarefa",
-  "taskInstance_zero": "Nenhuma instância de tarefa",
   "timeRange": {
     "last12Hours": "Últimas 12 Horas",
     "last24Hours": "Últimas 24 Horas",
@@ -360,6 +335,10 @@
         "description": "{{resourceName}} foi atualizado com sucesso.",
         "title": "Atualização de {{resourceName}} Submetida"
       }
+    },
+    "forbidden": {
+      "title": "Acesso Negado",
+      "description": "Você não tem permissão para realizar esta ação."
     }
   },
   "total": "Total {{state}}",
@@ -371,5 +350,18 @@
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"
+  },
+  "generateToken": "Gerar Token",
+  "tokenGeneration": {
+    "title": "Gerar Token",
+    "apiToken": "Token de API",
+    "cliToken": "Token CLI",
+    "generate": "Gerar",
+    "selectType": "Selecione o tipo de token a ser gerado.",
+    "tokenGenerated": "Seu token foi gerado.",
+    "tokenShownOnce": "Este token será exibido apenas uma vez. Copie-o agora.",
+    "tokenExpiresIn": "Este token expira em {{duration}}.",
+    "errorTitle": "Falha na Geração do Token",
+    "errorDescription": "Ocorreu um erro ao gerar o token. Por favor, tente novamente."
   }
 }
