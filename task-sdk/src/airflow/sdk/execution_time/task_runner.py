@@ -1218,7 +1218,7 @@ def run(
     signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
-    state: TaskInstanceState
+    state: TaskInstanceState = TaskInstanceState.FAILED
     error: BaseException | None = None
 
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
@@ -1418,6 +1418,15 @@ def _handle_trigger_dag_run(
             note=drte.note,
         ),
     )
+
+    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAG_NOT_FOUND:
+        log.error("Dag not found, marking task as failed.", dag_id=drte.trigger_dag_id)
+        msg = TaskState(
+            state=TaskInstanceState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+            rendered_map_index=ti.rendered_map_index,
+        )
+        return msg, TaskInstanceState.FAILED
 
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
         if drte.skip_when_already_exists:

@@ -1216,6 +1216,27 @@ class TestDagRunOperations:
 
         assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
 
+    def test_trigger_dag_not_found(self):
+        """Test that if the target dag does not exist, the client returns a DAG_NOT_FOUND error."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/nonexistent_dag/test_run_id":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "reason": "not_found",
+                            "message": "Dag with dag_id: 'nonexistent_dag' not found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(dag_id="nonexistent_dag", run_id="test_run_id")
+
+        assert result == ErrorResponse(error=ErrorType.DAG_NOT_FOUND)
+
     def test_trigger_conflict_reset_dag_run(self):
         """Test that if dag run already exists and reset_dag_run=True, the client clears the dag run"""
 

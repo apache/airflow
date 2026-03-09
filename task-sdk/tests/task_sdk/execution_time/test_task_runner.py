@@ -4390,6 +4390,27 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_dag_not_found(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """Test that TriggerDagRunOperator fails gracefully when the target DAG doesn't exist."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="nonexistent_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_not_found", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.DAG_NOT_FOUND)
+        state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.FAILED
+        assert msg.state == TaskInstanceState.FAILED
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
