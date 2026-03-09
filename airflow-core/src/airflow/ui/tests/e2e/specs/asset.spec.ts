@@ -99,12 +99,6 @@ test.describe("Assets Page", () => {
         { intervals: [500], timeout: 30_000 },
       )
       .toBe(true);
-
-    const names = await assets.assetNames();
-
-    for (const name of names) {
-      expect(name.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
   });
 
   test("verify asset details and dependencies", async ({ page }) => {

@@ -42,14 +42,6 @@ export class AssetListPage extends BasePage {
     this.emptyState = page.getByText(/no items/i);
   }
 
-  public async assetCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async assetNames(): Promise<Array<string>> {
-    return this.rows.locator("td a").allTextContents();
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/assets");
   }
