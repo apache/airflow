@@ -154,12 +154,12 @@ def test_client():
             ).generate(
                 auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
             )
-        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-            yield TestClient(
-                app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=BASE_URL,
-            )
+
+        yield TestClient(
+            app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=BASE_URL,
+        )
 
 
 @pytest.fixture
@@ -203,12 +203,11 @@ def unauthorized_test_client():
         token = auth_manager._get_token_signer().generate(
             auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
         )
-        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-            yield TestClient(
-                app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=BASE_URL,
-            )
+        yield TestClient(
+            app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=BASE_URL,
+        )
 
 
 class TestEndpointAuthorization:
