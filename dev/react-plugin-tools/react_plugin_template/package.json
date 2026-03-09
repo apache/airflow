@@ -47,7 +47,7 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.0.1",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "8.56.1",
     "@typescript-eslint/parser": "8.56.1",
     "@typescript-eslint/utils": "^8.56.1",
