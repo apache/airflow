@@ -913,6 +913,7 @@ class FileTaskHandler(logging.Handler):
             else:
                 # Check if the resource was properly fetched
                 response.raise_for_status()
+
                 if int(response.headers.get("Content-Length", 0)) > 0:
                     sources.append(url)
                     log_streams.append(
