@@ -21,9 +21,13 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     AuthenticatedMeResponse,
+    GenerateTokenBody,
+    GenerateTokenResponse,
     MenuItemCollectionResponse,
+    TokenType,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.configuration import conf
 
 auth_router = AirflowRouter(tags=["Auth Links"])
 
@@ -49,4 +53,24 @@ def get_current_user_info(
     return AuthenticatedMeResponse(
         id=user.get_id(),
         username=user.get_name(),
+    )
+
+
+@auth_router.post("/auth/token")
+def generate_token(
+    body: GenerateTokenBody,
+    user: GetUserDep,
+) -> GenerateTokenResponse:
+    """Generate a JWT token for the authenticated user."""
+    if body.token_type == TokenType.CLI:
+        expiration_seconds = conf.getint("api_auth", "jwt_cli_expiration_time")
+    else:
+        expiration_seconds = conf.getint("api_auth", "jwt_expiration_time")
+
+    access_token = get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_seconds)
+
+    return GenerateTokenResponse(
+        access_token=access_token,
+        token_type=body.token_type,
+        expires_in_seconds=expiration_seconds,
     )
