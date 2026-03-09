@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -103,6 +103,10 @@ def _create_hitl_session(
     current_output="Initial output",
 ):
     """Create HITL session and output XCom entries in the database."""
+    if AIRFLOW_V_3_2_PLUS:
+        serialize = {"serialize": False}
+    else:
+        serialize = {}
     sess = AgentSessionData(
         status=status,
         iteration=iteration,
@@ -117,8 +121,8 @@ def _create_hitl_session(
         task_id=task_id,
         run_id=run_id,
         map_index=map_index,
-        serialize=False,
         session=session,
+        **serialize,
     )
     XComModel.set(
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
@@ -127,8 +131,8 @@ def _create_hitl_session(
         task_id=task_id,
         run_id=run_id,
         map_index=map_index,
-        serialize=False,
         session=session,
+        **serialize,
     )
 
 

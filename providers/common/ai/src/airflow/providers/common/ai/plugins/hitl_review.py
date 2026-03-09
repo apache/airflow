@@ -46,6 +46,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanFeedbackRequest,
     SessionStatus,
 )
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -139,6 +140,10 @@ def _write_xcom(
     without double-encoding (``XComModel.set`` with the default ``serialize=True``
     calls ``json.dumps`` which would wrap dicts in a JSON string).
     """
+    if AIRFLOW_V_3_2_PLUS:
+        serialize = {"serialize": False}
+    else:
+        serialize = {}
     XComModel.set(
         key=key,
         value=value,
@@ -146,8 +151,8 @@ def _write_xcom(
         task_id=task_id,
         run_id=run_id,
         map_index=map_index,
-        serialize=False,
         session=session,
+        **serialize,
     )
 
 
