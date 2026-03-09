@@ -37,25 +37,6 @@ export class ConfigurationPage extends BasePage {
     });
   }
 
-  public async getRowCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async getRowDetails(index: number) {
-    const row = this.rows.nth(index);
-    const cells = row.locator("td");
-
-    const section = await cells.nth(0).textContent();
-    const key = await cells.nth(1).textContent();
-    const value = await cells.nth(2).textContent();
-
-    return {
-      key: (key ?? "").trim(),
-      section: (section ?? "").trim(),
-      value: (value ?? "").trim(),
-    };
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/configs");
   }
