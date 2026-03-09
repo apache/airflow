@@ -1480,7 +1480,9 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization and ``globalCss``.
+        Supports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``
+        (for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be
+        either absolute http(s) URLs or app-relative paths starting with ``/``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
 
