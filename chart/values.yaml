@@ -338,7 +338,7 @@ networkPolicies:
   enabled: false
 
 # Extra annotations to apply to all
-# Airflow pods
+# Airflow pods (templated)
 airflowPodAnnotations: {}
 
 # Extra annotations to apply to
@@ -973,7 +973,7 @@ workers:
   # Annotations for the Airflow Celery worker resource
   annotations: {}
 
-  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
@@ -1457,6 +1457,7 @@ scheduler:
   # annotations for scheduler deployment
   annotations: {}
 
+  # Pod annotations for scheduler pods (templated)
   podAnnotations: {}
 
   # Labels specific to scheduler objects and pods
@@ -1541,7 +1542,7 @@ createUserJob:
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
-  # Annotations on the create user job pod
+  # Annotations on the create user job pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
@@ -1636,7 +1637,7 @@ migrateDatabaseJob:
 
       airflow db migrate
 
-  # Annotations on the database migration pod
+  # Annotations on the database migration pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
@@ -1852,6 +1853,7 @@ apiServer:
   # annotations for Airflow API server deployment
   annotations: {}
 
+  # Pod annotations for API server pods (templated)
   podAnnotations: {}
 
   networkPolicy:
@@ -2136,6 +2138,7 @@ webserver:
   # annotations for webserver deployment
   annotations: {}
 
+  # Pod annotations for webserver pods (templated)
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -2299,6 +2302,7 @@ triggerer:
   # annotations for the triggerer deployment
   annotations: {}
 
+  # Pod annotations for triggerer pods (templated)
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -2532,6 +2536,7 @@ dagProcessor:
   # annotations for the dag processor deployment
   annotations: {}
 
+  # Pod annotations for dag processor pods (templated)
   podAnnotations: {}
 
   logGroomerSidecar:
@@ -2716,6 +2721,7 @@ flower:
   # annotations for the flower deployment
   annotations: {}
 
+  # Pod annotations for flower pods (templated)
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -2833,6 +2839,7 @@ statsd:
   # So, If you use it, ensure all mapping item contains in it.
   overrideMappings: []
 
+  # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
 
   # Labels specific to statsd objects and pods
@@ -2862,6 +2869,7 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  # Pod annotations for PgBouncer pods (templated)
   podAnnotations: {}
 
   # Add custom annotations to the pgbouncer certificates secret
@@ -3159,6 +3167,7 @@ redis:
   # Labels specific to redis objects and pods
   labels: {}
 
+  # Pod annotations for Redis pods (templated)
   podAnnotations: {}
 
 # Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
@@ -3257,6 +3266,7 @@ cleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to cleanup objects and pods
@@ -3346,6 +3356,7 @@ databaseCleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for database cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to database cleanup objects and pods

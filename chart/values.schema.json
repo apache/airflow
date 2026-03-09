@@ -768,7 +768,7 @@
             }
         },
         "airflowPodAnnotations": {
-            "description": "Extra annotations to apply to all Airflow pods.",
+            "description": "Extra annotations to apply to all Airflow pods (templated).",
             "type": "object",
             "default": {},
             "x-docsSection": "Kubernetes",
@@ -2410,7 +2410,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3899,7 +3899,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the scheduler pods.",
+                    "description": "Annotations to add to the scheduler pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -4467,7 +4467,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the triggerer pods.",
+                    "description": "Annotations to add to the triggerer pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5079,7 +5079,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the dag processor pods.",
+                    "description": "Annotations to add to the dag processor pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5388,7 +5388,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the create user job pod.",
+                    "description": "Annotations to add to the create user job pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5737,7 +5737,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the migrate database job pod.",
+                    "description": "Annotations to add to the migrate database job pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -6632,7 +6632,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the API server pods.",
+                    "description": "Annotations to add to the API server pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -7459,7 +7459,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the webserver pods.",
+                    "description": "Annotations to add to the webserver pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8000,7 +8000,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Flower pods.",
+                    "description": "Annotations to add to the Flower pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8419,7 +8419,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the StatsD pods.",
+                    "description": "Annotations to add to the StatsD pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8623,7 +8623,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Add annotations for the PgBouncer Pod.",
+                    "description": "Add annotations for the PgBouncer Pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -9462,7 +9462,7 @@
                     "default": 0
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the redis pods.",
+                    "description": "Annotations to add to the redis pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -9838,7 +9838,7 @@
                     "default": null
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to cleanup pods.",
+                    "description": "Annotations to add to cleanup pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -10191,7 +10191,7 @@
                     "default": null
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to database cleanup pods.",
+                    "description": "Annotations to add to database cleanup pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
