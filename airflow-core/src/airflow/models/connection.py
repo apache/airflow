@@ -274,13 +274,11 @@ class Connection(Base, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        if "_" in getattr(self, "_prenormalized_conn_type", ""):
-            # if a connection is instantiated using a URI then the connection's `conn_type` will be normalized
-            # via `_normalize_conn_type` to replace hyphens with underscores and thereby would always generate
-            # this warning if the normalized conn type were used
+        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type)
+        if "_" in conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                self._prenormalized_conn_type,
+                conn_type,
             )
 
         if self.conn_type:
