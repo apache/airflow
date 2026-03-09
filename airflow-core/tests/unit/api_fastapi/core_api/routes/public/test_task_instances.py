@@ -1514,16 +1514,39 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
 
-    def test_query_count_is_bounded(self, test_client, session):
-        """Regression test for #62027: get_task_instances must not emit duplicate JOINs.
+    def test_no_duplicate_joins_in_get_task_instances_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances endpoint must not emit duplicate JOINs.
 
-        Expected: 1 auth query + 1 COUNT + 1 main SELECT (dag_run, dag_version,
-        task_instance_note all eager-loaded via JOIN) = 3 queries total.
+        With joinedload on already-joined tables SQLAlchemy emits duplicate JOINs
+        (dag_run twice, dag_version twice). contains_eager reuses existing JOINs — each
+        table must appear exactly once in the SQL emitted by the real endpoint.
         """
+        from sqlalchemy import event
+
+        import airflow.settings
+
         self.create_task_instances(session)
-        with assert_queries_count(3):
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
             response = test_client.get("/dags/~/dagRuns/~/taskInstances")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
         assert response.status_code == 200
+
+        # Find all statements that query task_instance joined with dag_run
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
