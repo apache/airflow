@@ -325,9 +325,9 @@ class TestConnection:
             captured_logs
         ))
         if expected_warned:
-            assert conn_type_warnings, f"RFC3986 warning expected for connection URI '{connection.conn_id}'."
+            assert conn_type_warnings, f"RFC3986 warning expected for connection '{connection.conn_id}'."
         else:
-            assert not conn_type_warnings, f"RFC3986 warning not expected for connection URI '{connection.conn_id}'."
+            assert not conn_type_warnings, f"RFC3986 warning not expected for connection '{connection.conn_id}'."
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
