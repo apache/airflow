@@ -941,11 +941,9 @@ def patch_task_group_instances_dry_run(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Dry-run of updating the state of all task instances in a task group."""
-    # Get DAG and fetch all TIs in bulk with eager loading to avoid N+1 queries
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     tis = _get_task_group_task_instances(dag_id, dag_run_id, group_id, dag, session)
 
-    # Only perform state changes if new_state is provided
     if body.new_state:
         all_tis: list[TI] = []
         for ti in tis:

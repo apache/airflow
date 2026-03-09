@@ -5939,7 +5939,9 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
             )
         ).all()
-        mock_set_ti_state.return_value = tis[:1]
+
+        ti_map = {ti.task_id: ti for ti in tis}
+        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
 
         response = test_client.patch(
             self.ENDPOINT_URL,
@@ -5951,6 +5953,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         assert mock_set_ti_state.call_count == 3
         called_task_ids = sorted(call.kwargs["task_id"] for call in mock_set_ti_state.call_args_list)
         assert called_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        for call in mock_set_ti_state.call_args_list:
+            assert call.kwargs["state"] == "success"
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_patch_task_group_failed_state(self, mock_set_ti_state, test_client, session):
@@ -5964,7 +5968,9 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
             )
         ).all()
-        mock_set_ti_state.return_value = tis[:1]
+
+        ti_map = {ti.task_id: ti for ti in tis}
+        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
 
         response = test_client.patch(
             self.ENDPOINT_URL,
@@ -5985,7 +5991,9 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.run_id == self.RUN_ID,
             )
         ).all()
-        mock_set_ti_state.return_value = tis[:1]
+
+        ti_map = {ti.task_id: ti for ti in tis}
+        mock_set_ti_state.side_effect = lambda task_id, **kwargs: [ti_map[task_id]]
 
         # section_2 contains task_1, and inner_section_2 which contains task_2, task_3, task_4
         url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
