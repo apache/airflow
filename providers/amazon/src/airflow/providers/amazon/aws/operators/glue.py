@@ -139,6 +139,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         job_poll_interval: int | float = 6,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
+        resume_glue_job_on_retry: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -168,6 +169,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         self.s3_script_location: str | None = None
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.resume_glue_job_on_retry = resume_glue_job_on_retry
 
     @property
     def _hook_parameters(self):
