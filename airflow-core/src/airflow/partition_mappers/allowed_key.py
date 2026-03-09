@@ -1,4 +1,3 @@
-#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,6 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-xcom-objectstorage-backend
-aws --endpoint-url=http://localstack:4566 s3 ls
+from __future__ import annotations
+
+from typing import Any
+
+from airflow.partition_mappers.base import PartitionMapper
+
+
+class AllowedKeyMapper(PartitionMapper):
+    """Partition mapper that validates keys against a set of allowed keys."""
+
+    def __init__(self, allowed_keys: list[str]) -> None:
+        self.allowed_keys = allowed_keys
+
+    def to_downstream(self, key: str) -> str:
+        if key not in self.allowed_keys:
+            raise ValueError(f"Key {key!r} not in allowed keys {self.allowed_keys}")
+        return key
+
+    def serialize(self) -> dict[str, Any]:
+        return {"allowed_keys": self.allowed_keys}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
+        return cls(allowed_keys=data["allowed_keys"])

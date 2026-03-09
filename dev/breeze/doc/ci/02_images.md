@@ -342,7 +342,7 @@ faster. It is enough to download and uncompress the artifact that stores the
 image and run ``breeze ci-image load -i <path-to-image.tar>`` to load the
 image and mark the image as refreshed in the local cache.
 
-You can see more details and examples in[Breeze](../06_managing_docker_images.rst)
+You can see more details and examples in [Breeze](../06_managing_docker_images.rst).
 
 # Customizing the CI image
 
@@ -350,7 +350,7 @@ Customizing the CI image allows to add your own dependencies to the
 image.
 
 The easiest way to build the customized image is to use `breeze` script,
-but you can also build suc customized image by running appropriately
+but you can also build such customized image by running appropriately
 crafted docker build in which you specify all the `build-args` that you
 need to add to customize it. You can read about all the args and ways
 you can build the image in the

@@ -1,4 +1,3 @@
-#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-xcom-objectstorage-backend
-aws --endpoint-url=http://localstack:4566 s3 ls
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+
+
+class AllowedKeyMapper(PartitionMapper):
+    """Partition mapper that validates keys against a set of allowed keys."""
+
+    def __init__(self, allowed_keys: list[str]) -> None:
+        self.allowed_keys = allowed_keys
