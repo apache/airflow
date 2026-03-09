@@ -93,7 +93,7 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
     if isinstance(key, RSAPrivateKey):
-        return "RS512"
+        return "RS256"
     if isinstance(key, Ed25519PrivateKey):
         return "EdDSA"
     raise ValueError(f"Unknown key object {type(key)}")
@@ -323,8 +323,9 @@ class JWTValidator:
         algorithms = self.algorithm
         validation_key: str | jwt.PyJWK | Any = key
         if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
-            header = jwt.get_unverified_header(unvalidated)
-            algorithms = [header.get("alg") or key.algorithm_name]
+            if not key.algorithm_name:
+                raise jwt.InvalidTokenError("Missing algorithm in JWK")
+            algorithms = [key.algorithm_name]
             validation_key = key.key
 
         claims = jwt.decode(
