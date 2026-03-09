@@ -10649,13 +10649,82 @@
                                 }
                             ]
                         },
+                        "httpPort": {
+                            "description": "Git-Sync liveness service http bind port.",
+                            "type": "integer",
+                            "default": 1234
+                        },
+                        "recommendedProbeSetting": {
+                            "description": "Setting this to true, will remove readiness probe usage and configure liveness probe to use a dedicated Git-Sync liveness service.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "startupProbe": {
+                            "description": "Startup probe configuration for git sync container.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable GitSync Kubernetes Startup Probe.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before startup probe is initiated.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 10
+                                }
+                            }
+                        },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                            "additionalProperties": true,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable GitSync Kubernetes Liveness Probe.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before startup probe is initiated.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 10
+                                }
+                            }
                         },
                         "readinessProbe": {
-                            "description": "Readiness probe configuration for git sync container.",
+                            "description": "Readiness probe configuration for git sync container. As Git-Sync is not service-type object, the usage of the section was removed. Section itself will be removed in future release as to not break setups during upgrades.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
