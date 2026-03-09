@@ -132,7 +132,7 @@ Get familiar with the internal Database structure of Airflow which you might fin
 
 Make sure to copy the output. You will need it in the last step. Your
 ``dag_id``, ``run_id``, ``task_id`` and ``key`` columns should have ``utf8`` or ``utf8mb3`` character
-set set explicitly, similar to:
+set explicitly, similar to:
 
 .. code-block:: text
 
