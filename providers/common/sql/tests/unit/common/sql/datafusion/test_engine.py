@@ -382,6 +382,18 @@ class TestDataFusionEngine:
         assert credentials["client_id"] == "explicit-client-id"
         assert credentials["client_secret"] == "explicit-client-secret"
 
+    def test_get_credentials_azure_missing_provider(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with patch.dict("sys.modules", {"airflow.providers.microsoft.azure.hooks.wasb": None}):
+            with pytest.raises(Exception, match="Failed to import WasbHook"):
+                engine._get_credentials(mock_conn)
+
     def test_get_schema_success(self):
         engine = DataFusionEngine()
         engine.df_ctx = MagicMock(spec=SessionContext)

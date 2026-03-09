@@ -175,6 +175,15 @@ class DataFusionEngine(LoggingMixin):
                 extra_config = {}
 
             case "wasb":
+                try:
+                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa: F401
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import WasbHook. To use the Azure storage functionality, please install the "
+                        "apache-airflow-providers-microsoft-azure package."
+                    )
                 account_name = conn.host or conn.login
                 tenant_id = conn.extra_dejson.get("tenant_id")
                 if tenant_id:
