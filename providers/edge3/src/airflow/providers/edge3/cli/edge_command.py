@@ -467,7 +467,7 @@ def remove_worker_queues(args) -> None:
 def set_remote_worker_concurrency(args) -> None:
     """Set the concurrency of a remote edge worker."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=None)
     from airflow.providers.edge3.models.edge_worker import set_worker_concurrency
 
     if args.concurrency <= 0:

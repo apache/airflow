@@ -35,8 +35,6 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.2.0": "b3c4d5e6f7a8",
 }
 
-FIRST_MIGRATION_VERSION = "3.0.0"
-
 
 class EdgeDBManager(BaseDBManager):
     """Manages Edge3 provider database tables."""
@@ -98,26 +96,6 @@ class EdgeDBManager(BaseDBManager):
         if inspector.has_table(version.name):
             self.log.info("Dropping version table %s", version.name)
             version.drop(connection)
-        self.create_db_from_orm()
-
-    def initdb(self):
-        if hasattr(self, "_release_metadata_locks_if_needed"):
-            self._release_metadata_locks_if_needed()
-        db_exists = self.get_current_revision()
-        if db_exists:
-            self.upgradedb()
-        else:
-            # Check if tables already exist (pre-EdgeDBManager install)
-            inspector = inspect(self.session.connection())
-            if inspector.has_table("edge_job") or inspector.has_table("edge_worker"):
-                # Tables exist but no version — run all migrations from scratch
-                config = self.get_alembic_config()
-                from alembic import command
-
-                command.stamp(config, self.revision_heads_map[FIRST_MIGRATION_VERSION])
-                self.upgradedb()
-            else:
-                self.create_db_from_orm()
 
 
 def check_db_manager_config() -> None:
