@@ -114,7 +114,7 @@ dependencies = [
     "apache-airflow-providers-exasol"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'"
+    "apache-airflow-providers-fab>=2.2.0"
 ]
 "ftp" = [
     "apache-airflow-providers-ftp"

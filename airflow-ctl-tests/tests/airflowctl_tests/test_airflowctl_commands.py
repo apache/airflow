@@ -131,7 +131,6 @@ TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
 ]
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_DEBUG_MODE,
@@ -144,7 +143,6 @@ def test_airflowctl_commands(command: str, run_command):
     run_command(command, env_vars, skip_login=True)
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_SKIP_KEYRING,

@@ -19,7 +19,7 @@ FAB auth manager API authentication
 ===================================
 
 .. note::
-    This guide only applies to :doc:`FAB auth manager API </api-ref/fab-public-api-ref>`.
+    This guide only applies to :doc:`FAB auth manager API </api-ref/fab-api-ref>`.
 
 Authentication for the APIs is handled by what is called an authentication backend. The default is to check the user session:
 

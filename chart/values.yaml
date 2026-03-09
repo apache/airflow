@@ -854,6 +854,8 @@ workers:
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar to separate
+  # value between Celery workers and pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
     enabled: false
@@ -1202,6 +1204,26 @@ workers:
       securityContexts:
         container: {}
 
+    # Kerberos sidecar configuration for Airflow Celery workers
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
     # Kerberos init container configuration for Airflow Celery workers
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
     kerberosInitContainer:
@@ -1236,6 +1258,26 @@ workers:
 
     # Container level Lifecycle Hooks definition for pods created with pod-template-file
     containerLifecycleHooks: {}
+
+    # Kerberos sidecar configuration for pods created with pod-template-file
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
@@ -3563,8 +3605,35 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    # Git-Sync liveness service http bind port
+    httpPort: 1234
+
+    # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
+    # use a dedicated Git-Sync liveness service. In future, behaviour with value true will be
+    # default one and old one will be removed
+    recommendedProbeSetting: false
+
+    startupProbe:
+      enabled: true
+      timeoutSeconds: 1
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 10
+
+    # As Git-Sync is not service-type object, the usage of this section will be removed.
+    # By setting dags.gitSync.recommendedProbeSetting to true, you will enable future behaviour.
     readinessProbe: {}
+
+    # The behaviour of the livenessProbe will change with the next release of Helm Chart.
+    # To enable future behaviour set dags.gitSync.recommendedProbeSetting to true.
+    # New behaviour uses the recommended liveness configuration by using Git-Sync built-in
+    # liveness service
     livenessProbe: {}
+    #  enabled: true
+    #  timeoutSeconds: 1
+    #  initialDelaySeconds: 0
+    #  periodSeconds: 5
+    #  failureThreshold: 10
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:

@@ -182,7 +182,7 @@ Extra                 Dependencies
 ====================  ================================================================
 ``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
-``fab``               ``apache-airflow-providers-fab>=2.0.0; python_version < '3.13'``
+``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
