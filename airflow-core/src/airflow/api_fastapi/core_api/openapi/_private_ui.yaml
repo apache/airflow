@@ -3242,6 +3242,16 @@ components:
             type: object
           - type: 'null'
           title: Globalcss
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
       type: object
       required:
       - tokens
