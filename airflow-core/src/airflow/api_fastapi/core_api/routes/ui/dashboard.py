@@ -80,11 +80,12 @@ def historical_metrics(
     ).all()
 
     # TaskInstances
+    # Filter TaskInstance.dag_id before JOIN to reduce rows using ti_dag_run index
     task_instance_states = session.execute(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
+        .where(TaskInstance.dag_id.in_(permitted_dag_ids))
         .join(TaskInstance.dag_run)
         .where(start_date_filter, end_date_filter)
-        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(TaskInstance.state)
     ).all()
 

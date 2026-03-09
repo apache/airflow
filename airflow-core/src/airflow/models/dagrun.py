@@ -242,6 +242,8 @@ class DagRun(Base, LoggingMixin):
         Index("idx_dag_run_run_after", run_after),
         Index("idx_dag_run_start_date", start_date),
         Index("idx_dag_run_end_date", end_date),
+        Index("idx_dag_run_dag_id_start_date", dag_id, start_date),
+        Index("idx_dag_run_dag_id_end_date", dag_id, end_date),
         Index(
             "idx_dag_run_running_dags",
             "state",
