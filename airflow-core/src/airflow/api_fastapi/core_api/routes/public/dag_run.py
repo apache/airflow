@@ -504,7 +504,9 @@ def trigger_dag_run(
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except AirflowException as e:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+        if "does not have a version for bundle_version" in str(e):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
