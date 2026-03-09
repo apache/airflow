@@ -259,7 +259,12 @@ changelogs. If there are, you need to add them to PR and classify the changes ma
 * if needed adjust version of provider - in changelog and provider.yaml, in case the new
   change changes classification of the upgrade (patchlevel/minor/major)
 
-Commit the changes and merge the PR, be careful to do it quickly so that no new PRs are merged for
+Commit the changes and create the PR. You need to apply the following labels to the PR:
+
+* `skip common compat check`
+* `allow provider dependency bump`
+
+Once approved, merge it, be careful to do it quickly so that no new PRs are merged for
 providers in the meantime - if they are, you will miss them in the changelog.
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
