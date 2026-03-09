@@ -68,7 +68,6 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     _UNSET,
     PROVIDE_PROJECT_ID,
@@ -391,14 +390,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             sql_parameters=parameters,
         )
         return result
-
-    @deprecated(
-        planned_removal_date="November 30, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_df",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
