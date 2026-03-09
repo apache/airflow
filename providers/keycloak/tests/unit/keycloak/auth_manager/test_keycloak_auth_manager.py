@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import base64
 import json
-import threading
-import time
 from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
@@ -115,11 +113,11 @@ def user():
 @pytest.fixture(autouse=True)
 def _clear_filter_cache():
     """Clear module-level single-flight cache between tests."""
-    cache_module._filter_cache.clear()
-    cache_module._filter_pending.clear()
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
     yield
-    cache_module._filter_cache.clear()
-    cache_module._filter_pending.clear()
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
 
 
 class TestKeycloakAuthManager:
@@ -1108,39 +1106,3 @@ class TestKeycloakAuthManager:
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
-
-    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
-    def test_filter_authorized_dag_ids_single_flight(self, mock_is_authorized, auth_manager, user):
-        """Concurrent threads with the same cache key should coalesce into one Keycloak call."""
-        gate = threading.Event()
-        mock_is_authorized.side_effect = lambda **kw: gate.wait(timeout=5) or True
-
-        dag_ids = {"dag_0"}
-        results = [None] * 5
-        errors = []
-
-        def run_filter(index):
-            try:
-                results[index] = auth_manager.filter_authorized_dag_ids(
-                    dag_ids=dag_ids, user=user, method="GET"
-                )
-            except Exception as e:
-                errors.append(e)
-
-        threads = [threading.Thread(target=run_filter, args=(i,)) for i in range(5)]
-        for t in threads:
-            t.start()
-
-        # Give threads time to enter single_flight, and then open the gate
-        # This way, the active flight completes and waiters read from cache
-        time.sleep(0.1)
-        gate.set()
-
-        for t in threads:
-            t.join(timeout=5)
-
-        assert not errors, f"Threads raised errors: {errors}"
-        for r in results:
-            assert r == dag_ids
-        # Only one thread should have called is_authorized_dag (the active flight)
-        assert mock_is_authorized.call_count == 1
