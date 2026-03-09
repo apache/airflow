@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
@@ -144,7 +145,6 @@ class HITLReviewMixin:
         This loops until the human approves, rejects, or the timeout/max iterations is reached.
         """
         from airflow.providers.standard.exceptions import (
-            HITLMaxIterationsError,
             HITLRejectException,
             HITLTimeoutError,
         )

@@ -67,7 +67,3 @@ class HITLTimeoutError(HITLTriggerEventError):
 
 class HITLRejectException(AirflowException):
     """Raised when an ApprovalOperator receives a "Reject" response when fail_on_reject is set to True."""
-
-
-class HITLMaxIterationsError(AirflowException):
-    """Raised when the HITL review loop exhausts max iterations without approval or rejection."""

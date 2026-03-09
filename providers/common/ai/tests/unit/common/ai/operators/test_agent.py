@@ -24,7 +24,6 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-from airflow.providers.standard.exceptions import HITLMaxIterationsError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -227,6 +226,8 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_propagates_hitl_max_iterations_error(self, mock_hook_cls, mock_run_hitl):
         """When run_hitl_review raises HITLMaxIterationsError, execute propagates it."""
+        from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
+
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result

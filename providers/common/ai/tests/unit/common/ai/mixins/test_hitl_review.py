@@ -26,6 +26,7 @@ if not AIRFLOW_V_3_1_PLUS:
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
@@ -35,10 +36,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
-from airflow.providers.standard.exceptions import (
-    HITLMaxIterationsError,
-    HITLRejectException,
-)
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
 
@@ -158,7 +156,6 @@ class TestHITLReviewMixin:
     def test_reject_raises_hitl_reject_error(
         self, mock_sleep, fake_op, mock_ti, context, mock_supervisor_comms
     ):
-        from airflow.providers.standard.exceptions import HITLRejectException
 
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=XCOM_HUMAN_ACTION, value=None),
@@ -214,7 +211,6 @@ class TestHITLReviewMixin:
     def test_timeout_raises_hitl_timeout_error(
         self, mock_sleep, mock_monotonic, fake_op, mock_ti, context, mock_supervisor_comms
     ):
-        from airflow.providers.standard.exceptions import HITLTimeoutError
 
         mock_monotonic.side_effect = [0.0, 0.1, 35.0]
         mock_supervisor_comms.send.return_value = XComResult(key=XCOM_HUMAN_ACTION, value=None)
