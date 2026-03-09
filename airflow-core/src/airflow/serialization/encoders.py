@@ -28,6 +28,7 @@ import pendulum
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
+    AllowedKeyMapper,
     Asset,
     AssetAlias,
     AssetAll,
@@ -375,6 +376,7 @@ class _Serializer:
         QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
         YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
     }
 
     @functools.singledispatchmethod
@@ -415,6 +417,10 @@ class _Serializer:
             "delimiter": partition_mapper.delimiter,
             "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
         }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:
+        return {"allowed_keys": partition_mapper.allowed_keys}
 
 
 _serializer = _Serializer()
