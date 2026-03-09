@@ -515,9 +515,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         cache_key = (user.get_id(), method, team_name, frozenset(dag_ids))
 
         def query_keycloak() -> set[str]:
-            return super(KeycloakAuthManager, self).filter_authorized_dag_ids(
-                dag_ids=dag_ids, user=user, method=method, team_name=team_name
-            )
+            kwargs: dict = dict(dag_ids=dag_ids, user=user, method=method)
+            if team_name is not None:
+                kwargs["team_name"] = team_name
+            return super(KeycloakAuthManager, self).filter_authorized_dag_ids(**kwargs)
 
         return _single_flight(cache_key, query_keycloak)
 
