@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import textwrap
+from collections.abc import Generator, Iterable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -40,6 +41,8 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
 
+_NDJSON_BATCH_SIZE = 500
+
 task_instances_log_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
 )
@@ -57,6 +60,19 @@ ndjson_example_response_for_get_log = {
         }
     }
 }
+
+
+def _batched_ndjson_stream(
+    raw_stream: Iterable[str],
+) -> Generator[str, None, None]:
+    buf: list[str] = []
+    for line in raw_stream:
+        buf.append(line)
+        if len(buf) >= _NDJSON_BATCH_SIZE:
+            yield "".join(buf)
+            buf.clear()
+    if buf:
+        yield "".join(buf)
 
 
 @task_instances_log_router.get(
@@ -144,9 +160,9 @@ def get_log(
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
 
-    if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
-        # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
-        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
+    if accept == Mimetype.NDJSON:
+        raw_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
+        log_stream = _batched_ndjson_stream(raw_stream)
         headers = None
         if not metadata.get("end_of_log", False):
             headers = {
