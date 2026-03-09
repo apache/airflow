@@ -24,6 +24,10 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -33,6 +37,10 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
     target-branch: v3-1-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -42,6 +50,10 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
     target-branch: v2-11-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: pip
     cooldown:
@@ -149,6 +161,27 @@ updates:
       fab-ui-package-updates:
         patterns:
           - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: daily
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   # Repeat dependency updates on v3-1-test branch as well
   - package-ecosystem: pip

@@ -106,7 +106,7 @@ sensitive information accessible through connection configuration.
 They also have the ability to create a API Server Denial of Service
 situation and should be trusted not to misuse this capability.
 
-Only admin users have access to audit logs.
+Only admin users have access to audit logs by default.
 
 Operations users
 ................
@@ -277,10 +277,29 @@ executing arbitrary code. This is all fully in hands of the Deployment Manager a
 following chapter.
 
 Access to all Dags
-........................................................................
+..................
 
 All Dag authors have access to all Dags in the Airflow deployment. This means that they can view, modify,
 and update any Dag without restrictions at any time.
+
+Custom RBAC limitations
+-----------------------
+
+While RBAC defined in Airflow might limit access for certain UI users to certain Dags and features, when
+it comes to custom roles and permissions, some permissions might override individual access to Dags or lack
+of those. For example - audit log permission allows the user who has it to see logs of all Dags, even if
+they don't have access to those Dags explicitly. This is something that the Deployment Manager
+should be aware of when creating custom RBAC roles.
+
+Triggering Dags via Assets
+--------------------------
+
+Triggering Dags via Assets is a feature that allows an asset materialization to trigger a Dag. This feature
+is designed to allow triggering Dags without giving users specific access to triggering the Dags manually.
+The "Trigger Dag" permission only affects triggering dags manually via the UI or API, but it does not affect
+triggering Dags via Assets. Dag authors explicitly allow for specific assets to trigger the Dags and
+they give anyone who has capability to create those assets to trigger the Dags via Assets.
+
 
 Responsibilities of Deployment Managers
 ---------------------------------------

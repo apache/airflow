@@ -1608,17 +1608,18 @@ def ui_e2e_tests(
         if report_path.exists():
             get_console().print(f"[info]Report: file://{report_path}[/]")
 
-        stop_docker_compose(tmp_dir)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
         if result.returncode != 0:
             sys.exit(result.returncode)
 
+    except KeyboardInterrupt:
+        get_console().print("\n[warning]Interrupted by user.[/]")
+        sys.exit(1)
     except Exception as e:
         get_console().print(f"[error]{str(e)}[/]")
+        sys.exit(1)
+    finally:
         stop_docker_compose(tmp_dir)
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        sys.exit(1)
 
 
 class TimeoutHandler:
