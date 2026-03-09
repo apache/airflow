@@ -61,7 +61,7 @@ HIGH RISK — Major version bumps with known breaking changes
 | swagger-ui-dist              | 4.1.3      | 5.32.0     | CSS class names changed, rendering differences, bundled CSS    |
 |                              |            |            | restructured.                                                  |
 +------------------------------+------------+------------+----------------------------------------------------------------+
-| react-markdown               | ^8.0.4     | ^10.1.0    | Major v9 and v10. Moved to ESM-only, plugin API changes,      |
+| react-markdown               | ^8.0.4     | ^10.1.0    | Major v9 and v10. Moved to ESM-only, plugin API changes,       |
 |                              |            |            | remark/rehype ecosystem alignment, component prop changes.     |
 +------------------------------+------------+------------+----------------------------------------------------------------+
 | d3-shape                     | ^2.1.0     | ^3.2.0     | d3.line().curve() defaults changed, some curve types renamed.  |
