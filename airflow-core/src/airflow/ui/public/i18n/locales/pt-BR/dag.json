@@ -146,11 +146,11 @@
       "direction": "Direção",
       "label": "Filtro",
       "mode": "Modo",
+      "modeTooltip": "O modo estático mantém a visualização atual ao navegar entre tarefas; o modo percorrer atualiza o filtro ativo para a tarefa clicada para facilitar a navegação no DAG.",
       "modes": {
         "static": "Estático",
         "traverse": "Percorrer"
       },
-      "modeTooltip": "O modo estático mantém a visualização atual ao navegar entre tarefas; o modo percorrer atualiza o filtro ativo para a tarefa clicada para facilitar a navegação no DAG.",
       "options": {
         "both": "Upstream e downstream",
         "downstream": "Downstream",
