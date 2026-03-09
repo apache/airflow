@@ -53,7 +53,7 @@ try:
     from airflow.providers.common.compat.sdk import AirflowException
 except ModuleNotFoundError:
     from airflow.exceptions import AirflowException
-from airflow.providers.keycloak.auth_manager import keycloak_auth_manager as kam_module
+from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -115,11 +115,11 @@ def user():
 @pytest.fixture(autouse=True)
 def _clear_filter_cache():
     """Clear module-level single-flight cache between tests."""
-    kam_module._filter_cache.clear()
-    kam_module._filter_pending.clear()
+    cache_module._filter_cache.clear()
+    cache_module._filter_pending.clear()
     yield
-    kam_module._filter_cache.clear()
-    kam_module._filter_pending.clear()
+    cache_module._filter_cache.clear()
+    cache_module._filter_pending.clear()
 
 
 class TestKeycloakAuthManager:
@@ -641,8 +641,8 @@ class TestKeycloakAuthManager:
             dag_ids={"dag-a"}, user=user, team_name="team-b"
         )
 
-        assert result == set()
         mock_is_authorized.assert_called_once()
+        assert result == set()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
@@ -651,8 +651,8 @@ class TestKeycloakAuthManager:
             dag_ids={"dag-a"}, user=user, team_name="team-a"
         )
 
-        assert result == {"dag-a"}
         mock_is_authorized.assert_called_once()
+        assert result == {"dag-a"}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
@@ -1072,18 +1072,15 @@ class TestKeycloakAuthManager:
         call_kwargs = mock_is_authorized.call_args
         assert call_kwargs.kwargs["attributes"] == {"dag_entity": "TASK_INSTANCE"}
 
-    def test_filter_authorized_dag_ids(self, auth_manager, user):
-        # dag_0 → True, dag_1 → False, dag_2 → True
-        side_effects = {"dag_0": True, "dag_1": False, "dag_2": True}
-
-        with patch.object(
-            KeycloakAuthManager,
-            "is_authorized_dag",
-            side_effect=lambda *, details, **kw: side_effects[details.id],
-        ) as mock_is_authorized:
-            result = auth_manager.filter_authorized_dag_ids(
-                dag_ids={"dag_0", "dag_1", "dag_2"}, user=user, method="GET"
-            )
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_dag",
+        side_effect=lambda *, details, **kw: {"dag_0": True, "dag_1": False, "dag_2": True}[details.id],
+    )
+    def test_filter_authorized_dag_ids(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(
+            dag_ids={"dag_0", "dag_1", "dag_2"}, user=user, method="GET"
+        )
 
         assert result == {"dag_0", "dag_2"}
         assert mock_is_authorized.call_count == 3
@@ -1112,17 +1109,11 @@ class TestKeycloakAuthManager:
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
 
-    def test_filter_authorized_dag_ids_single_flight(self, auth_manager, user):
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    def test_filter_authorized_dag_ids_single_flight(self, mock_is_authorized, auth_manager, user):
         """Concurrent threads with the same cache key should coalesce into one Keycloak call."""
-        call_count = 0
         gate = threading.Event()
-
-        def slow_is_authorized_dag(**kw):
-            nonlocal call_count
-            call_count += 1
-            # Block until the gate is opened so other threads pile up
-            gate.wait(timeout=5)
-            return True
+        mock_is_authorized.side_effect = lambda **kw: gate.wait(timeout=5) or True
 
         dag_ids = {"dag_0"}
         results = [None] * 5
@@ -1136,22 +1127,20 @@ class TestKeycloakAuthManager:
             except Exception as e:
                 errors.append(e)
 
-        with patch.object(KeycloakAuthManager, "is_authorized_dag", side_effect=slow_is_authorized_dag):
-            threads = [threading.Thread(target=run_filter, args=(i,)) for i in range(5)]
-            for t in threads:
-                t.start()
+        threads = [threading.Thread(target=run_filter, args=(i,)) for i in range(5)]
+        for t in threads:
+            t.start()
 
-            # Give threads time to enter _single_flight
-            time.sleep(0.1)
+        # Give threads time to enter single_flight, and then open the gate
+        # This way, the active flight completes and waiters read from cache
+        time.sleep(0.1)
+        gate.set()
 
-            # Open the gate — the active flight completes and waiters read from cache
-            gate.set()
-
-            for t in threads:
-                t.join(timeout=5)
+        for t in threads:
+            t.join(timeout=5)
 
         assert not errors, f"Threads raised errors: {errors}"
         for r in results:
             assert r == dag_ids
         # Only one thread should have called is_authorized_dag (the active flight)
-        assert call_count == 1
+        assert mock_is_authorized.call_count == 1
