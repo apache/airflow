@@ -161,7 +161,9 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "checksumdir>=1.2.0; python_version >= '3.9'",
         "click>=8.1.8; python_version >= '3.9'",
         "docutils>=0.21; python_version >= '3.9'",
-        "setuptools!=82.0.0",  # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+        # setuptools 82.0.0+ causes redoc to fail due to pkg_resources removal
+        # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+        "setuptools<82.0.0",
         "sphinx-airflow-theme>=0.1.0; python_version >= '3.9'",
         "sphinx-argparse>=0.4.0; python_version >= '3.9'",
         "sphinx-autoapi>=3; python_version >= '3.9'",
