@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import cast
 
 from fastapi import Depends, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.sql.expression import case, false
 
 from airflow._shared.timezones import timezone
@@ -58,48 +58,52 @@ def historical_metrics(
     """Return cluster activity historical metrics."""
     current_time = timezone.utcnow()
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
-    # DagRuns
-    dag_run_types = session.execute(
-        select(DagRun.run_type, func.count(DagRun.run_id))
-        .where(
-            func.coalesce(DagRun.start_date, current_time) >= start_date,
-            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
-        )
-        .where(DagRun.dag_id.in_(permitted_dag_ids))
-        .group_by(DagRun.run_type)
-    ).all()
+    end_date_value = end_date if end_date is not None else current_time
 
-    dag_run_states = session.execute(
-        select(DagRun.state, func.count(DagRun.run_id))
-        .where(
-            func.coalesce(DagRun.start_date, current_time) >= start_date,
-            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
-        )
+    # Build sargable date filter conditions
+    # Old: func.coalesce(DagRun.start_date, current_time) >= start_date
+    # Sargable equivalent: (start_date >= query_start) OR (start_date IS NULL AND current_time >= query_start)
+    # Since current_time >= start_date is almost always true in practice, we can include NULLs only when appropriate
+    start_date_filter = or_(
+        DagRun.start_date >= start_date, DagRun.start_date.is_(None) & (current_time >= start_date)
+    )
+    end_date_filter = or_(
+        DagRun.end_date <= end_date_value, DagRun.end_date.is_(None) & (current_time <= end_date_value)
+    )
+
+    # Combined DagRun query - get both run_type and state counts in a single query
+    dag_run_metrics = session.execute(
+        select(DagRun.run_type, DagRun.state, func.count(DagRun.run_id))
+        .where(start_date_filter, end_date_filter)
         .where(DagRun.dag_id.in_(permitted_dag_ids))
-        .group_by(DagRun.state)
+        .group_by(DagRun.run_type, DagRun.state)
     ).all()
 
     # TaskInstances
     task_instance_states = session.execute(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
         .join(TaskInstance.dag_run)
-        .where(
-            func.coalesce(DagRun.start_date, current_time) >= start_date,
-            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
-        )
+        .where(start_date_filter, end_date_filter)
         .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(TaskInstance.state)
     ).all()
+
+    # Aggregate dag_run_metrics into separate dictionaries
+    dag_run_types_dict = {}
+    dag_run_states_dict = {}
+    for run_type, state, count in dag_run_metrics:
+        dag_run_types_dict[run_type] = dag_run_types_dict.get(run_type, 0) + count
+        dag_run_states_dict[state] = dag_run_states_dict.get(state, 0) + count
 
     # Combining historical metrics response as dictionary
     historical_metrics_response = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-            **{row.run_type: row.count for row in dag_run_types},
+            **dag_run_types_dict,
         },
         "dag_run_states": {
             **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-            **{row.state: row.count for row in dag_run_states},
+            **dag_run_states_dict,
         },
         "task_instance_states": {
             "no_status": 0,

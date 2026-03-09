@@ -310,7 +310,8 @@ class TestHistoricalMetricsDataEndpoint:
     )
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200(self, test_client, params, expected):
-        with assert_queries_count(4):
+        # Query count reduced from 4 to 3 after combining dag_run_types and dag_run_states queries
+        with assert_queries_count(3):
             response = test_client.get("/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected

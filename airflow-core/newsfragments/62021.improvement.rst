@@ -1,0 +1,1 @@
+Optimize historical_metrics_data endpoint by adding database indexes and rewriting queries for better performance

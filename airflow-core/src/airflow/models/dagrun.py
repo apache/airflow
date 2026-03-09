@@ -240,6 +240,8 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "logical_date", name="dag_run_dag_id_logical_date_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index("idx_dag_run_run_after", run_after),
+        Index("idx_dag_run_start_date", start_date),
+        Index("idx_dag_run_end_date", end_date),
         Index(
             "idx_dag_run_running_dags",
             "state",
