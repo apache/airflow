@@ -56,6 +56,7 @@ T = TypeVar("T")
 
 
 if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
     from snowflake.connector import SnowflakeConnection
 
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -400,40 +401,9 @@ class SnowflakeHook(DbApiHook):
         if client_store_temporary_credential:
             conn_config["client_store_temporary_credential"] = client_store_temporary_credential
 
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
+        p_key = self.get_private_key()
 
-        private_key_file = self._get_field(extra_dict, "private_key_file")
-        private_key_content = self._get_field(extra_dict, "private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_file_path = Path(private_key_file)
-            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
-                raise ValueError("The private_key_file path points to an empty or invalid file.")
-            if private_key_file_path.stat().st_size > 4096:
-                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
-            private_key_pem = Path(private_key_file_path).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            p_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
-
+        if p_key:
             pkb = p_key.private_bytes(
                 encoding=serialization.Encoding.DER,
                 format=serialization.PrivateFormat.PKCS8,
@@ -586,6 +556,55 @@ class SnowflakeHook(DbApiHook):
         # whether the failure is retryable.
         response.raise_for_status()
         return response
+
+    def get_private_key(self) -> PrivateKeyTypes | None:
+        """Get the private key from snowflake connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra_dict = conn.extra_dejson
+
+        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
+        # If private_key_content is specified in the extra json, use it as a private key.
+        # As a next step, specify this private key in the connection configuration.
+        # The connection password then becomes the passphrase for the private key.
+        # If your private key is not encrypted (not recommended), then leave the password empty.
+
+        private_key_file = self._get_field(extra_dict, "private_key_file")
+        private_key_content = self._get_field(extra_dict, "private_key_content")
+
+        passphrase = None
+        if conn.password:
+            passphrase = conn.password.strip().encode()
+
+        private_key_pem = None
+        p_key = None
+
+        if private_key_content and private_key_file:
+            raise AirflowException(
+                "The private_key_file and private_key_content extra fields are mutually exclusive. "
+                "Please remove one."
+            )
+        if private_key_file:
+            private_key_file_path = Path(private_key_file)
+            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
+                raise ValueError("The private_key_file path points to an empty or invalid file.")
+            if private_key_file_path.stat().st_size > 4096:
+                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
+            private_key_pem = Path(private_key_file_path).read_bytes()
+        elif private_key_content:
+            try:
+                p_key = serialization.load_pem_private_key(
+                    private_key_content.encode(), password=passphrase, backend=default_backend()
+                )
+            except (TypeError, ValueError):
+                # Assume base64 encoding if string is not valid private key
+                private_key_pem = base64.b64decode(private_key_content)
+
+        if private_key_pem:
+            p_key = serialization.load_pem_private_key(
+                private_key_pem, password=passphrase, backend=default_backend()
+            )
+
+        return p_key
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
