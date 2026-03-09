@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-09T17:49:15.398669
+# This constraints file was automatically generated on 2026-03-09T20:18:26.553917
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -196,7 +196,7 @@ facebook_business==24.0.1
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
-filelock==3.25.0
+filelock==3.25.1
 flower==2.0.1
 frozenlist==1.8.0
 fsspec==2026.2.0
@@ -483,7 +483,7 @@ pytest==8.2.1
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.1
+python-discovery==1.1.2
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3

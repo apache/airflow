@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-09T18:00:30.440018
+# This constraints file was automatically generated on 2026-03-09T20:25:09.158216
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -322,7 +322,7 @@ fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.25.0
+filelock==3.25.1
 flower==2.0.1
 frozenlist==1.8.0
 fsspec==2026.2.0
@@ -635,7 +635,7 @@ pytest==8.2.1
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.1
+python-discovery==1.1.2
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
