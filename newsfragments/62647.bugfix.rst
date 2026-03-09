@@ -1,1 +1,0 @@
-In 2.11.1 by mistake ``core.use_historical_filename_templates`` was read by Airflow instead of ``logging.use_historical_filename_templates``. The ``core`` option is deprecated in Airflow 2.11.2. Both options are removed in Airflow 3 as historical templates are supported and does not cause low-severity security issue in Airflow 3.

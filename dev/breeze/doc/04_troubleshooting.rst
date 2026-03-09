@@ -79,7 +79,7 @@ When you see this error:
 
 .. code-block::
 
-    ImportError: cannot import name 'cache' from 'functools' (/Users/jarek/Library/Application Support/hatch/pythons/3.8/python/lib/python3.8/functools.py)
+    ImportError: cannot import name 'cache' from 'functools' (/Users/jarek/Library/Application Support/hatch/pythons/3.8/python/lib/python3.10/functools.py)
 
 or
 

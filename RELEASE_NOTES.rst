@@ -21,6 +21,34 @@
 
 .. towncrier release notes start
 
+Airflow 2.11.2 (2026-03-11)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Bug Fixes
+"""""""""
+
+- Fix Task Instances list view rendering raw HTML instead of clickable links for Dag Id, Task Id, and Run Id columns. (#62533)
+- In 2.11.1 by mistake ``core.use_historical_filename_templates`` was read by Airflow instead of ``logging.use_historical_filename_templates``. The ``core`` option is deprecated in Airflow 2.11.2. Both options are removed in Airflow 3 as historical templates are supported and does not cause low-severity security issue in Airflow 3. (#62647)
+- gracefully handle 404 from worker log server for historical retry attempts (#63002)
+- task_instance_mutation_hook receives a TI with run_id set (#62999)
+- fix missing logs in UI for tasks in ``UP_FOR_RETRY`` and ``UP_FOR_RESCHEDULE`` states (#54547) (#62877)
+- Fixing 500 error on webserver after upgrading to FAB provider 1.5.4 (#62412)
+- Lazily import fs and package_index hook in providers manager #52117 (#62356)
+
+Updated dependencies
+""""""""""""""""""""
+
+- Upgrade airflow UI to latest reasonable dependencies. (#63158)
+- Bump the core-ui-package-updates group across 1 directory with 87 updates (#61091)
+- bump filelock (#62952)
+- Limit Celery Provider to not install 3.17.0 as it breaks airflow 2.11 (#63046)
+- Bump the pip-dependency-updates group across 3 directories with 5 updates (#62808)
+- Upgrade to latest released build dependencies (#62613)
+
+
 Airflow 2.11.1 (2026-02-20)
 ---------------------------
 
