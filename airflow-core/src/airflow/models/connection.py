@@ -274,7 +274,7 @@ class Connection(Base, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type)
+        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type) or ""
         if "_" in conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
