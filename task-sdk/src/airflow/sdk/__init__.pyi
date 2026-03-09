@@ -21,6 +21,10 @@ from airflow.sdk.api.datamodels._generated import (
     TriggerRule as TriggerRule,
     WeightRule as WeightRule,
 )
+from airflow.sdk.bases.branch import (
+    BaseBranchOperator as BaseBranchOperator,
+    BranchMixIn as BranchMixIn,
+)
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
@@ -35,6 +39,8 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
+from airflow.sdk.bases.xcom import BaseXCom as BaseXCom
 from airflow.sdk.configuration import AirflowSDKConfigParser
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
@@ -56,8 +62,18 @@ from airflow.sdk.definitions.decorators import setup as setup, task as task, tea
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
-from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
-from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
+from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+from airflow.sdk.definitions.partition_mappers.temporal import (
+    DailyMapper,
+    HourlyMapper,
+    MonthlyMapper,
+    QuarterlyMapper,
+    WeeklyMapper,
+    YearlyMapper,
+)
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
@@ -85,6 +101,7 @@ conf: AirflowSDKConfigParser
 
 __all__ = [
     "__version__",
+    "AllowedKeyMapper",
     "Asset",
     "AssetAlias",
     "AssetAll",
@@ -92,11 +109,14 @@ __all__ = [
     "AssetOrTimeSchedule",
     "AssetWatcher",
     "BaseAsyncOperator",
+    "BaseBranchOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
+    "BranchMixIn",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -104,26 +124,34 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DailyMapper",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "HourlyMapper",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MonthlyMapper",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
     "PartitionedAssetTimetable",
     "PartitionMapper",
+    "ProductMapper",
+    "QuarterlyMapper",
     "SecretCache",
+    "SkipMixin",
     "TaskGroup",
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WeeklyMapper",
     "WeightRule",
     "XComArg",
+    "YearlyMapper",
     "asset",
     "chain",
     "chain_linear",

@@ -621,6 +621,60 @@ paths:
       summary: Jobs
       description: Return Edge Jobs.
       operationId: jobs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id Pattern
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id Pattern
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+          title: State
+      - name: queue_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue Pattern
+      - name: worker_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Worker Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -628,9 +682,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobCollectionResponse'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /edge_worker/ui/worker/{worker_name}/maintenance:
     post:
       tags:
@@ -948,7 +1005,7 @@ components:
           - type: 'null'
           title: Log Path
         ti:
-          $ref: '#/components/schemas/TaskInstance'
+          $ref: '#/components/schemas/TaskInstanceDTO'
         sentry_integration:
           type: string
           title: Sentry Integration
@@ -1094,7 +1151,7 @@ components:
       - log_chunk_data
       title: PushLogsBody
       description: Incremental new log content from worker.
-    TaskInstance:
+    TaskInstanceDTO:
       properties:
         id:
           type: string
@@ -1152,7 +1209,7 @@ components:
       - pool_slots
       - queue
       - priority_weight
-      title: TaskInstance
+      title: TaskInstanceDTO
       description: Schema for TaskInstance with minimal required fields needed for
         Executors and Task SDK.
     TaskInstanceState:
@@ -1356,6 +1413,13 @@ components:
           - type: 'null'
           title: Maintenance Comments
           description: Comments about the maintenance state of the worker.
+        concurrency:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Concurrency
+          description: Desired concurrency for the worker set by an administrator.
+            None means no remote override; the worker uses its startup value.
       type: object
       required:
       - state

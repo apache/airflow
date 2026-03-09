@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import os
 import re
 from collections import defaultdict
@@ -27,7 +28,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from natsort import natsorted
 from sqlalchemy import (
     JSON,
     Enum,
@@ -192,6 +192,7 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
@@ -226,6 +227,7 @@ class DagRun(Base, LoggingMixin):
     """
 
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -329,6 +331,8 @@ class DagRun(Base, LoggingMixin):
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
+        note: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
@@ -349,6 +353,7 @@ class DagRun(Base, LoggingMixin):
             self.run_after = run_after
         self.start_date = start_date
         self.conf = conf or {}
+        self.note = note
         if state is not None:
             self.state = state
         if not is_arg_set(queued_at):
@@ -369,6 +374,7 @@ class DagRun(Base, LoggingMixin):
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
             )
         self.partition_key = partition_key
+        self.partition_date = partition_date
         super().__init__()
 
     def __repr__(self):
@@ -464,7 +470,7 @@ class DagRun(Base, LoggingMixin):
 
     def set_state(self, state: DagRunState) -> None:
         """
-        Change the state of the DagRan.
+        Change the state of the DagRun.
 
         Changes to attributes are implemented in accordance with the following table
         (rows represent old states, columns represent new states):
@@ -1213,21 +1219,18 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
 
-            if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
-            elif dag.has_on_failure_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=True,
-                    msg="task_failure",
+            if dag.has_on_failure_callback:
+                ti_causing_failure = max(
+                    (ti for ti in tis if ti.state == TaskInstanceState.FAILED),
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
+                    default=None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=ti_causing_failure,
+                    reason="task_failure",
+                    execute=execute_callbacks,
                 )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
@@ -1246,21 +1249,18 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
 
-            if execute_callbacks and dag.has_on_success_callback:
-                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
-            elif dag.has_on_success_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=False,
-                    msg="success",
+            if dag.has_on_success_callback:
+                last_succeeded_ti: TI | None = max(
+                    (ti for ti in tis if ti.state == TaskInstanceState.SUCCESS),
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
+                    default=None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=True,
+                    relevant_ti=last_succeeded_ti,
+                    reason="success",
+                    execute=execute_callbacks,
                 )
 
             if dag.deadline:
@@ -1281,25 +1281,23 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
-            if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(
-                    dag=cast("SDKDAG", dag),
-                    success=False,
-                    reason="all_tasks_deadlocked",
-                )
-            elif dag.has_on_failure_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
+            if dag.has_on_failure_callback:
+                finished_task_ids = {ti.task_id for ti in finished_tis}
+                blocking_ti = next(
+                    (
+                        ti
+                        for ti in unfinished.tis
+                        if ti.task
+                        and not (ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids))
                     ),
-                    is_failure_callback=True,
-                    msg="all_tasks_deadlocked",
+                    None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=blocking_ti,
+                    reason="all_tasks_deadlocked",
+                    execute=execute_callbacks,
                 )
 
         # finally, if the leaves aren't done, the dag is still running
@@ -1410,27 +1408,40 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
-    @provide_session
-    def get_last_ti(self, dag: SerializedDAG, session: Session = NEW_SESSION) -> TI | None:
-        """Get Last TI from the dagrun to build and pass Execution context object from server to then run callbacks."""
-        tis = self.get_task_instances(session=session)
-        # tis from a dagrun may not be a part of dag.partial_subset,
-        # since dag.partial_subset is a subset of the dag.
-        # This ensures that we will only use the accessible TI
-        # context for the callback.
-        if dag.partial:
-            tis = [ti for ti in tis if not ti.state == State.NONE]
-        # filter out removed tasks
-        tis = natsorted(
-            (ti for ti in tis if ti.state != TaskInstanceState.REMOVED),
-            key=lambda ti: ti.task_id,
+    def produce_dag_callback(
+        self,
+        dag: SerializedDAG,
+        success: bool = True,
+        relevant_ti: TI | None = None,
+        reason: str = "success",
+        execute: bool = False,
+    ) -> DagCallbackRequest | None:
+        """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        if not execute:
+            return DagCallbackRequest(
+                filepath=self.dag_model.relative_fileloc,
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                bundle_name=self.dag_model.bundle_name,
+                bundle_version=self.bundle_version,
+                context_from_server=DagRunContext(
+                    dag_run=self,
+                    last_ti=relevant_ti,
+                ),
+                is_failure_callback=(not success),
+                msg=reason,
+            )
+        self.execute_dag_callbacks(
+            dag=cast("SDKDAG", dag),
+            success=success,
+            relevant_ti=relevant_ti,
+            reason=reason,
         )
-        if not tis:
-            return None
-        ti = tis[-1]  # get last TaskInstance of DagRun
-        return ti
+        return None
 
-    def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
+    def execute_dag_callbacks(
+        self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
+    ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             DagRun as DRDataModel,
@@ -1439,10 +1450,9 @@ class DagRun(Base, LoggingMixin):
         )
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        last_ti = self.get_last_ti(cast("SerializedDAG", dag))
-        if last_ti:
-            last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
-            task = dag.get_task(last_ti.task_id)
+        if relevant_ti:
+            last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
+            task = dag.get_task(relevant_ti.task_id)
 
             dag_run_data = DRDataModel(
                 dag_id=self.dag_id,
@@ -1465,12 +1475,12 @@ class DagRun(Base, LoggingMixin):
                 task=task,
                 _ti_context_from_server=TIRunContext(
                     dag_run=dag_run_data,
-                    max_tries=last_ti.max_tries,
+                    max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
                     xcom_keys_to_clear=[],
                 ),
-                max_tries=last_ti.max_tries,
+                max_tries=relevant_ti.max_tries,
             )
             context = runtime_ti.get_template_context()
         else:
@@ -2055,9 +2065,19 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
+        debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
+        expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
             if ti.is_schedulable:
                 schedulable_ti_ids.append(ti.id)
+                if debug_try_number_check:
+                    expected_try_number_by_ti_id[ti.id] = (
+                        ti.try_number
+                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
+                        else ti.try_number + 1,
+                        ti.try_number,
+                        ti.state,
+                    )
             # Check "start_trigger_args" to see whether the operator supports
             # start execution from triggerer. If so, we'll check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
@@ -2102,6 +2122,38 @@ class DagRun(Base, LoggingMixin):
                     .execution_options(synchronize_session=False)
                 )
                 count += getattr(result, "rowcount", 0)
+                if debug_try_number_check:
+                    rows = session.execute(
+                        select(TI.id, TI.try_number, TI.state).where(TI.id.in_(id_chunk))
+                    ).all()
+                    rows_by_ti_id = {
+                        ti_id: (db_try_number, db_state) for ti_id, db_try_number, db_state in rows
+                    }
+                    for ti_id in id_chunk:
+                        expected = expected_try_number_by_ti_id.get(ti_id)
+                        if expected is None:
+                            continue
+                        db_row = rows_by_ti_id.get(ti_id)
+                        if db_row is None:
+                            continue
+                        expected_try_number, pre_update_try_number, pre_update_state = expected
+                        db_try_number, db_state = db_row
+                        if db_try_number != expected_try_number:
+                            self.log.warning(
+                                "schedule_tis: try_number mismatch after scheduling for ti_id=%s "
+                                "dag_run=%s/%s scheduler_job_id=%s "
+                                "pre_state=%s pre_try_number=%d expected_try_number=%d "
+                                "db_state=%s db_try_number=%d",
+                                ti_id,
+                                self.dag_id,
+                                self.run_id,
+                                self.scheduled_by_job_id,
+                                pre_update_state,
+                                pre_update_try_number,
+                                expected_try_number,
+                                db_state,
+                                db_try_number,
+                            )
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if empty_ti_ids:

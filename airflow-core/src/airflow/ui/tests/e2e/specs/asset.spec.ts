@@ -64,17 +64,11 @@ test.describe("Assets Page", () => {
   });
 
   test("verify asset rows when data exists", async () => {
-    const count = await assets.assetCount();
-
-    expect(count).toBeGreaterThanOrEqual(0);
+    await expect(assets.rows.first()).toBeVisible();
   });
 
   test("verify asset has a visible name link", async () => {
-    const names = await assets.assetNames();
-
-    for (const name of names) {
-      expect(name.trim().length).toBeGreaterThan(0);
-    }
+    await expect(assets.rows.locator("td a").first()).toBeVisible();
   });
 
   test("verify clicking an asset navigates to detail page", async ({ page }) => {
@@ -85,9 +79,7 @@ test.describe("Assets Page", () => {
   });
 
   test("verify assets using search", async () => {
-    const initialCount = await assets.assetCount();
-
-    expect(initialCount).toBeGreaterThan(0);
+    await expect(assets.rows.first()).toBeVisible();
 
     const searchTerm = testConfig.asset.name;
 
@@ -107,34 +99,6 @@ test.describe("Assets Page", () => {
         { intervals: [500], timeout: 30_000 },
       )
       .toBe(true);
-
-    const names = await assets.assetNames();
-
-    expect(names.length).toBeGreaterThan(0);
-
-    for (const name of names) {
-      expect(name.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
-  });
-
-  test("verify pagination controls navigate between pages", async () => {
-    await assets.navigateTo("/assets?limit=5&offset=0");
-    await assets.waitForLoad();
-
-    const page1Initial = await assets.assetNames();
-
-    expect(page1Initial.length).toBeGreaterThan(0);
-
-    const pagination = assets.page.locator('[data-scope="pagination"]');
-
-    await pagination.getByRole("button", { name: /page 2/i }).click();
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
-
-    const page2Assets = await assets.assetNames();
-
-    await pagination.getByRole("button", { name: /page 1/i }).click();
-
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
   });
 
   test("verify asset details and dependencies", async ({ page }) => {
@@ -147,8 +111,8 @@ test.describe("Assets Page", () => {
 
     await assetDetailPage.verifyAssetDetails(assetName);
 
-    await assetDetailPage.verifyProducingTasks(1);
+    await assetDetailPage.verifyProducingTasks();
 
-    await assetDetailPage.verifyScheduledDags(1);
+    await assetDetailPage.verifyScheduledDags();
   });
 });

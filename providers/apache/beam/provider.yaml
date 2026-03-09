@@ -21,13 +21,15 @@ name: Apache Beam
 description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
-state: ready
+state: suspended
 source-date-epoch: 1768334134
+lifecycle: production
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.2.3
   - 6.2.2
   - 6.2.1
   - 6.2.0
@@ -83,6 +85,7 @@ versions:
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/
+    logo: /docs/integration-logos/Apache-Beam.png
     how-to-guide:
       - /docs/apache-airflow-providers-apache-beam/operators.rst
     tags: [apache]

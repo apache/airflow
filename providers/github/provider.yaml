@@ -23,6 +23,7 @@ description: |
     `GitHub <https://www.github.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770752049
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -62,6 +63,7 @@ versions:
 integrations:
   - integration-name: Github
     external-doc-url: https://www.github.com/
+    logo: /docs/integration-logos/Github.svg
     tags: [software]
 
 hooks:
