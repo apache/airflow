@@ -2207,6 +2207,8 @@ export type Theme = {
         [key: string]: unknown;
     };
 } | null;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
 };
 
 /**
@@ -3855,10 +3857,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -3933,10 +3931,6 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -5547,6 +5541,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

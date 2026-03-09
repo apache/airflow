@@ -78,6 +78,50 @@ with open(sys.argv[1], "rb") as file:
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
 
+{% if pendulum_version_mismatch | default(false) %}
+import datetime as _dt
+
+try:
+    import pendulum as _pendulum
+    _pendulum_available = True
+except ImportError:
+    _pendulum_available = False
+
+def _native_datetime_to_pendulum(obj):
+    """Convert native datetime to pendulum DateTime (using virtualenv's pendulum version)."""
+    if _pendulum_available and isinstance(obj, _dt.datetime) and not isinstance(obj, _pendulum.DateTime):
+        return _pendulum.instance(obj)
+    if isinstance(obj, dict):
+        return {k: _native_datetime_to_pendulum(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_native_datetime_to_pendulum(v) for v in obj)
+    return obj
+
+def _pendulum_to_native_datetime(obj):
+    """Convert pendulum DateTime to native datetime (using virtualenv's pendulum version)."""
+    if _pendulum_available and isinstance(obj, _pendulum.DateTime):
+        tz = None
+        if obj.timezone_name:
+            from zoneinfo import ZoneInfo
+            try:
+                tz = ZoneInfo(obj.timezone_name)
+            except KeyError:
+                tz = _dt.timezone(obj.utcoffset()) if obj.utcoffset() is not None else None
+        return _dt.datetime(
+            obj.year, obj.month, obj.day,
+            obj.hour, obj.minute, obj.second, obj.microsecond,
+            tzinfo=tz,
+        )
+    if isinstance(obj, dict):
+        return {k: _pendulum_to_native_datetime(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_pendulum_to_native_datetime(v) for v in obj)
+    return obj
+
+arg_dict["args"] = [_native_datetime_to_pendulum(a) for a in arg_dict["args"]]
+arg_dict["kwargs"] = _native_datetime_to_pendulum(arg_dict["kwargs"])
+{% endif %}
+
 {% if string_args_global | default(true) -%}
 # Read string args
 with open(sys.argv[3], "r") as file:
@@ -94,4 +138,7 @@ except Exception as e:
 # Write output
 with open(sys.argv[2], "wb") as file:
     if res is not None:
+{% if pendulum_version_mismatch | default(false) %}
+        res = _pendulum_to_native_datetime(res)
+{% endif %}
         {{ pickling_library }}.dump(res, file)

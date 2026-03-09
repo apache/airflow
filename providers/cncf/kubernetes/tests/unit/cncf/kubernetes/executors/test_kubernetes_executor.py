@@ -399,6 +399,16 @@ class TestKubernetesExecutor:
                 id="409 conflict",
             ),
             pytest.param(
+                HTTPResponse(
+                    body='{"message": "too old resource version: 65442975 (65489651)"}',
+                    status=410,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="410 gone",
+            ),
+            pytest.param(
                 HTTPResponse(body="Too many requests, please try again later.", status=429),
                 0,
                 False,
@@ -1932,3 +1942,156 @@ class TestKubernetesJobWatcher:
             executor = KubernetesExecutor()
 
         assert executor.kube_config.worker_pod_pending_fatal_container_state_reasons == expected_result
+
+
+class TestKubernetesExecutorMultiTeam:
+    """Tests for AIP-67 multi-team support in KubernetesExecutor."""
+
+    def test_supports_multi_team(self):
+        """Test that KubernetesExecutor declares multi-team support."""
+        assert KubernetesExecutor.supports_multi_team is True
+
+    def test_global_executor_without_team_name(self):
+        """Test that global executor (no team) works correctly with backwards compatibility."""
+        executor = KubernetesExecutor()
+
+        # Verify executor has conf
+        assert hasattr(executor, "conf")
+        # On older Airflow versions, conf is the global AirflowConfigParser (no team_name attr).
+        # On newer versions, conf is an ExecutorConf with team_name=None.
+        assert getattr(executor.conf, "team_name", None) is None
+
+        # Verify KubeConfig was created with the executor's conf
+        assert executor.kube_config is not None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_executor_with_team_name(self):
+        """Test that executor created with a team_name has team-specific conf."""
+        executor = KubernetesExecutor(team_name="ml_team")
+
+        assert executor.conf.team_name == "ml_team"
+        assert executor.team_name == "ml_team"
+        assert executor.kube_config is not None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_multiple_team_executors_isolation(self, monkeypatch):
+        """Test that multiple team executors can coexist with isolated resources."""
+        monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "4")
+        monkeypatch.setenv("AIRFLOW__TEAM_B___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "8")
+
+        team_a_executor = KubernetesExecutor(team_name="team_a")
+        team_b_executor = KubernetesExecutor(team_name="team_b")
+
+        try:
+            assert team_a_executor.task_queue is not team_b_executor.task_queue
+            assert team_a_executor.result_queue is not team_b_executor.result_queue
+            assert team_a_executor.running is not team_b_executor.running
+            assert team_a_executor.queued_tasks is not team_b_executor.queued_tasks
+
+            assert team_a_executor.conf.team_name == "team_a"
+            assert team_b_executor.conf.team_name == "team_b"
+
+            assert team_a_executor.kube_config.worker_pods_creation_batch_size == 4
+            assert team_b_executor.kube_config.worker_pods_creation_batch_size == 8
+
+        finally:
+            team_a_executor.end()
+            team_b_executor.end()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_team_specific_kube_config(self, monkeypatch):
+        """Test that KubeConfig uses team-specific configuration when provided via env vars."""
+        # Set team-specific namespace via environment variable
+        monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__NAMESPACE", "team-a-namespace")
+        monkeypatch.setenv(
+            "AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__DELETE_WORKER_PODS",
+            "false",
+        )
+
+        team_a_executor = KubernetesExecutor(team_name="team_a")
+
+        try:
+            # Verify the KubeConfig picked up the team-specific namespace
+            assert team_a_executor.kube_config.kube_namespace == "team-a-namespace"
+            assert team_a_executor.kube_config.delete_worker_pods is False
+        finally:
+            team_a_executor.end()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_team_and_global_config_isolation(self, monkeypatch):
+        """Test that team-specific and global executors use correct configurations side-by-side."""
+        global_namespace = "default"
+        team_namespace = "team-ml-namespace"
+
+        # Set up global configuration
+        config_overrides = {
+            ("kubernetes_executor", "namespace"): global_namespace,
+        }
+
+        # Set up team-specific config via environment variable
+        monkeypatch.setenv("AIRFLOW__ML_TEAM___KUBERNETES_EXECUTOR__NAMESPACE", team_namespace)
+
+        with conf_vars(config_overrides):
+            # Create team-specific executor
+            team_executor = KubernetesExecutor(team_name="ml_team")
+
+            # Create global executor (no team)
+            global_executor = KubernetesExecutor()
+
+            try:
+                # Verify team-specific namespace was used
+                assert team_executor.kube_config.kube_namespace == team_namespace
+
+                # Verify global namespace was used for global executor
+                assert global_executor.kube_config.kube_namespace == global_namespace
+            finally:
+                team_executor.end()
+                global_executor.end()
+
+    def test_kube_config_fallback_to_global_conf(self):
+        """Test that KubeConfig falls back to global conf when no executor_conf is provided."""
+        from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
+
+        # KubeConfig without executor_conf should fall back to global configuration
+        kube_config = KubeConfig()
+
+        # Should still have valid configuration from global defaults
+        assert kube_config.kube_namespace is not None
+        assert kube_config.airflow_home is not None
+
+    def test_executor_conf_passed_to_kube_config(self):
+        """Test that the executor's conf is passed through to KubeConfig."""
+        executor = KubernetesExecutor()
+
+        # The executor should pass its conf to KubeConfig
+        assert executor.kube_config._conf is executor.conf
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_task_publish_max_retries_uses_team_conf(self, monkeypatch):
+        """Test that task_publish_max_retries reads from team-specific conf."""
+        monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__TASK_PUBLISH_MAX_RETRIES", "5")
+
+        executor = KubernetesExecutor(team_name="team_a")
+
+        try:
+            assert executor.task_publish_max_retries == 5
+        finally:
+            executor.end()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_get_pod_namespace_uses_instance_conf(self, monkeypatch):
+        """Test that _get_pod_namespace uses self.conf instead of global conf."""
+        monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__NAMESPACE", "team-a-ns")
+
+        executor = KubernetesExecutor(team_name="team_a")
+
+        try:
+            mock_ti = mock.MagicMock()
+            mock_ti.executor_config = {}
+
+            namespace = executor._get_pod_namespace(mock_ti)
+
+            # Should return the team-specific namespace from the executor's conf
+            assert namespace == "team-a-ns"
+        finally:
+            executor.end()
