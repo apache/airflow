@@ -162,6 +162,117 @@ def test_client():
             )
 
 
+@pytest.fixture
+def unauthenticated_test_client():
+    """Test client with no Authorization header."""
+    with (
+        conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+                ("core", "lazy_discover_providers"): "false",
+            }
+        ),
+        mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+    ):
+        purge_cached_app()
+        app = create_app()
+        yield TestClient(app, base_url=BASE_URL)
+
+
+@pytest.fixture
+def unauthorized_test_client():
+    """Test client with a user lacking DAG access (role=None)."""
+    with (
+        conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+                ("core", "lazy_discover_providers"): "false",
+            }
+        ),
+        mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+    ):
+        purge_cached_app()
+        app = create_app()
+        auth_manager: SimpleAuthManager = app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
+        )
+        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+            yield TestClient(
+                app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=BASE_URL,
+            )
+
+
+class TestEndpointAuthorization:
+    """Test 401 and 403 for each protected HITL endpoint."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+
+    def test_sessions_find_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+        assert response.status_code == 401
+
+    def test_sessions_find_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+        assert response.status_code == 403
+
+    def test_sessions_feedback_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/hitl-review/sessions/feedback",
+            params=self.PARAMS,
+            json={"feedback": "fix this"},
+        )
+        assert response.status_code == 401
+
+    def test_sessions_feedback_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/hitl-review/sessions/feedback",
+            params=self.PARAMS,
+            json={"feedback": "fix this"},
+        )
+        assert response.status_code == 403
+
+    def test_sessions_approve_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+        assert response.status_code == 401
+
+    def test_sessions_approve_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+        assert response.status_code == 403
+
+    def test_sessions_reject_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/hitl-review/sessions/reject", params=self.PARAMS)
+        assert response.status_code == 401
+
+    def test_sessions_reject_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.post("/hitl-review/sessions/reject", params=self.PARAMS)
+        assert response.status_code == 403
+
+    def test_chat_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/hitl-review/chat", params=self.PARAMS)
+        assert response.status_code == 401
+
+    def test_chat_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/hitl-review/chat", params=self.PARAMS)
+        assert response.status_code == 403
+
+    def test_chat_by_task_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/hitl-review/chat-by-task", params=self.PARAMS)
+        assert response.status_code == 401
+
+    def test_chat_by_task_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/hitl-review/chat-by-task", params=self.PARAMS)
+        assert response.status_code == 403
+
+
 class TestGetMapIndex:
     def test_valid_int(self):
         assert _get_map_index("0") == 0

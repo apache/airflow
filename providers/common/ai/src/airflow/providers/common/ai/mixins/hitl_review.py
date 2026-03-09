@@ -183,8 +183,7 @@ class HITLReviewMixin:
                     action = HumanActionData.model_validate_json(action_raw)
                 else:
                     action = HumanActionData.model_validate(action_raw)
-            except Exception as e:
-                print(e)
+            except Exception:
                 self.log.warning("Malformed human action XCom: %r", action_raw)
                 continue
 
