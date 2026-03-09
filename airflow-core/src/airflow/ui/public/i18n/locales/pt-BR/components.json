@@ -1,9 +1,7 @@
 {
   "backfill": {
-    "affected_many": "{{count}} execuções serão acionadas.",
     "affected_one": "1 execução será acionada.",
     "affected_other": "{{count}} execuções serão acionadas.",
-    "affected_zero": "Nenhuma execução será acionada.",
     "affectedNone": "Nenhuma execução correspondente aos critérios selecionados.",
     "allRuns": "Todas as Execuções",
     "backwards": "Executar para trás",
@@ -47,15 +45,11 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "{{count}} Erros",
     "error_one": "1 Erro",
     "error_other": "{{count}} Erros",
-    "error_zero": "Nenhum erro",
     "errorAndWarning": "1 Erro e {{warningText}}",
-    "warning_many": "{{count}} Avisos",
     "warning_one": "1 Aviso",
-    "warning_other": "{{count}} Avisos",
-    "warning_zero": "Nenhum aviso"
+    "warning_other": "{{count}} Avisos"
   },
   "dateRangeFilter": {
     "validation": {
@@ -66,23 +60,17 @@
   },
   "durationChart": {
     "duration": "Duração (segundos)",
-    "lastDagRun_many": "Últimas {{count}} Execuções do Dag",
     "lastDagRun_one": "Última Execução do Dag",
     "lastDagRun_other": "Últimas {{count}} Execuções do Dag",
-    "lastDagRun_zero": "Nenhuma execução do Dag",
-    "lastTaskInstance_many": "Últimas {{count}} Instâncias de Tarefa",
     "lastTaskInstance_one": "Última Instância de Tarefa",
     "lastTaskInstance_other": "Últimas {{count}} Instâncias de Tarefa",
-    "lastTaskInstance_zero": "Nenhuma instância de tarefa",
     "queuedDuration": "Duração da Fila",
     "runAfter": "Executar Depois",
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_many": "{{count}} arquivos",
     "files_one": "1 arquivo",
-    "files_other": "{{count}} arquivos",
-    "files_zero": "Nenhum arquivo"
+    "files_other": "{{count}} arquivos"
   },
   "flexibleForm": {
     "placeholder": "Selecionar Valor",
@@ -103,25 +91,19 @@
     "downloadImageError": "Falha ao baixar a imagem do gráfico.",
     "downloadImageErrorTitle": "Download Falhou",
     "otherDagRuns": "+Outras Execuções do Dag",
-    "taskCount_many": "{{count}} Tarefas",
     "taskCount_one": "{{count}} Tarefa",
     "taskCount_other": "{{count}} Tarefas",
-    "taskCount_zero": "Nenhuma tarefa",
     "taskGroup": "Grupo de Tarefas"
   },
   "limitedList": "+{{count}} mais",
   "limitedList.allItems": "Todos os {{count}} itens:",
-  "limitedList.allTags_many": "Todas as etiquetas ({{count}})",
   "limitedList.allTags_one": "Todas as etiquetas (1)",
   "limitedList.allTags_other": "Todas as etiquetas ({{count}})",
-  "limitedList.allTags_zero": "Todas as etiquetas (0)",
   "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
   "limitedList.clickToOpenFull": "Clique em \"+{{count}} mais\" para ver a lista completa",
   "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
-  "limitedList.showingItems_many": "Mostrando {{count}} itens",
   "limitedList.showingItems_one": "Mostrando 1 item",
   "limitedList.showingItems_other": "Mostrando {{count}} itens",
-  "limitedList.showingItems_zero": "Mostrando 0 itens",
   "logs": {
     "file": "Arquivo",
     "location": "linha {{line}} em {{name}}"
