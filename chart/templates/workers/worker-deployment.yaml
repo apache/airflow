@@ -124,7 +124,7 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if $podAnnotations }}
-          {{- toYaml $podAnnotations | nindent 8 }}
+          {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}

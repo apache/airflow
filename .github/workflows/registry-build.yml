@@ -70,7 +70,6 @@ jobs:
       REGISTRY_CACHE_CONTROL: public, max-age=300
     permissions:
       contents: read
-      id-token: write
     if: >
       github.event_name == 'workflow_call' ||
       contains(fromJSON('[
