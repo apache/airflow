@@ -45,8 +45,6 @@ SALESFORCE_RESPONSE = {
 INCLUDE_DELETED = True
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
-pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
-
 
 class TestSalesforceToGcsOperator:
     @pytest.mark.db_test
@@ -87,4 +85,4 @@ class TestSalesforceToGcsOperator:
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
 
-        assert result == EXPECTED_GCS_URI
+        assert result == [EXPECTED_GCS_URI]
