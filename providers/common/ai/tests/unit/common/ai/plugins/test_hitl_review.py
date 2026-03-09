@@ -30,7 +30,6 @@ from unittest import mock
 import time_machine
 from fastapi.testclient import TestClient
 
-from airflow import plugins_manager
 from airflow.api_fastapi.app import create_app, purge_cached_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.xcom import XComModel
@@ -152,8 +151,6 @@ def test_client():
         ),
         mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
     ):
-        plugins_manager._get_plugins.cache_clear()
-        plugins_manager.get_fastapi_plugins.cache_clear()
         purge_cached_app()
         app = create_app()
         auth_manager: SimpleAuthManager = app.state.auth_manager
