@@ -46,7 +46,6 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanFeedbackRequest,
     SessionStatus,
 )
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -133,17 +132,7 @@ def _read_xcom_by_prefix(
 def _write_xcom(
     session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
 ):
-    """
-    Write (upsert) a single XCom value in the database.
-
-    Uses ``serialize=False`` so the value is stored natively in the JSON column
-    without double-encoding (``XComModel.set`` with the default ``serialize=True``
-    calls ``json.dumps`` which would wrap dicts in a JSON string).
-    """
-    if AIRFLOW_V_3_2_PLUS:
-        serialize = {"serialize": False}
-    else:
-        serialize = {}
+    """Write data to db."""
     XComModel.set(
         key=key,
         value=value,
@@ -152,7 +141,6 @@ def _write_xcom(
         run_id=run_id,
         map_index=map_index,
         session=session,
-        **serialize,
     )
 
 

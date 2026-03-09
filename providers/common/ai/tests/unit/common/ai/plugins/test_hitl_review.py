@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -87,12 +87,6 @@ def _clear_db():
     clear_db_xcom()
 
 
-if AIRFLOW_V_3_2_PLUS:
-    serialize = {"serialize": False}
-else:
-    serialize = {}
-
-
 @provide_session
 def _create_hitl_session(
     session=None,
@@ -122,7 +116,6 @@ def _create_hitl_session(
         run_id=run_id,
         map_index=map_index,
         session=session,
-        **serialize,
     )
     XComModel.set(
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
@@ -132,7 +125,6 @@ def _create_hitl_session(
         run_id=run_id,
         map_index=map_index,
         session=session,
-        **serialize,
     )
 
 
@@ -236,7 +228,6 @@ class TestReadXcomByPrefix:
                 run_id="r",
                 map_index=-1,
                 session=session,
-                **serialize,
             )
         session.commit()
 
@@ -265,11 +256,11 @@ class TestReadXcomByPrefix:
             # JSON string (deserialize_value parses to dict)
             (
                 '{"query": "SELECT * FROM t", "params": []}',
-                {"query": "SELECT * FROM t", "params": []},
+                '{"query": "SELECT * FROM t", "params": []}',
             ),
             (
                 '{"rows": [{"id": 1, "name": "a"}]}',
-                {"rows": [{"id": 1, "name": "a"}]},
+                '{"rows": [{"id": 1, "name": "a"}]}',
             ),
             (
                 {"query": "SELECT 1", "result": "ok"},
@@ -309,7 +300,6 @@ class TestReadXcomByPrefix:
             run_id="r",
             map_index=-1,
             session=session,
-            **serialize,
         )
         session.commit()
 
@@ -347,7 +337,7 @@ class TestReadXcomByPrefix:
                 run_id="r",
                 map_index=-1,
                 session=session,
-                **serialize,
+                serialize=True,
             )
         session.commit()
 
@@ -361,7 +351,7 @@ class TestReadXcomByPrefix:
         )
         assert result == {
             1: "SELECT * FROM users",
-            2: {"rows": [{"id": 1}]},
+            2: '{"rows": [{"id": 1}]}',
             3: {"result": "ok", "count": 42},
             4: "Final summary text.",
         }
@@ -436,7 +426,6 @@ class TestReadXcom:
                 run_id="r",
                 map_index=-1,
                 session=session,
-                **serialize,
             )
         session.commit()
 
@@ -728,7 +717,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         session.commit()
 
@@ -770,7 +758,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
@@ -780,7 +767,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
@@ -790,7 +776,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
@@ -800,7 +785,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}2",
@@ -810,7 +794,6 @@ class TestBuildSessionResponse:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         session.commit()
 
@@ -977,7 +960,6 @@ class TestFindSessionEndpoint:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
@@ -987,7 +969,6 @@ class TestFindSessionEndpoint:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
@@ -997,7 +978,6 @@ class TestFindSessionEndpoint:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         XComModel.set(
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
@@ -1007,7 +987,6 @@ class TestFindSessionEndpoint:
             run_id=TEST_RUN_ID,
             map_index=-1,
             session=session,
-            **serialize,
         )
         session.commit()
 
