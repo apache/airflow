@@ -31,6 +31,8 @@ from airflow.api_fastapi.execution_api.versions.v2025_11_05 import AddTriggering
 from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     AddDagEndpoint,
     AddDagRunDetailEndpoint,
+    MovePreviousRunEndpoint,
+    AddBundleVersionField,
     AddNoteField,
     AddPartitionKeyField,
     MakeDagRunStartDateNullable,
@@ -46,6 +48,7 @@ bundle = VersionBundle(
         AddPartitionKeyField,
         MovePreviousRunEndpoint,
         AddDagRunDetailEndpoint,
+        AddBundleVersionField,
         MakeDagRunStartDateNullable,
         ModifyDeferredTaskKwargsToJsonValue,
         RemoveUpstreamMapIndexesField,
