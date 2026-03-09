@@ -474,17 +474,25 @@ class TestAwsS3Hook:
         mock_get_client_type.return_value.select_object_content.return_value = {
             "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook(requester_pays=False)
         assert hook.select_key("my_key", s3_bucket) == "Contént"
         mock_get_client_type.return_value.select_object_content.assert_called_with(
             Bucket="airflow-test-s3-bucket",
             Expression="SELECT * FROM S3Object",
             ExpressionType="SQL",
-            ExtraArgs={"RequestPayer": "requester"},
             InputSerialization={"CSV": {}},
             Key="my_key",
             OutputSerialization={"CSV": {}},
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
+    def test_select_key_with_requester_pay(self, mock_get_client_type, s3_bucket):
+        mock_get_client_type.return_value.select_object_content.return_value = {
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
+        }
+        hook = S3Hook(requester_pays=True)
+        with pytest.raises(ValueError, match="select_key cannot be used with requester_pays"):
+            hook.select_key("my_key", s3_bucket)
 
     def test_check_for_wildcard_key(self, s3_bucket):
         hook = S3Hook()
