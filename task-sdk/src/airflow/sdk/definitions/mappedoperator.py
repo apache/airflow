@@ -60,12 +60,12 @@ if TYPE_CHECKING:
     import pendulum
 
     from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule
-    from airflow.sdk.definitions.iterableoperator import IterableOperator
     from airflow.sdk.definitions._internal.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.types import WeightRuleParam

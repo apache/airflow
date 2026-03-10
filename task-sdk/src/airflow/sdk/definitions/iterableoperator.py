@@ -421,11 +421,13 @@ class IterableOperator(BaseOperator):
         context: Context,
         map_index: int,
         mapped_kwargs: dict,
-        try_number: int= 0,
+        try_number: int = 0,
     ) -> MappedTaskInstance:
         run_id = context["ti"].run_id
         operator = self._unmap_operator(mapped_kwargs)
-        return self._create_mapped_task(run_id=run_id, map_index=map_index, try_number=try_number, operator=operator)
+        return self._create_mapped_task(
+            run_id=run_id, map_index=map_index, try_number=try_number, operator=operator
+        )
 
     def _create_mapped_task(
         self, run_id: str, map_index: int, try_number: int, operator: BaseOperator
@@ -447,13 +449,13 @@ class IterableOperator(BaseOperator):
     def execute(self, context: Context):
         tasks = (
             self._create_task(context=context, map_index=index, mapped_kwargs=value)
-            for index, value in enumerate(
-                self.expand_input.iter_values(context=context)
-            )
+            for index, value in enumerate(self.expand_input.iter_values(context=context))
         )
         return self._run_tasks(context=context, tasks=tasks)
 
-    def execute_failed_tasks(self, context: Context, try_number: int, failed_tasks: set[int], event: dict[Any, Any]):
+    def execute_failed_tasks(
+        self, context: Context, try_number: int, failed_tasks: set[int], event: dict[Any, Any]
+    ):
         tasks = (
             self._create_task(context=context, map_index=index, try_number=try_number, mapped_kwargs=value)
             for index, value in enumerate(self.expand_input.iter_values(context=context))
