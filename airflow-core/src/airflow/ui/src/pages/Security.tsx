@@ -17,8 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
@@ -44,16 +43,10 @@ export const Security = () => {
     const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
 
     if (iframe?.contentWindow) {
-      const baseHref = document.querySelector("base")?.href;
-      const basename = baseHref === undefined ? "" : new URL(baseHref).pathname.replace(/\/$/u, "");
+      const base = new URL(document.baseURI).pathname.replace(/\/$/u, ""); // Remove trailing slash if exists
 
-      const iframePath = iframe.contentWindow.location.pathname;
-      const pathWithoutBase = iframePath.startsWith(basename)
-        ? iframePath.slice(basename.length)
-        : iframePath;
-
-      if (!pathWithoutBase.startsWith("/auth/")) {
-        void Promise.resolve(navigate("/"));
+      if (!iframe.contentWindow.location.pathname.startsWith(`${base}/auth/`)) {
+        void navigate("/");
       }
     }
   };
