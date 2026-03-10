@@ -24,7 +24,9 @@ These tests require ``airflow`` Docker image and extra images with integrations 
 The integration tests are all stored in the ``tests/integration`` folder, and similarly to the unit tests they all run
 using `pytest <http://doc.pytest.org/en/latest/>`_, but they are skipped by default unless ``--integration`` flag is passed to pytest.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Enabling Integrations
 ---------------------

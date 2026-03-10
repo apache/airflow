@@ -257,6 +257,21 @@ export const $JobCollectionResponse = {
     description: 'Job Collection serializer.'
 } as const;
 
+export const $ConcurrencyRequest = {
+    properties: {
+        concurrency: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            title: 'Concurrency',
+            description: 'New concurrency limit for the worker.'
+        }
+    },
+    type: 'object',
+    required: ['concurrency'],
+    title: 'ConcurrencyRequest',
+    description: 'Request body for worker concurrency update.'
+} as const;
+
 export const $MaintenanceRequest = {
     properties: {
         maintenance_comment: {
