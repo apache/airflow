@@ -86,7 +86,68 @@ class AirflowPluginException(Exception):
 
 
 class AirflowPlugin:
-    """Class used to define AirflowPlugin."""
+    """Base class for defining an Airflow plugin.
+
+    Plugin developers should subclass this and set one or more of the
+    following class-level attributes.  Each attribute accepts a list of
+    items; items may be supplied as plain ``dict`` objects or, when
+    ``airflow-core`` is available, as strongly-typed Pydantic config
+    model instances (see ``airflow.plugins_manager``).
+
+    Attributes
+    ----------
+    name : str | None
+        **Required.**  A unique identifier for the plugin.
+    source : AirflowPluginSource | None
+        Set automatically by the plugin loader; do **not** set manually.
+    macros : list[Any]
+        Callable objects made available in Jinja templates as
+        ``{{ macros.<plugin_name>.<macro>() }}``.
+    admin_views : list[Any]
+        *Deprecated.* Legacy Flask-Admin views.
+    flask_blueprints : list[Any]
+        Flask ``Blueprint`` instances to register with the web UI.
+    fastapi_apps : list[dict]
+        FastAPI sub-applications to mount on the Airflow API.  Each item
+        must contain ``app`` (a ``FastAPI`` instance), ``url_prefix``
+        (non-empty string), and ``name``.
+    fastapi_root_middlewares : list[dict]
+        Root-level ASGI middlewares.  Each item must contain
+        ``middleware`` (class/factory) and ``name``.
+    external_views : list[dict]
+        External views rendered as iframes.  Expected keys: ``name``,
+        ``href``, ``url_route``, ``icon``, ``icon_dark_mode``,
+        ``category``, ``destination``.
+    react_apps : list[dict]
+        React micro-frontends.  Expected keys: ``name``,
+        ``bundle_url``, ``url_route``, ``icon``, ``destination``,
+        ``category``.
+    menu_links : list[Any]
+        *Deprecated.* Legacy Flask-Admin menu links.
+    appbuilder_views : list[dict]
+        Flask AppBuilder views.  Each item should contain ``view``
+        (a ``BaseView`` instance), ``name``, ``category``, and
+        optionally ``label``.
+    appbuilder_menu_items : list[dict]
+        Flask AppBuilder menu items.  Each item must contain ``name``,
+        ``href``, and optionally ``category``.
+    global_operator_extra_links : list[Any]
+        Operator extra link instances available on **all** operator task
+        pages.  Can be overridden per-operator.
+    operator_extra_links : list[Any]
+        Operator extra link instances to add or override links for
+        specific operators.
+    timetables : list[type]
+        Timetable classes available for DAG scheduling.
+    partition_mappers : list[type]
+        Partition mapper classes for DAG scheduling.
+    listeners : list[ModuleType | object]
+        Listener modules or instances for tracking task/DAG state.
+    hook_lineage_readers : list[type]
+        Hook lineage reader classes.
+    priority_weight_strategies : list[type]
+        Priority weight strategy classes.
+    """
 
     name: str | None = None
     source: AirflowPluginSource | None = None
@@ -133,7 +194,18 @@ class AirflowPlugin:
 
     @classmethod
     def validate(cls):
-        """Validate if plugin has a name."""
+        """Validate the plugin configuration.
+
+        At minimum, checks that the plugin has a non-empty ``name``.
+
+        Note: Pydantic-based validation for structured attributes
+        (``external_views``, ``fastapi_apps``, etc.) is performed
+        separately during plugin registration in ``airflow-core``'s
+        ``plugins_manager.__register_plugins``, not in this method.
+
+        Subclasses may override this to add custom validation logic, but
+        should call ``super().validate()`` to retain the base checks.
+        """
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
 
