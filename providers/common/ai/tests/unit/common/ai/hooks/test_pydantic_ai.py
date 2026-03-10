@@ -297,7 +297,7 @@ class TestPydanticAIAzureHook:
     """Tests for PydanticAIAzureHook."""
 
     def test_conn_type(self):
-        assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
+        assert PydanticAIAzureHook.conn_type == "pydanticai-azure"
 
     def test_hook_name(self):
         assert "Azure" in PydanticAIAzureHook.hook_name
@@ -358,7 +358,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai_azure",
+            conn_type="pydanticai-azure",
             password="azure-key",
             host="https://myresource.openai.azure.com",
             extra=json.dumps({"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}),
@@ -381,7 +381,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai_azure",
+            conn_type="pydanticai-azure",
             extra=json.dumps({"model": "azure:gpt-4o"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -394,7 +394,7 @@ class TestPydanticAIBedrockHook:
     """Tests for PydanticAIBedrockHook."""
 
     def test_conn_type(self):
-        assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
+        assert PydanticAIBedrockHook.conn_type == "pydanticai-bedrock"
 
     def test_hook_name(self):
         assert "Bedrock" in PydanticAIBedrockHook.hook_name
@@ -434,7 +434,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai_bedrock",
+            conn_type="pydanticai-bedrock",
             extra=json.dumps({"model": "bedrock:us.anthropic.claude-opus-4-5"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -452,7 +452,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai_bedrock",
+            conn_type="pydanticai-bedrock",
             extra=json.dumps(
                 {
                     "model": "bedrock:us.anthropic.claude-opus-4-5",
@@ -524,7 +524,7 @@ class TestPydanticAIVertexHook:
     """Tests for PydanticAIVertexHook."""
 
     def test_conn_type(self):
-        assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
+        assert PydanticAIVertexHook.conn_type == "pydanticai-vertex"
 
     def test_hook_name(self):
         assert "Vertex" in PydanticAIVertexHook.hook_name
@@ -619,7 +619,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai_vertex",
+            conn_type="pydanticai-vertex",
             extra=json.dumps({"model": "google-vertex:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -637,7 +637,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai_vertex",
+            conn_type="pydanticai-vertex",
             extra=json.dumps(
                 {
                     "model": "google-vertex:gemini-2.0-flash",

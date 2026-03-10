@@ -158,6 +158,11 @@ class PydanticAIHook(BaseHook):
                 try:
                     return infer_provider_class(pname)(**_kwargs)
                 except TypeError:
+                    self.log.warning(
+                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
+                        pname,
+                        list(_kwargs),
+                    )
                     return infer_provider(pname)
 
             self._model = infer_model(model_name, provider_factory=_provider_factory)
@@ -217,7 +222,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
     """
 
-    conn_type = "pydanticai_azure"
+    conn_type = "pydanticai-azure"
     default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
@@ -284,7 +289,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"bedrock:us.anthropic.claude-opus-4-5"``.
     """
 
-    conn_type = "pydanticai_bedrock"
+    conn_type = "pydanticai-bedrock"
     default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
@@ -331,10 +336,10 @@ class PydanticAIBedrockHook(PydanticAIHook):
             # Custom Bedrock runtime endpoint.
             "base_url",
         )
-        kwargs: dict[str, Any] = {k: extra[k] for k in _str_keys if extra.get(k) is not None}
+        kwargs: dict[str, Any] = {k: extra[k] for k in _str_keys if extra.get(k)}
         # BedrockProvider expects float for timeout values; JSON integers must be coerced.
         for _timeout_key in ("aws_read_timeout", "aws_connect_timeout"):
-            if extra.get(_timeout_key) is not None:
+            if extra.get(_timeout_key):
                 kwargs[_timeout_key] = float(extra[_timeout_key])
         return kwargs
 
@@ -375,7 +380,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"google-vertex:gemini-2.0-flash"``.
     """
 
-    conn_type = "pydanticai_vertex"
+    conn_type = "pydanticai-vertex"
     default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
 
@@ -406,7 +411,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
         # Direct GoogleProvider scalar kwargs.
         for _key in ("api_key", "project", "location", "base_url"):
-            if extra.get(_key) is not None:
+            if extra.get(_key):
                 kwargs[_key] = extra[_key]
 
         # Optional vertexai bool flag (force Vertex AI mode for API-key auth).
