@@ -40,20 +40,12 @@ airflow_version = "3.2.0"
 def upgrade():
     """Apply Add indexes to DagRun start_date and end_date columns."""
     with op.batch_alter_table("dag_run") as batch_op:
-        # Standalone indexes for single-column queries
         batch_op.create_index("idx_dag_run_start_date", ["start_date"], unique=False)
         batch_op.create_index("idx_dag_run_end_date", ["end_date"], unique=False)
-        # Composite indexes for multi-column queries (dag_id + date filters)
-        batch_op.create_index("idx_dag_run_dag_id_start_date", ["dag_id", "start_date"], unique=False)
-        batch_op.create_index("idx_dag_run_dag_id_end_date", ["dag_id", "end_date"], unique=False)
 
 
 def downgrade():
     """Unapply Add indexes to DagRun start_date and end_date columns."""
     with op.batch_alter_table("dag_run") as batch_op:
-        # Drop composite indexes
-        batch_op.drop_index("idx_dag_run_dag_id_start_date")
-        batch_op.drop_index("idx_dag_run_dag_id_end_date")
-        # Drop standalone indexes
         batch_op.drop_index("idx_dag_run_start_date")
         batch_op.drop_index("idx_dag_run_end_date")
