@@ -225,3 +225,74 @@ class TestVariableFromSecrets:
     )
     def test_variable_env_var_do_not_access_team_specific(self):
         assert Variable.get_variable_from_secrets(key="_team___myvar") is None
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestSecretBackendKwargEnvVars:
+    """Test per-key env var overrides for secrets backend kwargs."""
+
+    def setup_method(self) -> None:
+        SecretCache.reset()
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        }
+    )
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__SECRETS__BACKEND_KWARG__CONNECTIONS_PREFIX": "/airflow/connections"},
+    )
+    def test_backend_kwarg_env_vars_basic(self):
+        """Per-key env var is picked up when no JSON blob is set."""
+        backends = initialize_secrets_backends()
+        systems_manager = next(
+            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        )
+        assert systems_manager.connections_prefix == "/airflow/connections"
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/old"}',
+        }
+    )
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__SECRETS__BACKEND_KWARG__CONNECTIONS_PREFIX": "/new"},
+    )
+    def test_backend_kwarg_env_vars_override_json(self):
+        """Per-key env var overrides the same key in the JSON blob."""
+        backends = initialize_secrets_backends()
+        systems_manager = next(
+            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        )
+        assert systems_manager.connections_prefix == "/new"
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow"}',
+        }
+    )
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__SECRETS__BACKEND_KWARG__VARIABLES_PREFIX": "/airflow/variables"},
+    )
+    def test_backend_kwarg_env_vars_merge_with_json(self):
+        """Per-key env var is merged with (not replacing) the JSON blob."""
+        backends = initialize_secrets_backends()
+        systems_manager = next(
+            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        )
+        assert systems_manager.connections_prefix == "/airflow"
+        assert systems_manager.variables_prefix == "/airflow/variables"

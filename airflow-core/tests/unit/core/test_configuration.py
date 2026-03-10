@@ -924,6 +924,50 @@ class TestConf:
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
 
+    def test_build_kwarg_env_prefix(self):
+        """Test that _build_kwarg_env_prefix generates the correct prefixes."""
+        from airflow._shared.configuration.parser import _build_kwarg_env_prefix
+
+        assert _build_kwarg_env_prefix("secrets", "backend_kwargs") == "AIRFLOW__SECRETS__BACKEND_KWARG__"
+        assert (
+            _build_kwarg_env_prefix("workers", "secrets_backend_kwargs")
+            == "AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__"
+        )
+
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID": "abc",
+            "AIRFLOW__SECRETS__BACKEND_KWARG__": "ignored",  # empty key — must be ignored
+            "OTHER_VAR": "irrelevant",
+        },
+    )
+    def test_collect_kwarg_env_vars(self):
+        """Test that _collect_kwarg_env_vars collects matching vars and ignores empty keys."""
+        from airflow._shared.configuration.parser import _collect_kwarg_env_vars
+
+        result = _collect_kwarg_env_vars("AIRFLOW__SECRETS__BACKEND_KWARG__")
+        assert result == {"role_id": "abc"}
+
+    @conf_vars(
+        {
+            (
+                "workers",
+                "secrets_backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        }
+    )
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__CONNECTIONS_PREFIX": "/worker/connections"},
+    )
+    def test_worker_backend_kwarg_env_vars(self):
+        """Per-key env var is picked up for the workers secrets backend."""
+        backends = ensure_secrets_loaded(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        secrets_backend = backends[0]
+        assert secrets_backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        assert secrets_backend.connections_prefix == "/worker/connections"
+
     def test_lookup_sequence_override_excludes_env_vars(self, monkeypatch):
         """Test that overriding lookup sequence to exclude env vars means env vars are not respected."""
 
