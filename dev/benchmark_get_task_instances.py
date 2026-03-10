@@ -160,13 +160,11 @@ def analyse_sql(label: str, query, dialect_name: str = "sqlite") -> None:
     if dialect_name == "postgresql":
         from sqlalchemy.dialects import postgresql
 
-        dialect = postgresql.dialect()
+        sql = str(query.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     else:
         from sqlalchemy.dialects import sqlite
 
-        dialect = sqlite.dialect()
-
-    sql = str(query.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
+        sql = str(query.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
     upper = sql.upper()
     n_joins = upper.count(" JOIN ")
     joined_tables = re.findall(r"JOIN\s+(\w+)(?:\s+AS\s+\w+)?", sql, re.IGNORECASE)
