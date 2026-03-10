@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``3.4.0``
+Release: ``3.5.0``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0/>`_.
 
 Installation
 ------------
@@ -45,14 +45,14 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-fab``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-==========================================  ==========================================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  ==========================================
+==========================================  ==================
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2``
@@ -68,7 +68,7 @@ PIP package                                 Version required
 ``wtforms``                                 ``>=3.0,<4``
 ``cachetools``                              ``>=6.0``
 ``flask_limiter``                           ``>3,!=3.13,<4``
-==========================================  ==========================================
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -92,11 +92,11 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-============  ============================================
+============  ===================
 Extra         Dependencies
-============  ============================================
-``kerberos``  ``kerberos>=1.3.0; python_version < '3.13'``
-============  ============================================
+============  ===================
+``kerberos``  ``kerberos>=1.3.0``
+============  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0/changelog.html>`_.
