@@ -344,7 +344,7 @@ spec:
         {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
-        {{- if .Values.dags.gitSync.credentialsSecret }}
+        {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled .Values.dags.gitSync.credentialsSecret .Values.dags.gitSync.usePasswordFile }}
           {{- include "git_sync_credentials_volume" . | indent 8 }}
         {{- end }}
         {{- end }}

@@ -124,7 +124,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v4.6.0
+    tag: v4.4.2
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -3560,11 +3560,14 @@ dags:
     #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below.
     #
-    # The secret will be mounted into git-sync at /etc/git-secret/credentials
-    # and passwords will be read from files so rotated tokens can be picked up
-    # without restarting the git-sync container.
-    #
     # credentialsSecret: git-credentials
+    #
+    # If set to true, credentialsSecret will also be mounted into git-sync at
+    # /etc/git-secret/credentials and password keys will be passed via
+    # GIT_SYNC_PASSWORD_FILE/GITSYNC_PASSWORD_FILE.
+    #
+    # usePasswordFile: true
+    usePasswordFile: false
     #
     #
     # If you are using an ssh clone url, you can load

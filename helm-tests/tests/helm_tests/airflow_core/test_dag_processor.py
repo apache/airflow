@@ -810,6 +810,7 @@ class TestDagProcessor:
                     "gitSync": {
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
+                        "usePasswordFile": True,
                     },
                     "persistence": {"enabled": False},
                 },

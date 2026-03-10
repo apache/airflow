@@ -292,6 +292,7 @@ class TestGitSyncSchedulerTest:
                     "gitSync": {
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
+                        "usePasswordFile": True,
                         "sshKeySecret": None,
                     }
                 },

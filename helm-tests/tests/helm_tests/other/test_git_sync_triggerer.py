@@ -84,6 +84,7 @@ class TestGitSyncTriggerer:
                     "gitSync": {
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
+                        "usePasswordFile": True,
                     }
                 }
             },

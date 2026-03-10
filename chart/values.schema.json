@@ -1076,7 +1076,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.6.0"
+                            "default": "v4.4.2"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -10801,12 +10801,17 @@
                             }
                         },
                         "credentialsSecret": {
-                            "description": "Name of a Secret containing `GIT_SYNC_USERNAME`, `GITSYNC_USERNAME`, `GIT_SYNC_PASSWORD`, and `GITSYNC_PASSWORD` keys. The password keys are mounted as files and used via `*_PASSWORD_FILE` env vars so rotated credentials can be re-read.",
+                            "description": "Name of a Secret containing git credentials (`GIT_SYNC_USERNAME`/`GIT_SYNC_PASSWORD` and optionally `GITSYNC_USERNAME`/`GITSYNC_PASSWORD`).",
                             "type": [
                                 "string",
                                 "null"
                             ],
                             "default": null
+                        },
+                        "usePasswordFile": {
+                            "description": "When true and `credentialsSecret` is set, mount the credentials secret and pass password keys via `*_PASSWORD_FILE` env vars.",
+                            "type": "boolean",
+                            "default": false
                         },
                         "sshKey": {
                             "description": "SSH private key",
