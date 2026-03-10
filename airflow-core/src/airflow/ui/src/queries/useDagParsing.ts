@@ -25,8 +25,7 @@ import {
   UseDagSourceServiceGetDagSourceKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
-
-import { createErrorToaster } from "./createErrorToaster";
+import { createErrorToaster } from "src/components/ui/createErrorToaster";
 
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
