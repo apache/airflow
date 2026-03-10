@@ -173,22 +173,29 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             return split_secret_path[0], split_secret_path[1]
         return "", secret_path
 
+    def _get_secret_with_base(self, base_path: str | None, key: str) -> dict | None:
+        """Resolve mount and base path, then fetch the secret from Vault."""
+        mount_point, key_part = self._parse_path(key)
+
+        if base_path is None or key_part is None:
+            return None
+
+        if base_path == "":
+            secret_path = key_part
+        else:
+            secret_path = self.build_path(base_path, key_part)
+
+        return self.vault_client.get_secret(
+            secret_path=(mount_point + "/" if mount_point else "") + secret_path
+        )
+
     def get_response(self, conn_id: str) -> dict | None:
         """
         Get data from Vault.
 
         :return: The data from the Vault path if exists
         """
-        mount_point, conn_key = self._parse_path(conn_id)
-        if self.connections_path is None or conn_key is None:
-            return None
-        if self.connections_path == "":
-            secret_path = conn_key
-        else:
-            secret_path = self.build_path(self.connections_path, conn_key)
-        return self.vault_client.get_secret(
-            secret_path=(mount_point + "/" if mount_point else "") + secret_path
-        )
+        return self._get_secret_with_base(self.connections_path, conn_id)
 
     # Make sure connection is imported this way for type checking, otherwise when importing
     # the backend it will get a circular dependency and fail
@@ -225,16 +232,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value retrieved from the vault
         """
-        mount_point, variable_key = self._parse_path(key)
-        if self.variables_path is None or variable_key is None:
-            return None
-        if self.variables_path == "":
-            secret_path = variable_key
-        else:
-            secret_path = self.build_path(self.variables_path, variable_key)
-        response = self.vault_client.get_secret(
-            secret_path=(mount_point + "/" if mount_point else "") + secret_path
-        )
+        response = self._get_secret_with_base(self.variables_path, key)
+
         if not response:
             return None
         try:
@@ -250,16 +249,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value retrieved from the vault
         """
-        mount_point, config_key = self._parse_path(key)
-        if self.config_path is None or config_key is None:
-            return None
-        if self.config_path == "":
-            secret_path = config_key
-        else:
-            secret_path = self.build_path(self.config_path, config_key)
-        response = self.vault_client.get_secret(
-            secret_path=(mount_point + "/" if mount_point else "") + secret_path
-        )
+        response = self._get_secret_with_base(self.config_path, key)
         if not response:
             return None
         try:
