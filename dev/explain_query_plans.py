@@ -40,7 +40,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 DAG_ID = "explain_plan_dag"
-NUM_ROWS = 50_000
+NUM_ROWS = 5_000_000
 BATCH_SIZE = 1_000
 
 
