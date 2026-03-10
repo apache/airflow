@@ -41,7 +41,7 @@ def import_(args, api_client: Client = NEW_API_CLIENT) -> None:
     if not filepath.exists():
         raise SystemExit(f"Missing pools file {args.file}")
 
-    success, errors = _import_helper(api_client, filepath)
+    success, errors = _import_helper(api_client, filepath, BulkActionOnExistence(args.action_on_existing_key))
     if errors:
         raise SystemExit(f"Failed to update pool(s): {errors}")
     rich.print(success)
@@ -83,7 +83,7 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
         raise SystemExit(f"Failed to export pools: {e}")
 
 
-def _import_helper(api_client: Client, filepath: Path):
+def _import_helper(api_client: Client, filepath: Path, action_on_existence: BulkActionOnExistence):
     """Help import pools from the json file."""
     try:
         with open(filepath) as f:
@@ -113,7 +113,7 @@ def _import_helper(api_client: Client, filepath: Path):
             BulkCreateActionPoolBody(
                 action="create",
                 entities=pools_to_update,
-                action_on_existence=BulkActionOnExistence.FAIL,
+                action_on_existence=action_on_existence,
             )
         ]
     )
