@@ -300,6 +300,7 @@ class TestDagRunDetail:
             "state": "success",
             "triggering_user_name": None,
             "note": None,
+            "bundle_version": None,
         }
 
     def test_dag_run_not_found(self, client):
