@@ -72,6 +72,17 @@ module.exports = function () {
     const latestAirflow = provider.airflow_versions && provider.airflow_versions.length > 0
       ? provider.airflow_versions[provider.airflow_versions.length - 1]
       : null;
+
+    // Compute module_counts from modules.json (runtime discovery) when available,
+    // since providers.json may only have AST-based counts which undercount.
+    if (latestModules.length > 0) {
+      const counts = {};
+      for (const m of latestModules) {
+        counts[m.type] = (counts[m.type] || 0) + 1;
+      }
+      provider.module_counts = counts;
+    }
+
     result.push({
       provider,
       version: provider.version,

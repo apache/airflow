@@ -587,3 +587,35 @@ def assess_pr_conflicts(
         ],
         summary=f"PR #{pr_number} has merge conflicts.",
     )
+
+
+def assess_pr_unresolved_comments(pr_number: int, unresolved_review_comments: int) -> PRAssessment | None:
+    """Deterministically flag a PR if it has unresolved review comments from maintainers.
+
+    Returns None if there are no unresolved comments.
+    """
+    if unresolved_review_comments <= 0:
+        return None
+
+    thread_word = "thread" if unresolved_review_comments == 1 else "threads"
+    return PRAssessment(
+        should_flag=True,
+        violations=[
+            Violation(
+                category="Unresolved review comments",
+                explanation=(
+                    f"This PR has {unresolved_review_comments} unresolved review "
+                    f"{thread_word} from maintainers."
+                ),
+                severity="warning",
+                details=(
+                    "Please review and resolve all inline review comments before requesting "
+                    "another review. You can resolve a conversation by clicking 'Resolve conversation' "
+                    "on each thread after addressing the feedback. "
+                    f"See [pull request guidelines]"
+                    f"({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
+                ),
+            )
+        ],
+        summary=f"PR #{pr_number} has {unresolved_review_comments} unresolved review {thread_word}.",
+    )
