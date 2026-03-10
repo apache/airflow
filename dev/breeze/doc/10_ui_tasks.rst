@@ -62,11 +62,11 @@ Example usage:
      # Add missing translations with TODO markers
      breeze ui check-translation-completeness --add-missing
 
-     # Remove extra translations not present in English
-     breeze ui check-translation-completeness --remove-extra
+     # Remove unused translations (keys not required)
+     breeze ui check-translation-completeness --remove-unused
 
      # Fix translations for a specific language
-     breeze ui check-translation-completeness --language de --add-missing --remove-extra
+     breeze ui check-translation-completeness --language de --add-missing --remove-unused
 
 
 -----

@@ -30,7 +30,7 @@ UI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--language",
                 "--add-missing",
-                "--remove-extra",
+                "--remove-unused",
             ],
         },
     ],
