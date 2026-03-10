@@ -135,7 +135,7 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
-            # This selects the raw JSON value, by-passing the deserialization -- we want that to happen on the
+            # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
         )
