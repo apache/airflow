@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
@@ -48,38 +49,46 @@ def upgrade() -> None:
     op.create_table(
         "ab_permission",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", StringID(length=100), nullable=False),
+        sa.Column("name", sa.String(length=100), nullable=False),
         sa.PrimaryKeyConstraint("id", name="ab_permission_pkey"),
         sa.UniqueConstraint("name", name="ab_permission_name_uq"),
     )
     op.create_table(
         "ab_register_user",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("first_name", StringID(length=256), nullable=False),
-        sa.Column("last_name", StringID(length=256), nullable=False),
-        sa.Column("username", StringID(length=512), nullable=False),
-        sa.Column("email", StringID(length=512), nullable=False),
-        sa.Column("password", StringID(length=256), nullable=True),
+        sa.Column("first_name", sa.String(length=256), nullable=False),
+        sa.Column("last_name", sa.String(length=256), nullable=False),
+        sa.Column(
+            "username",
+            sa.String(512).with_variant(sa.String(512, collation="NOCASE"), "sqlite"),
+            nullable=False,
+        ),
+        sa.Column("email", sa.String(length=512), nullable=False),
+        sa.Column("password", sa.String(length=256), nullable=True),
         sa.Column("registration_date", sa.DateTime(), nullable=True),
-        sa.Column("registration_hash", StringID(length=256), nullable=True),
+        sa.Column("registration_hash", sa.String(length=256), nullable=True),
         sa.PrimaryKeyConstraint("id", name="ab_register_user_pkey"),
         sa.UniqueConstraint("username", name="ab_register_user_username_uq"),
     )
     op.create_table(
         "ab_role",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", StringID(length=64), nullable=False),
+        sa.Column("name", sa.String(length=64), nullable=False),
         sa.PrimaryKeyConstraint("id", name="ab_role_pkey"),
         sa.UniqueConstraint("name", name="ab_role_name_uq"),
     )
     op.create_table(
         "ab_user",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("first_name", StringID(length=256), nullable=False),
-        sa.Column("last_name", StringID(length=256), nullable=False),
-        sa.Column("username", StringID(length=512), nullable=False),
-        sa.Column("email", StringID(length=512), nullable=False),
-        sa.Column("password", StringID(length=256), nullable=True),
+        sa.Column("first_name", sa.String(length=256), nullable=False),
+        sa.Column("last_name", sa.String(length=256), nullable=False),
+        sa.Column(
+            "username",
+            sa.String(512).with_variant(sa.String(512, collation="NOCASE"), "sqlite"),
+            nullable=False,
+        ),
+        sa.Column("email", sa.String(length=512), nullable=False),
+        sa.Column("password", sa.String(length=256), nullable=True),
         sa.Column("active", sa.Boolean(), nullable=True),
         sa.Column("last_login", sa.DateTime(), nullable=True),
         sa.Column("login_count", sa.Integer(), nullable=True),
@@ -97,7 +106,7 @@ def upgrade() -> None:
     op.create_table(
         "ab_view_menu",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", StringID(length=250), nullable=False),
+        sa.Column("name", sa.String(length=250), nullable=False),
         sa.PrimaryKeyConstraint("id", name="ab_view_menu_pkey"),
         sa.UniqueConstraint("name", name="ab_view_menu_name_uq"),
     )
@@ -178,7 +187,7 @@ def upgrade() -> None:
         sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
         sa.Column("fileloc", StringID(length=2000), nullable=False),
         sa.Column("last_updated", UtcDateTime(timezone=True), nullable=False),
-        sa.Column("source_code", sa.Text(), nullable=False),
+        sa.Column("source_code", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
         sa.PrimaryKeyConstraint("fileloc_hash", name="dag_code_pkey"),
     )
     op.create_table(
@@ -319,7 +328,7 @@ def upgrade() -> None:
         "variable",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("key", StringID(length=250), nullable=True),
-        sa.Column("val", sa.Text(), nullable=True),
+        sa.Column("val", sa.Text().with_variant(MEDIUMTEXT, "mysql"), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_encrypted", sa.Boolean(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="variable_pkey"),

@@ -32,6 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
+from airflow.utils.db_manager import _callable_accepts_use_migration_files
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -127,16 +128,26 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
     elif args.to_revision:
         to_revision = args.to_revision
 
+    use_migration_files = getattr(args, "use_migration_files", False)
+
     if not args.show_sql_only:
         log.info("Performing upgrade to the metadata database", url=db_url)
     else:
         log.info("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    command(
-        to_revision=to_revision,
-        from_revision=from_revision,
-        show_sql_only=args.show_sql_only,
-        use_migration_files=getattr(args, "use_migration_files", False),
-    )
+
+    kwargs: dict = {
+        "to_revision": to_revision,
+        "from_revision": from_revision,
+        "show_sql_only": args.show_sql_only,
+    }
+    if _callable_accepts_use_migration_files(command):
+        kwargs["use_migration_files"] = use_migration_files
+    elif use_migration_files:
+        log.warning(
+            "The upgrade command %r does not support '--use-migration-files'; the flag will be ignored.",
+            getattr(command, "__qualname__", repr(command)),
+        )
+    command(**kwargs)
     if not args.show_sql_only:
         log.info("Database migration done!")
 

@@ -20,7 +20,7 @@
 Add concurrency column to edge_worker table.
 
 Revision ID: b3c4d5e6f7a8
-Revises: 8c275b6fbaa8
+Revises: 9d34dfc2de06
 Create Date: 2026-03-04 00:00:00.000000
 """
 
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b3c4d5e6f7a8"
-down_revision = "8c275b6fbaa8"
+down_revision = "9d34dfc2de06"
 branch_labels = None
 depends_on = None
 edge3_version = "3.2.0"

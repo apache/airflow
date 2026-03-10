@@ -214,7 +214,9 @@ def ensure_filenames_are_sorted(revisions, app):
     renames = []
     is_branched = False
     unmerged_heads = []
-    for idx, rev in enumerate(revisions):
+    # edge3 migrations started from 1
+    start_index = 1 if app == "edge3" else 0
+    for idx, rev in enumerate(revisions, start_index):
         mod_path = Path(rev.module.__file__)
         if app == "airflow":
             version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens

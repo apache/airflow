@@ -23,7 +23,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 .. warning::
 
    Those migration details are mostly used here to make the users aware when and what kind of migrations
-   will be executed during migrations between specific FAB provider versions. The intention here is that the
+   will be executed during migrations between specific Edge3 provider versions. The intention here is that the
    "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
    of the migrations on their Airflow database.
 
@@ -34,9 +34,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-----------------+----------------------------------------------+
 | Revision ID             | Revises ID       | Edge3 Version   | Description                                  |
 +=========================+==================+=================+==============================================+
-| ``b3c4d5e6f7a8`` (head) | ``8c275b6fbaa8`` | ``3.2.0``       | Add concurrency column to edge_worker table. |
+| ``8c275b6fbaa8`` (head) | ``b3c4d5e6f7a8`` | ``3.2.0``       | Fix migration file/ORM inconsistencies.      |
 +-------------------------+------------------+-----------------+----------------------------------------------+
-| ``8c275b6fbaa8``        | ``9d34dfc2de06`` | ``3.1.0``       | Fix migration file/ORM inconsistencies.      |
+| ``b3c4d5e6f7a8``        | ``9d34dfc2de06`` | ``3.2.0``       | Add concurrency column to edge_worker table. |
 +-------------------------+------------------+-----------------+----------------------------------------------+
 | ``9d34dfc2de06`` (base) | ``None``         | ``3.0.0``       | Create Edge tables if missing.               |
 +-------------------------+------------------+-----------------+----------------------------------------------+

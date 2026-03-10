@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 
+import packaging.version
+
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
@@ -39,8 +41,9 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import Mapped, backref, declared_attr, registry, relationship
+from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
 
+from airflow import __version__ as airflow_version
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.models.base import _get_schema, naming_convention
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
@@ -50,10 +53,17 @@ Compatibility note: The models in this file are duplicated from Flask AppBuilder
 """
 
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-_mapper_registry = registry(metadata=metadata)
-Base = _mapper_registry.generate_base()
 
-Model.metadata = Base.metadata
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
+    "3.0.0"
+):
+    Model.metadata = metadata
+else:
+    from airflow.models.base import Base
+
+    Model.metadata = Base.metadata
+
+model_metadata = Model.metadata
 
 
 assoc_group_role = Table(
@@ -127,6 +137,8 @@ assoc_user_group = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "group_id"),
+    Index("idx_user_id", "user_id"),
+    Index("idx_user_group_id", "group_id"),
     extend_existing=True,
 )
 
@@ -208,13 +220,9 @@ class Permission(Model):
         Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    action_id: Mapped[int] = mapped_column(
-        "permission_id", Integer, ForeignKey("ab_permission.id"), nullable=True
-    )
+    action_id: Mapped[int] = mapped_column("permission_id", Integer, ForeignKey("ab_permission.id"))
     action: Mapped[Action] = relationship("Action", lazy="joined", uselist=False)
-    resource_id: Mapped[int] = mapped_column(
-        "view_menu_id", Integer, ForeignKey("ab_view_menu.id"), nullable=True
-    )
+    resource_id: Mapped[int] = mapped_column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
     resource: Mapped[Resource] = relationship("Resource", lazy="joined", uselist=False)
 
     def __repr__(self):
@@ -385,19 +393,37 @@ class RegisterUser(Model):
     registration_hash: Mapped[str | None] = mapped_column(String(256))
 
 
+_idx_ab_user_username = Index("idx_ab_user_username", func.lower(User.__table__.c.username), unique=True)
+_idx_ab_register_user_username = Index(
+    "idx_ab_register_user_username", func.lower(RegisterUser.__table__.c.username), unique=True
+)
+
+
 @event.listens_for(User.__table__, "before_create")
 def add_index_on_ab_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name == "postgresql":
+        if not any(idx.name == "idx_ab_user_username" for idx in table.indexes):
+            Index("idx_ab_user_username", func.lower(table.c.username), unique=True)
+    else:
+        table.indexes.discard(_idx_ab_user_username)
+
+
+@event.listens_for(User.__table__, "after_create")
+def _restore_idx_ab_user_username(table, conn, **kw):
     if conn.dialect.name != "postgresql":
-        return
-    index_name = "idx_ab_user_username"
-    if not any(table_index.name == index_name for table_index in table.indexes):
-        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
+        table.indexes.add(_idx_ab_user_username)
 
 
 @event.listens_for(RegisterUser.__table__, "before_create")
 def add_index_on_ab_register_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name == "postgresql":
+        if not any(idx.name == "idx_ab_register_user_username" for idx in table.indexes):
+            Index("idx_ab_register_user_username", func.lower(table.c.username), unique=True)
+    else:
+        table.indexes.discard(_idx_ab_register_user_username)
+
+
+@event.listens_for(RegisterUser.__table__, "after_create")
+def _restore_idx_ab_register_user_username(table, conn, **kw):
     if conn.dialect.name != "postgresql":
-        return
-    index_name = "idx_ab_register_user_username"
-    if not any(table_index.name == index_name for table_index in table.indexes):
-        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
+        table.indexes.add(_idx_ab_register_user_username)

@@ -24,12 +24,14 @@ import itertools
 import json
 import logging
 import os
+import re
 import signal
 import sys
 import time
 import traceback
 import warnings
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from contextvars import ContextVar
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
@@ -118,6 +120,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
+_SKIP_EXTERNAL_DB_MANAGERS_UPGRADE = ContextVar("_SKIP_EXTERNAL_DB_MANAGERS_UPGRADE", default=False)
 
 
 @contextlib.contextmanager
@@ -841,11 +844,15 @@ def initdb(session: Session = NEW_SESSION, use_migration_files: bool = False):
     db_exists = _get_current_revision(session)
     with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
         if db_exists or use_migration_files:
-            upgradedb(session=session, use_migration_files=use_migration_files)
+            token = _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.set(True)
+            try:
+                upgradedb(session=session, use_migration_files=use_migration_files)
+            finally:
+                _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.reset(token)
         else:
             _create_db_from_orm(session=session)
 
-    external_db_manager.initdb(session)
+    external_db_manager.initdb(session, use_migration_files=use_migration_files)
     # Add default pool & sync log_template
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
@@ -1158,7 +1165,11 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
 
 
 def _run_upgradedb(
-    config, to_revision: str | None, session: Session, *, run_post_migration_steps: bool = True
+    config,
+    to_revision: str | None,
+    session: Session,
+    *,
+    use_migration_files: bool = False,
 ) -> None:
     """Run database upgrade with appropriate locking for the dialect."""
     from alembic import command
@@ -1178,16 +1189,14 @@ def _run_upgradedb(
         _single_connection_pool(),
     ):
         command.upgrade(config, revision=to_revision or "heads")
-        if not run_post_migration_steps:
-            return
 
         current_revision = _get_current_revision(session=work_session)
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
 
-        if current_revision == source_heads[0]:
+        if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()
-            external_db_manager.upgradedb(work_session)
+            external_db_manager.upgradedb(work_session, use_migration_files=use_migration_files)
 
         add_default_pool_if_not_exists(session=work_session)
         synchronize_log_template(session=work_session)
@@ -1259,7 +1268,7 @@ def upgradedb(
         initdb(session=session)
         return
 
-    _run_upgradedb(config, to_revision, session)
+    _run_upgradedb(config, to_revision, session, use_migration_files=use_migration_files)
 
 
 def _resetdb_mysql(session: Session) -> None:
@@ -1307,30 +1316,6 @@ def _resetdb_default(session: Session) -> None:
         external_db_manager.drop_tables(session, connection)
 
 
-def _drop_remaining_tables() -> None:
-    """
-    Drop any tables still remaining in the database after the normal reset.
-
-    The squashed migration (0000_2_6_2) creates tables like FAB ab_* tables that
-    are now managed by external auth managers. When the default auth manager
-    (SimpleAuthManager) has no DB manager, those tables are not dropped by
-    external_db_manager.drop_tables(). This function reflects the actual database
-    and drops anything left over so the migration has a clean slate.
-    """
-    from sqlalchemy import MetaData
-
-    engine = settings.get_engine()
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    if not metadata.tables:
-        return
-    remaining = list(metadata.tables.keys())
-    log.info("Dropping remaining tables not managed by any DB manager: %s", remaining)
-    with engine.connect() as connection:
-        with connection.begin():
-            metadata.drop_all(connection)
-
-
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
     """
@@ -1351,9 +1336,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migrati
         _resetdb_mysql(session)
     else:
         _resetdb_default(session)
-
-    if use_migration_files:
-        _drop_remaining_tables()
 
     if not skip_init:
         # Create a fresh non-scoped session for initdb since the original was closed (MySQL)
@@ -1703,7 +1685,34 @@ def compare_server_default(
         # where we added the column in the first place -- now that it exists and all
         # existing rows are populated with a value this server default is never used.
         return False
+    if dialect_name == "mysql":
+        normalized_inspected = _normalize_mysql_server_default(inspected_default)
+        normalized_metadata = _normalize_mysql_server_default(rendered_metadata_default)
+        if normalized_inspected is not None and normalized_inspected == normalized_metadata:
+            return False
     return None
+
+
+def _normalize_mysql_server_default(default: Any) -> str | None:
+    """Normalize equivalent MySQL-reflected server defaults for comparison."""
+    if default is None:
+        return None
+
+    normalized = str(default).strip().strip("'\"").lower()
+    while normalized.startswith("(") and normalized.endswith(")"):
+        normalized = normalized[1:-1].strip()
+    normalized = normalized.replace(" ", "")
+
+    if normalized in {"false", "0"}:
+        return "0"
+    if normalized in {"true", "1"}:
+        return "1"
+
+    numeric_expression = normalized.replace("(", "").replace(")", "")
+    if re.fullmatch(r"-?\d+", numeric_expression):
+        return numeric_expression
+
+    return normalized
 
 
 def get_sqla_model_classes():

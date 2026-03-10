@@ -106,7 +106,7 @@ class TestDb:
 
         mock_upgradedb.assert_called_once_with(session=session, use_migration_files=True)
         mock_create_from_orm.assert_not_called()
-        manager.initdb.assert_called_once_with(session)
+        manager.initdb.assert_called_once_with(session, use_migration_files=True)
 
     def test_upgradedb_uses_migrations_for_empty_db_when_flag_enabled(self, mocker):
         session = mocker.MagicMock()
@@ -121,7 +121,7 @@ class TestDb:
 
         upgradedb(session=session, use_migration_files=True)
 
-        mock_run_upgradedb.assert_called_once_with(mock_config, None, session)
+        mock_run_upgradedb.assert_called_once_with(mock_config, None, session, use_migration_files=True)
         mock_initdb.assert_not_called()
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self, initialized_db):
@@ -141,13 +141,6 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-        # FAB DB Manager
-        from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-        # test FAB models
-        for table_name, table in FABDBManager.metadata.tables.items():
-            all_meta_data._add_table(table_name, table.schema, table)
-        # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             settings.engine.connect(),
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
@@ -183,6 +176,8 @@ class TestDb:
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
             # These are conditionally added in ORM by the event listener
+            lambda t: t[0] == "add_index" and t[1].name == "idx_ab_register_user_username",
+            lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
         ]

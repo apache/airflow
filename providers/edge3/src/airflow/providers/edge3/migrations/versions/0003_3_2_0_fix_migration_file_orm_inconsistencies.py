@@ -20,7 +20,7 @@
 Fix migration file/ORM inconsistencies.
 
 Revision ID: 8c275b6fbaa8
-Revises: 9d34dfc2de06
+Revises: b3c4d5e6f7a8
 Create Date: 2026-02-25 20:07:12.723427
 
 """
@@ -34,10 +34,10 @@ from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = "8c275b6fbaa8"
-down_revision = "9d34dfc2de06"
+down_revision = "b3c4d5e6f7a8"
 branch_labels = None
 depends_on = None
-edge3_version = "3.1.0"
+edge3_version = "3.2.0"
 
 
 def upgrade() -> None:

@@ -1889,7 +1889,7 @@ DB_MANAGERS_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the specified external database",
         func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
-        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1910,6 +1910,7 @@ DB_MANAGERS_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
