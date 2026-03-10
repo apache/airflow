@@ -41,9 +41,22 @@ in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
-for the minimum Airflow version supported) via
+You can install this package on top of an existing Airflow 2 installation
+(see ``Requirements`` below for the minimum Airflow version supported) via
+
 ``pip install apache-airflow-providers-ibm-mq``
+
+This installs only the provider package. To use the IBM MQ operators at
+runtime you also need the ``ibmmq`` dependency, which can be installed via
+the provider extra:
+
+``pip install apache-airflow-providers-ibm-mq[ibmmq]``
+
+The ``ibmmq`` extra installs the Python wrapper for the IBM MQ client that is required by the provider hooks and operators.
+
+Note that the `ibmmq <https://github.com/ibm-messaging/mq-mqi-python/>`_ Python package requires the native `IBM MQ Redistributable Client <https://www.ibm.com/docs/en/ibm-mq/9.4.x?topic=overview-redistributable-mq-clients>`_ libraries to be installed on the system.
+
+Refer to the IBM MQ documentation for installation instructions for your platform.
 
 The package supports the following python versions: 3.9,3.10,3.11,3.12
 
@@ -56,7 +69,6 @@ PIP package                                    Version required
 ``apache-airflow``                             ``>=2.11.0``
 ``apache-airflow-providers-common-messaging``  ``>=2.0.0``
 ``importlib-resources``                        ``>=1.3``
-``ibmmq``                                      ``>=2.0.4``
 =============================================  =====================================
 
 
@@ -66,6 +78,15 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 ========================================================================================================================  ====================
+
+Optional dependencies
+----------------------
+
+==========  ================
+Extra       Dependencies
+==========  ================
+``ibmmq``   ``ibmmq>=2.0.4``
+==========  ================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-ibm-mq/0.1.0/changelog.html>`_.
