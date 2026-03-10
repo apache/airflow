@@ -46,6 +46,7 @@ Elasticsearch is now fully compatible with remote logging along side with ``apac
 
 Bug Fixes
 ^^^^^^^^^
+- Fix SQLite migration disable ``disable_sqlite_fkeys`` in revision ``509b94a1042d`` (#63256) (#63272)
 - Fix: 404 queued asset events from API server logs (#62934) (#62976)
 - Fix: Always include kid in JWT header for symmetric key tokens (#62883) (#62943)
 - Fix: Scope session token in cookie to base_url  (#62771) (#62851)
