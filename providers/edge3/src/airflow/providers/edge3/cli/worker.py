@@ -132,7 +132,9 @@ class EdgeWorker:
         if not execution_api_server_url:
             # Derive execution api url from edge api url as fallback
             api_url = self.conf.get("edge", "api_url")
-            execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
+            execution_api_server_url = (
+                api_url.replace("edge_worker/v1/rpcapi", "execution") if api_url is not None else None
+            )
         logger.info("Using execution api server url: %s", execution_api_server_url)
         return execution_api_server_url
 
