@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 
+from fastapi import Depends
+
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
@@ -29,6 +31,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     TokenType,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
@@ -60,7 +63,7 @@ def get_current_user_info(
     )
 
 
-@auth_router.post("/auth/token")
+@auth_router.post("/auth/token", dependencies=[Depends(action_logging())])
 def generate_token(
     body: GenerateTokenBody,
     user: GetUserDep,
