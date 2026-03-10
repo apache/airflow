@@ -33,7 +33,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.19",
+    "@tanstack/react-virtual": "^3.13.21",
     "@visx/group": "^3.12.0",
     "@visx/shape": "^3.12.0",
     "@xyflow/react": "^12.10.1",
