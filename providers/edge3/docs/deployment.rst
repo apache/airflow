@@ -244,3 +244,4 @@ instance. The commands are:
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
 - ``airflow edge add-worker-queues``: Add queues to an edge worker
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
+- ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker

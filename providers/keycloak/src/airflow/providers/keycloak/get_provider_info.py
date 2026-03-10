@@ -26,6 +26,14 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-keycloak",
         "name": "Keycloak",
         "description": "``Keycloak Provider``\n",
+        "integrations": [
+            {
+                "integration-name": "Keycloak",
+                "external-doc-url": "https://www.keycloak.org/",
+                "logo": "/docs/integration-logos/Keycloak.svg",
+                "tags": ["software"],
+            }
+        ],
         "auth-managers": [
             "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager"
         ],

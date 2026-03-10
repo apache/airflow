@@ -1131,7 +1131,12 @@ def run(
     from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
     from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.ci_group import ci_group
-    from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
+    from airflow_breeze.utils.docker_command_utils import (
+        bring_compose_project_down,
+        execute_command_in_shell,
+        fix_ownership_using_docker,
+        remove_docker_networks,
+    )
     from airflow_breeze.utils.platforms import get_normalized_platform
 
     # Generate a unique project name to avoid conflicts with other running instances
@@ -1178,21 +1183,22 @@ def run(
     # Build or pull the CI image if needed
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
 
-    # Execute the command in the shell
-    with ci_group(f"Running command: {command}"):
-        result = execute_command_in_shell(
-            shell_params=shell_params,
-            project_name=unique_project_name,
-            command=full_command,
-            # Always preserve the backend specified by user (or resolved from default)
-            preserve_backend=True,
-            forward_ports=forward_ports,
-        )
-
-    # Clean up ownership
-    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
-
-    fix_ownership_using_docker()
+    # Execute the command in the shell, cleaning up Docker resources afterward
+    try:
+        with ci_group(f"Running command: {command}"):
+            result = execute_command_in_shell(
+                shell_params=shell_params,
+                project_name=unique_project_name,
+                command=full_command,
+                # Always preserve the backend specified by user (or resolved from default)
+                preserve_backend=True,
+                forward_ports=forward_ports,
+            )
+    finally:
+        # Clean up ownership, the unique compose project and its network
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+        remove_docker_networks([f"{unique_project_name}_default"])
+        fix_ownership_using_docker()
 
     # Exit with the same code as the command
     sys.exit(result.returncode)
