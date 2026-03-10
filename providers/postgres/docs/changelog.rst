@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.6.1
+.....
+
+Misc
+~~~~
+
+* ``Migrate postgres connection UI metadata to YAML (#62445)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.6.0
 .....
 
