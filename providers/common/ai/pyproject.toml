@@ -142,12 +142,12 @@ provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info
 hitl_review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
 
 [tool.hatch.version]
-path = "src/airflow/providers/common.ai/__init__.py"
+path = "src/airflow/providers/common/ai/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "docs",
-    "src/airflow/providers/common.ai",
+    "src/airflow/providers/common/ai",
     "tests",
     "NOTICE"
 ]
