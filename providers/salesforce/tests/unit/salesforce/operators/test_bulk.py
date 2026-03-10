@@ -211,6 +211,30 @@ class TestSalesforceBulkOperator:
         expected_fields = ("payload", "object_name", "operation", "external_id_field", "salesforce_conn_id")
         assert SalesforceBulkOperator.template_fields == expected_fields
 
+    def test_template_fields_rendering(self):
+        """
+        Test that templated fields are actually rendered with Jinja context.
+        """
+        operator = SalesforceBulkOperator(
+            task_id="test_template_rendering",
+            operation="{{ var.value.op }}",
+            object_name="Account_{{ ds_nodash }}",
+            payload=[{"Name": "{{ ds }}"}],
+            external_id_field="{{ var.value.ext_id }}",
+        )
+
+        context = {
+            "ds": "2026-01-01",
+            "ds_nodash": "20260101",
+            "var": {"value": {"op": "insert", "ext_id": "Id"}},
+        }
+        operator.render_template_fields(context)
+
+        assert operator.operation == "insert"
+        assert operator.object_name == "Account_20260101"
+        assert operator.payload == [{"Name": "2026-01-01"}]
+        assert operator.external_id_field == "Id"
+
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_hard_delete(self, mock_get_conn):
         """
