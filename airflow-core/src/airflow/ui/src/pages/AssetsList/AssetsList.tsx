@@ -98,7 +98,7 @@ const createColumns = (
     accessorKey: "extra",
     cell: ({ row: { original } }) => {
       if (original.extra !== null) {
-        return <RenderedJsonField content={original.extra ?? {}} jsonProps={{ collapsed: !open }} />;
+        return <RenderedJsonField collapsed={!open} content={original.extra ?? {}} />;
       }
 
       return undefined;

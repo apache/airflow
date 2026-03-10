@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import cache
 from typing import TYPE_CHECKING
@@ -67,6 +68,7 @@ log = logging.getLogger(__name__)
 
 class _AuthManagerState:
     instance: BaseAuthManager | None = None
+    _lock = threading.Lock()
 
 
 @asynccontextmanager
@@ -146,9 +148,13 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 
 def create_auth_manager() -> BaseAuthManager:
-    """Create the auth manager."""
+    """Create the auth manager, cached as a thread-safe singleton."""
     auth_manager_cls = get_auth_manager_cls()
-    _AuthManagerState.instance = auth_manager_cls()
+    if _AuthManagerState.instance is not None and isinstance(_AuthManagerState.instance, auth_manager_cls):
+        return _AuthManagerState.instance
+    with _AuthManagerState._lock:
+        if _AuthManagerState.instance is None or not isinstance(_AuthManagerState.instance, auth_manager_cls):
+            _AuthManagerState.instance = auth_manager_cls()
     return _AuthManagerState.instance
 
 

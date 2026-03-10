@@ -21,10 +21,14 @@ from typing import TYPE_CHECKING
 
 from airflow.sdk import (
     DAG,
+    AllowedKeyMapper,
     Asset,
     CronPartitionTimetable,
+    DailyMapper,
     HourlyMapper,
+    IdentityMapper,
     PartitionedAssetTimetable,
+    ProductMapper,
     YearlyMapper,
     asset,
     task,
@@ -137,3 +141,87 @@ with DAG(
         pass
 
     check_partition_alignment()
+
+
+regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_sales")
+
+with DAG(
+    dag_id="ingest_regional_sales",
+    schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    tags=["sales", "ingestion"],
+):
+    """Produce hourly regional sales data with composite partition keys."""
+
+    @task(outlets=[regional_sales])
+    def ingest_sales():
+        """Ingest regional sales data partitioned by region and time."""
+        pass
+
+    ingest_sales()
+
+
+with DAG(
+    dag_id="aggregate_regional_sales",
+    schedule=PartitionedAssetTimetable(
+        assets=regional_sales,
+        default_partition_mapper=ProductMapper(IdentityMapper(), DailyMapper()),
+    ),
+    catchup=False,
+    tags=["sales", "aggregation"],
+):
+    """
+    Aggregate regional sales using ProductMapper.
+
+    The ProductMapper splits the composite key "region|timestamp" and applies
+    IdentityMapper to the region segment and DailyMapper to the timestamp segment,
+    aligning hourly partitions to daily granularity per region.
+    """
+
+    @task
+    def aggregate_sales(dag_run=None):
+        """Aggregate sales data for the matched region-day partition."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    aggregate_sales()
+
+
+region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name="region_raw_stats")
+
+
+with DAG(
+    dag_id="ingest_region_stats",
+    schedule=None,
+    tags=["player-stats", "regional"],
+):
+    """
+    Ingest player statistics per region.
+
+    Externally triggered with partition_key set to a region code (``us``, ``eu``, ``apac``).
+    """
+
+    @task(outlets=[region_raw_stats])
+    def ingest_region():
+        """Materialize player statistics for a single region partition."""
+        pass
+
+    ingest_region()
+
+
+@asset(
+    uri="file://analytics/player-stats/regional-breakdown.csv",
+    schedule=PartitionedAssetTimetable(
+        assets=region_raw_stats,
+        default_partition_mapper=AllowedKeyMapper(["us", "eu", "apac"]),
+    ),
+    tags=["player-stats", "regional"],
+)
+def regional_stats_breakdown():
+    """
+    Aggregate regional player statistics.
+
+    This asset demonstrates AllowedKeyMapper, which validates that upstream partition
+    keys belong to a fixed set of allowed values (``us``, ``eu``, ``apac``) rather than time-based partitions.
+    """
+    pass
