@@ -163,3 +163,13 @@ Here's an example of using a custom notifier:
 
 For a list of community-managed Notifiers, see :doc:`apache-airflow-providers:core-extensions/notifications`.
 For more information on writing a custom Notifier, see the :doc:`Notifiers <../../howto/notifications>` how-to page.
+
+Deadline Alert Callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+In addition to the Dag/task lifecycle callbacks above, Airflow supports **Deadline Alert** callbacks which
+trigger when a Dag run exceeds a configured time threshold. Deadline Alert callbacks use
+:class:`~airflow.sdk.AsyncCallback` (runs in the Triggerer) or :class:`~airflow.sdk.SyncCallback`
+(runs in the executor) and are configured on the Dag via the ``deadline`` parameter.
+
+For full details, see :doc:`/howto/deadline-alerts`.
