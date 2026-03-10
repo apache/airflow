@@ -68,7 +68,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
     `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
 For installation using ``pip`` and ``venv``, carry out following steps.
-On Debian/Ubuntu systems (including Ubuntu 24.04), Python may enforce
+On Debian/Ubuntu systems, Python may enforce
 externally managed environments (PEP 668), so use a virtual environment
 before running ``pip install`` commands:
 
