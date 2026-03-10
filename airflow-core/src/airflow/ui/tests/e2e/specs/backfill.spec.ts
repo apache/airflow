@@ -109,17 +109,18 @@ test.describe("Backfill", () => {
 
       await backfillPage.navigateToBackfillsTab(testDagId);
 
-      const initialColumnCount = await backfillPage.getTableColumnCount();
+      const tableHeaders = backfillPage.backfillsTable.locator("thead th");
 
-      expect(initialColumnCount).toBeGreaterThan(0);
+      await expect(tableHeaders).toHaveCount(7); // Initial state should have 7 columns
+      const initialColumnCount = await tableHeaders.count();
+
       await expect(backfillPage.getFilterButton()).toBeVisible();
 
       await backfillPage.openFilterMenu();
 
       const filterMenuItems = page.getByRole("menuitem");
-      const filterMenuCount = await filterMenuItems.count();
 
-      expect(filterMenuCount).toBeGreaterThan(0);
+      await expect(filterMenuItems).not.toHaveCount(0);
 
       const firstMenuItem = filterMenuItems.first();
       const columnToToggle = (await firstMenuItem.textContent())?.trim() ?? "";
@@ -131,9 +132,7 @@ test.describe("Backfill", () => {
 
       await expect(backfillPage.getColumnHeader(columnToToggle)).not.toBeVisible();
 
-      const newColumnCount = await backfillPage.getTableColumnCount();
-
-      expect(newColumnCount).toBeLessThan(initialColumnCount);
+      await expect(tableHeaders).toHaveCount(initialColumnCount - 1);
 
       await backfillPage.openFilterMenu();
       await backfillPage.toggleColumn(columnToToggle);
@@ -141,9 +140,7 @@ test.describe("Backfill", () => {
 
       await expect(backfillPage.getColumnHeader(columnToToggle)).toBeVisible();
 
-      const finalColumnCount = await backfillPage.getTableColumnCount();
-
-      expect(finalColumnCount).toBe(initialColumnCount);
+      await expect(tableHeaders).toHaveCount(initialColumnCount);
     });
   });
 

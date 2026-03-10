@@ -18,7 +18,6 @@
 #
 from __future__ import annotations
 
-import threading
 from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
@@ -509,8 +508,12 @@ def test_execution_timeout_exceeded(
             description=get_cursor_descriptions(cursor_descriptions),
         )
 
-        # Simulate a timeout
-        mock_create_timeout_thread.return_value = threading.Timer(cur, execution_timeout)
+        mock_event = mock.MagicMock()
+        mock_event.is_set.return_value = True  # simulate timeout
+
+        mock_timer = mock.MagicMock()
+
+        mock_create_timeout_thread.return_value = (mock_timer, mock_event)
 
         mock_run_command.side_effect = Exception("Mocked exception")
 
@@ -532,20 +535,22 @@ def test_execution_timeout_exceeded(
     "cursor_descriptions",
     [(("id", "value"),)],
 )
-def test_create_timeout_thread(
-    mock_get_conn,
-    mock_get_requests,
-    mock_timer,
-    cursor_descriptions,
-):
+def test_create_timeout_thread(mock_get_conn, mock_get_requests, cursor_descriptions):
+
     cur = mock.MagicMock(
         rowcount=1,
         description=get_cursor_descriptions(cursor_descriptions),
     )
+
     timeout = timedelta(seconds=1)
-    thread = create_timeout_thread(cur=cur, execution_timeout=timeout)
-    mock_timer.assert_called_once_with(timeout.total_seconds(), cur.connection.cancel)
-    assert thread is not None
+
+    timer, event = create_timeout_thread(cur=cur, execution_timeout=timeout)
+
+    assert timer is not None
+    assert event is not None
+    assert not event.is_set()
+
+    timer.cancel()
 
 
 @pytest.mark.parametrize(
@@ -562,9 +567,15 @@ def test_create_timeout_thread_no_timeout(
         rowcount=1,
         description=get_cursor_descriptions(cursor_descriptions),
     )
-    thread = create_timeout_thread(cur=cur, execution_timeout=None)
+
+    timer, timeout_event = create_timeout_thread(
+        cur=cur,
+        execution_timeout=None,
+    )
+
     mock_timer.assert_not_called()
-    assert thread is None
+    assert timer is None
+    assert timeout_event is None
 
 
 def test_get_openlineage_default_schema_with_no_schema_set():
