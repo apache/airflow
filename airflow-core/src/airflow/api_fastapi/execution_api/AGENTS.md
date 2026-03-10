@@ -63,3 +63,7 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 - Triggerer handler: `airflow-core/src/airflow/jobs/triggerer_job_runner.py`
 - Task SDK generated models: `task-sdk/src/airflow/sdk/api/datamodels/_generated.py`
 - Full versioning guide: [`contributing-docs/19_execution_api_versioning.rst`](../../../../contributing-docs/19_execution_api_versioning.rst)
+
+## Token Scope Infrastructure
+
+Token types (`"execution"`, `"workload"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`.
