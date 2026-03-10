@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 from urllib.parse import quote_plus, urlencode
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -318,7 +318,11 @@ class MySqlHook(DbApiHook):
         return token, port
 
     def bulk_load_custom(
-        self, table: str, tmp_file: str, duplicate_key_handling: str = "IGNORE", extra_options: str = ""
+        self,
+        table: str,
+        tmp_file: str,
+        duplicate_key_handling: Literal["IGNORE", "REPLACE", ""] = "IGNORE",
+        extra_options: str = "",
     ) -> None:
         """
         Load local data from a file into the database in a more configurable way.
@@ -339,6 +343,13 @@ class MySqlHook(DbApiHook):
 
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
         """
+        _VALID_DUPLICATE_KEY_HANDLING = {"IGNORE", "REPLACE", ""}
+        if duplicate_key_handling not in _VALID_DUPLICATE_KEY_HANDLING:
+            raise ValueError(
+                f"Invalid duplicate_key_handling: {duplicate_key_handling!r}. "
+                f"Must be one of {_VALID_DUPLICATE_KEY_HANDLING}."
+            )
+
         conn = self.get_conn()
         cursor = conn.cursor()
 
