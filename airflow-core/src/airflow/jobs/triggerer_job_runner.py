@@ -51,7 +51,6 @@ from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import Trace
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -631,15 +630,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             extra_tags={"hostname": self.job.hostname},
         )
 
-        span = Trace.get_current_span()
-        span.set_attributes(
-            {
-                "trigger host": self.job.hostname,
-                "triggers running": len(self.running_triggers),
-                "capacity left": capacity_left,
-            }
-        )
-
     @provide_session
     def create_workload(
         self,
@@ -716,7 +706,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
-
         # Bulk-fetch new trigger records
         with create_session() as session:
             # Bulk-fetch new trigger records
