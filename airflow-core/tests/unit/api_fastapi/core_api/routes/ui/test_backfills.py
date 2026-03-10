@@ -153,7 +153,7 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        with assert_queries_count(3 if test_params.get("dag_id") is None else 4):
+        with assert_queries_count(4 if test_params.get("dag_id") is None else 5):
             response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
@@ -184,7 +184,7 @@ class TestListBackfills(TestBackfillEndpoint):
         session.add_all(backfills)
         session.commit()
 
-        mock_get_authorized_dag_ids.return_value = {"TEST_DAG_2", "TEST_DAG_3"}
+        mock_get_authorized_dag_ids.return_value = ({"TEST_DAG_2", "TEST_DAG_3"}, False)
         response = test_client.get("/backfills")
 
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
