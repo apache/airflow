@@ -938,6 +938,34 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
+    def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
+        """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "extra": "not valid json",
+            },
+            params={"update_mask": ["extra"]},
+        )
+        assert response.status_code == 422
+
+    def test_patch_with_update_mask_rejects_extra_fields(self, test_client):
+        """Partial model should still forbid unknown fields."""
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "unknown_field": "value",
+            },
+            params={"update_mask": ["host"]},
+        )
+        assert response.status_code == 422
+
 
 class TestConnection(TestConnectionEndpoint):
     def setup_method(self):
