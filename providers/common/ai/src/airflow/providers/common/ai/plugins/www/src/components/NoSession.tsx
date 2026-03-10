@@ -17,23 +17,10 @@
  * under the License.
  */
 
-import { Box, Code, Text, VStack } from "@chakra-ui/react";
-import { type FC, useEffect } from "react";
+import { Box, Code, Text } from "@chakra-ui/react";
+import type { FC } from "react";
 
-const POLL_INTERVAL_MS = 5000;
-
-interface NoSessionProps {
-  /** When provided, polls periodically to check if a session appears. */
-  onRefetch?: () => Promise<void>;
-}
-
-export const NoSession: FC<NoSessionProps> = ({ onRefetch }) => {
-  useEffect(() => {
-    if (!onRefetch) return;
-    const timer = setInterval(() => void onRefetch(), POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [onRefetch]);
-
+export const NoSession: FC = () => {
   return (
     <Box
       alignItems="center"

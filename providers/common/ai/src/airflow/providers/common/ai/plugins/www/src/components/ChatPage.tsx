@@ -41,6 +41,7 @@ import {
 import { MessageBubble } from "src/components/MessageBubble";
 import { NoSession } from "src/components/NoSession";
 import { useSession } from "src/hooks/useSession";
+import { toaster } from "src/toaster";
 
 interface ChatPageProps {
   dagId: string;
@@ -64,12 +65,15 @@ const STATUS_BADGE: Record<
 };
 
 export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) => {
-  const { session, loading, sendFeedback, approve, reject, refetch } =
-    useSession(dagId, runId, taskId, mapIndex);
+  const { session, loading, error, sendFeedback, approve, reject } = useSession(
+    dagId,
+    runId,
+    taskId,
+    mapIndex,
+  );
 
   const [feedbackText, setFeedbackText] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [isSending, setIsSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,13 +87,6 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
     }
     prevConvLenRef.current = len;
   }, [session?.conversation]);
-
-  useEffect(() => {
-    if (toast) {
-      const t = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [toast]);
 
   const autoResize = useCallback(() => {
     const ta = textareaRef.current;
@@ -106,9 +103,13 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
     try {
       await sendFeedback(text);
       setFeedbackText("");
-      setToast({ msg: "Feedback sent", ok: true });
+      toaster.create({ title: "Feedback sent", type: "success", duration: 4000 });
     } catch (err) {
-      setToast({ msg: err instanceof Error ? err.message : "Error", ok: false });
+      toaster.create({
+        title: err instanceof Error ? err.message : "Error",
+        type: "error",
+        duration: 5000,
+      });
     } finally {
       setIsSending(false);
     }
@@ -131,13 +132,17 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
     try {
       if (action === "approve") {
         await approve();
-        setToast({ msg: "Approved", ok: true });
+        toaster.create({ title: "Approved", type: "success", duration: 4000 });
       } else if (action === "reject") {
         await reject();
-        setToast({ msg: "Rejected", ok: true });
+        toaster.create({ title: "Rejected", type: "success", duration: 4000 });
       }
     } catch (err) {
-      setToast({ msg: err instanceof Error ? err.message : "Error", ok: false });
+      toaster.create({
+        title: err instanceof Error ? err.message : "Error",
+        type: "error",
+        duration: 5000,
+      });
     } finally {
       setIsSending(false);
     }
@@ -173,7 +178,7 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
   }
 
   if (!session) {
-    return <NoSession onRefetch={refetch} />;
+    return <NoSession />;
   }
 
   const isTerminal =
@@ -212,6 +217,21 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
           </Badge>
         </HStack>
       </Box>
+
+      {error && (
+        <Box
+          bg="red.subtle"
+          color="red.fg"
+          px={5}
+          py={3}
+          borderBottomWidth="1px"
+          borderColor="red.emphasized"
+          fontSize="sm"
+          fontWeight="medium"
+        >
+          {error}
+        </Box>
+      )}
 
       <Box flex={1} overflowY="auto" p={5} display="flex" flexDirection="column" gap={3} ref={chatRef}>
         {session.conversation.map((entry) => (
@@ -325,24 +345,6 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
               </HStack>
             </HStack>
           )}
-        </Box>
-      )}
-
-      {toast && (
-        <Box
-          position="fixed"
-          top={5}
-          right={5}
-          px={5}
-          py={3}
-          borderRadius="lg"
-          color="white"
-          fontSize="sm"
-          fontWeight="semibold"
-          zIndex={999}
-          bg={toast.ok ? "green.solid" : "red.solid"}
-        >
-          {toast.msg}
         </Box>
       )}
     </Box>

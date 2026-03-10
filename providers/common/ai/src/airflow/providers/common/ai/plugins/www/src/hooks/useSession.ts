@@ -33,7 +33,7 @@ interface UseSessionReturn {
   sendFeedback: (text: string) => Promise<void>;
   approve: () => Promise<void>;
   reject: () => Promise<void>;
-  /** Refetch session (e.g. when polling from NoSession). */
+  /** Refetch session on demand. */
   refetch: () => Promise<void>;
 }
 
@@ -97,7 +97,9 @@ export function useSession(
 
   const sendFeedback = useCallback(
     async (text: string) => {
+      let prevSession: SessionResponse | null = null;
       setSession((prev) => {
+        prevSession = prev;
         if (!prev) return prev;
         return {
           ...prev,
@@ -116,6 +118,7 @@ export function useSession(
         const data = await apiRef.current.submitFeedback(text);
         setSession(data);
       } catch (err) {
+        if (prevSession !== null) setSession(prevSession);
         setError(err instanceof Error ? err.message : String(err));
       }
     },

@@ -115,11 +115,12 @@ Enable the review loop with ``enable_hitl_review=True``:
 
 - ``enable_hitl_review`` — When ``True``, the operator enters the review loop
   after the first generation. Default ``False``.
-- ``max_hitl_iterations`` — Maximum outputs the reviewer can see (1 = initial,
-  plus regens). When the reviewer requests changes at iteration
-  ``>= max_hitl_iterations``, the task fails with ``HITLMaxIterationsError``
-  without running the LLM. E.g. ``5`` allows changes at iterations 1–4; the
-  5th output must be approved or rejected. Default ``5``.
+- ``max_hitl_iterations`` — Maximum outputs the reviewer can see (1 = initial
+  output plus subsequent regenerations). When the reviewer requests changes at
+  iteration ``>= max_hitl_iterations``, the task fails with
+  ``HITLMaxIterationsError`` without running the LLM. For example, ``5`` allows
+  changes at iterations 1–4; the fifth output must be either approved or
+  rejected. Default ``5``.
 - ``hitl_timeout`` — Maximum wall-clock time to wait for all review rounds.
   ``None`` = no timeout (blocks until a terminal action).
 - ``hitl_poll_interval`` — Seconds between XCom polls while waiting for a

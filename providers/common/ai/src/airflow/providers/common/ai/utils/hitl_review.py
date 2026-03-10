@@ -128,7 +128,7 @@ class HITLReviewResponse(BaseModel):
     dag_id: str
     run_id: str
     task_id: str
-    status: str
+    status: SessionStatus
     iteration: int
     max_iterations: int = 5
     prompt: str
@@ -160,7 +160,7 @@ class HITLReviewResponse(BaseModel):
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
-            status=session.status.value,
+            status=session.status,
             iteration=session.iteration,
             max_iterations=session.max_iterations,
             prompt=session.prompt,

@@ -22,6 +22,7 @@ import type { FC } from "react";
 
 import { ChatPage } from "src/components/ChatPage";
 import { NoSession } from "src/components/NoSession";
+import { Toaster } from "src/toaster";
 
 import { localSystem } from "./theme";
 
@@ -66,6 +67,7 @@ const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
       <Box height="100%" minHeight={0}>
         <PluginComponent {...props} />
       </Box>
+      <Toaster />
     </ChakraProvider>
   );
 };

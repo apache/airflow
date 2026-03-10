@@ -67,11 +67,11 @@ class HITLReviewMixin:
     The loop stops after ``hitl_timeout`` or ``max_hitl_iterations``.
 
     **Max iterations:** ``iteration`` counts outputs shown to the reviewer
-    (1 = initial, 2 = first regen, etc.). When the reviewer requests changes
-    at ``iteration >= max_hitl_iterations``, the mixin raises
+    (1 = initial, 2 = first regeneration, etc.). When the reviewer requests
+    changes at ``iteration >= max_hitl_iterations``, the mixin raises
     ``HITLMaxIterationsError`` without calling the LLM. With
     ``max_hitl_iterations=5``, the reviewer can request changes at most 4
-    times (iterations 1–4); the 5th output is the last chance to approve or
+    times (iterations 1–4); the fifth output is the last chance to approve or
     reject.
 
     All agent outputs and human feedback are persisted as iteration-keyed

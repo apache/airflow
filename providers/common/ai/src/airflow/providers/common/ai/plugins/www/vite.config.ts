@@ -37,13 +37,21 @@ export default defineConfig(({ command }) => {
             name: "AirflowPlugin",
           },
           rollupOptions: {
-            external: ["react", "react-dom", "react/jsx-runtime"],
+            external: [
+              "react",
+              "react-dom",
+              "react/jsx-runtime",
+              "@chakra-ui/react",
+              "@emotion/react",
+            ],
             output: {
               entryFileNames: "[name].umd.cjs",
               globals: {
                 react: "React",
                 "react-dom": "ReactDOM",
                 "react/jsx-runtime": "ReactJSXRuntime",
+                "@chakra-ui/react": "ChakraUI",
+                "@emotion/react": "EmotionReact",
               },
             },
           },
