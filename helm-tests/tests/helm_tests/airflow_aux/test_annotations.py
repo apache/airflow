@@ -500,7 +500,7 @@ class TestServiceAccountAnnotations:
         """Test that mixed static and templated annotation values render correctly."""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.10.0",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "serviceAccount": {
                         "annotations": {
