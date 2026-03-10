@@ -240,7 +240,7 @@ class IterableOperator(BaseOperator):
 
     @property
     def max_workers(self):
-        return self.max_active_tis_per_dag or os.cpu_count() or 1
+        return self.task_concurrency or os.cpu_count() or 1
 
     @property
     def timeout(self) -> float | None:
