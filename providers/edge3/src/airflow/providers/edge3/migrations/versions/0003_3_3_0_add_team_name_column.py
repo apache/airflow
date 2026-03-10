@@ -31,10 +31,10 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a09c3ee8e1d3"
-down_revision = "9d34dfc2de06"
+down_revision = "8c275b6fbaa8"
 branch_labels = None
 depends_on = None
-edge3_version = "3.1.0"
+edge3_version = "3.3.0"
 
 
 def upgrade() -> None:
