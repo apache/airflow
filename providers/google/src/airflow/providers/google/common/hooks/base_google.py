@@ -280,8 +280,9 @@ class GoogleBaseHook(BaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        """Initialize the Google Cloud Base Hook.
-        
+        """
+        Initialize the Google Cloud Base Hook.
+
         :param gcp_conn_id: The connection ID to use when fetching connection info.
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials.
@@ -365,7 +366,7 @@ class GoogleBaseHook(BaseHook):
                     "or remove the quota_project_id setting."
                 )
             credentials = credentials.with_quota_project(quota_project)
-        
+
         # Override project_id if set in extras
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
@@ -377,7 +378,8 @@ class GoogleBaseHook(BaseHook):
         return credentials, project_id
 
     def _validate_quota_project(self, quota_project: str) -> None:
-        """Validate the quota Project ID format.
+        """
+        Validate the quota Project ID format.
 
         :param quota_project: The quota Project ID to validate
         :raises TypeError: If the quota Project ID is not a string
@@ -395,7 +397,11 @@ class GoogleBaseHook(BaseHook):
             )
 
     def get_credentials(self) -> Credentials:
-        """Return the Credentials object for Google API."""
+        """
+        Return the Credentials object for Google API.
+
+        :return: Google Cloud credentials object
+        """
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 

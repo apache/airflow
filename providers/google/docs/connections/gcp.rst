@@ -380,15 +380,15 @@ precedence over the connection extras:
   from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 
   task = BigQueryExecuteQueryOperator(
-    task_id='execute_query',
-    sql='SELECT * FROM `my_project.dataset.table`',
-    quota_project_id='your-billing-project-id'
+      task_id="execute_query",
+      sql="SELECT * FROM `my_project.dataset.table`",
+      quota_project_id="your-billing-project-id",
   )
 
   # Or when creating a hook
   from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
-  hook = BigQueryHook(quota_project_id='your-billing-project-id')
+  hook = BigQueryHook(quota_project_id="your-billing-project-id")
 
 Priority
 ~~~~~~~
@@ -419,4 +419,3 @@ Examples
 **Examples**
 
 See the example DAG: ``tests/system/providers/google/common/example_quota_project_system.py``
-
