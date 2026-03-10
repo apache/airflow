@@ -135,7 +135,11 @@ def _find_provider_yaml(provider_id: str) -> Path:
 
 def _read_provider_yaml_info(provider_id: str) -> tuple[str, list[str]]:
     """Read package name from provider.yaml and extras from pyproject.toml."""
-    import tomllib
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+
     import yaml
 
     provider_yaml_path = _find_provider_yaml(provider_id)

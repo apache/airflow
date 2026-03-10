@@ -60,24 +60,35 @@ class TestFindProviderYaml:
 # _read_provider_yaml_info
 # ---------------------------------------------------------------------------
 class TestReadProviderYamlInfo:
-    def test_amazon_package_name(self):
-        package_name, extras = _read_provider_yaml_info("amazon")
+    def test_reads_package_name_and_extras(self, tmp_path):
+        provider_dir = tmp_path / "providers" / "amazon"
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").write_text("package-name: apache-airflow-providers-amazon\n")
+        (provider_dir / "pyproject.toml").write_text(
+            '[project.optional-dependencies]\npandas = ["pandas>=2.1.2"]\ns3fs = ["s3fs>=2024.6.1"]\n'
+        )
+        with patch("airflow_breeze.commands.registry_commands.PROVIDERS_DIR", tmp_path / "providers"):
+            package_name, extras = _read_provider_yaml_info("amazon")
         assert package_name == "apache-airflow-providers-amazon"
-        assert isinstance(extras, list)
-        assert len(extras) > 0  # Amazon has optional deps like aiobotocore, s3fs
+        assert extras == ["pandas", "s3fs"]
 
-    def test_amazon_has_expected_extras(self):
-        _, extras = _read_provider_yaml_info("amazon")
-        # Amazon should have at least aiobotocore and s3fs extras
-        assert "aiobotocore" in extras
-        assert "s3fs" in extras
-
-    def test_provider_without_extras(self):
-        # Find a simple provider that has no optional dependencies
-        package_name, extras = _read_provider_yaml_info("ftp")
+    def test_no_pyproject_returns_empty_extras(self, tmp_path):
+        provider_dir = tmp_path / "providers" / "ftp"
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").write_text("package-name: apache-airflow-providers-ftp\n")
+        with patch("airflow_breeze.commands.registry_commands.PROVIDERS_DIR", tmp_path / "providers"):
+            package_name, extras = _read_provider_yaml_info("ftp")
         assert package_name == "apache-airflow-providers-ftp"
-        # ftp may or may not have extras — just verify the return type
-        assert isinstance(extras, list)
+        assert extras == []
+
+    def test_pyproject_without_optional_deps(self, tmp_path):
+        provider_dir = tmp_path / "providers" / "sqlite"
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").write_text("package-name: apache-airflow-providers-sqlite\n")
+        (provider_dir / "pyproject.toml").write_text("[project]\nname = 'test'\n")
+        with patch("airflow_breeze.commands.registry_commands.PROVIDERS_DIR", tmp_path / "providers"):
+            _, extras = _read_provider_yaml_info("sqlite")
+        assert extras == []
 
 
 # ---------------------------------------------------------------------------
