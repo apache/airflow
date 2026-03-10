@@ -34,6 +34,7 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.bases.xcom import BaseXCom as BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
     AssetAlias as AssetAlias,
@@ -73,6 +74,7 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
     "Connection",
     "Context",
     "DAG",
