@@ -385,7 +385,7 @@ class TestXComsSetEndpoint:
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
         This tests the case where the XCom value is stored from the Task API where the value is serialized
-        via Client SDK into JSON object and passed via the API Server to the DB. It by-passes
+        via Client SDK into JSON object and passed via the API Server to the DB. It bypasses
         the XComModel.serialize_value and stores valid Python JSON compatible objects to DB.
 
         This test is to ensure that the deserialization works correctly in this case as well as
