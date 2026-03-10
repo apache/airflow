@@ -17,11 +17,11 @@
 # under the License.
 
 """
-Add team_name column to edge_job and edge_worker tables.
+Add concurrency column to edge_worker table.
 
-Revision ID: a09c3ee8e1d3
+Revision ID: b3c4d5e6f7a8
 Revises: 9d34dfc2de06
-Create Date: 2026-02-07 00:00:00.000000
+Create Date: 2026-03-04 00:00:00.000000
 """
 
 from __future__ import annotations
@@ -30,31 +30,20 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "a09c3ee8e1d3"
+revision = "b3c4d5e6f7a8"
 down_revision = "9d34dfc2de06"
 branch_labels = None
 depends_on = None
-edge3_version = "3.1.0"
+edge3_version = "3.2.0"
 
 
 def upgrade() -> None:
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-
-    edge_job_cols = {c["name"] for c in inspector.get_columns("edge_job")}
-    if "team_name" not in edge_job_cols:
-        with op.batch_alter_table("edge_job") as batch_op:
-            batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
-
-    edge_worker_cols = {c["name"] for c in inspector.get_columns("edge_worker")}
-    if "team_name" not in edge_worker_cols:
-        with op.batch_alter_table("edge_worker") as batch_op:
-            batch_op.add_column(sa.Column("team_name", sa.String(length=64), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {col["name"] for col in inspector.get_columns("edge_worker")}
+    if "concurrency" not in existing_columns:
+        op.add_column("edge_worker", sa.Column("concurrency", sa.Integer(), nullable=True))
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("edge_worker") as batch_op:
-        batch_op.drop_column("team_name")
-
-    with op.batch_alter_table("edge_job") as batch_op:
-        batch_op.drop_column("team_name")
+    op.drop_column("edge_worker", "concurrency")
