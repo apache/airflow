@@ -35,7 +35,9 @@
     :caption: Guides
 
     Connection types <connections/pydantic_ai>
+    MCP connection <connections/mcp>
     Hooks <hooks/pydantic_ai>
+    Toolsets <toolsets>
     Operators <operators/index>
 
 .. toctree::
@@ -97,12 +99,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-====================  ==================
-PIP package           Version required
-====================  ==================
-``apache-airflow``    ``>=3.0.0``
-``pydantic-ai-slim``  ``>=1.14.0``
-====================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-standard``       ``>=1.12.1``
+``pydantic-ai-slim``                        ``>=1.14.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -122,6 +126,7 @@ Dependent package                                                               
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_            ``standard``
 ==================================================================================================================  =================
 
 Downloading official packages

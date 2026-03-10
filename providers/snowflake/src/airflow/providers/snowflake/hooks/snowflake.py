@@ -34,9 +34,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError, Timeout
-from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import (
@@ -53,10 +50,15 @@ from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
+SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials"}
+
 T = TypeVar("T")
 
 
 if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
+    from snowflake.connector import SnowflakeConnection
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -240,6 +242,18 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    def _validate_grant_type(self, grant_type: str | None) -> str:
+        """Validate OAuth grant_type."""
+        if not grant_type:
+            raise ValueError("Grant type must be provided for OAuth authentication.")
+
+        if grant_type not in SUPPORTED_GRANT_TYPES:
+            supported = ", ".join(sorted(SUPPORTED_GRANT_TYPES))
+
+            raise ValueError(f"Unsupported grant_type '{grant_type}'. Supported values: {supported}")
+
+        return grant_type
+
     @property
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
@@ -318,9 +332,8 @@ class SnowflakeHook(DbApiHook):
             if azure_conn_id:
                 conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
             else:
-                grant_type = conn_config.get("grant_type")
-                if not grant_type:
-                    raise ValueError("Grant_type not provided")
+                grant_type = self._validate_grant_type(conn_config.get("grant_type"))
+
                 conn_config["token"] = self._get_valid_oauth_token(
                     conn_config=conn_config,
                     token_endpoint=conn_config.get("token_endpoint"),
@@ -388,40 +401,9 @@ class SnowflakeHook(DbApiHook):
         if client_store_temporary_credential:
             conn_config["client_store_temporary_credential"] = client_store_temporary_credential
 
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
+        p_key = self.get_private_key()
 
-        private_key_file = self._get_field(extra_dict, "private_key_file")
-        private_key_content = self._get_field(extra_dict, "private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_file_path = Path(private_key_file)
-            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
-                raise ValueError("The private_key_file path points to an empty or invalid file.")
-            if private_key_file_path.stat().st_size > 4096:
-                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
-            private_key_pem = Path(private_key_file_path).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            p_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
-
+        if p_key:
             pkb = p_key.private_bytes(
                 encoding=serialization.Encoding.DER,
                 format=serialization.PrivateFormat.PKCS8,
@@ -516,14 +498,12 @@ class SnowflakeHook(DbApiHook):
         if scope:
             data["scope"] = scope
 
+        grant_type = self._validate_grant_type(grant_type)
+
         if grant_type == "refresh_token":
             data |= {
                 "refresh_token": conn_config["refresh_token"],
             }
-        elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
-        else:
-            raise ValueError(f"Unknown grant_type: {grant_type}")
 
         response = self._request_oauth_token(
             url=url,
@@ -577,12 +557,63 @@ class SnowflakeHook(DbApiHook):
         response.raise_for_status()
         return response
 
+    def get_private_key(self) -> PrivateKeyTypes | None:
+        """Get the private key from snowflake connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra_dict = conn.extra_dejson
+
+        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
+        # If private_key_content is specified in the extra json, use it as a private key.
+        # As a next step, specify this private key in the connection configuration.
+        # The connection password then becomes the passphrase for the private key.
+        # If your private key is not encrypted (not recommended), then leave the password empty.
+
+        private_key_file = self._get_field(extra_dict, "private_key_file")
+        private_key_content = self._get_field(extra_dict, "private_key_content")
+
+        passphrase = None
+        if conn.password:
+            passphrase = conn.password.strip().encode()
+
+        private_key_pem = None
+        p_key = None
+
+        if private_key_content and private_key_file:
+            raise AirflowException(
+                "The private_key_file and private_key_content extra fields are mutually exclusive. "
+                "Please remove one."
+            )
+        if private_key_file:
+            private_key_file_path = Path(private_key_file)
+            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
+                raise ValueError("The private_key_file path points to an empty or invalid file.")
+            if private_key_file_path.stat().st_size > 4096:
+                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
+            private_key_pem = Path(private_key_file_path).read_bytes()
+        elif private_key_content:
+            try:
+                p_key = serialization.load_pem_private_key(
+                    private_key_content.encode(), password=passphrase, backend=default_backend()
+                )
+            except (TypeError, ValueError):
+                # Assume base64 encoding if string is not valid private key
+                private_key_pem = base64.b64decode(private_key_content)
+
+        if private_key_pem:
+            p_key = serialization.load_pem_private_key(
+                private_key_pem, password=passphrase, backend=default_backend()
+            )
+
+        return p_key
+
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
+        from snowflake.sqlalchemy import URL
+
         return URL(
             **{
                 k: v
@@ -607,8 +638,10 @@ class SnowflakeHook(DbApiHook):
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
+        from snowflake.connector import connect
+
         conn_config = self._get_conn_params()
-        conn = connector.connect(**conn_config)
+        conn = connect(**conn_config)
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -722,6 +755,8 @@ class SnowflakeHook(DbApiHook):
         :return: Result of the last SQL statement if *handler* is set.
             *None* otherwise.
         """
+        from snowflake.connector import util_text
+
         self.query_ids = []
 
         if isinstance(sql, str):
@@ -776,6 +811,8 @@ class SnowflakeHook(DbApiHook):
 
     @contextmanager
     def _get_cursor(self, conn: Any, return_dictionaries: bool):
+        from snowflake.connector import DictCursor
+
         cursor = None
         try:
             if return_dictionaries:

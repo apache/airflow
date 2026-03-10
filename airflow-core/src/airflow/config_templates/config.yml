@@ -1480,7 +1480,9 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization and ``globalCss``.
+        Supports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``
+        (for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be
+        either absolute http(s) URLs or app-relative paths starting with ``/``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
 
@@ -2310,6 +2312,14 @@ scheduler:
       type: integer
       example: ~
       default: "-1"
+    only_idle:
+      description: |
+        Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
+        toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "false"
     scheduler_idle_sleep_time:
       description: |
         Controls how long the scheduler will sleep between loops, but if there was nothing to do

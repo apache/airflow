@@ -60,7 +60,11 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+from airflow.providers.openlineage.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    get_base_airflow_version_tuple,
+)
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
 try:
@@ -749,6 +753,7 @@ class DagRunInfo(InfoJsonEncodable):
     ]
 
     casts = {
+        "note": lambda dagrun: getattr(dagrun, "note", None) if AIRFLOW_V_3_2_PLUS else None,
         "duration": lambda dagrun: DagRunInfo.duration(dagrun),
         "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
@@ -837,6 +842,7 @@ class TaskInfo(InfoJsonEncodable):
         # Operator-specific useful attributes
         "trigger_dag_id",  # TriggerDagRunOperator
         "trigger_run_id",  # TriggerDagRunOperator
+        "note",  # TriggerDagRunOperator
         "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_ids",  # ExternalTaskSensor
