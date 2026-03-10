@@ -50,3 +50,4 @@ export type UiServiceUpdateWorkerMaintenanceMutationResult = Awaited<ReturnType<
 export type UiServiceExitWorkerMaintenanceMutationResult = Awaited<ReturnType<typeof UiService.exitWorkerMaintenance>>;
 export type UiServiceDeleteWorkerMutationResult = Awaited<ReturnType<typeof UiService.deleteWorker>>;
 export type UiServiceRemoveWorkerQueueMutationResult = Awaited<ReturnType<typeof UiService.removeWorkerQueue>>;
+export type UiServiceSetWorkerConcurrencyLimitMutationResult = Awaited<ReturnType<typeof UiService.setWorkerConcurrencyLimit>>;

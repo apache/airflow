@@ -22,6 +22,7 @@ import copy
 import json
 import logging
 import os
+import shutil
 from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
@@ -166,10 +167,27 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         self.handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
-        # No-op, as we upload via the processor as we go
-        # But we need to give the handler time to finish off its business
+        """Upload the given log path to the remote storage."""
+        # No batch upload — logs stream in real-time. Flush pending events and clean up.
         self.close()
-        return
+        if self.delete_local_copy:
+            base = self.base_log_folder.resolve()
+            raw = Path(path)
+            local_path = (raw if raw.is_absolute() else base / raw).resolve()
+            try:
+                local_path.relative_to(base)
+            except ValueError:
+                self.log.warning(
+                    "Skipping deletion: path %s is outside base_log_folder %s",
+                    local_path,
+                    base,
+                )
+                return
+            parent = local_path.parent
+            if parent.exists():
+                shutil.rmtree(parent, ignore_errors=True)
+                if parent.exists():
+                    self.log.warning("Failed to delete local log dir: %s", parent)
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
@@ -261,10 +279,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_group = split_arn[6]
         self.region_name = split_arn[3]
         self.closed = False
+        self.log_relative_path: str = ""
 
         self.io = CloudWatchRemoteLogIO(
             base_log_folder=base_log_folder,
             log_group_arn=log_group_arn,
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
         )
 
     @cached_property
@@ -281,8 +301,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None):
         super().set_context(ti)
         self.io.log_stream_name = self._render_filename(ti, ti.try_number)
-
         self.handler = self.io.handler
+        self.ti = ti
+        self.log_relative_path = self.io.log_stream_name
 
     def close(self):
         """Close the handler responsible for the upload of the local log file to Cloudwatch."""
@@ -295,6 +316,11 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
         if self.handler is not None:
             self.handler.close()
+        if hasattr(self, "ti"):
+            try:
+                self.io.upload(self.log_relative_path, self.ti)
+            except Exception:
+                self.log.exception("Failed to delete local log after streaming to CloudWatch")
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
