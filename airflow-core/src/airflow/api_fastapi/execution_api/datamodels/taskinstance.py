@@ -384,6 +384,15 @@ class TIRunContext(BaseModel):
     should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
 
+    start_date: UtcDateTime | None = None
+    """
+    The original start date of the task instance.
+
+    When resuming from deferral, this is set to the task's original ``start_date`` so the
+    supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
+    always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
