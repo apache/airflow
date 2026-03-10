@@ -228,3 +228,97 @@ class TestDatasetManager:
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
         assert dataset_listener.created[0].uri == dsm.uri
+
+    @pytest.mark.skip_if_database_isolation_mode
+    def test_slow_path_queue_dagruns_updates_timestamp(self, session):
+        """
+        On non-Postgres backends, _slow_path_queue_dagruns should update created_at
+        when a DatasetDagRunQueue record already exists for the same (dataset_id, target_dag_id).
+        """
+        from datetime import timedelta
+
+        from airflow.utils import timezone
+
+        dsem = DatasetManager()
+        ds = DatasetModel(uri="test_slow_path_update_ts")
+        dag = DagModel(dag_id="test_slow_path_dag", is_active=True)
+        session.add_all([ds, dag])
+        session.flush()
+
+        old_ts = timezone.utcnow() - timedelta(days=1)
+        session.add(DatasetDagRunQueue(dataset_id=ds.id, target_dag_id=dag.dag_id, created_at=old_ts))
+        session.commit()
+
+        before_update = timezone.utcnow()
+        dsem._slow_path_queue_dagruns(dataset_id=ds.id, dags_to_queue={dag}, session=session)
+        session.commit()
+
+        updated = (
+            session.query(DatasetDagRunQueue)
+            .filter_by(dataset_id=ds.id, target_dag_id=dag.dag_id)
+            .one()
+        )
+        assert updated.created_at >= before_update
+
+    @pytest.mark.skip_if_database_isolation_mode
+    @pytest.mark.backend("postgres")
+    def test_postgres_queue_dagruns_updates_timestamp(self, session):
+        """
+        On PostgreSQL, _postgres_queue_dagruns should update created_at via ON CONFLICT DO UPDATE
+        when a DatasetDagRunQueue record already exists for the same (dataset_id, target_dag_id).
+        """
+        from datetime import timedelta
+
+        from airflow.utils import timezone
+
+        dsem = DatasetManager()
+        ds = DatasetModel(uri="test_postgres_update_ts")
+        dag = DagModel(dag_id="test_postgres_dag", is_active=True)
+        session.add_all([ds, dag])
+        session.flush()
+
+        old_ts = timezone.utcnow() - timedelta(days=1)
+        session.add(DatasetDagRunQueue(dataset_id=ds.id, target_dag_id=dag.dag_id, created_at=old_ts))
+        session.commit()
+
+        before_update = timezone.utcnow()
+        dsem._postgres_queue_dagruns(dataset_id=ds.id, dags_to_queue={dag}, session=session)
+        session.commit()
+
+        updated = (
+            session.query(DatasetDagRunQueue)
+            .filter_by(dataset_id=ds.id, target_dag_id=dag.dag_id)
+            .one()
+        )
+        assert updated.created_at >= before_update
+
+    @pytest.mark.skip_if_database_isolation_mode
+    @pytest.mark.backend("postgres")
+    def test_postgres_queue_dagruns_where_guard_prevents_backwards_drift(self, session):
+        """
+        The WHERE guard on the Postgres upsert should prevent a slower transaction
+        from overwriting a newer created_at with an older one.
+        """
+        from datetime import timedelta
+
+        from airflow.utils import timezone
+
+        dsem = DatasetManager()
+        ds = DatasetModel(uri="test_postgres_where_guard")
+        dag = DagModel(dag_id="test_pg_guard_dag", is_active=True)
+        session.add_all([ds, dag])
+        session.flush()
+
+        newer_ts = timezone.utcnow()
+        session.add(DatasetDagRunQueue(dataset_id=ds.id, target_dag_id=dag.dag_id, created_at=newer_ts))
+        session.commit()
+
+        dsem._postgres_queue_dagruns(dataset_id=ds.id, dags_to_queue={dag}, session=session)
+        session.commit()
+
+        updated = (
+            session.query(DatasetDagRunQueue)
+            .filter_by(dataset_id=ds.id, target_dag_id=dag.dag_id)
+            .one()
+        )
+        assert updated.created_at >= newer_ts
