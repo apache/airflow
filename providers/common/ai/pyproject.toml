@@ -72,6 +72,7 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+"adk" = ["google-adk>=1.18.0"]
 "sql" = [
     "apache-airflow-providers-common-sql",
     "sqlglot>=26.0.0",

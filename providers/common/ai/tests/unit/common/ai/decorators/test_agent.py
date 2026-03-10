@@ -41,7 +41,7 @@ class TestAgentDecoratedOperator:
     def test_custom_operator_name(self):
         assert _AgentDecoratedOperator.custom_operator_name == "@task.agent"
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_execute_calls_callable_and_returns_output(self, mock_hook_cls):
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
@@ -73,7 +73,7 @@ class TestAgentDecoratedOperator:
         with pytest.raises(TypeError, match="non-empty string"):
             op.execute(context={})
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
@@ -94,7 +94,7 @@ class TestAgentDecoratedOperator:
         assert op.prompt == "Analyze revenue trends"
         mock_agent.run_sync.assert_called_once_with("Analyze revenue trends")
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_through(self, mock_hook_cls):
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
@@ -117,7 +117,7 @@ class TestAgentDecoratedOperator:
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
         """BaseModel output is serialized with model_dump."""
 
@@ -137,3 +137,57 @@ class TestAgentDecoratedOperator:
         result = op.execute(context={})
 
         assert result == {"text": "Great results"}
+
+
+class TestAgentDecoratedOperatorADK:
+    @patch("airflow.providers.common.ai.hooks.adk.AdkHook", autospec=True)
+    def test_execute_adk_calls_callable_and_returns_output(self, mock_hook_cls):
+        """ADK backend: callable's return value becomes the agent prompt."""
+        mock_hook_cls.return_value.run_agent_sync.return_value = "ADK result"
+
+        def my_prompt():
+            return "Who is our top customer?"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=my_prompt,
+            agent_framework="adk",
+            model_id="gemini-2.5-flash",
+        )
+        result = op.execute(context={})
+
+        assert result == "ADK result"
+        assert op.prompt == "Who is our top customer?"
+        mock_hook_cls.return_value.run_agent_sync.assert_called_once()
+
+    @patch("airflow.providers.common.ai.hooks.adk.AdkHook", autospec=True)
+    def test_execute_adk_passes_tools(self, mock_hook_cls):
+        """ADK backend: tools are forwarded to create_agent."""
+        mock_hook_cls.return_value.run_agent_sync.return_value = "done"
+
+        def my_tool():
+            """A test tool."""
+            pass
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Do something",
+            agent_framework="adk",
+            model_id="gemini-2.5-flash",
+            tools=[my_tool],
+        )
+        op.execute(context={})
+
+        create_call = mock_hook_cls.return_value.create_agent.call_args
+        assert create_call[1]["tools"] == [my_tool]
+
+    def test_execute_adk_raises_on_invalid_prompt(self):
+        """TypeError when the callable returns a non-string for ADK backend."""
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: 42,
+            agent_framework="adk",
+            model_id="gemini-2.5-flash",
+        )
+        with pytest.raises(TypeError, match="non-empty string"):
+            op.execute(context={})

@@ -44,6 +44,9 @@ integrations:
   - integration-name: MCP Server
     external-doc-url: https://modelcontextprotocol.io/
     tags: [ai]
+  - integration-name: Google ADK
+    external-doc-url: https://google.github.io/adk-docs/
+    tags: [ai]
 
 hooks:
   - integration-name: Pydantic AI
@@ -52,6 +55,9 @@ hooks:
   - integration-name: MCP Server
     python-modules:
       - airflow.providers.common.ai.hooks.mcp
+  - integration-name: Google ADK
+    python-modules:
+      - airflow.providers.common.ai.hooks.adk
 
 connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
@@ -102,6 +108,25 @@ connection-types:
       args:
         label: Arguments
         description: "JSON array of arguments for stdio command (e.g. [\"mcp-run-python\"])"
+        schema:
+          type:
+            - string
+            - 'null'
+  - hook-class-name: airflow.providers.common.ai.hooks.adk.AdkHook
+    connection-type: adk
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+      relabeling:
+        password: API Key
+      placeholders:
+        host: "(optional — for custom/proxy endpoints)"
+    conn-fields:
+      model:
+        label: Model
+        description: "Model identifier (e.g. gemini-2.5-flash)"
         schema:
           type:
             - string

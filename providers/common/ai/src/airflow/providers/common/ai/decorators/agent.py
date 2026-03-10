@@ -20,6 +20,9 @@ TaskFlow decorator for agentic LLM workflows.
 The user writes a function that **returns the prompt string**. The decorator
 handles hook creation, agent configuration with toolsets, multi-turn reasoning,
 and output serialization.
+
+Supports both **pydantic-ai** (default) and **Google ADK** backends via the
+``agent_framework`` parameter.
 """
 
 from __future__ import annotations
@@ -104,12 +107,23 @@ def agent_task(
     The decorator handles hook creation, agent configuration with toolsets,
     multi-turn reasoning, and output serialization.
 
-    Usage::
+    Usage (pydantic-ai, default)::
 
         @task.agent(
             llm_conn_id="pydantic_ai_default",
             system_prompt="You are a data analyst.",
             toolsets=[SQLToolset(db_conn_id="postgres_default")],
+        )
+        def analyze(question: str):
+            return f"Answer: {question}"
+
+    Usage (Google ADK)::
+
+        @task.agent(
+            agent_framework="adk",
+            model_id="gemini-2.5-flash",
+            system_prompt="You are a data analyst.",
+            tools=[get_weather],
         )
         def analyze(question: str):
             return f"Answer: {question}"

@@ -49,6 +49,11 @@ def get_provider_info():
                 "external-doc-url": "https://modelcontextprotocol.io/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "Google ADK",
+                "external-doc-url": "https://google.github.io/adk-docs/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -56,6 +61,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+            {
+                "integration-name": "Google ADK",
+                "python-modules": ["airflow.providers.common.ai.hooks.adk"],
+            },
         ],
         "connection-types": [
             {
@@ -98,6 +107,22 @@ def get_provider_info():
                         "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
                         "schema": {"type": ["string", "null"]},
                     },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.adk.AdkHook",
+                "connection-type": "adk",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {"host": "(optional — for custom/proxy endpoints)"},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Model identifier (e.g. gemini-2.5-flash)",
+                        "schema": {"type": ["string", "null"]},
+                    }
                 },
             },
         ],
