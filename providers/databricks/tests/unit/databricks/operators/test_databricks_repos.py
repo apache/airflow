@@ -210,6 +210,68 @@ class TestDatabricksReposCreateOperator:
         db_mock.get_repo_by_path.assert_called_once_with(repo_path)
         db_mock.update_repo.assert_called_once_with("123", {"branch": "releases"})
 
+    @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
+    def test_create_conflict_recovered_when_ignore_flag_set(self, db_mock_class):
+        """
+        Test that create-time conflict is recovered when ignore_existing_repo=True.
+        """
+        git_url = "https://github.com/test/test"
+        repo_path = "/Repos/Project1/test-repo"
+
+        op = DatabricksReposCreateOperator(
+            task_id=TASK_ID,
+            git_url=git_url,
+            repo_path=repo_path,
+            ignore_existing_repo=True,
+        )
+
+        db_mock = db_mock_class.return_value
+
+        # After first existence check, repo is not found.
+        # After second existence check, repo exists (created concurrently).
+        db_mock.get_repo_by_path.side_effect = [None, "123"]
+
+        db_mock.create_repo.side_effect = Exception("Conflict")
+
+        result = op.execute(None)
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            caller="DatabricksReposCreateOperator",
+        )
+
+        db_mock.create_repo.assert_called_once_with({"url": git_url, "provider": "gitHub", "path": repo_path})
+
+        assert result == "123"
+
+    @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
+    def test_create_conflict_not_recovered_when_repo_still_missing(self, db_mock_class):
+        """
+        Test that create failure is re-raised if repo does not exist after failure.
+        """
+        git_url = "https://github.com/test/test"
+        repo_path = "/Repos/Project1/test-repo"
+
+        op = DatabricksReposCreateOperator(
+            task_id=TASK_ID,
+            git_url=git_url,
+            repo_path=repo_path,
+            ignore_existing_repo=True,
+        )
+
+        db_mock = db_mock_class.return_value
+
+        # Repo not found before or after create failure.
+        db_mock.get_repo_by_path.side_effect = [None, None]
+        db_mock.create_repo.side_effect = Exception("Create failure")
+
+        with pytest.raises(Exception, match="Create failure"):
+            op.execute(None)
+
+        db_mock.create_repo.assert_called_once()
+
     def test_init_exception(self):
         """
         Tests handling of incorrect parameters passed to ``__init__``
