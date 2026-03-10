@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import inspect
 import json
 import logging
@@ -39,7 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier
-from packaging.version import InvalidVersion
+from packaging.version import InvalidVersion, Version
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -47,7 +48,14 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    BaseBranchOperator,
+    KeywordParameters,
+    SkipMixin,
+    context_merge,
+)
 from airflow.providers.common.compat.standard.operators import (
     BaseAsyncOperator,
     is_async_callable,
@@ -61,15 +69,6 @@ from airflow.providers.standard.utils.python_virtualenv import (
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.branch import BaseBranchOperator
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
-else:
-    from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
-
 
 log = logging.getLogger(__name__)
 
@@ -623,6 +622,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
+                **self._get_additional_jinja_context(),
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
@@ -679,11 +679,56 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             return self._read_result(output_path)
 
+    def _get_additional_jinja_context(self) -> dict:
+        """Return additional Jinja context variables for the virtualenv script template."""
+        return {}
+
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         keyword_params = KeywordParameters.determine(self.python_callable, self.op_args, context)
         if AIRFLOW_V_3_0_PLUS:
             return keyword_params.unpacking()
         return keyword_params.serializing()  # type: ignore[attr-defined]
+
+
+def _pendulum_to_native_datetime(obj):
+    """
+    Recursively convert pendulum DateTime objects to native Python datetime.
+
+    When the virtualenv has a different major version of pendulum than the host,
+    pendulum's internal pickle representations are incompatible. This function
+    converts pendulum DateTime objects to stdlib datetime.datetime with
+    zoneinfo.ZoneInfo timezone info, which can be serialized and deserialized
+    without pendulum.
+    """
+    import pendulum
+
+    if isinstance(obj, pendulum.DateTime):
+        tz = None
+        if obj.timezone_name:
+            from zoneinfo import ZoneInfo
+
+            try:
+                tz = ZoneInfo(obj.timezone_name)
+            except KeyError:
+                # Fall back to fixed UTC offset if the timezone name is not recognized
+                utc_offset = obj.utcoffset()
+                tz = dt.timezone(utc_offset) if utc_offset is not None else None
+        return dt.datetime(
+            obj.year,
+            obj.month,
+            obj.day,
+            obj.hour,
+            obj.minute,
+            obj.second,
+            obj.microsecond,
+            tzinfo=tz,
+        )
+    if isinstance(obj, dict):
+        return {k: _pendulum_to_native_datetime(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        converted = [_pendulum_to_native_datetime(v) for v in obj]
+        return type(obj)(converted)
+    return obj
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
@@ -982,6 +1027,52 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             result = self._execute_python_callable_in_subprocess(python_path)
             self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
+
+    def _is_pendulum_version_mismatch(self) -> bool:
+        """
+        Check if the virtualenv pendulum version will differ in major version from the host.
+
+        Compares the host's installed pendulum major version against the version specifier in the requirements.
+        """
+        from importlib.metadata import version as metadata_version
+
+        host_major = Version(metadata_version("pendulum")).major
+
+        for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
+            line = raw_str.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            # strip inline comments from a requirement line
+            req_str = re.sub(r"#.*$", "", line).strip()
+
+            try:
+                req = Requirement(req_str)
+            except (InvalidRequirement, InvalidSpecifier, InvalidVersion):
+                continue
+
+            if req.name == "pendulum" and req.specifier:
+                lower_bound = Version(f"{host_major}.0.0")
+                upper_bound = Version(f"{host_major}.999.999")
+                host_major_allowed = req.specifier.contains(lower_bound) or req.specifier.contains(
+                    upper_bound
+                )
+                return not host_major_allowed
+
+        return False
+
+    def _write_args(self, file: Path):
+        if self._is_pendulum_version_mismatch():
+            self.log.info(
+                "pendulum version mismatch detected between host and virtualenv; "
+                "converting pendulum objects to native Python datetime for serialization."
+            )
+            self.op_args = _pendulum_to_native_datetime(self.op_args)
+            self.op_kwargs = _pendulum_to_native_datetime(self.op_kwargs)
+        super()._write_args(file)
+
+    def _get_additional_jinja_context(self) -> dict:
+        return {"pendulum_version_mismatch": self._is_pendulum_version_mismatch()}
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS

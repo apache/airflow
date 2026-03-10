@@ -13,7 +13,7 @@
 /chart/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
 
 # Docs
-/docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 
 # API
 /airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
@@ -61,8 +61,10 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
 
-# Calendar/Timetables
-/airflow-core/src/airflow/timetables/ @uranusjr
+# Calendar/Timetables/Assets/Partitions
+/airflow-core/src/airflow/assets @uranusjr @Lee-W
+/airflow-core/src/airflow/partition_mappers @dstandish @Lee-W
+/airflow-core/src/airflow/timetables/ @uranusjr @Lee-W
 /docs/apache-airflow/concepts/timetable.rst @uranusjr
 
 # Task expansion, scheduling, and rendering
@@ -102,25 +104,35 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/snowflake/ @potiuk
 
 
+# Generated metadata
+/generated/provider_metadata.json @potiuk @eladkal @shahar1 @vincbeck @jscheffl
+
+# Provider Registry
+/registry/ @kaxil
+/dev/registry/ @kaxil
+/dev/breeze/src/airflow_breeze/commands/registry_commands*.py @kaxil
+/dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py @kaxil
+/dev/breeze/tests/test_publish_registry_versions.py @kaxil
+
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
-/dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496 @jedcunningham @ephraimbuddy
+/dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496 @jedcunningham @ephraimbuddy @choo121600
 /dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
-/scripts/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
-Dockerfile @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
-Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/scripts/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
+Dockerfile @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
+Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 
 # E2E integration tests
-/airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 
 # Task SDK integration tests
 /task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @kaxil @jason810496
 
 # airflowctl integration tests
-/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @kaxil @jason810496
+/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @jason810496
 
 # Issue triage process
 # ISSUE_TRIAGE_PROCESS.rst
@@ -145,10 +157,17 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 /task-sdk/ @ashb @kaxil @amoghrajesh
 
 # Golang SDK
-/go-sdk/ @ashb @kaxil @amoghrajesh
+/go-sdk/ @ashb @amoghrajesh
 
 # Shared Libraries
 /shared/ @ashb @amoghrajesh @potiuk
+
+# Agentic instructions
+/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

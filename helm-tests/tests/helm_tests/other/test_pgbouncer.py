@@ -869,97 +869,88 @@ class TestPgbouncerNetworkPolicy:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer-policy"
 
     @pytest.mark.parametrize(
-        ("conf", "expected_selector"),
+        "values",
         [
-            # test with workers.keda enabled without namespace labels
-            (
-                {"executor": "CeleryExecutor", "workers": {"keda": {"enabled": True}}},
-                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
-            ),
-            # test with triggerer.keda enabled without namespace labels
-            (
-                {"triggerer": {"keda": {"enabled": True}}},
-                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
-            ),
-            # test with workers.keda and triggerer.keda both enabled without namespace labels
-            (
-                {
-                    "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True}},
-                    "triggerer": {"keda": {"enabled": True}},
-                },
-                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
-            ),
-            # test with workers.keda enabled with namespace labels
-            (
-                {
-                    "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                },
-                [
-                    {
-                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
-                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
-                    }
-                ],
-            ),
-            # test with triggerer.keda enabled with namespace labels
-            (
-                {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
-                [
-                    {
-                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
-                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
-                    }
-                ],
-            ),
-            # test with workers.keda and triggerer.keda both enabled with namespace labels
-            (
-                {
-                    "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                },
-                [
-                    {
-                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
-                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
-                    }
-                ],
-            ),
-            # test with workers.keda and triggerer.keda both enabled workers with namespace labels
-            # and triggerer without namespace labels
-            (
-                {
-                    "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                    "triggerer": {"keda": {"enabled": True}},
-                },
-                [
-                    {
-                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
-                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
-                    }
-                ],
-            ),
-            # test with workers.keda and triggerer.keda both enabled workers without namespace labels
-            # and triggerer with namespace labels
-            (
-                {
-                    "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True}},
-                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                },
-                [
-                    {
-                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
-                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
-                    }
-                ],
-            ),
+            {"executor": "CeleryExecutor", "workers": {"keda": {"enabled": True}}},
+            {"triggerer": {"keda": {"enabled": True}}},
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"keda": {"enabled": True}},
+                "triggerer": {"keda": {"enabled": True}},
+            },
         ],
     )
-    def test_pgbouncer_network_policy_with_keda(self, conf, expected_selector):
+    def test_pod_selectors_with_keda_without_namespace_labels(self, values):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                **values,
+            },
+            show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
+        )
+
+        assert jmespath.search("spec.ingress[0].from[1:]", docs[0]) == [
+            {"podSelector": {"matchLabels": {"app": "keda-operator"}}}
+        ]
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
+            # test with workers.keda/workers.celery.keda enabled with namespace labels
+            {
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"namespaceLabels": {"app": "airflow"}},
+                    "celery": {"keda": {"enabled": True}},
+                },
+            },
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+            },
+            {
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"namespaceLabels": {"airflow": "app"}},
+                    "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+            },
+            # test with triggerer.keda enabled with namespace labels
+            {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+            # test with workers.keda/workers.celery.keda and triggerer.keda both enabled with namespace labels
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+            },
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+            },
+            # test with workers.keda/workers.celery.keda and triggerer.keda both enabled workers
+            # with namespace labels and triggerer without namespace labels
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                "triggerer": {"keda": {"enabled": True}},
+            },
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                "triggerer": {"keda": {"enabled": True}},
+            },
+            # test with workers.celery.keda and triggerer.keda both enabled workers without namespace labels
+            # and triggerer with namespace labels
+            {
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"keda": {"enabled": True}}},
+                "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+            },
+        ],
+    )
+    def test_pod_selectors_with_namespace_labels(self, conf):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
@@ -969,7 +960,12 @@ class TestPgbouncerNetworkPolicy:
             show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
         )
 
-        assert expected_selector == jmespath.search("spec.ingress[0].from[1:]", docs[0])
+        assert jmespath.search("spec.ingress[0].from[1:]", docs[0]) == [
+            {
+                "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                "podSelector": {"matchLabels": {"app": "keda-operator"}},
+            }
+        ]
 
 
 class TestPgbouncerIngress:

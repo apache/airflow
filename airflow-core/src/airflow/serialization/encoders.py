@@ -28,6 +28,7 @@ import pendulum
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
+    AllowedKeyMapper,
     Asset,
     AssetAlias,
     AssetAll,
@@ -43,6 +44,7 @@ from airflow.sdk import (
     MonthlyMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
+    ProductMapper,
     QuarterlyMapper,
     WeeklyMapper,
     YearlyMapper,
@@ -373,6 +375,8 @@ class _Serializer:
         MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
         QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
         YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
     }
 
     @functools.singledispatchmethod
@@ -406,6 +410,17 @@ class _Serializer:
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
+        return {
+            "delimiter": partition_mapper.delimiter,
+            "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
+        }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:
+        return {"allowed_keys": partition_mapper.allowed_keys}
 
 
 _serializer = _Serializer()

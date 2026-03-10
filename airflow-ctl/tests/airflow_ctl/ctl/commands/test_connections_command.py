@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import (
+    BulkActionOnExistence,
     BulkActionResponse,
     BulkResponse,
+    ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
 )
@@ -125,3 +129,96 @@ class TestCliConnectionCommands:
                 self.parser.parse_args(["connections", "import", expected_json_path.as_posix()]),
                 api_client=api_client,
             )
+
+    def test_import_without_extra_field(self, api_client_maker, tmp_path, monkeypatch):
+        """Import succeeds when JSON omits the ``extra`` field (#62653).
+
+        Before the fix, ``v.get("extra", {})`` returned ``{}`` (a dict) when
+        the key was absent, but ``ConnectionBody.extra`` expects ``str | None``,
+        causing a Pydantic ``ValidationError``.
+        """
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        # Intentionally omit "extra" (and several other optional keys) to
+        # mirror a minimal real-world connection JSON export.
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+            }
+        }
+
+        json_path.write_text(json.dumps(connection_file))
+
+        with patch(
+            "airflowctl.ctl.commands.connection_command.ConnectionBody",
+            wraps=ConnectionBody,
+        ) as mock_body:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+        # Verify that ``extra`` was passed as None (not {} which would fail
+        # Pydantic validation) and all other absent keys default correctly.
+        mock_body.assert_called_once_with(
+            connection_id=self.connection_id,
+            conn_type="test_type",
+            host="test_host",
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+            description="",
+        )
+
+    @pytest.mark.parametrize(
+        ("action_on_existing_key", "expected_enum"),
+        [
+            ("overwrite", BulkActionOnExistence.OVERWRITE),
+            ("skip", BulkActionOnExistence.SKIP),
+            ("fail", BulkActionOnExistence.FAIL),
+        ],
+    )
+    def test_import_action_on_existing_key(self, tmp_path, action_on_existing_key, expected_enum):
+        expected_json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+                "extra": "{}",
+                "connection_id": self.connection_id,
+            }
+        }
+        expected_json_path.write_text(json.dumps(connection_file))
+
+        mock_client = mock.MagicMock(spec=Client)
+        mock_response = mock.MagicMock()
+        mock_response.create.success = [self.connection_id]
+        mock_response.create.errors = []
+        mock_client.connections.bulk.return_value = mock_response
+
+        connection_command.import_(
+            self.parser.parse_args(
+                [
+                    "connections",
+                    "import",
+                    expected_json_path.as_posix(),
+                    "--action-on-existing-key",
+                    action_on_existing_key,
+                ]
+            ),
+            api_client=mock_client,
+        )
+
+        mock_client.connections.bulk.assert_called_once()
+        bulk_body = mock_client.connections.bulk.call_args[0][0]
+        action = bulk_body.actions[0]
+        assert action.action_on_existence == expected_enum
