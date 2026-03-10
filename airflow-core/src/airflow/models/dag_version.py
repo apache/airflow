@@ -148,6 +148,7 @@ class DagVersion(Base):
         bundle_version: str | None = None,
         load_dag_model: bool = False,
         load_bundle_model: bool = False,
+        load_serialized_dag: bool = False,
     ) -> Select:
         """
         Get the select object to get the latest version of the DAG.
@@ -165,6 +166,9 @@ class DagVersion(Base):
         if load_bundle_model:
             query = query.options(joinedload(cls.bundle))
 
+        if load_serialized_dag:
+            query = query.options(joinedload(cls.serialized_dag))
+
         query = query.order_by(cls.created_at.desc()).limit(1)
         return query
 
@@ -177,6 +181,7 @@ class DagVersion(Base):
         bundle_version: str | None = None,
         load_dag_model: bool = False,
         load_bundle_model: bool = False,
+        load_serialized_dag: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -186,6 +191,7 @@ class DagVersion(Base):
         :param session: The database session.
         :param load_dag_model: Whether to load the DAG model.
         :param load_bundle_model: Whether to load the DagBundle model.
+        :param load_serialized_dag: Whether to eagerly load the serialized DAG.
         :return: The latest version of the DAG or None if not found.
         """
         return session.scalar(
@@ -194,6 +200,7 @@ class DagVersion(Base):
                 bundle_version=bundle_version,
                 load_dag_model=load_dag_model,
                 load_bundle_model=load_bundle_model,
+                load_serialized_dag=load_serialized_dag,
             )
         )
 
