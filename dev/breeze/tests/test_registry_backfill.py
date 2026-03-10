@@ -19,16 +19,16 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow_breeze.commands.registry_commands import (
     _build_pip_spec,
-    _ensure_providers_json,
+    _create_isolated_providers_json,
     _find_provider_yaml,
-    _patch_providers_json,
     _read_provider_yaml_info,
+    _run_extract_script,
 )
 
 
@@ -109,81 +109,98 @@ class TestBuildPipSpec:
 
 
 # ---------------------------------------------------------------------------
-# _ensure_providers_json
+# _create_isolated_providers_json
 # ---------------------------------------------------------------------------
-class TestEnsureProvidersJson:
-    def test_creates_new_file(self, tmp_path):
-        providers_json = tmp_path / "dev" / "registry" / "providers.json"
-        with patch(
-            "airflow_breeze.commands.registry_commands.PROVIDERS_JSON_PATH",
-            providers_json,
-        ):
-            result = _ensure_providers_json("amazon", "apache-airflow-providers-amazon")
+class TestCreateIsolatedProvidersJson:
+    def test_creates_file_with_correct_content(self, tmp_path):
+        result = _create_isolated_providers_json(
+            "amazon", "apache-airflow-providers-amazon", "9.15.0", tmp_path
+        )
 
-        assert result == providers_json
-        data = json.loads(providers_json.read_text())
+        assert result.exists()
+        data = json.loads(result.read_text())
         assert len(data["providers"]) == 1
         assert data["providers"][0]["id"] == "amazon"
         assert data["providers"][0]["package_name"] == "apache-airflow-providers-amazon"
-
-    def test_appends_to_existing_file(self, tmp_path):
-        providers_json = tmp_path / "providers.json"
-        providers_json.write_text(
-            json.dumps({"providers": [{"id": "google", "package_name": "pkg-google", "version": "1.0.0"}]})
-        )
-        with patch(
-            "airflow_breeze.commands.registry_commands.PROVIDERS_JSON_PATH",
-            providers_json,
-        ):
-            _ensure_providers_json("amazon", "apache-airflow-providers-amazon")
-
-        data = json.loads(providers_json.read_text())
-        assert len(data["providers"]) == 2
-        ids = [p["id"] for p in data["providers"]]
-        assert "google" in ids
-        assert "amazon" in ids
-
-    def test_skips_if_provider_already_present(self, tmp_path):
-        providers_json = tmp_path / "providers.json"
-        original = {"providers": [{"id": "amazon", "package_name": "pkg", "version": "1.0.0"}]}
-        providers_json.write_text(json.dumps(original))
-        with patch(
-            "airflow_breeze.commands.registry_commands.PROVIDERS_JSON_PATH",
-            providers_json,
-        ):
-            _ensure_providers_json("amazon", "pkg")
-
-        # File should be unchanged
-        data = json.loads(providers_json.read_text())
-        assert len(data["providers"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# _patch_providers_json
-# ---------------------------------------------------------------------------
-class TestPatchProvidersJson:
-    def test_patches_version(self, tmp_path):
-        providers_json = tmp_path / "providers.json"
-        providers_json.write_text(json.dumps({"providers": [{"id": "amazon", "version": "9.22.0"}]}))
-        original = _patch_providers_json(providers_json, "amazon", "9.15.0")
-        assert original == "9.22.0"
-
-        data = json.loads(providers_json.read_text())
         assert data["providers"][0]["version"] == "9.15.0"
 
-    def test_raises_for_missing_provider(self, tmp_path):
-        providers_json = tmp_path / "providers.json"
-        providers_json.write_text(json.dumps({"providers": [{"id": "google", "version": "1.0.0"}]}))
-        with pytest.raises(Exception, match="not found"):
-            _patch_providers_json(providers_json, "amazon", "9.15.0")
+    def test_filename_includes_provider_and_version(self, tmp_path):
+        result = _create_isolated_providers_json("google", "pkg", "14.0.0", tmp_path)
+        assert result.name == "providers-google-14.0.0.json"
 
-    def test_restores_original_version(self, tmp_path):
-        providers_json = tmp_path / "providers.json"
-        providers_json.write_text(json.dumps({"providers": [{"id": "amazon", "version": "9.22.0"}]}))
-        # Patch to target version
-        _patch_providers_json(providers_json, "amazon", "9.15.0")
-        # Restore
-        _patch_providers_json(providers_json, "amazon", "9.22.0")
+    def test_different_versions_produce_different_files(self, tmp_path):
+        f1 = _create_isolated_providers_json("amazon", "pkg", "9.15.0", tmp_path)
+        f2 = _create_isolated_providers_json("amazon", "pkg", "9.14.0", tmp_path)
+        assert f1 != f2
+        assert f1.exists()
+        assert f2.exists()
 
-        data = json.loads(providers_json.read_text())
-        assert data["providers"][0]["version"] == "9.22.0"
+
+# ---------------------------------------------------------------------------
+# _run_extract_script
+# ---------------------------------------------------------------------------
+class TestRunExtractScript:
+    def test_success_on_first_try(self, tmp_path):
+        script = tmp_path / "extract.py"
+        providers_json = tmp_path / "providers.json"
+
+        mock_result = MagicMock(returncode=0)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command", return_value=mock_result
+        ) as mock_run:
+            rc = _run_extract_script(script, "pkg[extra]==1.0", "pkg==1.0", "amazon", providers_json)
+
+        assert rc == 0
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        assert "--provider" in cmd
+        assert "amazon" in cmd
+        assert "--providers-json" in cmd
+
+    def test_falls_back_without_extras_on_failure(self, tmp_path):
+        script = tmp_path / "extract.py"
+        providers_json = tmp_path / "providers.json"
+
+        fail_result = MagicMock(returncode=1)
+        ok_result = MagicMock(returncode=0)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command",
+            side_effect=[fail_result, ok_result],
+        ) as mock_run:
+            rc = _run_extract_script(script, "pkg[extra]==1.0", "pkg==1.0", "amazon", providers_json)
+
+        assert rc == 0
+        assert mock_run.call_count == 2
+        # First call uses extras, second uses base spec
+        first_cmd = mock_run.call_args_list[0][0][0]
+        second_cmd = mock_run.call_args_list[1][0][0]
+        assert "pkg[extra]==1.0" in first_cmd
+        assert "pkg==1.0" in second_cmd
+
+    def test_no_fallback_when_specs_are_identical(self, tmp_path):
+        script = tmp_path / "extract.py"
+        providers_json = tmp_path / "providers.json"
+
+        fail_result = MagicMock(returncode=1)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command",
+            return_value=fail_result,
+        ) as mock_run:
+            rc = _run_extract_script(script, "pkg==1.0", "pkg==1.0", "amazon", providers_json)
+
+        assert rc == 1
+        mock_run.assert_called_once()
+
+    def test_returns_fallback_failure_code(self, tmp_path):
+        script = tmp_path / "extract.py"
+        providers_json = tmp_path / "providers.json"
+
+        fail_result = MagicMock(returncode=1)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command",
+            return_value=fail_result,
+        ) as mock_run:
+            rc = _run_extract_script(script, "pkg[extra]==1.0", "pkg==1.0", "amazon", providers_json)
+
+        assert rc == 1
+        assert mock_run.call_count == 2
