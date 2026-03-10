@@ -21,3 +21,7 @@ MQ connection
 =============
 
 The MQ connection type enables connection to an IBM MQ.
+
+.. |Kafka Connection| image:: mq_connection.png
+    :width: 400
+    :alt: IBM MQ Connection Screenshot
