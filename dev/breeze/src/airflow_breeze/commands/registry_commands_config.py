@@ -20,6 +20,7 @@ REGISTRY_COMMANDS: dict[str, str | list[str]] = {
     "name": "Registry commands",
     "commands": [
         "extract-data",
+        "backfill",
         "publish-versions",
     ],
 }
@@ -31,6 +32,15 @@ REGISTRY_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--provider",
+            ],
+        },
+    ],
+    "breeze registry backfill": [
+        {
+            "name": "Backfill flags",
+            "options": [
+                "--provider",
+                "--version",
             ],
         },
     ],
