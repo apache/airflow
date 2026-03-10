@@ -44,10 +44,13 @@ def date_param():
 
 # Passing password via command line is insecure but acceptable for testing purposes
 # Please do not do this in production, it enables possibility of exposing your credentials
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
+CREDENTIAL_SUFFIX = "--username airflow --password airflow"
+LOGIN_COMMAND = f"auth login {CREDENTIAL_SUFFIX}"
 LOGIN_COMMAND_SKIP_KEYRING = "auth login --skip-keyring"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
+    # Auth commands
+    f"auth token {CREDENTIAL_SUFFIX}",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
