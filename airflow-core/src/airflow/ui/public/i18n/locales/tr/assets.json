@@ -32,5 +32,7 @@
   "name": "Ad",
   "producingTasks": "Üreten görevler",
   "scheduledDags": "Planlanan Dag'ler",
-  "searchPlaceholder": "Kaynakları ara"
+  "scheduling": "Planlama",
+  "searchPlaceholder": "Kaynakları ara",
+  "taskDependencies": "Görev bağımlılıkları"
 }
