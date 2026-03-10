@@ -109,7 +109,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         at ``/hitl-review`` or through the **HITL Review** extra link
         on the task instance.  Default ``False``.
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
-        initial, plus regenerations). When the reviewer requests changes at
+        initial output). When the reviewer requests changes at
         iteration >= this limit, the task fails with ``HITLMaxIterationsError``
         without calling the LLM. E.g. 5 allows changes at iterations 1–4.
         Default ``5``.
