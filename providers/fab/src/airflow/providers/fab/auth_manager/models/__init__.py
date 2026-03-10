@@ -208,9 +208,13 @@ class Permission(Model):
         Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    action_id: Mapped[int] = mapped_column("permission_id", Integer, ForeignKey("ab_permission.id"))
+    action_id: Mapped[int] = mapped_column(
+        "permission_id", Integer, ForeignKey("ab_permission.id"), nullable=True
+    )
     action: Mapped[Action] = relationship("Action", lazy="joined", uselist=False)
-    resource_id: Mapped[int] = mapped_column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
+    resource_id: Mapped[int] = mapped_column(
+        "view_menu_id", Integer, ForeignKey("ab_view_menu.id"), nullable=True
+    )
     resource: Mapped[Resource] = relationship("Resource", lazy="joined", uselist=False)
 
     def __repr__(self):

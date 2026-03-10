@@ -29,7 +29,7 @@ PACKAGE_DIR = Path(__file__).parents[2]
 
 _REVISION_HEADS_MAP: dict[str, str] = {
     "1.4.0": "6709f7a774b9",
-    "3.4.0": "63677212e6b2",
+    "3.4.0": "02ca36b0235b",
 }
 
 

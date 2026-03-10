@@ -17,11 +17,11 @@
 # under the License.
 
 """
-Fix ORM/migration files inconsistencies.
+Fix fab db inconsistencies.
 
-Revision ID: 63677212e6b2
+Revision ID: 02ca36b0235b
 Revises: 6709f7a774b9
-Create Date: 2026-02-25 22:30:56.559591
+Create Date: 2026-03-10 14:07:31.559184
 
 """
 
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "63677212e6b2"
+revision = "02ca36b0235b"
 down_revision = "6709f7a774b9"
 branch_labels = None
 depends_on = None
@@ -39,10 +39,22 @@ fab_version = "3.4.0"
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("ab_permission_view", schema=None) as batch_op:
-        batch_op.alter_column("permission_id", existing_type=sa.INTEGER(), nullable=False)
-        batch_op.alter_column("view_menu_id", existing_type=sa.INTEGER(), nullable=False)
-
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        op.create_index(
+            "idx_ab_user_username",
+            "ab_user",
+            [sa.literal_column("lower(username::text)")],
+            unique=True,
+            if_not_exists=True,
+        )
+        op.create_index(
+            "idx_ab_register_user_username",
+            "ab_register_user",
+            [sa.literal_column("lower(username::text)")],
+            unique=True,
+            if_not_exists=True,
+        )
     with op.batch_alter_table("ab_permission_view_role", schema=None) as batch_op:
         batch_op.create_index("idx_permission_view_id", ["permission_view_id"], unique=False)
         batch_op.create_index("idx_role_id", ["role_id"], unique=False)
@@ -51,16 +63,16 @@ def upgrade() -> None:
             batch_op.f("ab_permission_view_role_permission_view_id_fkey"), type_="foreignkey"
         )
         batch_op.create_foreign_key(
-            batch_op.f("ab_permission_view_role_role_id_fkey"),
-            "ab_role",
-            ["role_id"],
+            batch_op.f("ab_permission_view_role_permission_view_id_fkey"),
+            "ab_permission_view",
+            ["permission_view_id"],
             ["id"],
             ondelete="CASCADE",
         )
         batch_op.create_foreign_key(
-            batch_op.f("ab_permission_view_role_permission_view_id_fkey"),
-            "ab_permission_view",
-            ["permission_view_id"],
+            batch_op.f("ab_permission_view_role_role_id_fkey"),
+            "ab_role",
+            ["role_id"],
             ["id"],
             ondelete="CASCADE",
         )
@@ -68,51 +80,45 @@ def upgrade() -> None:
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.create_unique_constraint(batch_op.f("ab_register_user_email_uq"), ["email"])
 
-    if op.get_context().dialect.name == "postgresql":
-        op.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_ab_user_username ON ab_user (lower(username))")
-        op.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ab_register_user_username ON ab_register_user"
-            " (lower(username))"
-        )
-
-    with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("idx_user_group_id"))
-        batch_op.drop_index(batch_op.f("idx_user_id"))
+    if dialect_name != "mysql":
+        with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
+            batch_op.drop_index(batch_op.f("idx_user_group_id"))
+            batch_op.drop_index(batch_op.f("idx_user_id"))
 
     with op.batch_alter_table("ab_user_role", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(batch_op.f("ab_user_role_user_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(
-            batch_op.f("ab_user_role_user_id_fkey"), "ab_user", ["user_id"], ["id"], ondelete="CASCADE"
+            batch_op.f("ab_user_role_role_id_fkey"), "ab_role", ["role_id"], ["id"], ondelete="CASCADE"
         )
         batch_op.create_foreign_key(
-            batch_op.f("ab_user_role_role_id_fkey"), "ab_role", ["role_id"], ["id"], ondelete="CASCADE"
+            batch_op.f("ab_user_role_user_id_fkey"), "ab_user", ["user_id"], ["id"], ondelete="CASCADE"
         )
 
 
 def downgrade() -> None:
-    if op.get_context().dialect.name == "postgresql":
-        op.execute("DROP INDEX IF EXISTS idx_ab_register_user_username")
-        op.execute("DROP INDEX IF EXISTS idx_ab_user_username")
-
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        op.drop_index("idx_ab_register_user_username", table_name="ab_register_user", if_exists=True)
+        op.drop_index("idx_ab_user_username", table_name="ab_user", if_exists=True)
     with op.batch_alter_table("ab_user_role", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(batch_op.f("ab_user_role_user_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(batch_op.f("ab_user_role_user_id_fkey"), "ab_user", ["user_id"], ["id"])
         batch_op.create_foreign_key(batch_op.f("ab_user_role_role_id_fkey"), "ab_role", ["role_id"], ["id"])
-
-    with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
-        batch_op.create_index(batch_op.f("idx_user_id"), ["user_id"], unique=False)
-        batch_op.create_index(batch_op.f("idx_user_group_id"), ["group_id"], unique=False)
+    if dialect_name != "mysql":
+        with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
+            batch_op.create_index(batch_op.f("idx_user_id"), ["user_id"], unique=False)
+            batch_op.create_index(batch_op.f("idx_user_group_id"), ["group_id"], unique=False)
 
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("ab_register_user_email_uq"), type_="unique")
 
     with op.batch_alter_table("ab_permission_view_role", schema=None) as batch_op:
+        batch_op.drop_constraint(batch_op.f("ab_permission_view_role_role_id_fkey"), type_="foreignkey")
         batch_op.drop_constraint(
             batch_op.f("ab_permission_view_role_permission_view_id_fkey"), type_="foreignkey"
         )
-        batch_op.drop_constraint(batch_op.f("ab_permission_view_role_role_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(
             batch_op.f("ab_permission_view_role_permission_view_id_fkey"),
             "ab_permission_view",
@@ -124,7 +130,3 @@ def downgrade() -> None:
         )
         batch_op.drop_index("idx_role_id")
         batch_op.drop_index("idx_permission_view_id")
-
-    with op.batch_alter_table("ab_permission_view", schema=None) as batch_op:
-        batch_op.alter_column("view_menu_id", existing_type=sa.INTEGER(), nullable=True)
-        batch_op.alter_column("permission_id", existing_type=sa.INTEGER(), nullable=True)

@@ -60,29 +60,40 @@ try:
             db_command.resetdb(self.parser.parse_args(["fab-db", "reset", "--yes", "--skip-init"]))
             mock_resetdb.assert_called_once_with(skip_init=True)
 
+        @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="3.2+ reintroduced --use-migration-files")
         @pytest.mark.parametrize(
             ("args", "called_with"),
             [
                 (
                     [],
                     dict(
-                        to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False
+                        to_revision=None,
+                        from_revision=None,
+                        show_sql_only=False,
                     ),
                 ),
                 (
                     ["--show-sql-only"],
-                    dict(to_revision=None, from_revision=None, show_sql_only=True, use_migration_files=False),
+                    dict(
+                        to_revision=None,
+                        from_revision=None,
+                        show_sql_only=True,
+                    ),
                 ),
                 (
                     ["--to-revision", "abc"],
                     dict(
-                        to_revision="abc", from_revision=None, show_sql_only=False, use_migration_files=False
+                        to_revision="abc",
+                        from_revision=None,
+                        show_sql_only=False,
                     ),
                 ),
                 (
                     ["--to-revision", "abc", "--show-sql-only"],
                     dict(
-                        to_revision="abc", from_revision=None, show_sql_only=True, use_migration_files=False
+                        to_revision="abc",
+                        from_revision=None,
+                        show_sql_only=True,
                     ),
                 ),
                 (
@@ -91,7 +102,6 @@ try:
                         to_revision="abc",
                         from_revision="abc123",
                         show_sql_only=True,
-                        use_migration_files=False,
                     ),
                 ),
             ],

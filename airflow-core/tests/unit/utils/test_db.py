@@ -182,6 +182,9 @@ class TestDb:
             lambda t: t[0] == "remove_index" and t[1].name == "rj_order",
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
+            # These are conditionally added in ORM by the event listener
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
         ]
 
         for ignore in ignores:
