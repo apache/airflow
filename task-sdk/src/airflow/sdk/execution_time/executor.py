@@ -34,8 +34,8 @@ from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.context import context_get_outlet_events
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
-    _run_task_state_change_callbacks,
     _execute_task,
+    _run_task_state_change_callbacks,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 
