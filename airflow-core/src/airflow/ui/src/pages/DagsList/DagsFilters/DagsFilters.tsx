@@ -18,15 +18,15 @@
  */
 import { HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
+import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
@@ -39,8 +39,6 @@ const {
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
-  TAGS: TAGS_PARAM,
-  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type StateValue = "all" | "failed" | "queued" | "running" | "success";
@@ -60,50 +58,12 @@ const toBooleanFilterValue = (
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(TAGS_PARAM, []);
-  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<string>(TAGS_MATCH_MODE_PARAM, "any");
-  const restoredRef = useRef(false);
+  const { selectedTags, setSelectedTags, setTagFilterMode, tagFilterMode } = useTagFilter();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
-  const selectedTags = searchParams.getAll(TAGS_PARAM);
-  const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
-
-  // Sync tag selections between URL and localStorage on mount.
-  // If the URL has no tags, restore from localStorage.
-  // If the URL has tags (e.g. navigated via a tag link), save them to localStorage.
-  // The restoredRef guard ensures this logic runs only once.
-  useEffect(() => {
-    if (!restoredRef.current) {
-      restoredRef.current = true;
-      if (selectedTags.length === 0 && savedTags.length > 0) {
-        savedTags.forEach((tag) => {
-          searchParams.append(TAGS_PARAM, tag);
-        });
-        if (savedTags.length >= 2 && savedTagMatchMode !== "any") {
-          searchParams.set(TAGS_MATCH_MODE_PARAM, savedTagMatchMode);
-        }
-        setSearchParams(searchParams, { replace: true });
-      } else if (selectedTags.length > 0) {
-        setSavedTags(selectedTags);
-        const mode = searchParams.get(TAGS_MATCH_MODE_PARAM);
-
-        if (mode !== null && mode !== "") {
-          setSavedTagMatchMode(mode);
-        }
-      }
-    }
-  }, [
-    savedTags,
-    savedTagMatchMode,
-    searchParams,
-    selectedTags,
-    setSearchParams,
-    setSavedTags,
-    setSavedTagMatchMode,
-  ]);
 
   const [pattern, setPattern] = useState("");
 
@@ -173,27 +133,11 @@ export const DagsFilters = () => {
       value: string;
     }>,
   ) => {
-    const tagValues = tags.map(({ value }) => value);
-
-    searchParams.delete(TAGS_PARAM);
-    tagValues.forEach((value) => {
-      searchParams.append(TAGS_PARAM, value);
-    });
-    if (tags.length < 2) {
-      searchParams.delete(TAGS_MATCH_MODE_PARAM);
-      setSavedTagMatchMode("any");
-    }
-    searchParams.delete(OFFSET_PARAM);
-    setSearchParams(searchParams);
-    setSavedTags(tagValues);
+    setSelectedTags(tags.map(({ value }) => value));
   };
 
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
-    const mode = checked ? "all" : "any";
-
-    searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
-    setSearchParams(searchParams);
-    setSavedTagMatchMode(mode);
+    setTagFilterMode(checked ? "all" : "any");
   };
 
   const stateValue = toStateValue(state);
