@@ -23,7 +23,8 @@ function getBase(): string {
   if (typeof document === "undefined") return "/hitl-review";
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
-  return baseUrl.pathname.replace(/\/$/, "") || "/hitl-review";
+  const basePath = baseUrl.pathname.replace(/\/$/, "") || "";
+  return basePath ? `${basePath}/hitl-review` : "/hitl-review";
 }
 
 const BASE = getBase();

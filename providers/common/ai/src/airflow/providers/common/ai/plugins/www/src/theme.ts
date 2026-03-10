@@ -17,14 +17,6 @@
  * under the License.
  */
 
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { createSystem, defaultConfig } from "@chakra-ui/react";
 
-import PluginComponent from "./main";
-
-// Development entry point - mount with mock task instance params for local testing
-createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <StrictMode>
-    <PluginComponent dagId="test_dag" runId="test_run" taskId="test_task" mapIndex="-1" />
-  </StrictMode>,
-);
+export const localSystem = createSystem(defaultConfig);

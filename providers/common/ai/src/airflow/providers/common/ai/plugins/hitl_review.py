@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -65,12 +65,20 @@ def _get_base_url_path(path: str) -> str:
     return base_path + path
 
 
-def _get_chat_html() -> str:
-    base_prefix = _get_base_url_path(_PLUGIN_PREFIX)
-    static_prefix = _get_base_url_path(f"{_PLUGIN_PREFIX}/static")
-    return _CHAT_HTML_SHELL.replace("__BASE_PREFIX__", base_prefix).replace(
-        "__STATIC_PREFIX__", static_prefix
-    )
+def _get_bundle_url() -> str:
+    """
+    Return bundle URL for the React plugin.
+
+    Uses an absolute URL when api.base_url is a full URL so the bundle loads
+    correctly in Vite dev mode, where import() resolves relative to the script
+    origin (5173) rather than the document origin (28080).
+    """
+    path = _get_base_url_path(f"{_PLUGIN_PREFIX}/static/main.umd.cjs")
+    base_url = conf.get("api", "base_url", fallback="/")
+    if base_url.startswith(("http://", "https://")):
+        parsed = urlparse(base_url)
+        return f"{parsed.scheme}://{parsed.netloc}" + path
+    return path
 
 
 def _get_session():
@@ -124,6 +132,8 @@ def _read_xcom_by_prefix(
     for key, value in session.execute(query).all():
         suffix = key[len(prefix) :]
         if suffix.isdigit():
+            # deserialize_value expects an object with a .value attribute;
+            # wrap the raw column value so we can reuse the standard deserialization path.
             row = SimpleNamespace(value=value)
             result[int(suffix)] = XComModel.deserialize_value(row)
     return result
@@ -476,67 +486,8 @@ async def reject_session(
     return resp
 
 
-_CHAT_HTML_SHELL = """\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<base href="__BASE_PREFIX__/">
-<title>HITL Review</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}</style>
-</head>
-<body>
-<div id="root"></div>
-<script src="__STATIC_PREFIX__/main.js"></script>
-</body>
-</html>
-"""
-
-
-@hitl_review_app.get(
-    "/chat",
-    response_class=HTMLResponse,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
-)
-async def chat_page(
-    db: SessionDep,
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    map_index: int = -1,
-) -> HTMLResponse:
-    """Serve the interactive chat window for a feedback session."""
-    raw = _read_xcom(
-        db,
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        map_index=map_index,
-        key=XCOM_AGENT_SESSION,
-    )
-    if raw is None:
-        raise HTTPException(status_code=404, detail="No matching session found.")
-    html = _get_chat_html()
-    return HTMLResponse(html)
-
-
-@hitl_review_app.get(
-    "/chat-by-task",
-    response_class=HTMLResponse,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
-)
-async def chat_by_task(
-    db: SessionDep,
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    map_index: MapIndexDep,
-) -> HTMLResponse:
-    """Serve the chat window for the active feedback session of a task instance."""
-    html = _get_chat_html()
-    return HTMLResponse(html)
-
+# Ensure proper MIME types for plugin bundle (FastAPI serves .cjs as text/plain by default)
+mimetypes.add_type("application/javascript", ".cjs")
 
 _WWW_DIR = Path(__file__).parent / "www"
 _dist_dir = _WWW_DIR / "dist"
@@ -559,13 +510,10 @@ class HITLReviewPlugin(AirflowPlugin):
             "url_prefix": _PLUGIN_PREFIX,
         }
     ]
-    external_views = [
+    react_apps = [
         {
             "name": "HITL Review",
-            "href": _get_base_url_path(
-                f"{_PLUGIN_PREFIX}/chat-by-task"
-                "?dag_id={DAG_ID}&run_id={RUN_ID}&task_id={TASK_ID}&map_index={MAP_INDEX}"
-            ),
+            "bundle_url": _get_bundle_url(),
             "destination": "task_instance",
             "url_route": "hitl-review",
         }

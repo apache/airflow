@@ -17,12 +17,11 @@
  * under the License.
  */
 
+import { Box, Text, VStack } from "@chakra-ui/react";
 import type { FC } from "react";
 
 import { Markdown } from "src/components/Markdown";
 import type { ConversationEntry } from "src/types/feedback";
-
-import styles from "./MessageBubble.module.css";
 
 interface MessageBubbleProps {
   entry: ConversationEntry;
@@ -33,10 +32,40 @@ export const MessageBubble: FC<MessageBubbleProps> = ({ entry }) => {
   const label = isHuman ? "You" : "AI Assistant";
 
   return (
-    <div className={`${styles.msg} ${isHuman ? styles.human : styles.assistant}`}>
-      <div className={styles.label}>{label}</div>
-      <Markdown content={entry.content} />
-      <div className={styles.iterTag}>Iteration {entry.iteration}</div>
-    </div>
+    <Box
+      alignSelf={isHuman ? "flex-end" : "flex-start"}
+      bg={isHuman ? "brand.solid" : "bg.subtle"}
+      borderRadius="xl"
+      borderBottomLeftRadius={isHuman ? "xl" : "sm"}
+      borderBottomRightRadius={isHuman ? "sm" : "xl"}
+      boxShadow="sm"
+      color={isHuman ? "white" : "fg"}
+      fontSize="sm"
+      lineHeight="tall"
+      maxW="80%"
+      p={4}
+    >
+      <VStack align={isHuman ? "flex-end" : "flex-start"} gap={1}>
+        <Text
+          color={isHuman ? "whiteAlpha.800" : "fg.muted"}
+          fontSize="xs"
+          fontWeight="semibold"
+          textTransform="uppercase"
+          letterSpacing="wider"
+        >
+          {label}
+        </Text>
+        <Box width="full">
+          <Markdown content={entry.content} />
+        </Box>
+        <Text
+          color={isHuman ? "whiteAlpha.600" : "fg.muted"}
+          fontSize="2xs"
+          mt={1}
+        >
+          Iteration {entry.iteration}
+        </Text>
+      </VStack>
+    </Box>
   );
 };

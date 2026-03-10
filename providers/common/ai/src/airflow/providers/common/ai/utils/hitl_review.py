@@ -82,7 +82,7 @@ class SessionStatus(str, Enum):
 class ConversationEntry(BaseModel):
     """Single turn in the feedback conversation."""
 
-    role: str
+    role: Literal["assistant", "human"]
     content: str
     iteration: int
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

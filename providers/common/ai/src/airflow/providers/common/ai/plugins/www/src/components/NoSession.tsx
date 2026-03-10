@@ -17,9 +17,8 @@
  * under the License.
  */
 
+import { Box, Code, Text, VStack } from "@chakra-ui/react";
 import { type FC, useEffect } from "react";
-
-import styles from "./NoSession.module.css";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -36,21 +35,50 @@ export const NoSession: FC<NoSessionProps> = ({ onRefetch }) => {
   }, [onRefetch]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.icon}>&#x1F4AC;</div>
-        <h2 className={styles.heading}>No Active HITL Review Session</h2>
-        <p className={styles.description}>
-          This task does not have an active HITL review session right now. The chat
-          window appears when the task is running with{" "}
-          <code>enable_hitl_review=True</code>.
-        </p>
-        <div className={styles.hint}>
-          <span className={styles.pulse}>&#x25CF;</span>&nbsp; If the task is
-          currently running, the session may still be initialising. Checking
+    <Box
+      alignItems="center"
+      bg="bg"
+      color="fg"
+      display="flex"
+      h="100%"
+      justifyContent="center"
+      minH="100vh"
+      p={5}
+    >
+      <Box
+        bg="bg.subtle"
+        borderRadius="xl"
+        borderWidth="1px"
+        maxW="440px"
+        p={10}
+        textAlign="center"
+      >
+        <Text fontSize="4xl" mb={4}>
+          &#x1F4AC;
+        </Text>
+        <Text as="h2" fontSize="lg" fontWeight="semibold" mb={2}>
+          No Active HITL Review Session
+        </Text>
+        <Text color="fg.muted" fontSize="sm" lineHeight="tall" mb={5}>
+          This task does not have an active HITL review session right now. The chat window appears
+          when the task is running with <Code fontSize="xs">enable_hitl_review=True</Code>.
+        </Text>
+        <Box
+          bg="bg.subtle"
+          borderRadius="lg"
+          borderWidth="1px"
+          color="fg.muted"
+          fontSize="xs"
+          lineHeight="tall"
+          p={3}
+        >
+          <Text as="span" opacity={0.8}>
+            &#x25CF;
+          </Text>{" "}
+          If the task is currently running, the session may still be initialising. Checking
           periodically for updates.
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 };

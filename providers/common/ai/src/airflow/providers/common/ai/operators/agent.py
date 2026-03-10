@@ -62,10 +62,19 @@ class HITLReviewLink(BaseOperatorLink):
     ) -> str:
         if not getattr(operator, "enable_hitl_review", False):
             return ""
+        from urllib.parse import urlparse
+
+        from airflow.configuration import conf
+
+        base_url = conf.get("api", "base_url", fallback="/")
+        if base_url.startswith(("http://", "https://")):
+            base_path = urlparse(base_url).path.rstrip("/")
+        else:
+            base_path = base_url.rstrip("/")
+        mapped = f"/mapped/{ti_key.map_index}" if ti_key.map_index >= 0 else ""
         return (
-            f"/hitl-review/chat-by-task"
-            f"?dag_id={ti_key.dag_id}&run_id={ti_key.run_id}&task_id={ti_key.task_id}"
-            f"&map_index={ti_key.map_index}"
+            f"{base_path}/dags/{ti_key.dag_id}/runs/{ti_key.run_id}"
+            f"/tasks/{ti_key.task_id}{mapped}/plugin/hitl-review"
         )
 
 
@@ -99,8 +108,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
         on the task instance.  Default ``False``.
-    :param max_hitl_iterations: Maximum generate-review cycles.
-        After this limit the task fails with ``HITLMaxIterationsError``.  Default ``5``.
+    :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
+        initial, plus regenerations). When the reviewer requests changes at
+        iteration >= this limit, the task fails with ``HITLMaxIterationsError``
+        without calling the LLM. E.g. 5 allows changes at iterations 1–4.
+        Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
         all review rounds combined.  ``None`` means no timeout (the
         operator blocks until a terminal action).

@@ -272,7 +272,7 @@ class TestHITLReviewLink:
         assert result == ""
 
     def test_get_link_returns_url_with_params_when_hitl_enabled(self):
-        """HITLReviewLink returns chat URL with dag_id, run_id, task_id, map_index when HITL enabled."""
+        """HITLReviewLink returns plugin URL with dag_id, run_id, task_id, map_index when HITL enabled."""
         op = AgentOperator(
             task_id="my_task",
             prompt="test",
@@ -288,7 +288,7 @@ class TestHITLReviewLink:
         link = HITLReviewLink()
         result = link.get_link(op, ti_key=ti_key)
 
-        assert result == ("/hitl-review/chat-by-task?dag_id=my_dag&run_id=run_1&task_id=my_task&map_index=2")
+        assert result == "/dags/my_dag/runs/run_1/tasks/my_task/mapped/2/plugin/hitl-review"
 
 
 @pytest.mark.skipif(

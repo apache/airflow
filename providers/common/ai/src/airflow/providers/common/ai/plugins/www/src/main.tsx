@@ -17,29 +17,35 @@
  * under the License.
  */
 
-import { StrictMode, type FC } from "react";
-import { createRoot } from "react-dom/client";
+import { Box, ChakraProvider } from "@chakra-ui/react";
+import type { FC } from "react";
 
 import { ChatPage } from "src/components/ChatPage";
 import { NoSession } from "src/components/NoSession";
 
-export type PluginComponentProps = object;
+import { localSystem } from "./theme";
+
+export interface PluginComponentProps {
+  dagId?: string;
+  mapIndex?: string;
+  runId?: string;
+  taskId?: string;
+}
 
 /**
- * Main plugin component.
+ * Main plugin component for HITL Review.
  *
- * Reads dag_id / run_id / task_id from the URL search params injected by
- * the Airflow external_views iframe.  If parameters are missing it shows
- * the "no session" fallback.
+ * Receives dagId, runId, taskId, mapIndex as props from the Airflow React plugin
+ * host (from route params). Renders ChatPage when all params are present,
+ * otherwise shows NoSession fallback.
  */
-const PluginComponent: FC<PluginComponentProps> = () => {
-  const params = new URLSearchParams(globalThis.location.search);
-  const dagId = params.get("dag_id") ?? "";
-  // Backward compatibility: older Airflow may not encode run_id; + in query params decodes as space
-  const runId = (params.get("run_id") ?? "").replace(/ /g, "+");
-  const taskId = params.get("task_id") ?? "";
-  const rawMapIndex = params.get("map_index") ?? "-1";
-  const mapIndex = /^-?\d+$/.test(rawMapIndex) ? parseInt(rawMapIndex, 10) : -1;
+const PluginComponent: FC<PluginComponentProps> = ({
+  dagId = "",
+  runId = "",
+  taskId = "",
+  mapIndex: mapIndexProp = "-1",
+}) => {
+  const mapIndex = /^-?\d+$/.test(String(mapIndexProp)) ? parseInt(String(mapIndexProp), 10) : -1;
 
   if (!dagId || !runId || !taskId) {
     return <NoSession />;
@@ -48,13 +54,20 @@ const PluginComponent: FC<PluginComponentProps> = () => {
   return <ChatPage dagId={dagId} runId={runId} taskId={taskId} mapIndex={mapIndex} />;
 };
 
-const root = document.getElementById("root");
-if (root) {
-  createRoot(root).render(
-    <StrictMode>
-      <PluginComponent />
-    </StrictMode>,
-  );
-}
+/**
+ * Plugin component wrapped with ChakraProvider for consistent theming with the host.
+ * Chakra semantic tokens handle light/dark mode automatically.
+ */
+const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
+  const system = (globalThis as Record<string, unknown>).ChakraUISystem ?? localSystem;
 
-export default PluginComponent;
+  return (
+    <ChakraProvider value={system}>
+      <Box height="100%" minHeight={0}>
+        <PluginComponent {...props} />
+      </Box>
+    </ChakraProvider>
+  );
+};
+
+export default WrappedPluginComponent;

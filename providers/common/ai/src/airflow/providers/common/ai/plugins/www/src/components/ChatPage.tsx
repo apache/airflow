@@ -18,6 +18,18 @@
  */
 
 import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Heading,
+  Spinner,
+  Text,
+  Textarea,
+  VStack,
+} from "@chakra-ui/react";
+import {
   type FC,
   type KeyboardEvent,
   useCallback,
@@ -30,8 +42,6 @@ import { MessageBubble } from "src/components/MessageBubble";
 import { NoSession } from "src/components/NoSession";
 import { useSession } from "src/hooks/useSession";
 
-import styles from "./ChatPage.module.css";
-
 interface ChatPageProps {
   dagId: string;
   runId: string;
@@ -41,17 +51,20 @@ interface ChatPageProps {
 
 type ConfirmAction = "approve" | "reject" | null;
 
-const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
-  pending_review: { cls: styles.badgePending!, label: "Pending Review" },
-  approved: { cls: styles.badgeApproved!, label: "Approved" },
-  rejected: { cls: styles.badgeRejected!, label: "Rejected" },
-  changes_requested: { cls: styles.badgeChanges!, label: "Regenerating..." },
-  max_iterations_exceeded: { cls: styles.badgeError!, label: "Max iterations exceeded" },
-  timeout_exceeded: { cls: styles.badgeError!, label: "Timeout exceeded" },
+const STATUS_BADGE: Record<
+  string,
+  { colorPalette: "green" | "red" | "yellow" | "blue"; label: string }
+> = {
+  pending_review: { colorPalette: "yellow", label: "Pending Review" },
+  approved: { colorPalette: "green", label: "Approved" },
+  rejected: { colorPalette: "red", label: "Rejected" },
+  changes_requested: { colorPalette: "blue", label: "Regenerating..." },
+  max_iterations_exceeded: { colorPalette: "red", label: "Max iterations exceeded" },
+  timeout_exceeded: { colorPalette: "red", label: "Timeout exceeded" },
 };
 
 export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) => {
-  const { session, error, loading, taskActive, sendFeedback, approve, reject, refetch } =
+  const { session, loading, sendFeedback, approve, reject, refetch } =
     useSession(dagId, runId, taskId, mapIndex);
 
   const [feedbackText, setFeedbackText] = useState("");
@@ -60,11 +73,15 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
   const [isSending, setIsSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevConvLenRef = useRef(0);
 
   useEffect(() => {
-    if (chatRef.current) {
+    if (!session?.conversation || !chatRef.current) return;
+    const len = session.conversation.length;
+    if (len > prevConvLenRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
+    prevConvLenRef.current = len;
   }, [session?.conversation]);
 
   useEffect(() => {
@@ -128,42 +145,35 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
 
   if (loading) {
     return (
-      <div className={styles.placeholder}>
-        <div className={styles.placeholderCard}>
-          <div className={styles.spinner} />
-          <h2 className={styles.placeholderHeading}>Connecting to session</h2>
-          <p className={styles.placeholderDesc}>
+      <Flex
+        align="center"
+        bg="bg"
+        color="fg"
+        flexDirection="column"
+        h="100vh"
+        justify="center"
+        p={5}
+      >
+        <Box
+          bg="bg.subtle"
+          borderRadius="xl"
+          borderWidth="1px"
+          maxW="440px"
+          p={12}
+          textAlign="center"
+        >
+          <Spinner colorPalette="brand" mb={4} size="lg" />
+          <Heading size="md">Connecting to session</Heading>
+          <Text color="fg.muted" fontSize="sm" mt={2}>
             Looking up the HITL review session for this task...
-          </p>
-        </div>
-      </div>
+          </Text>
+        </Box>
+      </Flex>
     );
   }
 
   if (!session) {
-    if (taskActive === false) {
-      return <NoSession onRefetch={refetch} />;
-    }
-
-    return (
-      <div className={styles.placeholder}>
-        <div className={styles.placeholderCard}>
-          <div className={styles.placeholderIcon}>&#x1F4AC;</div>
-          <h2 className={styles.placeholderHeading}>Waiting for session to start</h2>
-          <p className={styles.placeholderDesc}>
-            The HITL review session has not been created yet. This usually means the
-            task is still starting up. This page will automatically connect once the
-            session is available.
-          </p>
-          <div className={styles.placeholderHint}>
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-          </div>
-          {error && <p className={styles.placeholderMuted}>{error}</p>}
-        </div>
-      </div>
-    );
+    return <NoSession onRefetch={refetch} />;
   }
 
   const isTerminal =
@@ -173,49 +183,69 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
     session.status === "timeout_exceeded" ||
     session.task_completed;
   const canAct = session.status === "pending_review" && !session.task_completed;
-  const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE["pending_review"]!;
+  const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE["pending_review"];
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>HITL Review</h1>
-        <div className={styles.meta}>
-          <span><b>Task:</b> {session.task_id}</span>
-          <span><b>DAG:</b> {session.dag_id}</span>
-          <span>
-            <b>Iteration:</b> {session.iteration}/{session.max_iterations}
-          </span>
-          <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
-        </div>
-      </header>
+    <Box
+      bg="bg"
+      color="fg"
+      display="flex"
+      flexDirection="column"
+      h="100vh"
+      maxW="860px"
+      mx="auto"
+    >
+      <Box borderBottomWidth="1px" px={5} py={4}>
+        <Heading size="sm">HITL Review</Heading>
+        <HStack flexWrap="wrap" fontSize="sm" gap={3} mt={1} color="fg.muted">
+          <Text as="span">
+            <Text as="b">Task:</Text> {session.task_id}
+          </Text>
+          <Text as="span">
+            <Text as="b">DAG:</Text> {session.dag_id}
+          </Text>
+          <Text as="span">
+            <Text as="b">Iteration:</Text> {session.iteration}/{session.max_iterations}
+          </Text>
+          <Badge colorPalette={badge.colorPalette} fontSize="2xs" px={2} py={0.5} borderRadius="full">
+            {badge.label}
+          </Badge>
+        </HStack>
+      </Box>
 
-      <div className={styles.chat} ref={chatRef}>
+      <Box flex={1} overflowY="auto" p={5} display="flex" flexDirection="column" gap={3} ref={chatRef}>
         {session.conversation.map((entry) => (
-          <MessageBubble
-            key={`${entry.role}-${entry.iteration}`}
-            entry={entry}
-          />
+          <MessageBubble key={`${entry.role}-${entry.iteration}`} entry={entry} />
         ))}
         {session.status === "pending_review" && !isTerminal && (
-          <div className={styles.waiting}>
-            Waiting for your review{" "}
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-          </div>
+          <Text color="fg.muted" fontSize="sm" textAlign="center" py={4}>
+            Waiting for your review
+          </Text>
         )}
-      </div>
+      </Box>
 
       {isTerminal && (
-        <div className={styles.terminalArea}>
-          <div
-            className={`${styles.terminalBanner} ${
+        <Box px={5} py={3}>
+          <Box
+            bg={
               session.status === "rejected" ||
               session.status === "max_iterations_exceeded" ||
               session.status === "timeout_exceeded"
-                ? styles.bannerRejected
-                : styles.bannerApproved
-            }`}
+                ? "red.subtle"
+                : "green.subtle"
+            }
+            color={
+              session.status === "rejected" ||
+              session.status === "max_iterations_exceeded" ||
+              session.status === "timeout_exceeded"
+                ? "red.fg"
+                : "green.fg"
+            }
+            borderRadius="xl"
+            fontWeight="semibold"
+            fontSize="md"
+            py={5}
+            textAlign="center"
           >
             {session.status === "approved"
               ? "Output Approved"
@@ -226,19 +256,22 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
                   : session.status === "timeout_exceeded"
                     ? "Timeout exceeded"
                     : "Task Completed — Session Ended"}
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
 
       {!isTerminal && (
-        <footer className={styles.footer}>
+        <Box borderTopWidth="1px" px={5} py={3}>
           {confirmAction === null ? (
-            <div>
-              <div className={styles.inputArea}>
-                <textarea
+            <VStack align="stretch" gap={3}>
+              <HStack align="flex-end" gap={2}>
+                <Textarea
                   ref={textareaRef}
-                  className={styles.textarea}
+                  flex={1}
+                  minH="44px"
+                  maxH="160px"
                   placeholder="Type feedback for the LLM... (Ctrl+Enter to send)"
+                  resize="none"
                   rows={1}
                   value={feedbackText}
                   disabled={!canAct || isSending}
@@ -248,65 +281,70 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
                   }}
                   onKeyDown={handleKeyDown}
                 />
-                <button
-                  className={styles.btnSend}
+                <Button
+                  colorPalette="brand"
                   disabled={!canAct || isSending}
                   onClick={() => void handleSend()}
                 >
                   Send
-                </button>
-              </div>
-              <div className={styles.actions}>
-                <button
-                  className={styles.btnApprove}
+                </Button>
+              </HStack>
+              <HStack gap={2}>
+                <Button
+                  colorPalette="green"
                   disabled={!canAct || isSending}
                   onClick={() => setConfirmAction("approve")}
                 >
                   Approve
-                </button>
-                <button
-                  className={styles.btnReject}
+                </Button>
+                <Button
+                  colorPalette="red"
                   disabled={!canAct || isSending}
                   onClick={() => setConfirmAction("reject")}
                 >
                   Reject
-                </button>
-              </div>
-            </div>
+                </Button>
+              </HStack>
+            </VStack>
           ) : (
-            <div className={styles.confirmBar}>
-              <span>
+            <HStack align="center" gap={3} py={3}>
+              <Text fontSize="sm" fontWeight="medium">
                 Are you sure you want to{" "}
                 {confirmAction === "approve"
                   ? "approve this output"
                   : "reject this output"}
                 ?
-              </span>
-              <div className={styles.actions}>
-                <button
-                  className={styles.btnApprove}
-                  disabled={isSending}
-                  onClick={() => void execConfirm()}
-                >
+              </Text>
+              <HStack gap={2}>
+                <Button colorPalette="green" disabled={isSending} onClick={() => void execConfirm()}>
                   Yes
-                </button>
-                <button
-                  className={styles.btnCancel}
-                  onClick={() => setConfirmAction(null)}
-                >
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmAction(null)}>
                   Cancel
-                </button>
-              </div>
-            </div>
+                </Button>
+              </HStack>
+            </HStack>
           )}
-        </footer>
+        </Box>
       )}
 
       {toast && (
-        <div className={`${styles.toast} ${toast.ok ? styles.toastOk : styles.toastErr}`}>
+        <Box
+          position="fixed"
+          top={5}
+          right={5}
+          px={5}
+          py={3}
+          borderRadius="lg"
+          color="white"
+          fontSize="sm"
+          fontWeight="semibold"
+          zIndex={999}
+          bg={toast.ok ? "green.solid" : "red.solid"}
+        >
           {toast.msg}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };

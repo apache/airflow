@@ -84,6 +84,7 @@ Workflow
          |     → regenerate_with_feedback  |
          |     → push output_2, loop to 3  |
          | 7d. max_iterations reached      |
+         |     (iteration >= max, human requests changes) |
          |     → push status max_iterations_exceeded, raise HITLMaxIterationsError
          | 7e. hitl_timeout elapsed        |
          |     → push status timeout_exceeded, raise HITLTimeoutError
@@ -114,15 +115,20 @@ Enable the review loop with ``enable_hitl_review=True``:
 
 - ``enable_hitl_review`` — When ``True``, the operator enters the review loop
   after the first generation. Default ``False``.
-- ``max_hitl_iterations`` — Maximum generate–review cycles. After this, the
-  task fails with ``HITLMaxIterationsError``. Default ``5``.
+- ``max_hitl_iterations`` — Maximum outputs the reviewer can see (1 = initial,
+  plus regens). When the reviewer requests changes at iteration
+  ``>= max_hitl_iterations``, the task fails with ``HITLMaxIterationsError``
+  without running the LLM. E.g. ``5`` allows changes at iterations 1–4; the
+  5th output must be approved or rejected. Default ``5``.
 - ``hitl_timeout`` — Maximum wall-clock time to wait for all review rounds.
   ``None`` = no timeout (blocks until a terminal action).
 - ``hitl_poll_interval`` — Seconds between XCom polls while waiting for a
   human response. Default ``10``.
 
-**Extra link** — When HITL review is enabled, the task instance page shows an
-**HITL Review** link that opens the chat window for that task.
+**Accessing the chat UI** — The chat loads as a React plugin on the task
+instance page. Use the **HITL Review** extra link on the task instance, or
+navigate to
+``/dags/{dag_id}/runs/{run_id}/tasks/{task_id}/plugin/hitl-review``.
 
 **Example DAG**
 
@@ -176,10 +182,6 @@ Endpoints
    * - POST
      - ``/sessions/reject``
      - Reject the output. Session must be ``pending_review``.
-   * - GET
-     - ``/chat-by-task``
-     - Serve the interactive chat HTML for a session. Requires
-       ``dag_id``, ``run_id``, ``task_id``, ``map_index``.
 
 
 Response model: HITLReviewResponse
@@ -191,7 +193,12 @@ Response model: HITLReviewResponse
         "dag_id": str,
         "run_id": str,
         "task_id": str,
-        "status": "pending_review" | "changes_requested" | "approved" | "rejected",
+        "status": "pending_review"
+        | "changes_requested"
+        | "approved"
+        | "rejected"
+        | "max_iterations_exceeded"
+        | "timeout_exceeded",
         "iteration": int,
         "max_iterations": int,
         "prompt": str,
@@ -242,8 +249,8 @@ Session lifecycle
 Chat UI
 =======
 
-The plugin provides an interactive chat UI that loads as an iframe in the task
-instance page. The UI:
+The plugin provides an interactive chat UI that loads in the task instance page.
+The UI:
 
 - Fetches session and conversation from the REST API
 - Displays the current output and feedback history

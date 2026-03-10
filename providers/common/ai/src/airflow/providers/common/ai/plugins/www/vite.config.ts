@@ -32,9 +32,20 @@ export default defineConfig(({ command }) => {
           chunkSizeWarningLimit: 1600,
           lib: {
             entry: resolve("src", "main.tsx"),
-            fileName: () => "main.js",
+            fileName: "main",
             formats: ["umd"],
             name: "AirflowPlugin",
+          },
+          rollupOptions: {
+            external: ["react", "react-dom", "react/jsx-runtime"],
+            output: {
+              entryFileNames: "[name].umd.cjs",
+              globals: {
+                react: "React",
+                "react-dom": "ReactDOM",
+                "react/jsx-runtime": "ReactJSXRuntime",
+              },
+            },
           },
         }
       : {

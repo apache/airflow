@@ -64,7 +64,15 @@ class HITLReviewMixin:
     4. When a human sets action to ``approved``, returns the output.
     5. When a human sets action to ``rejected``, raises a `HITLRejectException`
 
-    The loop stops after ``hitl_timeout``.
+    The loop stops after ``hitl_timeout`` or ``max_hitl_iterations``.
+
+    **Max iterations:** ``iteration`` counts outputs shown to the reviewer
+    (1 = initial, 2 = first regen, etc.). When the reviewer requests changes
+    at ``iteration >= max_hitl_iterations``, the mixin raises
+    ``HITLMaxIterationsError`` without calling the LLM. With
+    ``max_hitl_iterations=5``, the reviewer can request changes at most 4
+    times (iterations 1–4); the 5th output is the last chance to approve or
+    reject.
 
     All agent outputs and human feedback are persisted as iteration-keyed
     XCom entries (``airflow_hitl_review_agent_output_1``, ``airflow_hitl_review_human_feedback_1``, etc.)
@@ -150,6 +158,7 @@ class HITLReviewMixin:
         )
 
         last_seen_iteration = 0
+        first_poll = True
 
         while True:
             if deadline is not None and time.monotonic() > deadline:
@@ -163,7 +172,10 @@ class HITLReviewMixin:
                 ti.xcom_push(key=XCOM_AGENT_SESSION, value=_session_timeout.model_dump(mode="json"))
                 raise HITLTimeoutError("Task exceeded timeout.")
 
-            time.sleep(self.hitl_poll_interval)
+            if not first_poll:
+                time.sleep(self.hitl_poll_interval)
+            first_poll = False
+
             try:
                 action_raw = ti.xcom_pull(
                     key=XCOM_HUMAN_ACTION, task_ids=ti.task_id, map_indexes=ti.map_index
@@ -205,6 +217,17 @@ class HITLReviewMixin:
                     self.log.info("Empty feedback with 'Request Changes' — treating as approve.")
                     return session.current_output
 
+                if session.iteration >= self.max_hitl_iterations:
+                    _session_max = AgentSessionData(
+                        status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
+                        iteration=session.iteration,
+                        max_iterations=self.max_hitl_iterations,
+                        prompt=self.prompt,
+                        current_output=session.current_output,
+                    )
+                    ti.xcom_push(key=XCOM_AGENT_SESSION, value=_session_max.model_dump(mode="json"))
+                    raise HITLMaxIterationsError("Task exceeded max iterations.")
+
                 self.log.info(
                     "Feedback received (iteration %d): %s",
                     session.iteration,
@@ -217,16 +240,6 @@ class HITLReviewMixin:
                 )
 
                 new_iteration = session.iteration + 1
-                if new_iteration > self.max_hitl_iterations:
-                    _session_max = AgentSessionData(
-                        status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
-                        iteration=new_iteration - 1,
-                        max_iterations=self.max_hitl_iterations,
-                        prompt=self.prompt,
-                        current_output=new_output,
-                    )
-                    ti.xcom_push(key=XCOM_AGENT_SESSION, value=_session_max.model_dump(mode="json"))
-                    raise HITLMaxIterationsError("Task exceeded max iterations.")
 
                 session = AgentSessionData(
                     status=SessionStatus.PENDING_REVIEW,

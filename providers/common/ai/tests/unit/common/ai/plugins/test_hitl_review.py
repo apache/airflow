@@ -37,7 +37,6 @@ from airflow.providers.common.ai.plugins.hitl_review import (
     HITLReviewPlugin,
     _build_session_response,
     _get_base_url_path,
-    _get_chat_html,
     _get_map_index,
     _is_task_completed,
     _read_xcom,
@@ -253,22 +252,6 @@ class TestEndpointAuthorization:
 
     def test_sessions_reject_403_forbidden(self, unauthorized_test_client):
         response = unauthorized_test_client.post("/hitl-review/sessions/reject", params=self.PARAMS)
-        assert response.status_code == 403
-
-    def test_chat_401_unauthenticated(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/hitl-review/chat", params=self.PARAMS)
-        assert response.status_code == 401
-
-    def test_chat_403_forbidden(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/hitl-review/chat", params=self.PARAMS)
-        assert response.status_code == 403
-
-    def test_chat_by_task_401_unauthenticated(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/hitl-review/chat-by-task", params=self.PARAMS)
-        assert response.status_code == 401
-
-    def test_chat_by_task_403_forbidden(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/hitl-review/chat-by-task", params=self.PARAMS)
         assert response.status_code == 403
 
 
@@ -631,14 +614,6 @@ class TestGetBaseUrlPath:
             assert _get_base_url_path("/hitl-review") == "/airflow/hitl-review"
 
 
-class TestGetChatHtml:
-    def test_replaces_placeholders(self):
-        html = _get_chat_html()
-        assert "__BASE_PREFIX__" not in html
-        assert "__STATIC_PREFIX__" not in html
-        assert 'id="root"' in html
-
-
 class TestIsTaskCompleted:
     """Test _is_task_completed."""
 
@@ -948,6 +923,14 @@ class TestHITLReviewPlugin:
         assert HITLReviewPlugin.fastapi_apps[0]["name"] == "hitl-review"
         assert "url_prefix" in HITLReviewPlugin.fastapi_apps[0]
 
+    def test_react_apps_registered(self):
+        assert len(HITLReviewPlugin.react_apps) == 1
+        app = HITLReviewPlugin.react_apps[0]
+        assert app["name"] == "HITL Review"
+        assert app["url_route"] == "hitl-review"
+        assert app["destination"] == "task_instance"
+        assert "main.umd.cjs" in app["bundle_url"]
+
 
 class TestFindSessionEndpoint:
     """Test the /sessions/find endpoint."""
@@ -1223,54 +1206,6 @@ class TestRejectEndpoint:
         )
         assert response.status_code == 200
         assert response.json()["status"] == "rejected"
-
-
-class TestChatEndpoints:
-    """Test /chat and /chat-by-task endpoints."""
-
-    @pytest.fixture(autouse=True)
-    def setup(self, dag_maker):
-        _clear_db()
-        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
-            EmptyOperator(task_id=TEST_TASK_ID)
-        dag_maker.create_dagrun(
-            run_id=TEST_RUN_ID,
-            run_type=DagRunType.MANUAL,
-            logical_date=logical_date,
-        )
-        dag_maker.sync_dagbag_to_db()
-        yield
-        _clear_db()
-
-    def test_chat_page_returns_html_when_session_exists(self, test_client):
-        _create_hitl_session()
-        response = test_client.get(
-            "/hitl-review/chat",
-            params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
-        )
-        assert response.status_code == 200
-        assert "text/html" in response.headers.get("content-type", "")
-        assert 'id="root"' in response.text
-
-    def test_chat_page_404_when_no_session(self, test_client):
-        response = test_client.get(
-            "/hitl-review/chat",
-            params={
-                "dag_id": TEST_DAG_ID,
-                "run_id": "nonexistent_run",
-                "task_id": TEST_TASK_ID,
-            },
-        )
-        assert response.status_code == 404
-
-    def test_chat_by_task_returns_html(self, test_client):
-        response = test_client.get(
-            "/hitl-review/chat-by-task",
-            params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
-        )
-        assert response.status_code == 200
-        assert "text/html" in response.headers.get("content-type", "")
-        assert 'id="root"' in response.text
 
 
 class TestConflictOnWrongStatus:
