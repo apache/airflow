@@ -527,7 +527,7 @@ class HiveCliHook(BaseHook):
         """Kill Hive cli command."""
         if hasattr(self, "sub_process"):
             if self.sub_process.poll() is None:
-                print("Killing the Hive job")
+                self.log.info("Killing the Hive job")
                 self.sub_process.terminate()
                 time.sleep(60)
                 self.sub_process.kill()
