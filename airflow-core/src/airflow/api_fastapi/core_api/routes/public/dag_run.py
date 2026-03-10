@@ -82,7 +82,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -503,9 +503,9 @@ def trigger_dag_run(
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
+    except AirflowNotFoundException as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except AirflowException as e:
-        if "does not have a version for bundle_version" in str(e):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

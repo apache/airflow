@@ -32,7 +32,7 @@ from sqlalchemy import func, or_, select, tuple_
 
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, DagVersionNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -1129,8 +1129,8 @@ def _create_orm_dagrun(
                 dag.dag_id, bundle_version=resolved_bundle_version, load_serialized_dag=True, session=session
             )
             if not dag_version:
-                raise AirflowException(
-                    f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                raise DagVersionNotFound(
+                    f"Dag with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
                 )
         else:
             resolved_bundle_version = session.scalar(
