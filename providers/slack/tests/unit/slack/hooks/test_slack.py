@@ -434,6 +434,21 @@ class TestSlackHook:
             channel="C00000000",
             file_uploads=[{"file": "/foo/bar/file.txt", "filename": "foo.txt"}],
             initial_comment=None,
+            thread_ts=None,
+        )
+
+    def test_send_file_v2_with_thread_ts(self, mocked_client):
+        """Test that thread_ts is passed to files_upload_v2 when provided."""
+        SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID).send_file_v2(
+            channel_id="C00000000",
+            file_uploads={"file": "/foo/bar/file.txt", "filename": "foo.txt"},
+            thread_ts="1234567890.123456",
+        )
+        mocked_client.files_upload_v2.assert_called_once_with(
+            channel="C00000000",
+            file_uploads=[{"file": "/foo/bar/file.txt", "filename": "foo.txt"}],
+            initial_comment=None,
+            thread_ts="1234567890.123456",
         )
 
     def test_send_file_v2_multiple_files(self, mocked_client):
@@ -451,6 +466,7 @@ class TestSlackHook:
                 {"content": "Some Text", "filename": "foo.txt"},
             ],
             initial_comment="Awesome File",
+            thread_ts=None,
         )
 
     def test_send_file_v2_channel_name(self, mocked_client, caplog):
@@ -465,6 +481,7 @@ class TestSlackHook:
                 channel="C00",
                 file_uploads=mock.ANY,
                 initial_comment=mock.ANY,
+                thread_ts=None,
             )
 
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
@@ -492,6 +509,7 @@ class TestSlackHook:
                     "snippet_type": snippet_type,
                 },
                 initial_comment=initial_comment,
+                thread_ts=None,
             )
 
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
@@ -519,6 +537,7 @@ class TestSlackHook:
                     "snippet_type": snippet_type,
                 },
                 initial_comment=initial_comment,
+                thread_ts=None,
             )
 
     @pytest.mark.parametrize(

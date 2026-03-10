@@ -18,48 +18,60 @@
  */
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+import { testConfig } from "playwright.config";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
-export type ReprocessBehavior = "All Runs" | "Missing and Errored Runs" | "Missing Runs";
+export const REPROCESS_API_TO_UI = {
+  completed: "All Runs",
+  failed: "Missing and Errored Runs",
+  none: "Missing Runs",
+} as const;
 
-export type CreateBackfillOptions = {
-  fromDate: string;
-  reprocessBehavior: ReprocessBehavior;
-  toDate: string;
-};
+export type ReprocessBehaviorApi = keyof typeof REPROCESS_API_TO_UI;
 
-export type BackfillDetails = {
+type BackfillDetails = {
+  completedAt: string;
   createdAt: string;
   fromDate: string;
   reprocessBehavior: string;
   toDate: string;
 };
 
-export type BackfillRowIdentifier = {
+type BackfillRowIdentifier = {
   fromDate: string;
   toDate: string;
 };
 
-function normalizeDate(dateString: string): string {
-  const trimmed = dateString.trim();
+type CreateBackfillOptions = {
+  fromDate: string;
+  maxActiveRuns?: number;
+  reprocessBehavior?: ReprocessBehaviorApi;
+  toDate: string;
+};
 
-  if (trimmed.includes("T")) {
-    const parts = trimmed.split("T");
+type BackfillApiResponse = {
+  completed_at: string | null;
+  id: number;
+};
 
-    return parts[0] ?? trimmed;
+type BackfillListApiResponse = {
+  backfills: Array<BackfillApiResponse>;
+};
+
+const {
+  connection: { baseUrl },
+} = testConfig;
+
+function getColumnIndex(columnMap: Map<string, number>, name: string): number {
+  const index = columnMap.get(name);
+
+  if (index === undefined) {
+    const available = [...columnMap.keys()].join(", ");
+
+    throw new Error(`Column "${name}" not found. Available columns: ${available}`);
   }
 
-  if (trimmed.includes(" ")) {
-    const parts = trimmed.split(" ");
-
-    return parts[0] ?? trimmed;
-  }
-
-  return trimmed;
-}
-
-function datesMatch(date1: string, date2: string): boolean {
-  return normalizeDate(date1) === normalizeDate(date2);
+  return index;
 }
 
 export class BackfillPage extends BasePage {
@@ -72,32 +84,25 @@ export class BackfillPage extends BasePage {
   public readonly cancelButton: Locator;
   public readonly pauseButton: Locator;
   public readonly triggerButton: Locator;
+  public readonly unpauseButton: Locator;
+
+  public get pauseOrUnpauseButton(): Locator {
+    return this.pauseButton.or(this.unpauseButton);
+  }
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
-    this.backfillModeRadio = page.locator('label:has-text("Backfill")');
-    this.backfillFromDateInput = page.locator('input[type="datetime-local"]').first();
-    this.backfillToDateInput = page.locator('input[type="datetime-local"]').nth(1);
-    this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
-    this.backfillsTable = page.locator("table");
-    this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
-    this.cancelButton = page.locator('button[aria-label="Cancel backfill"]');
-    this.pauseButton = page.locator(
-      'button[aria-label="Pause backfill"], button[aria-label="Unpause backfill"]',
-    );
-  }
-
-  public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
-    for (const name of possibleNames) {
-      const index = columnMap.get(name);
-
-      if (index !== undefined) {
-        return index;
-      }
-    }
-
-    return -1;
+    this.triggerButton = page.getByTestId("trigger-dag-button");
+    // Chakra UI radio cards: target the label directly since <input> is hidden.
+    this.backfillModeRadio = page.locator("label").getByText("Backfill", { exact: true });
+    this.backfillFromDateInput = page.getByTestId("datetime-input").first();
+    this.backfillToDateInput = page.getByTestId("datetime-input").nth(1);
+    this.backfillRunButton = page.getByRole("button", { name: "Run Backfill" });
+    this.backfillsTable = page.getByTestId("table-list");
+    this.backfillDateError = page.getByText("Start Date must be before the End Date");
+    this.cancelButton = page.getByRole("button", { name: "Cancel backfill" });
+    this.pauseButton = page.getByRole("button", { name: "Pause backfill" });
+    this.unpauseButton = page.getByRole("button", { name: "Unpause backfill" });
   }
 
   public static getBackfillsUrl(dagName: string): string {
@@ -108,204 +113,252 @@ export class BackfillPage extends BasePage {
     return `/dags/${dagName}`;
   }
 
+  public async cancelAllActiveBackfillsViaApi(dagId: string): Promise<void> {
+    const response = await this.page.request.get(`${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`, {
+      timeout: 30_000,
+    });
+
+    expect(response.ok()).toBe(true);
+    const data = (await response.json()) as BackfillListApiResponse;
+
+    for (const backfill of data.backfills) {
+      if (backfill.completed_at === null) {
+        await this.cancelBackfillViaApi(backfill.id);
+      }
+    }
+  }
+
+  public async cancelBackfillViaApi(backfillId: number): Promise<void> {
+    const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/cancel`, {
+      timeout: 30_000,
+    });
+
+    expect([200, 409]).toContain(response.status());
+  }
+
   public async clickCancelButton(): Promise<void> {
-    await this.waitForBackdropClosed();
-    await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
-    await this.cancelButton.click();
-    await expect(this.cancelButton).not.toBeVisible({ timeout: 30_000 });
+    await this.cancelButton.click({ timeout: 10_000 });
+    await expect(this.cancelButton).not.toBeVisible({ timeout: 15_000 });
   }
 
-  public async clickPauseButton(): Promise<void> {
-    await this.pauseButton.waitFor({ state: "visible", timeout: 30_000 });
-    await this.pauseButton.scrollIntoViewIfNeeded();
-    await expect(this.pauseButton).toBeEnabled({ timeout: 10_000 });
-    const wasPaused = await this.isBackfillPaused();
+  /** Create a backfill through the UI dialog. Returns the backfill ID. Caller must ensure no active backfills exist. */
+  public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<number> {
+    const { fromDate, reprocessBehavior = "none", toDate } = options;
 
-    const responsePromise = this.page
-      .waitForResponse(
-        (response) => {
-          const url = response.url();
-          const status = response.status();
-
-          return url.includes("/backfills/") && (status === 200 || status === 204);
-        },
-        { timeout: 10_000 },
-      )
-      .catch(() => undefined);
-
-    await this.pauseButton.click();
-    await responsePromise;
-
-    // Wait for aria-label to change
-    const expectedLabel = wasPaused ? "Pause backfill" : "Unpause backfill";
-
-    await expect(this.page.locator(`button[aria-label="${expectedLabel}"]`)).toBeVisible({ timeout: 10_000 });
-  }
-
-  public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
-    const { fromDate, reprocessBehavior, toDate } = options;
+    const uiFromDate = fromDate.slice(0, 16);
+    const uiToDate = toDate.slice(0, 16);
 
     await this.navigateToDagDetail(dagName);
-    await this.waitForNoActiveBackfill();
     await this.openBackfillDialog();
 
     await this.backfillFromDateInput.click();
-    await this.backfillFromDateInput.fill(fromDate);
-    await this.backfillFromDateInput.dispatchEvent("change");
+    await this.backfillFromDateInput.fill(uiFromDate);
+    await this.backfillFromDateInput.press("Tab");
 
     await this.backfillToDateInput.click();
-    await this.backfillToDateInput.fill(toDate);
-    await this.backfillToDateInput.dispatchEvent("change");
-
-    await this.page.waitForTimeout(500);
+    await this.backfillToDateInput.fill(uiToDate);
+    await this.backfillToDateInput.press("Tab");
 
     await this.selectReprocessBehavior(reprocessBehavior);
 
-    const runsWillBeTriggered = this.page.locator("text=/\\d+ runs? will be triggered/");
-    const noRunsMatching = this.page.locator("text=/No runs matching/");
+    const runsWillBeTriggered = this.page.getByText(/\d+ runs? will be triggered/);
+    const noRunsMatching = this.page.getByText(/No runs matching/);
 
     await expect(runsWillBeTriggered.or(noRunsMatching)).toBeVisible({ timeout: 20_000 });
 
-    let previousText = "";
-    let stableCount = 0;
-
-    while (stableCount < 3) {
-      await this.page.waitForTimeout(500);
-      const currentText = (await runsWillBeTriggered.or(noRunsMatching).textContent()) ?? "";
-
-      if (currentText === previousText) {
-        stableCount++;
-      } else {
-        stableCount = 0;
-        previousText = currentText;
-      }
-    }
-
-    const hasRuns = await runsWillBeTriggered.isVisible();
-
-    if (!hasRuns) {
+    if (await noRunsMatching.isVisible()) {
       await this.page.keyboard.press("Escape");
 
-      return;
+      throw new Error(
+        `No runs matching: dag=${dagName}, from=${fromDate}, to=${toDate}, reprocess=${reprocessBehavior}`,
+      );
     }
 
-    await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
     await expect(this.backfillRunButton).toBeEnabled({ timeout: 10_000 });
-    await this.backfillRunButton.scrollIntoViewIfNeeded();
 
     const responsePromise = this.page.waitForResponse(
       (res) =>
         res.url().includes("/backfills") &&
         !res.url().includes("/dry_run") &&
         res.request().method() === "POST",
-      { timeout: 60_000 },
+      { timeout: 30_000 },
     );
 
-    await this.backfillRunButton.click({ timeout: 20_000 });
+    await this.backfillRunButton.click();
 
     const apiResponse = await responsePromise;
     const status = apiResponse.status();
 
-    if (status === 409) {
-      await this.page.keyboard.press("Escape");
-      await this.waitForBackdropClosed();
-      await this.waitForNoActiveBackfill();
-
-      return this.createBackfill(dagName, options);
-    }
-
     if (status < 200 || status >= 300) {
-      const body = await apiResponse.text().catch(() => "unknown error");
+      const body = await apiResponse.text().catch(() => "unknown");
+
+      await this.page.keyboard.press("Escape");
 
       throw new Error(`Backfill creation failed with status ${status}: ${body}`);
     }
 
-    const isClosed = await this.backfillRunButton
-      .waitFor({ state: "hidden", timeout: 60_000 })
-      .then(() => true)
-      .catch(() => false);
+    const data = (await apiResponse.json()) as BackfillApiResponse;
 
-    if (!isClosed) {
-      await this.page.keyboard.press("Escape");
+    return data.id;
+  }
+
+  /** Create a backfill via API. On 409, cancels active backfills and retries once. */
+  public async createBackfillViaApi(dagId: string, options: CreateBackfillOptions): Promise<number> {
+    const { fromDate, maxActiveRuns, reprocessBehavior = "none", toDate } = options;
+
+    const body: Record<string, unknown> = {
+      dag_id: dagId,
+      from_date: fromDate,
+      reprocess_behavior: reprocessBehavior,
+      to_date: toDate,
+    };
+
+    if (maxActiveRuns !== undefined) {
+      body.max_active_runs = maxActiveRuns;
     }
 
-    await this.waitForBackdropClosed();
+    const response = await this.page.request.post(`${baseUrl}/api/v2/backfills`, {
+      data: body,
+      headers: { "Content-Type": "application/json" },
+      timeout: 30_000,
+    });
 
-    return;
+    if (response.status() === 409) {
+      await this.cancelAllActiveBackfillsViaApi(dagId);
+      await this.waitForNoActiveBackfillViaApi(dagId, 30_000);
+      const retryResponse = await this.page.request.post(`${baseUrl}/api/v2/backfills`, {
+        data: body,
+        headers: { "Content-Type": "application/json" },
+        timeout: 30_000,
+      });
+
+      expect(retryResponse.ok()).toBe(true);
+
+      return ((await retryResponse.json()) as BackfillApiResponse).id;
+    }
+
+    expect(response.ok()).toBe(true);
+
+    return ((await response.json()) as BackfillApiResponse).id;
+  }
+
+  /**
+   * Create a backfill and immediately pause it. Retries the full create+pause
+   * cycle up to 3 times to handle the race where the scheduler completes the
+   * backfill before the pause call lands.
+   */
+  public async createPausedBackfillViaApi(dagId: string, options: CreateBackfillOptions): Promise<number> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const backfillId = await this.createBackfillViaApi(dagId, {
+        ...options,
+        maxActiveRuns: 1,
+      });
+
+      const paused = await this.pauseBackfillViaApi(backfillId);
+
+      if (paused) {
+        return backfillId;
+      }
+
+      // Backfill completed before we could pause — cancel and retry.
+      await this.cancelAllActiveBackfillsViaApi(dagId);
+      await this.waitForNoActiveBackfillViaApi(dagId, 30_000);
+    }
+
+    throw new Error(`Failed to create a paused backfill for ${dagId} after 3 attempts`);
   }
 
   public async findBackfillRowByDateRange(
     identifier: BackfillRowIdentifier,
-    timeout: number = 180_000,
-  ): Promise<Locator> {
+    timeout: number = 120_000,
+  ): Promise<{ columnMap: Map<string, number>; row: Locator }> {
     const { fromDate: expectedFrom, toDate: expectedTo } = identifier;
 
-    await this.backfillsTable.waitFor({ state: "visible", timeout: 10_000 });
-    await this.waitForTableDataLoaded();
+    let foundRow: Locator | undefined;
+    let foundColumnMap: Map<string, number> | undefined;
 
-    const columnMap = await this.getColumnIndexMap();
-    const fromIndex = BackfillPage.findColumnIndex(columnMap, ["From", "table.from"]);
-    const toIndex = BackfillPage.findColumnIndex(columnMap, ["To", "table.to"]);
+    await expect
+      .poll(
+        async () => {
+          try {
+            if (!(await this.backfillsTable.isVisible())) {
+              return false;
+            }
 
-    if (fromIndex === -1 || toIndex === -1) {
-      const availableColumns = [...columnMap.keys()].join(", ");
+            const headers = this.backfillsTable.locator("thead th");
 
-      throw new Error(
-        `Required columns "From" and/or "To" not found. Available columns: [${availableColumns}]`,
-      );
+            if (!(await headers.first().isVisible())) {
+              return false;
+            }
+
+            const headerTexts = await headers.allTextContents();
+            const columnMap = new Map(headerTexts.map((text, index) => [text.trim(), index]));
+            const fromIndex = columnMap.get("From");
+            const toIndex = columnMap.get("To");
+
+            if (fromIndex === undefined || toIndex === undefined) {
+              return false;
+            }
+
+            const rows = this.backfillsTable.locator("tbody tr");
+            const rowCount = await rows.count();
+
+            for (let i = 0; i < rowCount; i++) {
+              const row = rows.nth(i);
+              const cells = row.locator("td");
+              const fromCell = ((await cells.nth(fromIndex).textContent()) ?? "").slice(0, 10);
+              const toCell = ((await cells.nth(toIndex).textContent()) ?? "").slice(0, 10);
+
+              if (fromCell === expectedFrom.slice(0, 10) && toCell === expectedTo.slice(0, 10)) {
+                foundRow = row;
+                foundColumnMap = columnMap;
+
+                return true;
+              }
+            }
+
+            return false;
+          } catch (error: unknown) {
+            console.warn("findBackfillRowByDateRange poll error:", error);
+
+            return false;
+          }
+        },
+        {
+          intervals: [2000, 5000],
+          message: `Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found in table`,
+          timeout,
+        },
+      )
+      .toBeTruthy();
+
+    if (!foundRow || !foundColumnMap) {
+      throw new Error(`Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found`);
     }
 
-    let foundRow: Locator | undefined;
-
-    await expect(async () => {
-      await this.page.reload();
-      await this.backfillsTable.waitFor({ state: "visible", timeout: 10_000 });
-      await this.waitForTableDataLoaded();
-
-      const rows = this.page.locator("table tbody tr");
-      const rowCount = await rows.count();
-
-      for (let i = 0; i < rowCount; i++) {
-        const row = rows.nth(i);
-        const cells = row.locator("td");
-        const fromCell = (await cells.nth(fromIndex).textContent()) ?? "";
-        const toCell = (await cells.nth(toIndex).textContent()) ?? "";
-
-        if (datesMatch(fromCell, expectedFrom) && datesMatch(toCell, expectedTo)) {
-          foundRow = row;
-
-          return;
-        }
-      }
-
-      throw new Error("Backfill not yet visible");
-    }).toPass({ timeout });
-
-    // toPass() guarantees foundRow is set when it succeeds
-    return foundRow as Locator;
+    return { columnMap: foundColumnMap, row: foundRow };
   }
 
   public async getBackfillDetailsByDateRange(identifier: BackfillRowIdentifier): Promise<BackfillDetails> {
-    const row = await this.findBackfillRowByDateRange(identifier);
+    const { columnMap, row } = await this.findBackfillRowByDateRange(identifier);
     const cells = row.locator("td");
-    const columnMap = await this.getColumnIndexMap();
 
-    const fromIndex = BackfillPage.findColumnIndex(columnMap, ["From", "table.from"]);
-    const toIndex = BackfillPage.findColumnIndex(columnMap, ["To", "table.to"]);
-    const reprocessIndex = BackfillPage.findColumnIndex(columnMap, [
-      "Reprocess Behavior",
-      "backfill.reprocessBehavior",
-    ]);
-    const createdAtIndex = BackfillPage.findColumnIndex(columnMap, ["Created at", "table.createdAt"]);
+    const fromIndex = getColumnIndex(columnMap, "From");
+    const toIndex = getColumnIndex(columnMap, "To");
+    const reprocessIndex = getColumnIndex(columnMap, "Reprocess Behavior");
+    const createdAtIndex = getColumnIndex(columnMap, "Created at");
+    const completedAtIndex = getColumnIndex(columnMap, "Completed at");
 
-    const [fromDate, toDate, reprocessBehavior, createdAt] = await Promise.all([
-      cells.nth(fromIndex === -1 ? 0 : fromIndex).textContent(),
-      cells.nth(toIndex === -1 ? 1 : toIndex).textContent(),
-      cells.nth(reprocessIndex === -1 ? 2 : reprocessIndex).textContent(),
-      cells.nth(createdAtIndex === -1 ? 3 : createdAtIndex).textContent(),
+    const [fromDate, toDate, reprocessBehavior, createdAt, completedAt] = await Promise.all([
+      cells.nth(fromIndex).textContent(),
+      cells.nth(toIndex).textContent(),
+      cells.nth(reprocessIndex).textContent(),
+      cells.nth(createdAtIndex).textContent(),
+      cells.nth(completedAtIndex).textContent(),
     ]);
 
     return {
+      completedAt: (completedAt ?? "").trim(),
       createdAt: (createdAt ?? "").trim(),
       fromDate: (fromDate ?? "").trim(),
       reprocessBehavior: (reprocessBehavior ?? "").trim(),
@@ -313,164 +366,144 @@ export class BackfillPage extends BasePage {
     };
   }
 
-  public async getBackfillsTableRows(): Promise<number> {
-    const rows = this.page.locator("table tbody tr");
-
-    try {
-      await rows.first().waitFor({ state: "visible", timeout: 5000 });
-    } catch {
-      return 0;
-    }
-
-    return await rows.count();
-  }
-
-  public async getBackfillStatus(rowIndex: number = 0): Promise<string> {
-    const row = this.page.locator("table tbody tr").nth(rowIndex);
-
-    await expect(row).toBeVisible({ timeout: 10_000 });
-
-    const headers = this.page.locator("table thead th");
-    const headerTexts = await headers.allTextContents();
-    const completedAtIndex = headerTexts.findIndex((text) => text.toLowerCase().includes("completed"));
-
-    if (completedAtIndex !== -1) {
-      const completedCell = row.locator("td").nth(completedAtIndex);
-      const completedText = ((await completedCell.textContent()) ?? "").trim();
-
-      return completedText ? "Completed" : "Running";
-    }
-
-    return "Running";
-  }
-
   public getColumnHeader(columnName: string): Locator {
-    return this.page.locator(`th:has-text("${columnName}")`);
-  }
-
-  public async getColumnIndexMap(): Promise<Map<string, number>> {
-    const headers = this.page.locator("table thead th");
-
-    await headers.first().waitFor({ state: "visible", timeout: 10_000 });
-    const headerTexts = await headers.allTextContents();
-
-    return new Map(headerTexts.map((text, index) => [text.trim(), index]));
+    return this.backfillsTable.getByRole("columnheader", { name: columnName });
   }
 
   public getFilterButton(): Locator {
-    return this.page.locator(
-      'button[aria-label*="Filter table columns"], button:has-text("Filter table columns")',
-    );
-  }
-
-  public async getTableColumnCount(): Promise<number> {
-    const headers = this.page.locator("table thead th");
-
-    return await headers.count();
-  }
-
-  public async isBackfillPaused(): Promise<boolean> {
-    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
-    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
-
-    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
+    return this.page.getByRole("button", { name: /filter table columns/i });
   }
 
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
-    await expect(this.backfillsTable).toBeVisible({ timeout: 20_000 });
+    await expect(this.backfillsTable).toBeVisible({ timeout: 15_000 });
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
-    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 15_000 });
   }
 
   public async openBackfillDialog(): Promise<void> {
-    await expect(this.triggerButton).toBeVisible({ timeout: 20_000 });
-    await this.triggerButton.click();
-
-    await expect(this.backfillModeRadio).toBeVisible({ timeout: 20_000 });
-    await this.backfillModeRadio.click();
-
-    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 20_000 });
+    await this.triggerButton.click({ timeout: 15_000 });
+    await this.backfillModeRadio.click({ timeout: 10_000 });
+    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 10_000 });
   }
 
   public async openFilterMenu(): Promise<void> {
-    const filterButton = this.getFilterButton();
-
-    await filterButton.click();
-
-    const filterMenu = this.page.locator('[role="menu"]');
-
-    await filterMenu.waitFor({ state: "visible", timeout: 5000 });
+    await this.getFilterButton().click();
+    await expect(this.page.getByRole("menu")).toBeVisible({ timeout: 5000 });
   }
 
-  public async selectReprocessBehavior(behavior: ReprocessBehavior): Promise<void> {
-    const behaviorLabels: Record<ReprocessBehavior, string> = {
-      "All Runs": "All Runs",
-      "Missing and Errored Runs": "Missing and Errored Runs",
-      "Missing Runs": "Missing Runs",
-    };
+  public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {
+    let isPaused = false;
 
-    const label = behaviorLabels[behavior];
-    const radioItem = this.page.locator(`label:has-text("${label}")`).first();
+    try {
+      // Retry: the server may not have fully initialized the backfill yet.
+      await expect
+        .poll(
+          async () => {
+            const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/pause`, {
+              timeout: 30_000,
+            });
 
-    await radioItem.waitFor({ state: "visible", timeout: 5000 });
-    await radioItem.click();
+            if (response.ok()) {
+              isPaused = true;
+
+              return true;
+            }
+
+            // 409 means the backfill already completed — not retriable.
+            if (response.status() === 409) {
+              isPaused = false;
+
+              return true;
+            }
+
+            return false;
+          },
+          {
+            intervals: [2000],
+            message: `Failed to pause backfill ${backfillId}`,
+            timeout: 10_000,
+          },
+        )
+        .toBeTruthy();
+    } catch {
+      return false;
+    }
+
+    return isPaused;
+  }
+
+  public async selectReprocessBehavior(behavior: ReprocessBehaviorApi): Promise<void> {
+    const label = REPROCESS_API_TO_UI[behavior];
+
+    await this.page.locator("label").getByText(label, { exact: true }).click({ timeout: 5000 });
   }
 
   public async toggleColumn(columnName: string): Promise<void> {
-    const menuItem = this.page.locator(`[role="menuitem"]:has-text("${columnName}")`);
-
-    await menuItem.click();
+    await this.page.getByRole("menuitem", { name: columnName }).click();
   }
 
-  public async waitForBackdropClosed(timeout: number = 30_000): Promise<void> {
-    const backdrop = this.page.locator('[data-part="backdrop"]');
-
-    await expect(async () => {
-      const count = await backdrop.count();
-
-      if (count === 0) {
-        return;
-      }
-
-      const state = await backdrop.getAttribute("data-state");
-
-      if (state !== "closed") {
-        throw new Error("Backdrop still open");
-      }
-    }).toPass({ timeout });
+  public async togglePauseState(): Promise<void> {
+    await this.pauseOrUnpauseButton.click({ timeout: 10_000 });
   }
 
-  public async waitForNoActiveBackfill(timeout: number = 300_000): Promise<void> {
-    const { page, triggerButton } = this;
-    const backfillInProgress = page.locator('text="Backfill in progress:"');
+  public async waitForBackfillComplete(backfillId: number, timeout: number = 120_000): Promise<void> {
+    await expect
+      .poll(
+        async () => {
+          try {
+            const response = await this.page.request.get(`${baseUrl}/api/v2/backfills/${backfillId}`, {
+              timeout: 30_000,
+            });
 
-    await expect(async () => {
-      await page.reload();
-      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 });
-      await triggerButton.waitFor({ state: "visible", timeout: 30_000 });
+            if (!response.ok()) {
+              return false;
+            }
+            const data = (await response.json()) as BackfillApiResponse;
 
-      const isVisible = await backfillInProgress.isVisible();
-
-      if (isVisible) {
-        throw new Error("Backfill still in progress");
-      }
-    }).toPass({ intervals: [5000, 10_000, 15_000], timeout });
+            return data.completed_at !== null;
+          } catch {
+            return false;
+          }
+        },
+        {
+          intervals: [2000, 5000, 10_000],
+          message: `Backfill ${backfillId} did not complete within ${timeout}ms`,
+          timeout,
+        },
+      )
+      .toBeTruthy();
   }
 
-  public async waitForTableDataLoaded(): Promise<void> {
-    const firstCell = this.page.locator("table tbody tr:first-child td:first-child");
+  public async waitForNoActiveBackfillViaApi(dagId: string, timeout: number = 120_000): Promise<void> {
+    await expect
+      .poll(
+        async () => {
+          try {
+            const response = await this.page.request.get(
+              `${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`,
+              { timeout: 30_000 },
+            );
 
-    await expect(firstCell).toBeVisible({ timeout: 30_000 });
-    await expect(async () => {
-      const text = await firstCell.textContent();
+            if (!response.ok()) {
+              return false;
+            }
+            const data = (await response.json()) as BackfillListApiResponse;
 
-      if (text === null || text.trim() === "") {
-        throw new Error("Table data still loading");
-      }
-    }).toPass({ timeout: 30_000 });
+            return data.backfills.every((b) => b.completed_at !== null);
+          } catch {
+            return false;
+          }
+        },
+        {
+          intervals: [2000, 5000, 10_000],
+          message: `Active backfills for Dag ${dagId} did not clear within ${timeout}ms`,
+          timeout,
+        },
+      )
+      .toBeTruthy();
   }
 }

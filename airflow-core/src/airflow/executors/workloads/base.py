@@ -22,7 +22,7 @@ import os
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -69,7 +69,7 @@ class BaseWorkloadSchema(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    token: str
+    token: str = Field(repr=False)
     """The identity token for this workload"""
 
     @staticmethod
