@@ -1126,7 +1126,7 @@ def _create_orm_dagrun(
         if bundle_version is not None:
             resolved_bundle_version = bundle_version
             dag_version = DagVersion.get_latest_version(
-                dag.dag_id, bundle_version=resolved_bundle_version, session=session
+                dag.dag_id, bundle_version=resolved_bundle_version, load_serialized_dag=True, session=session
             )
             if not dag_version:
                 raise AirflowException(
@@ -1134,11 +1134,18 @@ def _create_orm_dagrun(
                 )
         else:
             resolved_bundle_version = session.scalar(
-                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
             )
-            dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+            dag_version = DagVersion.get_latest_version(
+                dag.dag_id, bundle_version=resolved_bundle_version, load_serialized_dag=True, session=session
+            )
+            if dag_version is None and resolved_bundle_version is not None:
+                # Fall back to latest if no DagVersion matched the resolved bundle version
+                dag_version = DagVersion.get_latest_version(
+                    dag.dag_id, load_serialized_dag=True, session=session
+                )
     else:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, load_serialized_dag=True, session=session)
 
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
@@ -1169,7 +1176,14 @@ def _create_orm_dagrun(
     run.consumed_asset_events = []
     session.add(run)
     session.flush()
-    run.dag = dag
+    resolved_dag = dag_version.serialized_dag.dag
+    # Preserve any callbacks dynamically set on the dag parameter (e.g., by dag.test()).
+    # Callbacks are not JSON-serializable, so they are lost during (de)serialization.
+    if hasattr(dag, "on_failure_callback"):
+        resolved_dag.on_failure_callback = dag.on_failure_callback  # type: ignore[attr-defined]
+    if hasattr(dag, "on_success_callback"):
+        resolved_dag.on_success_callback = dag.on_success_callback  # type: ignore[attr-defined]
+    run.dag = resolved_dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

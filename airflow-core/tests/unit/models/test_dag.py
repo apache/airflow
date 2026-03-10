@@ -3568,6 +3568,41 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
     assert dr.bundle_version == expected
 
 
+def test_create_dagrun_uses_resolved_bundle_version_for_integrity(dag_maker, session, clear_dags):
+    with dag_maker(
+        dag_id="test_dag_bundle_version_integrity",
+        session=session,
+        serialized=True,
+        bundle_version="v1",
+    ) as _dag_v1:
+        EmptyOperator(task_id="t1")
+
+    with dag_maker(
+        dag_id="test_dag_bundle_version_integrity",
+        session=session,
+        serialized=True,
+        bundle_version="v2",
+    ) as dag_v2:
+        EmptyOperator(task_id="t1")
+        EmptyOperator(task_id="t2")
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_v2.dag_id))
+    dag_model.bundle_version = "v1"
+    session.commit()
+
+    dr = dag_v2.create_dagrun(
+        run_id="bundle_version_integrity",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    assert dr.bundle_version == "v1"
+    assert dr.created_dag_version.bundle_version == "v1"
+    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1"}
+
+
 def test_get_run_data_interval():
     with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         EmptyOperator(task_id="empty_task")
