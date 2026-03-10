@@ -30,6 +30,7 @@ import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { Logo } from "src/components/Logo";
 import { useTimezone } from "src/context/timezone";
+import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
@@ -100,6 +101,8 @@ export const Nav = () => {
   const { selectedTimezone } = useTimezone();
   const offset = getTimezoneOffsetString(selectedTimezone);
   const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
+  const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+  const hasCustomLogo = Boolean(theme?.icon) || Boolean(theme?.icon_dark_mode);
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
@@ -206,12 +209,14 @@ export const Nav = () => {
           </Box>
         </Tooltip>
         <UserSettingsButton externalViews={userItems} />
-        <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
-          {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
-          <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
-            Apache Airflow®
-          </a>
-        </Text>
+        {hasCustomLogo ? (
+          <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
+            {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
+            <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
+              Apache Airflow®
+            </a>
+          </Text>
+        ) : undefined}
       </Flex>
       <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
     </VStack>
