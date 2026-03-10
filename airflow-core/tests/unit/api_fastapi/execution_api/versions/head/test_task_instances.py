@@ -76,13 +76,16 @@ def _create_asset_aliases(session, num: int = 2) -> None:
 
 
 @pytest.fixture
-def client_with_extra_route(): ...
+def _use_real_jwt_bearer(exec_app):
+    """Remove the mock jwt_bearer override so the real JWTBearer.__call__ runs."""
+    from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+    exec_app.dependency_overrides.pop(_jwt_bearer, None)
 
 
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
 def test_id_matches_sub_claim(client, session, create_task_instance):
-    # Test that this is validated at the router level, so we don't have to test it in each component
-    # We validate it is set correctly, and test it once
-
+    """Test that scope validation (ti:self) is enforced at the router level."""
     ti = create_task_instance(
         task_id="test_ti_run_state_conflict_if_not_queued",
         state="queued",
@@ -90,17 +93,10 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     session.commit()
 
     validator = mock.AsyncMock(spec=JWTValidator)
-    claims = {"sub": ti.id}
-
-    def side_effect(cred, validators):
-        if not validators:
-            return claims
-        if str(validators["sub"]["value"]) != str(ti.id):
-            raise RuntimeError("Fake auth denied")
-        return claims
-
-    validator.avalidated_claims.side_effect = side_effect
-
+    validator.avalidated_claims.return_value = {
+        "sub": str(ti.id),
+        "scope": "execution",
+    }
     lifespan.registry.register_value(JWTValidator, validator)
 
     payload = {
@@ -113,15 +109,10 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
     resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
     assert resp.status_code == 403
-    assert validator.avalidated_claims.call_args_list[1] == mock.call(
-        mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
-    )
     validator.avalidated_claims.reset_mock()
 
     resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
-
     assert resp.status_code == 200, resp.json()
-
     validator.avalidated_claims.assert_awaited()
 
 
@@ -2925,3 +2916,88 @@ class TestTIPatchRenderedMapIndex:
         )
 
         assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+class TestTokenTypeValidation:
+    """Test token scope enforcement (workload vs execution)."""
+
+    def test_workload_scope_rejected_on_default_endpoints(self, client, session, create_task_instance):
+        """workload scoped tokens should be rejected on endpoints without token:workload Security scope."""
+        ti = create_task_instance(task_id="test_ti_run_heartbeat", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "workload",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"hostname": "test-host", "pid": 100}
+        resp = client.put(f"/execution/task-instances/{ti.id}/heartbeat", json=payload)
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+
+    def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
+        """execution scoped tokens should be able to call all endpoints."""
+        ti = create_task_instance(task_id="test_ti_star", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "execution",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
+        resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert resp.status_code in [200, 204]
+
+    def test_invalid_scope_value_rejected(self, client, session, create_task_instance):
+        """Tokens with unrecognized scope values should be rejected."""
+        ti = create_task_instance(task_id="test_invalid_scope", state=State.QUEUED)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "bogus:scope",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {
+            "state": "running",
+            "hostname": "test-host",
+            "unixname": "test-user",
+            "pid": 100,
+            "start_date": "2024-10-31T12:00:00Z",
+        }
+
+        resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+        assert resp.status_code == 403
+        assert "Invalid token scope" in resp.json()["detail"]
+
+    def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
+        """Tokens without scope claim should default to 'execution'."""
+        ti = create_task_instance(task_id="test_no_scope", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
+        resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert resp.status_code in [200, 204]
