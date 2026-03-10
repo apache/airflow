@@ -1092,6 +1092,25 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         op = self.opcls(task_id="task", python_callable=f, **self.default_kwargs())
         copy.deepcopy(op)
 
+    def test_write_args_non_serializable_op_kwargs(self, tmp_path):
+        """Non-serializable op_kwargs should raise AirflowException with helpful message."""
+
+        class NonSerializable:
+            def __reduce__(self):
+                raise TypeError("cannot pickle this")
+
+        def f(x):
+            return x
+
+        op = self.opcls(
+            task_id="task",
+            python_callable=f,
+            op_kwargs={"bad_obj": NonSerializable(), "good_obj": "hello"},
+            **self.default_kwargs(),
+        )
+        with pytest.raises(AirflowException, match=r"cannot be pickled.*\['bad_obj'\]"):
+            op._write_args(tmp_path / "args.pkl")
+
     def test_virtualenv_serializable_context_fields(self, create_task_instance):
         """Ensure all template context fields are listed in the operator.
 
