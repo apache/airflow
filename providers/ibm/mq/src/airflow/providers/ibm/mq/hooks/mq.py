@@ -44,7 +44,7 @@ class IBMMQHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom UI field behaviour for IBM Connection."""
+        """Return custom UI field behaviour for IBM MQ Connection."""
         return {
             "hidden_fields": ["schema"],
             "placeholders": {
@@ -103,10 +103,17 @@ class IBMMQHook(BaseHook):
         except Exception:
             return message
 
-    async def consume(self, queue_name: str, poll_interval: float = 5) -> str:
+    async def consume(self, queue_name: str, poll_interval: float = 5) -> str | None:
         """
-        Wait for a single message and return its decoded payload.
-        Retries automatically on connection loss.
+        Wait for a single message from the specified IBM MQ queue and return its decoded payload.
+
+        If the MQ connection is lost or another recoverable error occurs, the method logs the
+        issue and exits so that the next trigger instance can attempt to reconnect.
+
+        :param queue_name: Name of the IBM MQ queue to consume messages from.
+        :param poll_interval: Interval in seconds used to wait for messages and to control
+            how long the underlying MQ get operation blocks before checking again.
+        :return: The decoded message payload if a message is received, otherwise ``None``.
         """
         import ibmmq
 
@@ -126,47 +133,60 @@ class IBMMQHook(BaseHook):
         )
         gmo.WaitInterval = int(poll_interval * 1000)
 
-        while True:
-            try:
-                async with self.get_conn() as qmgr:
-                    q = ibmmq.Queue(
-                        qmgr,
-                        od,
-                        ibmmq.CMQC.MQOO_INPUT_AS_Q_DEF,
-                    )
+        try:
+            async with self.get_conn() as qmgr:
+                q = ibmmq.Queue(
+                    qmgr,
+                    od,
+                    ibmmq.CMQC.MQOO_INPUT_AS_Q_DEF,
+                )
 
-                    async_get = sync_to_async(q.get)
+                async_get = sync_to_async(q.get)
 
-                    try:
-                        while True:
-                            try:
-                                message = await async_get(None, md, gmo)
+                try:
+                    while True:
+                        try:
+                            message = await asyncio.wait_for(
+                                async_get(None, md, gmo),
+                                timeout=poll_interval + 1,
+                            )
 
-                                if message:
-                                    return self._process_message(message)
+                            if message:
+                                return self._process_message(message)
 
-                            except ibmmq.MQMIError as e:
-                                if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
-                                    self.log.warning(
-                                        "MQ connection broken, retrying..."
-                                    )
-                                    break
-                                elif e.reason == ibmmq.CMQC.MQRC_NO_MSG_AVAILABLE:
-                                    await asyncio.sleep(poll_interval)
-                                    continue
-                                else:
-                                    raise
-                    finally:
-                        with suppress(Exception):
-                            q.close()
+                        except ibmmq.MQMIError as e:
+                            if e.reason == ibmmq.CMQC.MQRC_NO_MSG_AVAILABLE:
+                                await asyncio.sleep(poll_interval)
+                                continue
+                            elif e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
+                                self.log.warning(
+                                    "MQ connection broken, will exit consume; next trigger instance will reconnect"
+                                )
+                                return None
+                            else:
+                                raise
 
-            except Exception:
-                self.log.exception("MQ consume failed, retrying...")
-                await asyncio.sleep(poll_interval)
+                finally:
+                    with suppress(Exception):
+                        q.close()
+
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.log.exception("MQ consume failed, exiting; next trigger instance will retry")
+            return None
 
     async def produce(self, queue_name: str, payload: str) -> None:
         """
-        Put a message on the queue.
+        Put a message onto the specified IBM MQ queue.
+
+        This method connects to the configured MQ queue manager and sends the
+        provided payload as a UTF-8 encoded message to the given queue.
+
+        :param queue_name: Name of the IBM MQ queue to which the message should be sent.
+        :param payload: Message payload to send. The payload will be encoded as UTF-8
+            before being placed on the queue.
+        :return: None
         """
         import ibmmq
 

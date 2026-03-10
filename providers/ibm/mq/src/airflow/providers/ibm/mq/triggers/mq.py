@@ -59,7 +59,5 @@ class AwaitMessageTrigger(BaseEventTrigger):
                 poll_interval=self.poll_interval,
             )
             yield TriggerEvent(event)
-
         except asyncio.CancelledError:
-            self.log.info("MQ trigger cancelled")
             return
