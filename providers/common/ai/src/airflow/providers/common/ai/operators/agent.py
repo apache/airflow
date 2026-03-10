@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for running AI agents with tools and multi-turn reasoning.
+"""
+Operator for running AI agents with tools and multi-turn reasoning.
 
 Supports two agent frameworks selectable via ``agent_framework``:
 
@@ -116,7 +117,7 @@ class AgentOperator(BaseOperator):
 
         if agent_framework not in SUPPORTED_FRAMEWORKS:
             raise ValueError(
-                f"Unsupported agent_framework={agent_framework!r}. " f"Choose from {SUPPORTED_FRAMEWORKS}."
+                f"Unsupported agent_framework={agent_framework!r}. Choose from {SUPPORTED_FRAMEWORKS}."
             )
 
         if agent_framework == "pydantic_ai" and not llm_conn_id:

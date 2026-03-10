@@ -213,7 +213,7 @@ def example_agent_operator_adk():
         agent_framework="adk",
         model_id="gemini-2.5-flash",
         system_prompt=(
-            "You are a data analyst. Use the available tools to answer " "questions about customer data."
+            "You are a data analyst. Use the available tools to answer questions about customer data."
         ),
         tools=[get_customer_count, get_top_customers],
     )
