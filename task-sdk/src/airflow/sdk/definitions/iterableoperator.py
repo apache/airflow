@@ -86,7 +86,8 @@ class TaskExecutor(LoggingMixin):
     @property
     def task_index(self) -> int:
         map_index = self.task_instance.map_index
-        assert map_index is not None
+        if map_index is None:
+            raise ValueError("MappedTaskInstance.map_index should not be None!")
         return map_index
 
     @property
