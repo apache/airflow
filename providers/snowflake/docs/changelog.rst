@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+6.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow SnowflakeHook + SnowflakeSqlApiHook 'private_key_content' to use raw key in addition to base64 encoding (#62378)``
+
+Misc
+~~~~
+
+* ``Centralize OAuth grant_type validation in SnowflakeHook (#61969)``
+* ``Lazy load 'snowflake' imports in Snowflake provider. (#62365)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.10.0
 ......
 
