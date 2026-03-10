@@ -199,16 +199,17 @@ class TestGetConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "non_json_extra",
+        ("non_json_extra", "expected_extra"),
         [
-            "Bearer eyJhbGciOiJIUzI1NiJ9.secretpayload",
-            "plain-text-password",
-            "key=value&secret=token",
-            "",
+            ("Bearer eyJhbGciOiJIUzI1NiJ9.secretpayload", "***"),
+            ("plain-text-password", "***"),
+            ("key=value&secret=token", "***"),
+            ("", ""),
+            (None, None),
         ],
-        ids=["bearer-token", "plain-text", "query-string", "empty-string"],
+        ids=["bearer-token", "plain-text", "query-string", "empty-string", "none"],
     )
-    def test_get_should_redact_non_json_extra(self, test_client, session, non_json_extra):
+    def test_get_should_redact_non_json_extra(self, test_client, session, non_json_extra, expected_extra):
         self.create_connection()
         connection = session.scalars(select(Connection)).first()
         connection.extra = non_json_extra
@@ -216,8 +217,8 @@ class TestGetConnection(TestConnectionEndpoint):
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
-        assert body["extra"] == "***", (
-            f"Non-JSON extra should be fully redacted, but got: {body['extra']!r}"
+        assert body["extra"] == expected_extra, (
+            f"Expected extra={expected_extra!r}, but got: {body['extra']!r}"
         )
 
 
