@@ -459,6 +459,11 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
         )
 
+    def _get_custom_secret_backend(self, worker_mode: bool | None = None) -> Any | None:
+        return super()._get_custom_secret_backend(
+            worker_mode=worker_mode if worker_mode is not None else False
+        )
+
     def mask_secrets(self):
         from airflow._shared.configuration.parser import _build_kwarg_env_prefix, _collect_kwarg_env_vars
         from airflow._shared.secrets_masker import mask_secret as mask_secret_core
