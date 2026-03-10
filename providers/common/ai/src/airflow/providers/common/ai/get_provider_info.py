@@ -52,6 +52,9 @@ def get_provider_info():
             {
                 "integration-name": "Google ADK",
                 "external-doc-url": "https://google.github.io/adk-docs/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/adk_agent.rst",
+                ],
                 "tags": ["ai"],
             },
         ],
@@ -136,10 +139,17 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.llm_sql",
                     "airflow.providers.common.ai.operators.llm_schema_compare",
                 ],
-            }
+            },
+            {
+                "integration-name": "Google ADK",
+                "python-modules": [
+                    "airflow.providers.common.ai.operators.adk_agent",
+                ],
+            },
         ],
         "task-decorators": [
             {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
+            {"class-name": "airflow.providers.common.ai.decorators.adk_agent.adk_agent_task", "name": "adk_agent"},
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_branch.llm_branch_task",

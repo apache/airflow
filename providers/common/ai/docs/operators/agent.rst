@@ -30,14 +30,6 @@ This is different from
 a single prompt and returns the output. ``AgentOperator`` manages a stateful
 tool-call loop where the LLM decides which tools to call and when to stop.
 
-Two agent frameworks are supported, selectable via the ``agent_framework``
-parameter:
-
-* **pydantic_ai** (default) — backed by the `pydantic-ai <https://ai.pydantic.dev/>`_
-  library. Tools are supplied as ``toolsets`` (``SQLToolset``, ``HookToolset``, etc.).
-* **adk** — backed by Google's `Agent Development Kit <https://google.github.io/adk-docs/>`_.
-  Tools are supplied as plain Python callables via the ``tools`` parameter.
-
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydantic_ai>`
 
@@ -119,82 +111,25 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
-Google ADK Agent
-----------------
-
-Use ``agent_framework="adk"`` to run an agent backed by Google's
-`Agent Development Kit <https://google.github.io/adk-docs/>`_.
-
-Install the extra dependency first:
-
-.. code-block:: bash
-
-    pip install 'apache-airflow-providers-common-ai[adk]'
-
-Tools are plain Python callables whose **docstrings** are sent to the LLM —
-no special base class is needed.
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
-    :language: python
-    :start-after: [START howto_operator_agent_adk]
-    :end-before: [END howto_operator_agent_adk]
-
-.. note::
-
-    ADK does **not** use ``llm_conn_id``; instead it relies on ``model_id``
-    and environment-level authentication (``GOOGLE_API_KEY`` or Application
-    Default Credentials).
-
-
-ADK Decorator
--------------
-
-The ``@task.agent`` decorator works with ADK too — just pass
-``agent_framework="adk"`` along with ``model_id`` and ``tools``.
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
-    :language: python
-    :start-after: [START howto_decorator_agent_adk]
-    :end-before: [END howto_decorator_agent_adk]
-
-
 Parameters
 ----------
 
-Common parameters
-~~~~~~~~~~~~~~~~~
-
 - ``prompt``: The prompt to send to the agent (operator) or the return value
   of the decorated function (decorator).
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"`` for pydantic-ai or
-  ``"gemini-2.5-flash"`` for ADK). Overrides the connection's extra field
-  when using pydantic-ai.
+- ``llm_conn_id``: Airflow connection ID for the LLM provider.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+  connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja
   templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
-- ``agent_framework``: Which framework to use. ``"pydantic_ai"`` (default) or
-  ``"adk"``.
-- ``agent_params``: Additional keyword arguments passed to the underlying
-  agent constructor (pydantic-ai ``Agent`` or ADK ``Agent``).
-
-pydantic-ai specific
-~~~~~~~~~~~~~~~~~~~~~
-
-- ``llm_conn_id``: Airflow connection ID for the LLM provider. **Required**
-  when ``agent_framework="pydantic_ai"``.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   etc.).
 - ``enable_tool_logging``: Wrap each toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
-
-ADK specific
-~~~~~~~~~~~~~
-
-- ``model_id``: **Required** when ``agent_framework="adk"``.
-- ``tools``: List of plain Python callables whose docstrings are exposed to
-  the LLM as tool descriptions.
+- ``agent_params``: Additional keyword arguments passed to the pydantic-ai
+  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 
 
 Logging

@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-TaskFlow decorator for agentic LLM workflows.
+TaskFlow decorator for Google ADK agentic workflows.
 
 The user writes a function that **returns the prompt string**. The decorator
-handles hook creation, agent configuration with toolsets, multi-turn reasoning,
-and output serialization.
+handles hook creation, agent configuration with tools, multi-turn reasoning,
+and output serialization using Google's Agent Development Kit.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.operators.adk_agent import AdkAgentOperator
 from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
@@ -41,13 +41,13 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
+class _AdkAgentDecoratedOperator(DecoratedOperator, AdkAgentOperator):
     """
-    Wraps a callable that returns a prompt for an agentic LLM workflow.
+    Wraps a callable that returns a prompt for a Google ADK agentic workflow.
 
     The user function is called at execution time to produce the prompt string.
-    All other parameters (``llm_conn_id``, ``toolsets``, ``system_prompt``, etc.)
-    are passed through to :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+    All other parameters (``model_id``, ``tools``, ``system_prompt``, etc.)
+    are passed through to :class:`~airflow.providers.common.ai.operators.adk_agent.AdkAgentOperator`.
 
     :param python_callable: A reference to a callable that returns the prompt string.
     :param op_args: Positional arguments for the callable.
@@ -56,13 +56,13 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
 
     template_fields: Sequence[str] = (
         *DecoratedOperator.template_fields,
-        *AgentOperator.template_fields,
+        *AdkAgentOperator.template_fields,
     )
     template_fields_renderers: ClassVar[dict[str, str]] = {
         **DecoratedOperator.template_fields_renderers,
     }
 
-    custom_operator_name: str = "@task.agent"
+    custom_operator_name: str = "@task.adk_agent"
 
     def __init__(
         self,
@@ -87,29 +87,31 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
         if not isinstance(self.prompt, str) or not self.prompt.strip():
-            raise TypeError("The returned value from the @task.agent callable must be a non-empty string.")
+            raise TypeError(
+                "The returned value from the @task.adk_agent callable must be a non-empty string."
+            )
 
         self.render_template_fields(context)
-        return AgentOperator.execute(self, context)
+        return AdkAgentOperator.execute(self, context)
 
 
-def agent_task(
+def adk_agent_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """
-    Wrap a function that returns a prompt into an agentic LLM task.
+    Wrap a function that returns a prompt into a Google ADK agentic task.
 
     The function body constructs the prompt (can use Airflow context, XCom, etc.).
-    The decorator handles hook creation, agent configuration with toolsets,
+    The decorator handles hook creation, agent configuration with tools,
     multi-turn reasoning, and output serialization.
 
     Usage::
 
-        @task.agent(
-            llm_conn_id="pydantic_ai_default",
+        @task.adk_agent(
+            model_id="gemini-2.5-flash",
             system_prompt="You are a data analyst.",
-            toolsets=[SQLToolset(db_conn_id="postgres_default")],
+            tools=[get_weather],
         )
         def analyze(question: str):
             return f"Answer: {question}"
@@ -118,6 +120,6 @@ def agent_task(
     """
     return task_decorator_factory(
         python_callable=python_callable,
-        decorated_operator_class=_AgentDecoratedOperator,
+        decorated_operator_class=_AdkAgentDecoratedOperator,
         **kwargs,
     )
