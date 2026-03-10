@@ -22,7 +22,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
-from airflow.providers.ibm.mq.hooks.mq import IBMMQHook
 from airflow.providers.ibm.mq.triggers.mq import AwaitMessageTrigger
 from airflow.providers.ibm.mq.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -38,6 +37,29 @@ QUEUE_REGEXP = r"^mq://"
 
 
 class IBMMQMessageQueueProvider(BaseMessageQueueProvider):
+    """
+    Configuration for IBM MQ integration with common-messaging.
+
+    [START ibmmq_message_queue_provider_description]
+
+    * It uses ``mq`` as scheme for identifying IBM MQ queues.
+    * For parameter definitions take a look at
+      :class:`~airflow.providers.ibm.mq.triggers.mq.AwaitMessageTrigger`.
+
+    .. code-block:: python
+
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.sdk import Asset, AssetWatcher
+
+        trigger = MessageQueueTrigger(
+            queue="mq://mq_default/MY.QUEUE.NAME",
+        )
+
+        asset = Asset("mq_topic_asset", watchers=[AssetWatcher(name="mq_watcher", trigger=trigger)])
+
+    [END ibmmq_message_queue_provider_description]
+    """
+
     scheme = "mq"
 
     def queue_matches(self, queue: str) -> bool:
