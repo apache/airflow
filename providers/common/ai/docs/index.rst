@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/pydantic_ai>
+    MCP connection <connections/mcp>
     Hooks <hooks/pydantic_ai>
     Toolsets <toolsets>
     Operators <operators/index>
@@ -102,8 +103,8 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.1``
-``apache-airflow-providers-standard``       ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-standard``       ``>=1.12.1``
 ``pydantic-ai-slim``                        ``>=1.14.0``
 ==========================================  ==================
 

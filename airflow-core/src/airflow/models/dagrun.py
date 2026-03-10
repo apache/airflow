@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from natsort import natsorted
 from sqlalchemy import (
     JSON,
     Enum,
@@ -1220,21 +1219,18 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
 
-            if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
-            elif dag.has_on_failure_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=True,
-                    msg="task_failure",
+            if dag.has_on_failure_callback:
+                ti_causing_failure = max(
+                    (ti for ti in tis if ti.state == TaskInstanceState.FAILED),
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
+                    default=None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=ti_causing_failure,
+                    reason="task_failure",
+                    execute=execute_callbacks,
                 )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
@@ -1253,21 +1249,18 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
 
-            if execute_callbacks and dag.has_on_success_callback:
-                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
-            elif dag.has_on_success_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=False,
-                    msg="success",
+            if dag.has_on_success_callback:
+                last_succeeded_ti: TI | None = max(
+                    (ti for ti in tis if ti.state == TaskInstanceState.SUCCESS),
+                    key=lambda ti: ti.end_date or timezone.make_aware(datetime.min),
+                    default=None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=True,
+                    relevant_ti=last_succeeded_ti,
+                    reason="success",
+                    execute=execute_callbacks,
                 )
 
             if dag.deadline:
@@ -1288,25 +1281,23 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
-            if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(
-                    dag=cast("SDKDAG", dag),
-                    success=False,
-                    reason="all_tasks_deadlocked",
-                )
-            elif dag.has_on_failure_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
+            if dag.has_on_failure_callback:
+                finished_task_ids = {ti.task_id for ti in finished_tis}
+                blocking_ti = next(
+                    (
+                        ti
+                        for ti in unfinished.tis
+                        if ti.task
+                        and not (ti.task.get_direct_relative_ids(upstream=True).isdisjoint(finished_task_ids))
                     ),
-                    is_failure_callback=True,
-                    msg="all_tasks_deadlocked",
+                    None,
+                )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=blocking_ti,
+                    reason="all_tasks_deadlocked",
+                    execute=execute_callbacks,
                 )
 
         # finally, if the leaves aren't done, the dag is still running
@@ -1417,27 +1408,40 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
-    @provide_session
-    def get_last_ti(self, dag: SerializedDAG, session: Session = NEW_SESSION) -> TI | None:
-        """Get Last TI from the dagrun to build and pass Execution context object from server to then run callbacks."""
-        tis = self.get_task_instances(session=session)
-        # tis from a dagrun may not be a part of dag.partial_subset,
-        # since dag.partial_subset is a subset of the dag.
-        # This ensures that we will only use the accessible TI
-        # context for the callback.
-        if dag.partial:
-            tis = [ti for ti in tis if not ti.state == State.NONE]
-        # filter out removed tasks
-        tis = natsorted(
-            (ti for ti in tis if ti.state != TaskInstanceState.REMOVED),
-            key=lambda ti: ti.task_id,
+    def produce_dag_callback(
+        self,
+        dag: SerializedDAG,
+        success: bool = True,
+        relevant_ti: TI | None = None,
+        reason: str = "success",
+        execute: bool = False,
+    ) -> DagCallbackRequest | None:
+        """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        if not execute:
+            return DagCallbackRequest(
+                filepath=self.dag_model.relative_fileloc,
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                bundle_name=self.dag_model.bundle_name,
+                bundle_version=self.bundle_version,
+                context_from_server=DagRunContext(
+                    dag_run=self,
+                    last_ti=relevant_ti,
+                ),
+                is_failure_callback=(not success),
+                msg=reason,
+            )
+        self.execute_dag_callbacks(
+            dag=cast("SDKDAG", dag),
+            success=success,
+            relevant_ti=relevant_ti,
+            reason=reason,
         )
-        if not tis:
-            return None
-        ti = tis[-1]  # get last TaskInstance of DagRun
-        return ti
+        return None
 
-    def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
+    def execute_dag_callbacks(
+        self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
+    ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             DagRun as DRDataModel,
@@ -1446,10 +1450,9 @@ class DagRun(Base, LoggingMixin):
         )
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        last_ti = self.get_last_ti(cast("SerializedDAG", dag))
-        if last_ti:
-            last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
-            task = dag.get_task(last_ti.task_id)
+        if relevant_ti:
+            last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
+            task = dag.get_task(relevant_ti.task_id)
 
             dag_run_data = DRDataModel(
                 dag_id=self.dag_id,
@@ -1472,12 +1475,12 @@ class DagRun(Base, LoggingMixin):
                 task=task,
                 _ti_context_from_server=TIRunContext(
                     dag_run=dag_run_data,
-                    max_tries=last_ti.max_tries,
+                    max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
                     xcom_keys_to_clear=[],
                 ),
-                max_tries=last_ti.max_tries,
+                max_tries=relevant_ti.max_tries,
             )
             context = runtime_ti.get_template_context()
         else:

@@ -269,13 +269,6 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Data Catalog",
-                "external-doc-url": "https://cloud.google.com/data-catalog/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst"],
-                "logo": "/docs/integration-logos/Google-Data-Catalog.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google Dataflow",
                 "external-doc-url": "https://cloud.google.com/dataflow/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/dataflow.rst"],

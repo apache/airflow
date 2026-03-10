@@ -886,11 +886,19 @@ class TestWorker:
         assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
-    def test_airflow_local_settings_kerberos_sidecar(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_airflow_local_settings_kerberos_sidecar(self, workers_values):
         docs = render_chart(
             values={
                 "airflowLocalSettings": "# Well hello!",
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
