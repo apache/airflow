@@ -20,6 +20,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from inspect import isclass
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -61,6 +62,15 @@ class SerializedReferenceModels:
     """
 
     REFERENCE_TYPE_FIELD = "reference_type"
+
+    @classmethod
+    def is_builtin_reference(cls, ref_name: str) -> bool:
+        """Check if a reference type is a built-in reference."""
+        return any(
+            r.__name__ == ref_name
+            for r in vars(cls).values()
+            if isclass(r) and issubclass(r, cls.SerializedBaseDeadlineReference)
+        )
 
     @classmethod
     def get_reference_class(cls, reference_name: str) -> type[SerializedBaseDeadlineReference]:

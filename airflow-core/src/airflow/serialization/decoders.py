@@ -138,11 +138,13 @@ def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
 
 def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
-    if "__class_path" in reference_data:
-        return SerializedReferenceModels.SerializedCustomReference.deserialize_reference(reference_data)
+    ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    reference_type = reference_data[SerializedReferenceModels.REFERENCE_TYPE_FIELD]
-    reference_class = SerializedReferenceModels.get_reference_class(reference_type)
+    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+        reference_class = SerializedReferenceModels.get_reference_class(ref_name)
+    else:
+        reference_class = SerializedReferenceModels.SerializedCustomReference
+
     return reference_class.deserialize_reference(reference_data)
 
 

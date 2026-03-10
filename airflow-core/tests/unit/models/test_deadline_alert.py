@@ -220,3 +220,11 @@ class TestDeadlineAlert:
 
         assert "__class_path" not in serialized
         assert serialized["reference_type"] == "DagRunLogicalDateDeadline"
+
+    def test_is_builtin_reference(self):
+        """Test that is_builtin_reference correctly identifies built-in vs custom references."""
+        assert SerializedReferenceModels.is_builtin_reference("DagRunLogicalDateDeadline") is True
+        assert SerializedReferenceModels.is_builtin_reference("DagRunQueuedAtDeadline") is True
+        assert SerializedReferenceModels.is_builtin_reference("AverageRuntimeDeadline") is True
+
+        assert SerializedReferenceModels.is_builtin_reference("MyCustomRef") is False
