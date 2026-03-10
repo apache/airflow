@@ -238,6 +238,31 @@ class TestGenAICountTokensOperator:
             config=None,
         )
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_propagates_client_error(self, mock_hook):
+        """Test that GenAICountTokensOperator propagates ClientError from the hook."""
+        # Bypass __init__ to avoid version-dependent constructor signature differences
+        # between google-genai versions (e.g., 1.2.0 vs 1.63.0).
+        mock_hook.return_value.count_tokens.side_effect = ClientError.__new__(ClientError)
+
+        op = GenAICountTokensOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
 
 class TestGenAICreateCachedContentOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))

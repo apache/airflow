@@ -196,6 +196,14 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhos
 
 {{- end }}
 
+{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.readinessProbe }}
+
+ DEPRECATION WARNING:
+    `dags.gitSync.readinessProbe` section has been removed as Git-Sync is not service-type object.
+    Please remove overwrite values of section, if defined, as support it will be removed in a future release.
+
+{{- end }}
+
 {{- if .Values.flower.extraNetworkPolicies }}
 
 DEPRECATION WARNING:
@@ -497,6 +505,14 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `webserver.defaultUser` has been renamed to `createUserJob.defaultUser`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.dags.gitSync.recommendedProbeSetting }}
+
+ DEPRECATION WARNING:
+    Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

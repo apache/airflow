@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from airflow.sdk import (
     DAG,
+    AllowedKeyMapper,
     Asset,
     CronPartitionTimetable,
     DailyMapper,
@@ -184,3 +185,43 @@ with DAG(
         print(dag_run.partition_key)
 
     aggregate_sales()
+
+
+region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name="region_raw_stats")
+
+
+with DAG(
+    dag_id="ingest_region_stats",
+    schedule=None,
+    tags=["player-stats", "regional"],
+):
+    """
+    Ingest player statistics per region.
+
+    Externally triggered with partition_key set to a region code (``us``, ``eu``, ``apac``).
+    """
+
+    @task(outlets=[region_raw_stats])
+    def ingest_region():
+        """Materialize player statistics for a single region partition."""
+        pass
+
+    ingest_region()
+
+
+@asset(
+    uri="file://analytics/player-stats/regional-breakdown.csv",
+    schedule=PartitionedAssetTimetable(
+        assets=region_raw_stats,
+        default_partition_mapper=AllowedKeyMapper(["us", "eu", "apac"]),
+    ),
+    tags=["player-stats", "regional"],
+)
+def regional_stats_breakdown():
+    """
+    Aggregate regional player statistics.
+
+    This asset demonstrates AllowedKeyMapper, which validates that upstream partition
+    keys belong to a fixed set of allowed values (``us``, ``eu``, ``apac``) rather than time-based partitions.
+    """
+    pass
