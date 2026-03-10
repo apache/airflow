@@ -30,6 +30,7 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
     "Connection",
     "Context",
     "DAG",
@@ -70,6 +71,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -97,6 +99,7 @@ __lazy_imports: dict[str, str] = {
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "BaseXCom": ".bases.xcom",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",
