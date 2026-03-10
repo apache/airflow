@@ -23,18 +23,24 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 
 const { OFFSET, TAGS, TAGS_MATCH_MODE }: SearchParamsKeysType = SearchParamsKeys;
 
+type TagMatchMode = "all" | "any";
+
 export const useTagFilter = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [savedTags, setSavedTags] = useLocalStorage<Array<string>>(TAGS, []);
-  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<string>(TAGS_MATCH_MODE, "any");
+  const [savedTagMatchMode, setSavedTagMatchMode] = useLocalStorage<TagMatchMode>(TAGS_MATCH_MODE, "any");
 
   const urlTags = searchParams.getAll(TAGS);
   const urlMatchMode = searchParams.get(TAGS_MATCH_MODE);
 
   // URL params take precedence; fall back to localStorage when URL has no tags.
   const selectedTags = urlTags.length > 0 ? urlTags : savedTags;
-  const tagFilterMode =
-    urlMatchMode ?? (urlTags.length === 0 && selectedTags.length >= 2 ? savedTagMatchMode : "any");
+  const tagFilterMode: TagMatchMode =
+    urlMatchMode === null
+      ? urlTags.length === 0 && selectedTags.length >= 2
+        ? savedTagMatchMode
+        : "any"
+      : (urlMatchMode as TagMatchMode);
 
   const setSelectedTags = (tags: Array<string>) => {
     searchParams.delete(TAGS);
@@ -50,7 +56,7 @@ export const useTagFilter = () => {
     setSavedTags(tags);
   };
 
-  const setTagFilterMode = (mode: string) => {
+  const setTagFilterMode = (mode: TagMatchMode) => {
     searchParams.set(TAGS_MATCH_MODE, mode);
     setSearchParams(searchParams);
     setSavedTagMatchMode(mode);
