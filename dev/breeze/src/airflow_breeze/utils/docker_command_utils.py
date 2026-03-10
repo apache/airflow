@@ -37,6 +37,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
@@ -659,21 +660,28 @@ def fix_ownership_using_docker(quiet: bool = True):
         "run",
         "-v",
         f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
-        "-e",
-        f"HOST_OS={get_host_os()}",
-        "-e",
-        f"HOST_USER_ID={get_host_user_id()}",
-        "-e",
-        f"HOST_GROUP_ID={get_host_group_id()}",
-        "-e",
-        f"VERBOSE={str(get_verbose()).lower()}",
-        "-e",
-        f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
-        "--rm",
-        "-t",
-        OWNERSHIP_CLEANUP_DOCKER_TAG,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
+    main_git_directory = get_main_git_dir_for_worktree()
+    if main_git_directory:
+        cmd.extend(["-v", f"{main_git_directory}:{main_git_directory}:ro"])
+    cmd.extend(
+        [
+            "-e",
+            f"HOST_OS={get_host_os()}",
+            "-e",
+            f"HOST_USER_ID={get_host_user_id()}",
+            "-e",
+            f"HOST_GROUP_ID={get_host_group_id()}",
+            "-e",
+            f"VERBOSE={str(get_verbose()).lower()}",
+            "-e",
+            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            "--rm",
+            "-t",
+            OWNERSHIP_CLEANUP_DOCKER_TAG,
+            "/opt/airflow/scripts/in_container/run_fix_ownership.py",
+        ]
+    )
     run_command(cmd, text=True, check=False, quiet=quiet)
 
 
