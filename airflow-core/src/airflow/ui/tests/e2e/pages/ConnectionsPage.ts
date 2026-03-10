@@ -98,9 +98,15 @@ export class ConnectionsPage extends BasePage {
 
     // Sorting and filtering
     this.tableHeader = page.locator('[role="columnheader"]').first();
-    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" }).first();
-    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" }).first();
-    this.hostHeader = page.getByRole("columnheader", { name: "Host" }).first();
+    this.connectionIdHeader = page
+      .locator("th, [role='columnheader']")
+      .filter({ hasText: "Connection ID" })
+      .first();
+    this.connectionTypeHeader = page
+      .locator("th, [role='columnheader']")
+      .filter({ hasText: "Connection Type" })
+      .first();
+    this.hostHeader = page.locator("th, [role='columnheader']").filter({ hasText: "Host" }).first();
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
     // All table body rows (used by connectionRows for web-first assertions)
     this.connectionRows = page.locator("tbody tr");
@@ -117,6 +123,13 @@ export class ConnectionsPage extends BasePage {
 
   // Click edit button for a specific connection
   public async clickEditButton(connectionId: string): Promise<void> {
+    // Wait for any stale dialog backdrop to clear before interacting
+    const backdrop = this.page.locator('[data-scope="dialog"][data-part="backdrop"]');
+
+    if (await backdrop.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await expect(backdrop).toBeHidden({ timeout: 5000 });
+    }
+
     const row = await this.findConnectionRow(connectionId);
 
     if (!row) {
@@ -132,6 +145,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   // Check if a connection exists in the current view
+
   public async connectionExists(connectionId: string): Promise<boolean> {
     const emptyState = await this.page
       .locator("text=No connection found!")
@@ -432,7 +446,7 @@ export class ConnectionsPage extends BasePage {
 
   private async findConnectionRow(connectionId: string): Promise<Locator | null> {
     // Try search first (faster)
-    const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
+    const hasSearch = await this.searchInput.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (hasSearch) {
       return await this.findConnectionRowUsingSearch(connectionId);
