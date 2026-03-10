@@ -435,3 +435,29 @@ def cleanup_python_generated_files():
             get_console().print("You can also remove those files manually using sudo.")
     if get_verbose():
         get_console().print("[info]Cleaned")
+
+
+def get_main_git_dir_for_worktree() -> Path | None:
+    """
+    Detect if we are in a git worktree and return the main repository's .git directory.
+
+    Git worktrees store a ``.git`` *file* (not a directory) containing a ``gitdir:`` reference
+    pointing to ``<main-repo>/.git/worktrees/<name>``.  This helper resolves that reference
+    (handling both absolute and relative paths) and returns the main ``.git`` directory
+    (i.e. the grandparent of the ``gitdir`` path).
+
+    :return: Absolute path to the main repository's ``.git`` directory, or ``None``
+             if the current checkout is not a worktree.
+    """
+    git_path = AIRFLOW_ROOT_PATH / ".git"
+    if git_path.is_file():
+        git_content = git_path.read_text().strip()
+        if git_content.startswith("gitdir:"):
+            gitdir = Path(git_content.removeprefix("gitdir:").strip())
+            if not gitdir.is_absolute():
+                gitdir = (AIRFLOW_ROOT_PATH / gitdir).resolve()
+            # gitdir points to <main-repo>/.git/worktrees/<name>
+            # .parent.parent gives us <main-repo>/.git
+            main_git_dir = gitdir.parent.parent
+            return main_git_dir if main_git_dir.is_dir() else None
+    return None
