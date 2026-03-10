@@ -24,8 +24,6 @@ import time
 from collections import deque
 from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
-from math import ceil
-from time import sleep
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -269,6 +267,7 @@ class IterableOperator(BaseOperator):
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
         futures: dict[Future, MappedTaskInstance] = {}
+        deferred_tasks: deque[MappedTaskInstance] = deque()
         failed_tasks: deque[MappedTaskInstance] = deque()
         chunked_tasks = batched(tasks, self.max_workers)
 
@@ -294,11 +293,8 @@ class IterableOperator(BaseOperator):
                         self.log.info("Number of remaining futures: %s", futures_count)
                         prev_futures_count = futures_count
 
-                    ready_futures = False
-
                     for future in collect_futures(loop, futures.keys()):
                         task = futures.pop(future)
-                        ready_futures = True
 
                         try:
                             if isinstance(future, asyncio.futures.Future):
@@ -318,8 +314,13 @@ class IterableOperator(BaseOperator):
                             operator = DecoratedDeferredAsyncOperator(
                                 operator=task.task, task_deferred=task_deferred
                             )
-                            failed_tasks.append(
-                                self._create_mapped_task(task.run_id, task.map_index, operator)
+                            deferred_tasks.append(
+                                self._create_mapped_task(
+                                    run_id=task.run_id,
+                                    map_index=task.map_index,
+                                    try_number=task.try_number,
+                                    operator=operator,
+                                )
                             )
                         except asyncio.TimeoutError as e:
                             self.log.warning("A timeout occurred for task_id %s", task.task_id)
@@ -345,15 +346,20 @@ class IterableOperator(BaseOperator):
                             )
                             exceptions.append(e)
 
-                    if len(futures) < self.max_workers:
-                        for task in next(chunked_tasks, []):
-                            if task.is_async:
-                                future = executor.submit(self._run_async_operator, context, task)
-                            else:
-                                future = executor.submit(self._run_operator, context, task)
-                            futures[future] = task
-                    elif not ready_futures and futures:
-                        sleep(len(futures) * 0.1)
+                    while len(futures) < self.max_workers:
+                        if deferred_tasks:
+                            task = deferred_tasks.popleft()
+                        else:
+                            task = next(chunked_tasks, None)
+
+                        if not task:
+                            break
+
+                        if task.is_async:
+                            future = executor.submit(self._run_async_operator, context, task)
+                        else:
+                            future = executor.submit(self._run_operator, context, task)
+                        futures[future] = task
 
         if not failed_tasks:
             if exceptions:
@@ -366,19 +372,21 @@ class IterableOperator(BaseOperator):
                     length=self._number_of_tasks,
                 )
 
-        now = timezone.utcnow()
+        # If the retry time is still in the future we defer the operator so the worker
+        # slot is released. If the retry time has already passed we immediately re-run
+        # the failed tasks without deferring.
+        if reschedule_date > timezone.utcnow():
+            # TODO: This is tricky as that import doesn't exist in Task SDK
+            from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 
-        # Calculate delay before the next retry
-        if reschedule_date > now:
-            delay_seconds = ceil((reschedule_date - now).total_seconds())
-
-            self.log.info(
-                "Attempting to run %s failed tasks within %s seconds...",
-                len(failed_tasks),
-                delay_seconds,
+            self.defer(
+                trigger=DateTimeTrigger(reschedule_date),
+                method_name=self.execute_failed_tasks.__name__,
+                kwargs={
+                    "failed_tasks": {failed_task.map_index for failed_task in failed_tasks},
+                    "try_number": next(iter(failed_tasks)).try_number,
+                },
             )
-
-            sleep(delay_seconds)
 
         return self._run_tasks(context=context, tasks=list(failed_tasks))
 
@@ -413,12 +421,15 @@ class IterableOperator(BaseOperator):
         context: Context,
         map_index: int,
         mapped_kwargs: dict,
+        try_number: int= 0,
     ) -> MappedTaskInstance:
         run_id = context["ti"].run_id
         operator = self._unmap_operator(mapped_kwargs)
-        return self._create_mapped_task(run_id=run_id, map_index=map_index, operator=operator)
+        return self._create_mapped_task(run_id=run_id, map_index=map_index, try_number=try_number, operator=operator)
 
-    def _create_mapped_task(self, run_id: str, map_index: int, operator: BaseOperator) -> MappedTaskInstance:
+    def _create_mapped_task(
+        self, run_id: str, map_index: int, try_number: int, operator: BaseOperator
+    ) -> MappedTaskInstance:
         return MappedTaskInstance.model_construct(
             task_id=operator.task_id,
             dag_id=operator.dag_id,
@@ -429,21 +440,23 @@ class IterableOperator(BaseOperator):
             state=TaskInstanceState.SCHEDULED.value,
             is_mapped=True,
             task=operator,
-            try_number=0,
+            try_number=try_number,
             xcoms={},
         )
 
     def execute(self, context: Context):
-        return self._run_tasks(
-            context=context,
-            tasks=iter(
-                map(
-                    lambda mapped_kwargs: self._create_task(
-                        context,
-                        mapped_kwargs[0],
-                        mapped_kwargs[1],
-                    ),
-                    enumerate(self.expand_input.iter_values(context=context)),
-                )
-            ),
+        tasks = (
+            self._create_task(context=context, map_index=index, mapped_kwargs=value)
+            for index, value in enumerate(
+                self.expand_input.iter_values(context=context)
+            )
         )
+        return self._run_tasks(context=context, tasks=tasks)
+
+    def execute_failed_tasks(self, context: Context, try_number: int, failed_tasks: set[int], event: dict[Any, Any]):
+        tasks = (
+            self._create_task(context=context, map_index=index, try_number=try_number, mapped_kwargs=value)
+            for index, value in enumerate(self.expand_input.iter_values(context=context))
+            if index in failed_tasks
+        )
+        return self._run_tasks(context=context, tasks=tasks)
