@@ -396,7 +396,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_authentik_jwks(self, jwks_url) -> dict:
         import requests
 
-        resp = requests.get(jwks_url)
+        resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
         return {}
@@ -1480,6 +1480,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_user(self, user: User) -> bool:
         try:
+            existing_user = self.session.get(self.user_model, user.id)
+            if existing_user:
+                existing_role_ids = {r.id for r in existing_user.roles}
+                existing_group_ids = {grp.id for grp in existing_user.groups}
+                new_role_ids = {r.id for r in user.roles}
+                new_group_ids = {grp.id for grp in user.groups}
+                if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
+                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
@@ -2318,7 +2326,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
         import requests
 
-        return requests.get(MICROSOFT_KEY_SET_URL).json()
+        return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
