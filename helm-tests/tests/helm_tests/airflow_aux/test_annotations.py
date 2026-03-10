@@ -466,7 +466,7 @@ class TestServiceAccountAnnotations:
             ),
             (
                 {
-                    "airflowVersion": "2.10.0",
+                    "airflowVersion": "2.11.0",
                     "webserver": {
                         "serviceAccount": {
                             "annotations": {
