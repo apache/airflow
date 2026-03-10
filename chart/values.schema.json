@@ -6179,8 +6179,11 @@
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow API server replicas should run. This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled",
-                    "type": "integer",
+                    "description": "How many Airflow API server replicas should run. Omitted from the Deployment, when HPA is enabled.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": 1
                 },
                 "revisionHistoryLimit": {
