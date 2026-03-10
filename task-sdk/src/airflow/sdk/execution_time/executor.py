@@ -20,26 +20,30 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
+import logging
+import time
 from asyncio import AbstractEventLoop, Semaphore
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.sdk import BaseAsyncOperator, BaseOperator
+from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import ExecutorSafeguard
+from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
-from airflow.sdk.execution_time.context import (
-    context_get_outlet_events,
-)
+from airflow.sdk.execution_time.context import context_get_outlet_events
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     _run_task_state_change_callbacks,
+    _execute_task,
 )
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
 def collect_futures(loop: AbstractEventLoop, futures: list[Any]):
@@ -91,6 +95,104 @@ class HybridExecutor:
                 return await coro
 
         return self._loop.create_task(guarded())
+
+
+class TaskExecutor(LoggingMixin):
+    """Base class to run an operator or trigger with given task context and task instance."""
+
+    def __init__(
+        self,
+        task_instance: MappedTaskInstance,
+    ):
+        super().__init__()
+        self.task_instance = task_instance
+        self._result: Any | None = None
+        self._start_time: float | None = None
+
+    @property
+    def dag_id(self) -> str:
+        return self.task_instance.dag_id
+
+    @property
+    def task_id(self) -> str:
+        return self.task_instance.task_id
+
+    @property
+    def task_index(self) -> int:
+        map_index = self.task_instance.map_index
+        if map_index is None:
+            raise ValueError("MappedTaskInstance.map_index should not be None!")
+        return map_index
+
+    @property
+    def key(self):
+        return self.task_instance.xcom_key
+
+    @property
+    def operator(self) -> BaseOperator:
+        return self.task_instance.task
+
+    @property
+    def is_async(self) -> bool:
+        return self.task_instance.is_async
+
+    def run(self, context: Context):
+        return _execute_task(context, self.task_instance, self.log)
+
+    async def arun(self, context: Context):
+        return await _execute_async_task(context, self.task_instance, self.log)
+
+    def __enter__(self):
+        self._start_time = time.monotonic()
+
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Attempting running task %s of %s for %s with map_index %s in %s mode.",
+                self.task_instance.try_number,
+                self.operator.retries,
+                self.task_instance.task_id,
+                self.task_index,
+                "async" if self.is_async else "sync",
+            )
+        return self
+
+    async def __aenter__(self):
+        return self.__enter__()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        elapsed = time.monotonic() - self._start_time
+
+        if exc_value:
+            if not isinstance(exc_value, TaskDeferred):
+                if self.task_instance.next_try_number > self.task_instance.max_tries:
+                    self.log.error(
+                        "Task instance %s for %s failed after %s attempts in %.2f seconds due to: %s",
+                        self.task_index,
+                        self.task_instance.task_id,
+                        self.task_instance.max_tries,
+                        elapsed,
+                        exc_value,
+                    )
+                    self.task_instance.state = TaskInstanceState.FAILED
+                    raise exc_value
+                self.task_instance.try_number += 1
+                self.task_instance.end_date = timezone.utcnow()
+                self.task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
+                raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
+            raise exc_value
+
+        self.task_instance.state = TaskInstanceState.SUCCESS
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Task instance %s for %s finished successfully in %s attempts in %.2f seconds",
+                self.task_index,
+                self.task_instance.task_id,
+                self.task_instance.next_try_number,
+                elapsed,
+            )
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        self.__exit__(exc_type, exc_value, traceback)
 
 
 async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
