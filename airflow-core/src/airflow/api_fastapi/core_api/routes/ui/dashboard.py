@@ -60,10 +60,6 @@ def historical_metrics(
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
     end_date_value = end_date if end_date is not None else current_time
 
-    # Build sargable date filter conditions
-    # Old: func.coalesce(DagRun.start_date, current_time) >= start_date
-    # Sargable equivalent: (start_date >= query_start) OR (start_date IS NULL AND current_time >= query_start)
-    # Since current_time >= start_date is almost always true in practice, we can include NULLs only when appropriate
     start_date_filter = or_(
         DagRun.start_date >= start_date, DagRun.start_date.is_(None) & (current_time >= start_date)
     )
@@ -71,7 +67,6 @@ def historical_metrics(
         DagRun.end_date <= end_date_value, DagRun.end_date.is_(None) & (current_time <= end_date_value)
     )
 
-    # Combined DagRun query - get both run_type and state counts in a single query
     dag_run_metrics = session.execute(
         select(DagRun.run_type, DagRun.state, func.count(DagRun.run_id))
         .where(start_date_filter, end_date_filter)
@@ -79,8 +74,6 @@ def historical_metrics(
         .group_by(DagRun.run_type, DagRun.state)
     ).all()
 
-    # TaskInstances
-    # Filter TaskInstance.dag_id before JOIN to reduce rows using ti_dag_run index
     task_instance_states = session.execute(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
         .where(TaskInstance.dag_id.in_(permitted_dag_ids))
