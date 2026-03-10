@@ -3377,6 +3377,46 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_dagrun_timeout_sets_end_date_on_skipped_tasks(self, dag_maker):
+        """Test that when a DAG run times out, skipped tasks get end_date set."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_dagrun_timeout_sets_end_date",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        # Set tasks to running state with a start_date but no end_date
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            ti.state = State.RUNNING
+            ti.start_date = timezone.utcnow() - datetime.timedelta(hours=1)
+            ti.end_date = None
+            session.merge(ti)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            session.refresh(ti)
+            assert ti.state == TaskInstanceState.SKIPPED
+            assert ti.end_date is not None, f"end_date should be set for skipped task {ti.task_id}"
+
+        session.rollback()
+        session.close()
+
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """
         Test that dagrun timeout fails run and update the next dagrun
