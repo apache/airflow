@@ -390,6 +390,10 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
+        if ".." in run_id:
+            raise ValueError(
+                f"The run_id '{run_id}' must not contain '..' to prevent path traversal"
+            )
         if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
