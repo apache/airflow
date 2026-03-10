@@ -32,6 +32,29 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.14.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add multi-team support for KubernetesExecutor (#61798)``
+* ``Executor Synchronous callback workload (#61153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixed an issue that caused a state mismatch (#63061)``
+
+Misc
+~~~~
+
+* ``Bump minimum cryptography to 44.0.3 and paramiko to 3.4.0 (#62723)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.13.0
 .......
 

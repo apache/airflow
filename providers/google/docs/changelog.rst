@@ -67,6 +67,48 @@ Changelog
   * Remove ``CloudDataCatalogHook`` use ``airflow.providers.google.cloud.hooks.dataplex.DataplexHook`` instead
   * Remove ``airflow.providers.google.cloud.hooks.vertex_ai.generative_model.ExperimentRunHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook`` instead
 
+21.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Delete google provider deprecated items sheduled for Jan 2026 (#62802)``
+
+Features
+~~~~~~~~
+
+* ``Add drift detection and optional recreation to ComputeEngineInsertInstanceOperator (#61830)``
+* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
+* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
+* ``Add bounded best-effort cluster deletion when PermissionDenied occurs after cluster creation has been initiated in non-deferrable mode. Deletion is triggered with wait_to_complete=False and retried on FailedPrecondition until cleanup_timeout_seconds is reached, and the original exception is always re-raised. Add unit tests covering cleanup initiation, retry behavior, and error propagation. (#62302)``
+* ``Add ClusterType field for Zero-Scale cluster support (#62207)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
+
+Misc
+~~~~
+
+* ``Upgrade version of Campaign Manager API to v5 (#62510)``
+* ``Add .json template_ext to BigQueryCreateTableOperator (#62058)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add known issue notice for version 19.5.0 (#61927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add exception test for GenAICountTokensOperator (#61391)``
+   * ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+   * ``Fix mypy issues from trinodb 0.337.0 (#62998)``
+   * ``Replace connexion with FastAPI for FAB provider (#62664)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Suspend Apache Beam Provider due to grpcio limitation (#61926)``
+
 20.0.0
 ......
 
