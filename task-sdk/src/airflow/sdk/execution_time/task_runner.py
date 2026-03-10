@@ -1825,9 +1825,7 @@ def flush_spans():
         if hasattr(provider, "force_flush"):
             from airflow.sdk.configuration import conf
 
-            timeout_millis = conf.getint(
-                "traces", "otel_task_runner_span_flush_timeout_millis", fallback=30000
-            )
+            timeout_millis = conf.getint("traces", "task_runner_flush_timeout_milliseconds", fallback=30000)
             provider.force_flush(timeout_millis=timeout_millis)
 
 
