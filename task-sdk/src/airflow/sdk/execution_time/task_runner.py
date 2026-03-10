@@ -1855,8 +1855,8 @@ def main():
         try:
             try:
                 startup_details = get_startup_details()
-                span = _make_task_span(msg=startup_details)
-                stack.enter_context(span)
+                span_ctx_mgr = _make_task_span(msg=startup_details)
+                span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
             except AirflowRescheduleException as reschedule:
                 log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
