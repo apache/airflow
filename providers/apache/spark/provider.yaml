@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1772064082
+source-date-epoch: 1773070302
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.6.0
   - 5.5.1
   - 5.5.0
   - 5.4.2
@@ -95,6 +96,7 @@ operators:
   - integration-name: Apache Spark
     python-modules:
       - airflow.providers.apache.spark.operators.spark_jdbc
+      - airflow.providers.apache.spark.operators.spark_pipelines
       - airflow.providers.apache.spark.operators.spark_sql
       - airflow.providers.apache.spark.operators.spark_submit
       - airflow.providers.apache.spark.operators.spark_pyspark
@@ -105,6 +107,7 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_connect
       - airflow.providers.apache.spark.hooks.spark_jdbc
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
+      - airflow.providers.apache.spark.hooks.spark_pipelines
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
 

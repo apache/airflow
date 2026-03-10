@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.4",
+    "ruff==0.15.5",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     "time-machine[dateutil]>=3.0.0",
@@ -75,8 +75,7 @@ dependencies = [
     "twine>=4.0.2",
 ]
 "docs" = [
-    # Astroid 4 released 5 Oct 2025 breaks autoapi https://github.com/apache/airflow/issues/56420
-    "astroid>=3,<4",
+    "astroid>=4",
     "checksumdir>=1.2.0",
     "rich-click>=1.9.7",
     "click>=8.3.0",
@@ -85,9 +84,9 @@ dependencies = [
     # the new pagefind-bin installed
     "pagefind>=1.5.0a3",
     "pagefind-bin>=1.5.0a3",
-    "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.3.0/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
+    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
-    "sphinx-autoapi>=3",
+    "sphinx-autoapi>=3.8.0",
     "sphinx-autobuild>=2024.10.2",
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.5.0",
@@ -104,7 +103,9 @@ dependencies = [
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
-    "setuptools!=82.0.0",  # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+    # setuptools 82.0.0+ causes redoc to fail due to pkg_resources removal
+    # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+    "setuptools<82.0.0",
 ]
 "docs-gen" = [
     "diagrams>=0.24.4",

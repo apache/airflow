@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -43,7 +46,7 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 
     if next:
-        login_url += f"?next={next}"
+        login_url += f"?{urlencode({'next': next})}"
 
     return RedirectResponse(login_url)
 
@@ -66,6 +69,7 @@ def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     response = RedirectResponse(auth_manager.get_url_login())
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
+        path=get_cookie_path(),
         secure=secure,
         httponly=True,
     )

@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime
-import getpass
 import inspect
 import os
 from argparse import Namespace
@@ -190,15 +189,6 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
-class Password(argparse.Action):
-    """Custom action to prompt for password input."""
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values is None:
-            values = getpass.getpass()
-        setattr(namespace, self.dest, values)
-
-
 # Common Positional Arguments
 ARG_FILE = Arg(
     flags=("file",),
@@ -255,8 +245,6 @@ ARG_AUTH_PASSWORD = Arg(
     type=str,
     dest="password",
     help="The password to use for authentication",
-    action=Password,
-    nargs="?",
 )
 
 # Dag Commands Args
@@ -266,12 +254,11 @@ ARG_DAG_ID = Arg(
     help="The DAG ID of the DAG to pause or unpause",
 )
 
-# Variable Commands Args
-ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
+ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
     default="overwrite",
-    help="Action to take if we encounter a variable key that already exists.",
+    help="Action to take if the entity already exists.",
     choices=("overwrite", "fail", "skip"),
 )
 
@@ -854,6 +841,20 @@ AUTH_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.list_envs"),
         args=(ARG_OUTPUT,),
     ),
+    ActionCommand(
+        name="token",
+        help="Generate and print a JWT token for the given credentials",
+        description=(
+            "Authenticate with username and password and print the access token to stdout. "
+            "Username and password are prompted interactively if not provided."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.auth_command.get_token"),
+        args=(
+            ARG_AUTH_URL,
+            ARG_AUTH_USERNAME,
+            ARG_AUTH_PASSWORD,
+        ),
+    ),
 )
 
 CONFIG_COMMANDS = (
@@ -877,7 +878,10 @@ CONNECTION_COMMANDS = (
         name="import",
         help="Import connections from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
-        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+        args=(
+            Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),
+            ARG_ACTION_ON_EXISTING_KEY,
+        ),
     ),
 )
 
@@ -907,7 +911,7 @@ POOL_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
-        args=(ARG_FILE,),
+        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
     ),
     ActionCommand(
         name="export",
@@ -925,7 +929,7 @@ VARIABLE_COMMANDS = (
         name="import",
         help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
-        args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
+        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
     ),
 )
 

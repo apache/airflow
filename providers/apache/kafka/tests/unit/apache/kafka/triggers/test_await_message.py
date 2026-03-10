@@ -82,6 +82,7 @@ class TestTrigger:
             apply_function_kwargs=dict(one=1, two=2),
             poll_timeout=10,
             poll_interval=5,
+            commit_offset=True,
         )
 
         assert isinstance(trigger, AwaitMessageTrigger)
@@ -97,6 +98,7 @@ class TestTrigger:
             apply_function_kwargs=dict(one=1, two=2),
             poll_timeout=10,
             poll_interval=5,
+            commit_offset=True,
         )
 
     @pytest.mark.parametrize(

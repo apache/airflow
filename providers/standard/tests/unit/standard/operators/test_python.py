@@ -1789,6 +1789,126 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # Consume the generator to trigger parsing
             list(op._iter_serializable_context_keys())
 
+    @pytest.mark.parametrize(
+        ("requirements", "expected_mismatch"),
+        [
+            (["pendulum<3"], True),
+            (["pendulum>=3"], False),
+            (["pendulum==2.1.2"], True),
+            (["pendulum>=3.0.1"], False),
+            (["pendulum"], False),
+            (["pendulum>=2,<4"], False),
+            (["pendulum~=2.1.0"], True),
+            (["requests"], False),
+            ([], False),
+        ],
+    )
+    def test_is_pendulum_version_mismatch(self, requirements, expected_mismatch):
+        def func():
+            return "test_return_value"
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=func,
+            requirements=requirements,
+            system_site_packages=False,
+        )
+        assert op._is_pendulum_version_mismatch() == expected_mismatch
+
+    def test_pendulum_to_native_datetime(self):
+        import pendulum
+
+        from airflow.providers.standard.operators.python import _pendulum_to_native_datetime
+
+        pdt = pendulum.datetime(2025, 5, 3, 10, 30, 45, tz="America/New_York")
+        result = _pendulum_to_native_datetime(pdt)
+
+        assert type(result) is datetime
+        assert not isinstance(result, pendulum.DateTime)
+        assert result.year == 2025
+        assert result.month == 5
+        assert result.day == 3
+        assert result.hour == 10
+        assert result.minute == 30
+        assert result.second == 45
+        assert result.tzinfo is not None
+        assert str(result.tzinfo) == "America/New_York"
+
+    def test_pendulum_to_native_datetime_nested(self):
+        import pendulum
+
+        from airflow.providers.standard.operators.python import _pendulum_to_native_datetime
+
+        pdt = pendulum.datetime(2025, 1, 1, tz="UTC")
+        nested = {
+            "date": pdt,
+            "list": [pdt, "string", 42],
+            "tuple": (pdt,),
+            "string": "test_value",
+        }
+        result = _pendulum_to_native_datetime(nested)
+
+        assert type(result["date"]) is datetime
+        assert type(result["list"][0]) is datetime
+        assert result["list"][1] == "string"
+        assert result["list"][2] == 42
+        assert type(result["tuple"]) is tuple
+        assert type(result["tuple"][0]) is datetime
+        assert result["string"] == "test_value"
+
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.standard.operators.python.PythonVirtualenvOperator._is_pendulum_version_mismatch"
+    )
+    def test_write_args_converts_pendulum_on_mismatch(self, mock_mismatch, tmp_path, serializer):
+        import importlib
+
+        import pendulum
+
+        mock_mismatch.return_value = True
+
+        pdt = pendulum.datetime(2025, 6, 15, 12, 0, 0, tz="UTC")
+
+        def func(logical_date):
+            return str(logical_date)
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=func,
+            requirements=["pendulum<3"],
+            system_site_packages=False,
+            op_kwargs={"logical_date": pdt},
+            serializer=serializer,
+        )
+
+        output_file = tmp_path / "script.in"
+        op._write_args(output_file)
+
+        # Deserialize using the same library and check that the pendulum object was converted
+        pickling_library = importlib.import_module(serializer)
+
+        with open(output_file, "rb") as f:
+            arg_dict = pickling_library.load(f)
+
+        result_dt = arg_dict["kwargs"]["logical_date"]
+        assert type(result_dt) is datetime
+        assert not isinstance(result_dt, pendulum.DateTime)
+        assert result_dt.year == 2025
+        assert result_dt.month == 6
+        assert result_dt.day == 15
+        assert result_dt.hour == 12
+        assert result_dt.minute == 0
+        assert result_dt.second == 0
+        assert result_dt.tzinfo is not None
+        assert str(result_dt.tzinfo) == "UTC"
+
     @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
     @mock.patch(
         "airflow.providers.standard.operators.python.PythonVirtualenvOperator._execute_python_callable_in_subprocess"
