@@ -33,6 +33,10 @@ export class DagRunsTabPage extends BasePage {
     this.triggerButton = page.getByTestId("trigger-dag-button");
   }
 
+  private static escapeRegExp(value: string): string {
+    return value.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&");
+  }
+
   public async clickRunAndVerifyDetails(): Promise<void> {
     const firstRunLink = this.tableRows.first().getByRole("link").first();
 
@@ -95,13 +99,16 @@ export class DagRunsTabPage extends BasePage {
 
   public async navigateToDag(dagId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}`);
-    await expect(this.page).toHaveURL(new RegExp(`/dags/${dagId}`), { timeout: 15_000 });
+    await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), { timeout: 15_000 });
     await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}/runs/${runId}`);
-    await expect(this.page).toHaveURL(new RegExp(`/dags/${dagId}/runs/${runId}`), { timeout: 15_000 });
+    await expect(this.page).toHaveURL(
+      new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}/runs/${DagRunsTabPage.escapeRegExp(runId)}`),
+      { timeout: 15_000 },
+    );
     await expect(this.markRunAsButton).toBeVisible({ timeout: 15_000 });
   }
 
