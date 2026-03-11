@@ -21,6 +21,7 @@ import json
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from pydantic_ai.exceptions import ModelRetry
 
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
@@ -164,6 +165,42 @@ class TestSQLToolsetQuery:
         # The mock doesn't actually execute, just returns mocked records
         data = json.loads(result)
         assert "rows" in data
+
+    def test_raises_model_retry_when_query_fails_with_retryable_error(self):
+        """When the query fails with a retryable error, raise ModelRetry so the model retries."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.get_records.side_effect = Exception(
+            'column "nonexistent" does not exist\nLINE 1: SELECT id, nonexistent FROM users'
+        )
+        ts._hook.get_retry_exceptions.return_value = (Exception,)
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT id, nonexistent FROM users"},
+                    ctx=MagicMock(),
+                    tool=MagicMock(),
+                )
+            )
+        assert "nonexistent" in exc_info.value.message
+        assert "get_schema" in exc_info.value.message
+        assert "list_tables" in exc_info.value.message
+
+    def test_model_retry_message_includes_schema_hint(self):
+        """ModelRetry message tells the model to use get_schema and list_tables for more details."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.get_records.side_effect = Exception("column 'foo' does not exist")
+        ts._hook.get_retry_exceptions.return_value = (Exception,)
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool("query", {"sql": "SELECT foo FROM x"}, ctx=MagicMock(), tool=MagicMock())
+            )
+        assert "get_schema" in exc_info.value.message
+        assert "list_tables" in exc_info.value.message
 
 
 class TestSQLToolsetCheckQuery:

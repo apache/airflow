@@ -29,6 +29,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
@@ -204,7 +205,16 @@ class SQLToolset(AbstractToolset[Any]):
             _validate_sql(sql)
 
         hook = self._get_db_hook()
-        rows = hook.get_records(sql)
+        retryable = hook.get_retry_exceptions() if hasattr(hook, "get_retry_exceptions") else ()
+        if retryable:
+            try:
+                rows = hook.get_records(sql)
+            except retryable as e:
+                raise ModelRetry(
+                    f"error: {str(e)}, Use get_schema and list_tables tools for more details."
+                ) from e
+        else:
+            rows = hook.get_records(sql)
         # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
