@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import (
@@ -93,7 +94,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     * **pydantic-ai** (connection type ``pydanticai``) -- default.  Uses
       `pydantic-ai <https://ai.pydantic.dev/>`__ agents.  All toolsets
       (``SQLToolset``, ``HookToolset``, ``MCPToolset``) work natively.
-    * **Google ADK** (connection type ``adk``) -- uses Google\'s
+    * **Google ADK** (connection type ``adk``) -- uses Google's
       `Agent Development Kit <https://google.github.io/adk-docs/>`__ with
       Gemini models.  Toolsets are automatically bridged to ADK-compatible
       callable tools.
@@ -103,7 +104,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         type determines which AI framework is used.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"`` for pydantic-ai
         or ``"gemini-2.5-flash"`` for ADK).  Overrides the model stored in
-        the connection\'s extra field.
+        the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output.
@@ -121,7 +122,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     :param enable_hitl_review: When ``True``, the operator enters an
         iterative review loop after the first generation.  A human reviewer
-        can approve, reject, or request changes via the plugin\'s REST API
+        can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
         on the task instance.  Default ``False``.
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
@@ -190,10 +191,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """
         Resolve the AI hook from the connection type.
 
-        Checks the connection\'s ``conn_type`` to pick the right hook:
+        Checks the connection's ``conn_type`` to pick the right hook:
 
         * ``adk`` -> :class:`~airflow.providers.common.ai.hooks.adk.AdkHook`
-        * everything else -> :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        * ``pydanticai*`` -> delegates to
+          :meth:`~PydanticAIHook.get_hook` which instantiates the correct
+          subclass (e.g. ``PydanticAIAzureHook`` for ``pydanticai-azure``).
 
         This allows users to switch backends by changing the connection type,
         not the operator class.
@@ -205,9 +208,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
             return AdkHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
 
-        from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        hook_params = {
+            "model_id": self.model_id,
+        }
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def _resolve_conn_type(self) -> str:
         """Look up the connection type for ``llm_conn_id``."""
@@ -218,7 +222,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             return "pydanticai"
 
     def _build_agent(self) -> Agent[None, Any]:
-        """Build and return an Agent from the operator\'s config."""
+        """Build and return an Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
 
         # Prepare toolsets -- wrap for logging when using pydantic-ai.
@@ -255,7 +259,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             except (ValueError, TypeError):
                 return result_str
 
-        # Standard path: delegate to hook\'s run_agent (supports all backends).
+        # Standard path: delegate to hook's run_agent (supports all backends).
         agent = self._build_agent()
         output = self.llm_hook.run_agent(agent=agent, prompt=self.prompt)
 

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -25,35 +25,40 @@ from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 
-def _mock_hook(output="done"):
-    """Create a mock BaseAIHook that returns the given output."""
-    hook = MagicMock()
-    hook.create_agent.return_value = MagicMock(name="mock_agent")
-    hook.run_agent.return_value = output
-    return hook
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
 
 
 class TestAgentDecoratedOperator:
     def test_custom_operator_name(self):
         assert _AgentDecoratedOperator.custom_operator_name == "@task.agent"
 
-    def test_execute_calls_callable_and_returns_output(self):
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_calls_callable_and_returns_output(self, mock_hook_cls):
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "The top customer is Acme Corp."
 
         def my_prompt():
             return "Who is our top customer?"
 
         op = _AgentDecoratedOperator(task_id="test", python_callable=my_prompt, llm_conn_id="my_llm")
-        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
-            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
-                result = op.execute(context={})
+        result = op.execute(context={})
 
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
-        mock_hook.run_agent.assert_called_once()
+        mock_hook.run_agent.assert_called_once_with(agent=mock_agent, prompt="Who is our top customer?")
 
     @pytest.mark.parametrize(
         "return_value",
@@ -70,11 +75,14 @@ class TestAgentDecoratedOperator:
         with pytest.raises(TypeError, match="non-empty string"):
             op.execute(context={})
 
-    def test_execute_merges_op_kwargs_into_callable(self):
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "done"
 
         def my_prompt(topic):
             return f"Analyze {topic}"
@@ -85,18 +93,19 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             op_kwargs={"topic": "revenue trends"},
         )
-        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
-            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
-                op.execute(context={"task_instance": MagicMock()})
+        op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Analyze revenue trends"
-        mock_hook.run_agent.assert_called_once()
+        mock_hook.run_agent.assert_called_once_with(agent=mock_agent, prompt="Analyze revenue trends")
 
-    def test_execute_passes_toolsets_through(self):
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_passes_toolsets_through(self, mock_hook_cls):
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("result")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "result"
 
         mock_toolset = MagicMock()
 
@@ -106,9 +115,7 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             toolsets=[mock_toolset],
         )
-        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
-            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
-                op.execute(context={})
+        op.execute(context={})
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
@@ -116,15 +123,19 @@ class TestAgentDecoratedOperator:
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
-    def test_execute_structured_output(self):
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_structured_output(self, mock_hook_cls):
         """BaseModel output is serialized with model_dump."""
 
         class Summary(BaseModel):
             text: str
 
+        summary = Summary(text="Great results")
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent.run_sync.return_value = _make_mock_run_result(summary)
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = summary
 
         op = _AgentDecoratedOperator(
             task_id="test",
@@ -132,8 +143,6 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             output_type=Summary,
         )
-        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
-            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
-                result = op.execute(context={})
+        result = op.execute(context={})
 
         assert result == {"text": "Great results"}

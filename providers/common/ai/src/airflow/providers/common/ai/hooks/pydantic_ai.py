@@ -27,7 +27,7 @@ from airflow.providers.common.ai.hooks.base import BaseAIHook
 OutputT = TypeVar("OutputT")
 
 if TYPE_CHECKING:
-    from pydantic_ai.models import KnownModelName,Model
+    from pydantic_ai.models import KnownModelName, Model
     from pydantic_ai.result import AgentRunResult
     from pydantic_ai.toolsets.abstract import AbstractToolset
 

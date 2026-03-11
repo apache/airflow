@@ -192,7 +192,7 @@ def example_agent_operator_hitl_review():
     AgentOperator(
         task_id="summarize_with_review",
         prompt="Summarize the Q4 sales report in 3 bullet points.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a concise business analyst.",
         enable_hitl_review=True,
         max_hitl_iterations=5,
