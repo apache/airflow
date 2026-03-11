@@ -257,6 +257,7 @@ class PRData:
     commits_behind: int  # how many commits behind the base branch
     mergeable: str  # MERGEABLE, CONFLICTING, or UNKNOWN
     labels: list[str]  # label names attached to this PR
+    unresolved_review_comments: int  # count of unresolved review threads from maintainers
 
 
 @click.group(cls=BreezeGroup, name="pr", help="Tools for managing GitHub pull requests.")
@@ -485,6 +486,70 @@ def _fetch_check_details_batch(token: str, github_repository: str, prs: list[PRD
             pr.failed_checks = failed
 
 
+_REVIEW_THREADS_BATCH_SIZE = 10
+
+
+def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: list[PRData]) -> None:
+    """Fetch unresolved review thread counts for PRs in chunked GraphQL queries.
+
+    Counts only threads started by collaborators/members/owners (i.e. maintainers).
+    Updates each PR's unresolved_review_comments in-place.
+    """
+    owner, repo = github_repository.split("/", 1)
+    if not prs:
+        return
+
+    for chunk_start in range(0, len(prs), _REVIEW_THREADS_BATCH_SIZE):
+        chunk = prs[chunk_start : chunk_start + _REVIEW_THREADS_BATCH_SIZE]
+
+        pr_fields = []
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_fields.append(
+                f"    {alias}: pullRequest(number: {pr.number}) {{\n"
+                f"      reviewThreads(first: 100) {{\n"
+                f"        nodes {{\n"
+                f"          isResolved\n"
+                f"          comments(first: 1) {{\n"
+                f"            nodes {{\n"
+                f"              author {{ login }}\n"
+                f"              authorAssociation\n"
+                f"            }}\n"
+                f"          }}\n"
+                f"        }}\n"
+                f"      }}\n"
+                f"    }}"
+            )
+
+        query = (
+            f'query {{\n  repository(owner: "{owner}", name: "{repo}") {{\n'
+            + "\n".join(pr_fields)
+            + "\n  }\n}"
+        )
+
+        try:
+            data = _graphql_request(token, query, {})
+        except SystemExit:
+            continue
+
+        repo_data = data.get("repository", {})
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_data = repo_data.get(alias) or {}
+            threads = pr_data.get("reviewThreads", {}).get("nodes", [])
+            unresolved = 0
+            for thread in threads:
+                if thread.get("isResolved"):
+                    continue
+                # Only count threads started by maintainers (collaborators/members/owners)
+                comments = thread.get("comments", {}).get("nodes", [])
+                if comments:
+                    assoc = comments[0].get("authorAssociation", "NONE")
+                    if assoc in _COLLABORATOR_ASSOCIATIONS:
+                        unresolved += 1
+            pr.unresolved_review_comments = unresolved
+
+
 def _fetch_commits_behind_batch(token: str, github_repository: str, prs: list[PRData]) -> dict[int, int]:
     """Fetch how many commits each PR is behind its base branch in chunked GraphQL queries.
 
@@ -535,9 +600,14 @@ def _fetch_prs_graphql(
     token: str,
     github_repository: str,
     labels: tuple[str, ...],
+    exclude_labels: tuple[str, ...],
     filter_user: str | None,
     sort: str,
     batch_size: int,
+    created_after: str | None = None,
+    created_before: str | None = None,
+    updated_after: str | None = None,
+    updated_before: str | None = None,
 ) -> list[PRData]:
     """Fetch a single batch of matching PRs via GraphQL."""
     query_parts = [f"repo:{github_repository}", "type:pr", "is:open", "draft:false"]
@@ -545,6 +615,21 @@ def _fetch_prs_graphql(
         query_parts.append(f"author:{filter_user}")
     for label in labels:
         query_parts.append(f'label:"{label}"')
+    for label in exclude_labels:
+        query_parts.append(f'-label:"{label}"')
+    # Date range filters — GitHub search supports created: and updated: qualifiers
+    if created_after and created_before:
+        query_parts.append(f"created:{created_after}..{created_before}")
+    elif created_after:
+        query_parts.append(f"created:>={created_after}")
+    elif created_before:
+        query_parts.append(f"created:<={created_before}")
+    if updated_after and updated_before:
+        query_parts.append(f"updated:{updated_after}..{updated_before}")
+    elif updated_after:
+        query_parts.append(f"updated:>={updated_after}")
+    elif updated_before:
+        query_parts.append(f"updated:<={updated_before}")
     search_query = " ".join(query_parts)
 
     sort_field, sort_direction = sort.rsplit("-", 1)
@@ -586,6 +671,7 @@ def _fetch_prs_graphql(
                 commits_behind=0,
                 mergeable=node.get("mergeable", "UNKNOWN"),
                 labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
+                unresolved_review_comments=0,
             )
         )
 
@@ -623,6 +709,7 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
         commits_behind=0,
         mergeable=node.get("mergeable", "UNKNOWN"),
         labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
+        unresolved_review_comments=0,
     )
 
 
@@ -945,6 +1032,11 @@ def _compute_default_action(
     return action, f"{reason} — suggesting {action_label}"
 
 
+def _pr_link(pr: PRData) -> str:
+    """Return a Rich-markup clickable link for a PR: [link=url]#number[/link]."""
+    return f"[link={pr.url}]#{pr.number}[/link]"
+
+
 def _display_pr_info_panels(pr: PRData, author_profile: dict | None):
     """Display PR info and author panels (shared by flagged-PR and workflow-approval flows)."""
     console = get_console()
@@ -1098,10 +1190,10 @@ def _close_suspicious_prs(
         node_id = pr_info["node_id"]
 
         if _close_pr(token, node_id):
-            get_console().print(f"  [success]PR #{pr_num} closed.[/]")
+            get_console().print(f"  [success]PR [link={pr_info['url']}]#{pr_num}[/link] closed.[/]")
             closed += 1
         else:
-            get_console().print(f"  [error]Failed to close PR #{pr_num}.[/]")
+            get_console().print(f"  [error]Failed to close PR [link={pr_info['url']}]#{pr_num}[/link].[/]")
             continue
 
         _add_label(token, github_repository, node_id, _SUSPICIOUS_CHANGES_LABEL)
@@ -1165,6 +1257,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
 )
 @option_github_token
 @option_github_repository
+# --- Target selection ---
 @click.option(
     "--pr",
     "pr_number",
@@ -1172,13 +1265,74 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     default=None,
     help="Triage a specific PR by number instead of searching.",
 )
+# --- Filter options ---
 @click.option(
     "--label",
     "labels",
     type=NotVerifiedBetterChoice(_load_labels_from_boring_cyborg()),
     multiple=True,
-    help="Filter PRs by label (can be repeated).",
+    help="Filter PRs by label. Supports wildcards (e.g. 'area:*', 'provider:amazon*'). Can be repeated.",
 )
+@click.option(
+    "--exclude-label",
+    "exclude_labels",
+    type=str,
+    multiple=True,
+    help="Exclude PRs with this label. Supports wildcards. Can be repeated.",
+)
+@click.option(
+    "--author",
+    "filter_user",
+    default=None,
+    help="Filter PRs to a specific author.",
+)
+@click.option(
+    "--created-after",
+    default=None,
+    help="Only PRs created on or after this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--created-before",
+    default=None,
+    help="Only PRs created on or before this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--updated-after",
+    default=None,
+    help="Only PRs updated on or after this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--updated-before",
+    default=None,
+    help="Only PRs updated on or before this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--include-collaborators",
+    is_flag=True,
+    default=False,
+    help="Include PRs from collaborators/members/owners (normally skipped).",
+)
+@click.option(
+    "--pending-approval-only",
+    is_flag=True,
+    default=False,
+    help="Only show PRs with workflow runs awaiting approval.",
+)
+@click.option(
+    "--checks-state",
+    type=click.Choice(["failure", "success", "pending", "any"]),
+    default="any",
+    show_default=True,
+    help="Only assess PRs with this CI checks state.",
+)
+@click.option(
+    "--min-commits-behind",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Only assess PRs that are at least this many commits behind base branch.",
+)
+# --- Pagination and sorting ---
 @click.option(
     "--batch-size",
     type=int,
@@ -1200,12 +1354,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     show_default=True,
     help="Sort order for PR search results.",
 )
-@click.option(
-    "--author",
-    "filter_user",
-    default=None,
-    help="Filter PRs to a specific author.",
-)
+# --- Assessment options ---
 @click.option(
     "--check-mode",
     type=click.Choice(["both", "ci", "llm"]),
@@ -1221,6 +1370,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     help="Number of concurrent LLM assessment calls.",
 )
 @option_llm_model
+# --- Action options ---
 @click.option(
     "--answer-triage",
     type=click.Choice(["d", "c", "r", "s", "q", "y", "n"], case_sensitive=False),
@@ -1234,16 +1384,30 @@ def auto_triage(
     github_repository: str,
     pr_number: int | None,
     labels: tuple[str, ...],
+    exclude_labels: tuple[str, ...],
     batch_size: int,
     max_num: int,
     sort: str,
     filter_user: str | None,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    include_collaborators: bool,
+    pending_approval_only: bool,
+    checks_state: str,
+    min_commits_behind: int,
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
     answer_triage: str | None,
 ):
-    from airflow_breeze.utils.github import PRAssessment, assess_pr_checks, assess_pr_conflicts
+    from airflow_breeze.utils.github import (
+        PRAssessment,
+        assess_pr_checks,
+        assess_pr_conflicts,
+        assess_pr_unresolved_comments,
+    )
     from airflow_breeze.utils.llm_utils import (
         _check_cli_available,
         _resolve_cli_provider,
@@ -1268,13 +1432,45 @@ def auto_triage(
 
     dry_run = get_dry_run()
 
+    # Split labels into exact (for GitHub search) and wildcard (for client-side filtering)
+    from fnmatch import fnmatch
+
+    exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
+    wildcard_labels = [lbl for lbl in labels if "*" in lbl or "?" in lbl]
+    exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
+    wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
+
     # Phase 1: Lightweight fetch of PRs via GraphQL (no check contexts — fast)
     if pr_number:
         get_console().print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
     else:
         get_console().print("[info]Fetching PRs via GraphQL...[/]")
-        all_prs = _fetch_prs_graphql(token, github_repository, labels, filter_user, sort, batch_size)
+        all_prs = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+        )
+
+    # Apply wildcard label filters client-side
+    if wildcard_labels:
+        all_prs = [
+            pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
+        ]
+    if wildcard_exclude_labels:
+        all_prs = [
+            pr
+            for pr in all_prs
+            if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
+        ]
 
     # Resolve how far behind base branch each PR is (chunked GraphQL)
     get_console().print("[info]Checking how far behind base branch each PR is...[/]")
@@ -1322,7 +1518,7 @@ def auto_triage(
             overall = "[green]OK[/]"
 
         pr_table.add_row(
-            f"[link={pr.url}]#{pr.number}[/link]",
+            _pr_link(pr),
             pr.title[:50],
             pr.author_login,
             pr.author_association.lower(),
@@ -1334,33 +1530,44 @@ def auto_triage(
     get_console().print(pr_table)
     get_console().print()
 
-    # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply --max-num
+    # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
     candidate_prs: list[PRData] = []
     total_skipped_collaborator = 0
     total_skipped_bot = 0
     total_skipped_accepted = 0
+    total_skipped_checks_state = 0
+    total_skipped_commits_behind = 0
     verbose = get_verbose()
     for pr in all_prs:
-        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
+        if not include_collaborators and pr.author_association in _COLLABORATOR_ASSOCIATIONS:
             total_skipped_collaborator += 1
             if verbose:
                 get_console().print(
-                    f"  [dim]Skipping PR [link={pr.url}]#{pr.number}[/link] by "
+                    f"  [dim]Skipping PR {_pr_link(pr)} by "
                     f"{pr.author_association.lower()} {pr.author_login}[/]"
                 )
         elif _is_bot_account(pr.author_login):
             total_skipped_bot += 1
             if verbose:
-                get_console().print(
-                    f"  [dim]Skipping PR [link={pr.url}]#{pr.number}[/link] — "
-                    f"bot account {pr.author_login}[/]"
-                )
+                get_console().print(f"  [dim]Skipping PR {_pr_link(pr)} — bot account {pr.author_login}[/]")
         elif _READY_FOR_REVIEW_LABEL in pr.labels:
             total_skipped_accepted += 1
             if verbose:
                 get_console().print(
-                    f"  [dim]Skipping PR [link={pr.url}]#{pr.number}[/link] — "
-                    f"already has '{_READY_FOR_REVIEW_LABEL}' label[/]"
+                    f"  [dim]Skipping PR {_pr_link(pr)} — already has '{_READY_FOR_REVIEW_LABEL}' label[/]"
+                )
+        elif checks_state != "any" and pr.checks_state.lower() != checks_state:
+            total_skipped_checks_state += 1
+            if verbose:
+                get_console().print(
+                    f"  [dim]Skipping PR {_pr_link(pr)} — checks state {pr.checks_state} != {checks_state}[/]"
+                )
+        elif min_commits_behind > 0 and pr.commits_behind < min_commits_behind:
+            total_skipped_commits_behind += 1
+            if verbose:
+                get_console().print(
+                    f"  [dim]Skipping PR {_pr_link(pr)} — only "
+                    f"{pr.commits_behind} commits behind (min: {min_commits_behind})[/]"
                 )
         else:
             candidate_prs.append(pr)
@@ -1368,16 +1575,24 @@ def auto_triage(
     if max_num and len(candidate_prs) > max_num:
         candidate_prs = candidate_prs[:max_num]
 
-    skipped_parts = [
-        f"{total_skipped_collaborator} {'collaborators' if total_skipped_collaborator != 1 else 'collaborator'}"
-    ]
+    skipped_parts: list[str] = []
+    if total_skipped_collaborator:
+        skipped_parts.append(
+            f"{total_skipped_collaborator} "
+            f"{'collaborators' if total_skipped_collaborator != 1 else 'collaborator'}"
+        )
     if total_skipped_bot:
         skipped_parts.append(f"{total_skipped_bot} {'bots' if total_skipped_bot != 1 else 'bot'}")
     if total_skipped_accepted:
         skipped_parts.append(f"{total_skipped_accepted} ready-for-review")
+    if total_skipped_checks_state:
+        skipped_parts.append(f"{total_skipped_checks_state} checks-state mismatch")
+    if total_skipped_commits_behind:
+        skipped_parts.append(f"{total_skipped_commits_behind} below min-commits-behind")
+    skipped_text = f"skipped {', '.join(skipped_parts)}, " if skipped_parts else ""
     get_console().print(
         f"\n[info]Fetched {len(all_prs)} {'PRs' if len(all_prs) != 1 else 'PR'}, "
-        f"skipped {', '.join(skipped_parts)}, "
+        f"{skipped_text}"
         f"assessing {len(candidate_prs)} {'PRs' if len(candidate_prs) != 1 else 'PR'}"
         f"{f' (capped at {max_num})' if max_num else ''}...[/]\n"
     )
@@ -1394,12 +1609,21 @@ def auto_triage(
         for pr in candidate_prs:
             if pr.checks_state == "FAILURE" and not pr.failed_checks and pr.head_sha:
                 get_console().print(
-                    f"  [dim]Fetching full check details for PR #{pr.number} "
+                    f"  [dim]Fetching full check details for PR {_pr_link(pr)} "
                     f"(failures beyond first 100 checks)...[/]"
                 )
                 pr.failed_checks = _fetch_failed_checks(token, github_repository, pr.head_sha)
 
-    # Phase 3: Deterministic checks (CI failures + merge conflicts), then LLM for the rest
+    # Phase 2c: Fetch unresolved review comment counts for candidate PRs
+    if candidate_prs and run_ci:
+        get_console().print(
+            f"[info]Fetching review thread details for {len(candidate_prs)} "
+            f"candidate {'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
+        )
+        _fetch_unresolved_comments_batch(token, github_repository, candidate_prs)
+
+    # Phase 3: Deterministic checks (CI failures + merge conflicts + unresolved comments),
+    # then LLM for the rest
     # PRs with NOT_RUN checks are separated for workflow approval instead of LLM assessment.
     assessments: dict[int, PRAssessment] = {}
     llm_candidates: list[PRData] = []
@@ -1410,9 +1634,10 @@ def auto_triage(
         for pr in candidate_prs:
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
             conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+            comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
 
-            # Merge violations from both deterministic checks
-            if ci_assessment or conflict_assessment:
+            # Merge violations from all deterministic checks
+            if ci_assessment or conflict_assessment or comments_assessment:
                 total_deterministic_flags += 1
                 violations = []
                 summaries = []
@@ -1422,6 +1647,9 @@ def auto_triage(
                 if ci_assessment:
                     violations.extend(ci_assessment.violations)
                     summaries.append(ci_assessment.summary)
+                if comments_assessment:
+                    violations.extend(comments_assessment.violations)
+                    summaries.append(comments_assessment.summary)
                 assessments[pr.number] = PRAssessment(
                     should_flag=True,
                     violations=violations,
@@ -1438,6 +1666,19 @@ def auto_triage(
             else:
                 llm_candidates.append(pr)
 
+    # If --pending-approval-only, discard all assessment results and only keep pending_approval
+    if pending_approval_only:
+        assessments = {}
+        llm_candidates = []
+        total_deterministic_flags = 0
+        if not pending_approval:
+            get_console().print("[success]No PRs with pending workflow approvals found.[/]")
+            sys.exit(0)
+        get_console().print(
+            f"[info]--pending-approval-only: found {len(pending_approval)} "
+            f"{'PRs' if len(pending_approval) != 1 else 'PR'} awaiting workflow approval.[/]\n"
+        )
+
     # Phase 4: Run LLM assessments concurrently for PRs without CI failures
     total_llm_errors = 0
 
@@ -1448,7 +1689,7 @@ def auto_triage(
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
             )
     elif llm_candidates:
-        skipped_detail = f"{total_deterministic_flags} CI/conflicts"
+        skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
         if pending_approval:
             skipped_detail += f", {len(pending_approval)} awaiting workflow approval"
         get_console().print(
@@ -1474,15 +1715,13 @@ def auto_triage(
                     total_llm_errors += 1
                     continue
                 if not assessment.should_flag:
-                    get_console().print(
-                        f"  [success]PR [link={pr.url}]#{pr.number}[/link] passes quality check.[/]"
-                    )
+                    get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
                     continue
                 assessments[pr.number] = assessment
 
     total_flagged = len(assessments)
     summary_parts = [
-        f"{total_deterministic_flags} CI/conflicts",
+        f"{total_deterministic_flags} CI/conflicts/comments",
         f"{total_flagged - total_deterministic_flags} LLM-flagged",
     ]
     if pending_approval:
@@ -1549,7 +1788,9 @@ def auto_triage(
             continue
 
         action = prompt_triage_action(
-            f"Action for PR #{pr.number}?", default=default_action, forced_answer=answer_triage
+            f"Action for PR {_pr_link(pr)}?",
+            default=default_action,
+            forced_answer=answer_triage,
         )
 
         if action == TriageAction.QUIT:
@@ -1558,60 +1799,60 @@ def auto_triage(
             break
 
         if action == TriageAction.SKIP:
-            get_console().print(f"  [info]Skipping PR #{pr.number} — no action taken.[/]")
+            get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
             total_skipped_action += 1
             continue
 
         if action == TriageAction.READY:
             get_console().print(
-                f"  [info]Marking PR #{pr.number} as ready — adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                f"  [info]Marking PR {_pr_link(pr)} as ready — adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
             )
             if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
                 get_console().print(
-                    f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR #{pr.number}.[/]"
+                    f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
                 )
                 total_ready += 1
             else:
-                get_console().print(f"  [warning]Failed to add label to PR #{pr.number}.[/]")
+                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
             continue
 
         if action == TriageAction.DRAFT:
-            get_console().print(f"  Converting PR #{pr.number} to draft...")
+            get_console().print(f"  Converting PR {_pr_link(pr)} to draft...")
             if _convert_pr_to_draft(token, pr.node_id):
-                get_console().print(f"  [success]PR #{pr.number} converted to draft.[/]")
+                get_console().print(f"  [success]PR {_pr_link(pr)} converted to draft.[/]")
             else:
-                get_console().print(f"  [error]Failed to convert PR #{pr.number} to draft.[/]")
+                get_console().print(f"  [error]Failed to convert PR {_pr_link(pr)} to draft.[/]")
                 continue
 
-            get_console().print(f"  Posting comment on PR #{pr.number}...")
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
             if _post_comment(token, pr.node_id, comment):
-                get_console().print(f"  [success]Comment posted on PR #{pr.number}.[/]")
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_converted += 1
             else:
-                get_console().print(f"  [error]Failed to post comment on PR #{pr.number}.[/]")
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
 
         if action == TriageAction.CLOSE:
-            get_console().print(f"  Closing PR #{pr.number}...")
+            get_console().print(f"  Closing PR {_pr_link(pr)}...")
             if _close_pr(token, pr.node_id):
-                get_console().print(f"  [success]PR #{pr.number} closed.[/]")
+                get_console().print(f"  [success]PR {_pr_link(pr)} closed.[/]")
             else:
-                get_console().print(f"  [error]Failed to close PR #{pr.number}.[/]")
+                get_console().print(f"  [error]Failed to close PR {_pr_link(pr)}.[/]")
                 continue
 
             if _add_label(token, github_repository, pr.node_id, _CLOSED_QUALITY_LABEL):
                 get_console().print(
-                    f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR #{pr.number}.[/]"
+                    f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR {_pr_link(pr)}.[/]"
                 )
             else:
-                get_console().print(f"  [warning]Failed to add label to PR #{pr.number}.[/]")
+                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
 
-            get_console().print(f"  Posting comment on PR #{pr.number}...")
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
             if _post_comment(token, pr.node_id, close_comment):
-                get_console().print(f"  [success]Comment posted on PR #{pr.number}.[/]")
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_closed += 1
             else:
-                get_console().print(f"  [error]Failed to post comment on PR #{pr.number}.[/]")
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
 
     # Phase 6: Present NOT_RUN PRs for workflow approval
     total_workflows_approved = 0
@@ -1642,7 +1883,7 @@ def auto_triage(
                     continue
 
                 action = prompt_triage_action(
-                    f"Action for PR #{pr.number}?",
+                    f"Action for PR {_pr_link(pr)}?",
                     default=TriageAction.CLOSE,
                     forced_answer=answer_triage,
                 )
@@ -1651,27 +1892,27 @@ def auto_triage(
                     quit_early = True
                     break
                 if action == TriageAction.SKIP:
-                    get_console().print(f"  [info]Skipping PR #{pr.number} — no action taken.[/]")
+                    get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
                     continue
                 if action == TriageAction.CLOSE:
-                    get_console().print(f"  Closing PR #{pr.number}...")
+                    get_console().print(f"  Closing PR {_pr_link(pr)}...")
                     if _close_pr(token, pr.node_id):
-                        get_console().print(f"  [success]PR #{pr.number} closed.[/]")
+                        get_console().print(f"  [success]PR {_pr_link(pr)} closed.[/]")
                     else:
-                        get_console().print(f"  [error]Failed to close PR #{pr.number}.[/]")
+                        get_console().print(f"  [error]Failed to close PR {_pr_link(pr)}.[/]")
                         continue
                     if _add_label(token, github_repository, pr.node_id, _CLOSED_QUALITY_LABEL):
                         get_console().print(
-                            f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR #{pr.number}.[/]"
+                            f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR {_pr_link(pr)}.[/]"
                         )
                     else:
-                        get_console().print(f"  [warning]Failed to add label to PR #{pr.number}.[/]")
-                    get_console().print(f"  Posting comment on PR #{pr.number}...")
+                        get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+                    get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
                     if _post_comment(token, pr.node_id, close_comment):
-                        get_console().print(f"  [success]Comment posted on PR #{pr.number}.[/]")
+                        get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                         total_closed += 1
                     else:
-                        get_console().print(f"  [error]Failed to post comment on PR #{pr.number}.[/]")
+                        get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
                     continue
                 # For DRAFT or READY, fall through to normal workflow approval
                 # (approve workflows first, then triage later)
@@ -1682,13 +1923,13 @@ def auto_triage(
 
             if not pending_runs:
                 get_console().print(
-                    f"  [dim]No pending workflow runs found for PR #{pr.number}. "
+                    f"  [dim]No pending workflow runs found for PR {_pr_link(pr)}. "
                     f"Workflows may need to be triggered manually.[/]"
                 )
                 continue
 
             answer = user_confirm(
-                f"Review diff for PR #{pr.number} before approving workflows?",
+                f"Review diff for PR {_pr_link(pr)} before approving workflows?",
                 forced_answer=answer_triage,
             )
             if answer == Answer.QUIT:
@@ -1696,10 +1937,10 @@ def auto_triage(
                 quit_early = True
                 break
             if answer == Answer.NO:
-                get_console().print(f"  [info]Skipping workflow approval for PR #{pr.number}.[/]")
+                get_console().print(f"  [info]Skipping workflow approval for PR {_pr_link(pr)}.[/]")
                 continue
 
-            get_console().print(f"  Fetching diff for PR #{pr.number}...")
+            get_console().print(f"  Fetching diff for PR {_pr_link(pr)}...")
             diff_text = _fetch_pr_diff(token, github_repository, pr.number)
             if diff_text:
                 from rich.syntax import Syntax
@@ -1707,18 +1948,18 @@ def auto_triage(
                 get_console().print(
                     Panel(
                         Syntax(diff_text, "diff", theme="monokai", word_wrap=True),
-                        title=f"Diff for PR #{pr.number}",
+                        title=f"Diff for PR {_pr_link(pr)}",
                         border_style="bright_cyan",
                     )
                 )
             else:
                 get_console().print(
-                    f"  [warning]Could not fetch diff for PR #{pr.number}. "
+                    f"  [warning]Could not fetch diff for PR {_pr_link(pr)}. "
                     f"Review manually at: {pr.url}/files[/]"
                 )
 
             answer = user_confirm(
-                f"No suspicious changes found in PR #{pr.number}? "
+                f"No suspicious changes found in PR {_pr_link(pr)}? "
                 f"Approve {len(pending_runs)} workflow {'runs' if len(pending_runs) != 1 else 'run'}?",
                 forced_answer=answer_triage,
             )
@@ -1728,7 +1969,7 @@ def auto_triage(
                 break
             if answer == Answer.NO:
                 get_console().print(
-                    f"\n  [bold red]Suspicious changes detected in PR #{pr.number} by {pr.author_login}.[/]"
+                    f"\n  [bold red]Suspicious changes detected in PR {_pr_link(pr)} by {pr.author_login}.[/]"
                 )
                 get_console().print(f"  Fetching all open PRs by {pr.author_login}...")
                 author_prs = _fetch_author_open_prs(token, github_repository, pr.author_login)
@@ -1774,11 +2015,12 @@ def auto_triage(
             if approved:
                 get_console().print(
                     f"  [success]Approved {approved}/{len(pending_runs)} workflow "
-                    f"{'runs' if len(pending_runs) != 1 else 'run'} for PR #{pr.number}.[/]"
+                    f"{'runs' if len(pending_runs) != 1 else 'run'} for PR "
+                    f"{_pr_link(pr)}.[/]"
                 )
                 total_workflows_approved += 1
             else:
-                get_console().print(f"  [error]Failed to approve workflow runs for PR #{pr.number}.[/]")
+                get_console().print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
 
     # Summary
     get_console().print()
@@ -1793,7 +2035,7 @@ def auto_triage(
         summary_table.add_row("Ready-for-review skipped", str(total_skipped_accepted))
     summary_table.add_row("PRs skipped (filtered)", str(total_skipped))
     summary_table.add_row("PRs assessed", str(len(candidate_prs)))
-    summary_table.add_row("Flagged by CI/conflicts", str(total_deterministic_flags))
+    summary_table.add_row("Flagged by CI/conflicts/comments", str(total_deterministic_flags))
     summary_table.add_row("Flagged by LLM", str(total_flagged - total_deterministic_flags))
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))

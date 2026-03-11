@@ -28,6 +28,22 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add sync and async helpers to resolve the dbt Cloud account ID from the (#61757)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise on unexpected terminal dbt Cloud job run states (#61300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.6.5
 .....
 

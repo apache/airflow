@@ -62,7 +62,7 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
         connection_create_action = BulkCreateActionConnectionBody(
             action="create",
             entities=list(connections_data.values()),
-            action_on_existence=BulkActionOnExistence("fail"),
+            action_on_existence=BulkActionOnExistence(args.action_on_existing_key),
         )
         response = api_client.connections.bulk(BulkBodyConnectionBody(actions=[connection_create_action]))
         if response.create.errors:

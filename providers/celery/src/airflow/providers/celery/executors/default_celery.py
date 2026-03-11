@@ -58,6 +58,13 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     if "visibility_timeout" not in broker_transport_options:
         if _broker_supports_visibility_timeout(broker_url):
             broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
 
     if "sentinel_kwargs" in broker_transport_options:
         try:
