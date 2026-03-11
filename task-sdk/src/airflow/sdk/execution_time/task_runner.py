@@ -1187,6 +1187,37 @@ def _defer_task(
     return msg, state
 
 
+def _is_duplicate_state_update(
+    *, error: AirflowRuntimeError, requested_state: TaskInstanceState
+) -> tuple[bool, str | None]:
+    """Return whether an API conflict indicates the same state was already persisted."""
+    if error.error.error != ErrorType.API_SERVER_ERROR:
+        return False, None
+
+    detail = error.error.detail
+    if not isinstance(detail, dict) or detail.get("status_code") != 409:
+        return False, None
+
+    state_error_detail = detail.get("detail")
+    if not isinstance(state_error_detail, Mapping):
+        return False, None
+
+    # FastAPI HTTPException payload is nested under {"detail": {...}}.
+    if isinstance(state_error_detail.get("detail"), Mapping):
+        state_error_detail = state_error_detail["detail"]
+
+    if state_error_detail.get("reason") != "invalid_state":
+        return False, None
+
+    previous_state = state_error_detail.get("previous_state")
+    if isinstance(previous_state, TaskInstanceState):
+        previous_state = previous_state.value
+    if not isinstance(previous_state, str):
+        return False, None
+
+    return previous_state == requested_state.value, previous_state
+
+
 @Sentry.enrich_errors
 def run(
     ti: RuntimeTaskInstance,
@@ -1349,7 +1380,17 @@ def run(
         Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
-            SUPERVISOR_COMMS.send(msg=msg)
+            try:
+                SUPERVISOR_COMMS.send(msg=msg)
+            except AirflowRuntimeError as e:
+                is_duplicate, previous_state = _is_duplicate_state_update(error=e, requested_state=state)
+                if not is_duplicate:
+                    raise
+                log.warning(
+                    "Task instance state was already updated by API server; ignoring duplicate state update",
+                    requested_state=state.value,
+                    previous_state=previous_state,
+                )
 
     # Return the message to make unit tests easier too
     ti.state = state
