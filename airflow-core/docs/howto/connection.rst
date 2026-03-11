@@ -312,7 +312,7 @@ Custom connection fields
     However, new providers should use the YAML approach described below.
 
 Defining connection UI metadata in ``provider.yaml``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Connection form metadata is defined declaratively under ``connection-types`` in your provider's
 ``provider.yaml`` file. There are two sections:
@@ -364,7 +364,7 @@ For a full reference of supported ``conn-fields`` schema options, see
 `Use Params to Provide a Trigger UI Form <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/params.html#use-params-to-provide-a-trigger-ui-form>`_.
 
 Defining connection UI metadata in Python (legacy)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
 
