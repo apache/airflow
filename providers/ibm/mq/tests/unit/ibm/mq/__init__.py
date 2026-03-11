@@ -21,7 +21,6 @@ except ModuleNotFoundError:
     import sys
     from unittest.mock import MagicMock
 
-
     class MQMIError(Exception):
         def __init__(self, msg="", reason=None):
             super().__init__(msg)

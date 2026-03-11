@@ -70,7 +70,7 @@
 
 
 apache-airflow-providers-ibm-mq package
----------------------------------------
+------------------------------------------------------
 
 `IBM MQ  <https://www.ibm.com/products/mq/>`__
 
@@ -86,26 +86,34 @@ All classes for this package are included in the ``airflow.providers.ibm.mq`` py
 Installation
 ------------
 
-This provider requires the `IBM MQ Redistributable Client <https://www.ibm.com/docs/en/ibm-mq/9.4.x?topic=overview-redistributable-mq-clients/>`_ to be installed.
-
 You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-ibm-mq``.
 For the minimum Airflow version supported, see ``Requirements`` below.
-
 
 Requirements
 ------------
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=============================================  =====================================
+=============================================  ==================
 PIP package                                    Version required
-=============================================  =====================================
+=============================================  ==================
 ``apache-airflow``                             ``>=2.11.0``
 ``apache-airflow-providers-common-messaging``  ``>=2.0.0``
 ``importlib-resources``                        ``>=1.3``
-``ibmmq``                                      ``>=2.0.4``
-=============================================  =====================================
+=============================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-ibm-mq[common.compat]
 
 
 ========================================================================================================================  ====================

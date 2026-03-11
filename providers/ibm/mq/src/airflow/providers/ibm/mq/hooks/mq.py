@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import suppress, asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
@@ -126,11 +126,7 @@ class IBMMQHook(BaseHook):
         md.Encoding = ibmmq.CMQC.MQENC_NATIVE
 
         gmo = ibmmq.GMO()
-        gmo.Options = (
-            ibmmq.CMQC.MQGMO_WAIT
-            | ibmmq.CMQC.MQGMO_NO_SYNCPOINT
-            | ibmmq.CMQC.MQGMO_CONVERT
-        )
+        gmo.Options = ibmmq.CMQC.MQGMO_WAIT | ibmmq.CMQC.MQGMO_NO_SYNCPOINT | ibmmq.CMQC.MQGMO_CONVERT
         gmo.WaitInterval = int(poll_interval * 1000)
 
         try:
@@ -158,13 +154,12 @@ class IBMMQHook(BaseHook):
                             if e.reason == ibmmq.CMQC.MQRC_NO_MSG_AVAILABLE:
                                 await asyncio.sleep(poll_interval)
                                 continue
-                            elif e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
+                            if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
                                 self.log.warning(
                                     "MQ connection broken, will exit consume; next trigger instance will reconnect"
                                 )
                                 return None
-                            else:
-                                raise
+                            raise
 
                 finally:
                     with suppress(Exception):

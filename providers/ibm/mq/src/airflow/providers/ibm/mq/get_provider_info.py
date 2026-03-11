@@ -29,30 +29,17 @@ def get_provider_info():
         "integrations": [
             {
                 "integration-name": "IBM MQ",
-                "external-doc-url": "https://www.ibm.com/products/mq/",
+                "external-doc-url": "https://www.ibm.com/products/mq",
                 "logo": "/docs/integration-logos/ibm-mq.png",
                 "tags": ["apache"],
             }
         ],
-        "hooks": [
-            {
-                "integration-name": "IBM MQ",
-                "python-modules": ["airflow.providers.ibm.mq.hooks.mq"],
-            }
+        "hooks": [{"integration-name": "IBM MQ", "python-modules": ["airflow.providers.ibm.mq.hooks.mq"]}],
+        "connection-types": [
+            {"hook-class-name": "airflow.providers.ibm.mq.hooks.mq.IBMMQHook", "connection-type": "mq"}
         ],
         "triggers": [
-            {
-                "integration-name": "IBM MQ",
-                "python-modules": [
-                    "airflow.providers.ibm.mq.triggers.mq",
-                ],
-            }
-        ],
-        "connection-types": [
-            {
-                "hook-class-name": "airflow.providers.ibm.mq.hooks.mq.IBMMQHook",
-                "connection-type": "mq",
-            }
+            {"integration-name": "IBM MQ", "python-modules": ["airflow.providers.ibm.mq.triggers.mq"]}
         ],
         "queues": ["airflow.providers.ibm.mq.queues.mq.IBMMQMessageQueueProvider"],
     }

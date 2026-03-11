@@ -26,6 +26,7 @@ from airflow.providers.ibm.mq.hooks.mq import IBMMQHook
 
 MQ_PAYLOAD = """RFH x"MQSTR    <mcd><Msd>jms_map</Msd></mcd>   <jms><Dst>topic://localhost/topic</Dst><Tms>1772121947476</Tms><Dlv>2</Dlv><Uci dt='bin.hex'>414D5143514D4941303054202020202069774D7092F81057</Uci></jms>L<usr><XMSC_CLIENT_ID>local</XMSC_CLIENT_ID><release>26.01.00</release></usr> 4<mqps><Top>topic</Top></mqps>  {}"""
 
+
 async def fake_get(*args, **kwargs):
     import ibmmq
 
@@ -123,7 +124,9 @@ class TestIBMMQHook:
     @patch("ibmmq.connect")
     @patch("ibmmq.Queue")
     @patch("airflow.providers.ibm.mq.hooks.mq.sync_to_async")
-    async def test_consume_connection_broken(self, mock_sync_to_async, mock_queue_class, mock_connect, mock_get_async_conn, caplog):
+    async def test_consume_connection_broken(
+        self, mock_sync_to_async, mock_queue_class, mock_connect, mock_get_async_conn, caplog
+    ):
         """Test that consume exits gracefully on connection broken."""
 
         mock_get_async_conn.return_value = MagicMock()

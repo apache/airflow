@@ -31,6 +31,7 @@ mq_topic_asset = Asset(
 )
 
 with DAG(dag_id="example_ibm_mq_watcher", schedule=[mq_topic_asset]) as dag:
+
     @task
     def process_message(**context):
         for event in context["triggering_asset_events"][mq_topic_asset]:

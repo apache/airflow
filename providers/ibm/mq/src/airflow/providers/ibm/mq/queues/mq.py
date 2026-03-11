@@ -73,23 +73,18 @@ class IBMMQMessageQueueProvider(BaseMessageQueueProvider):
         Parse URI of format:
             mq://<conn_id>/<queue_name>
         """
-
         parsed = urlparse(queue)
 
         if not parsed.netloc:
             raise ValueError(
-                "MQ URI must contain connection id. "
-                "Expected format: mq://<conn_id>/<queue_name>"
+                "MQ URI must contain connection id. Expected format: mq://<conn_id>/<queue_name>"
             )
 
         conn_id = parsed.netloc
 
         queue_name = parsed.path.lstrip("/")
         if not queue_name:
-            raise ValueError(
-                "MQ URI must contain queue name. "
-                "Expected format: mq://<conn_id>/<queue_name>"
-            )
+            raise ValueError("MQ URI must contain queue name. Expected format: mq://<conn_id>/<queue_name>")
 
         return {
             "mq_conn_id": conn_id,
