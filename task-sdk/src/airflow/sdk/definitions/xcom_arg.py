@@ -22,7 +22,7 @@ import inspect
 import itertools
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import attrs
 
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.edges import EdgeModifier
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import Operator
 
 # Callable objects contained by MapXComArg. We only accept callables from
@@ -342,7 +343,7 @@ class PlainXComArg(XComArg):
         return super().concat(*others)
 
     def resolve(self, context: Context) -> Any:
-        ti = context["ti"]
+        ti = cast("RuntimeTaskInstance", context["ti"])
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
