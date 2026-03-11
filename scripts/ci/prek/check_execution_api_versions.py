@@ -103,9 +103,7 @@ def main() -> int:
         changed_files = get_changed_files_local()
 
     datamodel_files = [
-        f
-        for f in changed_files
-        if f.startswith(DATAMODELS_PREFIX) and not f.endswith("__init__.py")
+        f for f in changed_files if f.startswith(DATAMODELS_PREFIX) and not f.endswith("__init__.py")
     ]
     version_files = [f for f in changed_files if f.startswith(VERSIONS_PREFIX)]
 
