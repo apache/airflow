@@ -86,6 +86,9 @@ class OtelTrace:
         self.resource = Resource.create(attributes={SERVICE_NAME: self.otel_service})
         self.debug = debug
 
+    def shutdown(self):
+        self.span_processor.shutdown()
+
     def get_otel_tracer_provider(
         self,
         trace_id: int | None = None,

@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
+    ALLOWED_LLM_MODELS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -215,6 +216,15 @@ option_github_repository = click.option(
     show_default=True,
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
+)
+option_llm_model = click.option(
+    "--llm-model",
+    type=CacheableChoice(ALLOWED_LLM_MODELS),
+    default=CacheableDefault(ALLOWED_LLM_MODELS[1]),
+    show_default=True,
+    help="LLM model for assessment (format: provider/model). "
+    "Use 'claude/' prefix for Claude CLI, 'codex/' for OpenAI Codex CLI.",
+    envvar="LLM_MODEL",
 )
 option_historical_python_versions = click.option(
     "--python-versions",

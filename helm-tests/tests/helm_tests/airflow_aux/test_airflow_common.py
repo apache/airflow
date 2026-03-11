@@ -146,7 +146,33 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
+    def test_git_sync_http_port(self):
+        docs = render_chart(
+            values={
+                "dags": {"gitSync": {"enabled": True, "httpPort": 10}},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            envs = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", doc)
+            assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
+            assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_webserver_config_configmap_name_volume_mounts(self, workers_values):
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
@@ -154,7 +180,7 @@ class TestAirflowCommon:
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",

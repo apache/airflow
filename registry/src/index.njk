@@ -1,0 +1,222 @@
+---
+layout: base.njk
+title: Discover Providers, Operators & Hooks for Apache Airflow
+---
+
+{% set totalProviders = providers.providers.length %}
+{% set totalModules = modules.modules.length %}
+
+<section id="hero">
+  <div class="gradient"></div>
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <div class="container">
+    <div class="badge">
+      <span class="dot"></span>
+      <span>Discover {{ totalProviders }}+ providers and {{ totalModules }}+ modules</span>
+    </div>
+
+    <h1>
+      Find the perfect
+      <span class="highlight">Airflow components</span>
+      for your data pipelines
+    </h1>
+
+    <p class="subtitle">
+      Browse operators, hooks, sensors, and more from the official Apache Airflow provider ecosystem.
+    </p>
+
+    <button id="hero-search" class="search">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <span>Search for operators, hooks, sensors...</span>
+      <span class="shortcuts">
+        <span class="kbd">⌘</span>
+        <span class="kbd">K</span>
+      </span>
+    </button>
+
+    <nav class="popular-providers">
+      <span class="label">Popular:</span>
+      <a href="{{ '/providers/amazon/' | url }}">Amazon</a>
+      <a href="{{ '/providers/google/' | url }}">Google</a>
+      <a href="{{ '/providers/snowflake/' | url }}">Snowflake</a>
+      <a href="{{ '/providers/databricks/' | url }}">Databricks</a>
+    </nav>
+  </div>
+</section>
+
+<section id="stats">
+  <div class="container">
+    <dl>
+      <div>
+        <dt>{{ totalProviders }}+</dt>
+        <dd>Providers</dd>
+      </div>
+      <div>
+        <dt>{{ totalModules | formatLargeNumber }}+</dt>
+        <dd>Modules</dd>
+      </div>
+      <div>
+        <dt>{{ statsData.totalDownloads | formatDownloads }}+</dt>
+        <dd>Monthly Downloads</dd>
+      </div>
+      <div>
+        <dt>{{ statsData.totalConnectionTypes }}+</dt>
+        <dd>Integrations</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<section id="featured-providers">
+  <div class="container">
+    <header>
+      <div>
+        <h2>Popular Providers</h2>
+        <p>Most downloaded providers in the ecosystem</p>
+      </div>
+      <a href="{{ '/providers/' | url }}" class="view-all">
+        View all
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    </header>
+
+    <ul class="providers">
+      {% for provider in statsData.topByDownloads | slice(0, 4) %}
+      <li>
+        {% include "provider-card.njk" %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<!-- New Providers -->
+{% set allWithDate = [] %}
+{% for provider in providers.providers %}
+  {% if provider.first_released %}
+    {% set allWithDate = (allWithDate.push(provider), allWithDate) %}
+  {% endif %}
+{% endfor %}
+{% set newProviders = allWithDate | sort(false, false, 'first_released') | reverse | slice(0, 4) %}
+{% if newProviders.length > 0 %}
+<section id="new-providers">
+  <div class="container">
+    <header>
+      <div>
+        <h2>New Providers</h2>
+        <p>Recently added to the Airflow ecosystem</p>
+      </div>
+      <a href="{{ '/providers/' | url }}" class="view-all">
+        View all
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    </header>
+
+    <ul class="providers">
+      {% for provider in newProviders %}
+      <li>
+        {% include "provider-card.njk" %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+
+<section id="categories">
+  <div class="container">
+    <header>
+      <h2>Browse by Use Case</h2>
+      <p>Find components for your specific data pipeline needs</p>
+    </header>
+
+    <ul>
+      <li>
+        <a href="{{ '/providers/' | url }}?category=databases" class="category databases">
+          <div class="icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+          </div>
+          <h3>Databases</h3>
+          <p>PostgreSQL, MySQL, MongoDB...</p>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ '/providers/' | url }}?category=cloud" class="category cloud">
+          <div class="icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+            </svg>
+          </div>
+          <h3>Cloud Platforms</h3>
+          <p>AWS, GCP, Azure...</p>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ '/providers/' | url }}?category=ai-ml" class="category ml">
+          <div class="icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <h3>AI & ML</h3>
+          <p>Bedrock, Vertex AI, SageMaker...</p>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ '/providers/' | url }}?category=data-processing" class="category data-processing">
+          <div class="icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3>Data Processing</h3>
+          <p>Spark, Dataflow, Flink...</p>
+        </a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="install">
+  <div class="container">
+    <header>
+      <h2>Ready to get started?</h2>
+      <p>Install any provider with a single command</p>
+    </header>
+
+    <div class="command-box" data-copy-target="install-pip">
+      <code id="install-pip">pip install apache-airflow-providers-amazon</code>
+    </div>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Airflow Registry",
+  "url": "https://airflow.apache.org/registry/",
+  "description": "Discover Airflow Providers, Operators, Hooks, Sensors, and more.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://airflow.apache.org/registry/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>

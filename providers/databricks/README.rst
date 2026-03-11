@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.10.0``
+Release: ``7.11.0``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.10.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.11.0/>`_.
 
 Installation
 ------------
@@ -96,7 +96,7 @@ Extra               Dependencies
 ==================  ================================================================
 ``avro``            ``fastavro>=1.9.0``, ``fastavro>=1.10.0;python_version>="3.12"``
 ``azure-identity``  ``azure-identity>=1.3.1``
-``fab``             ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
 ``sdk``             ``databricks-sdk==0.10.0``
 ``standard``        ``apache-airflow-providers-standard``
@@ -105,4 +105,4 @@ Extra               Dependencies
 ==================  ================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.10.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.11.0/changelog.html>`_.

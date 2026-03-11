@@ -116,10 +116,28 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+    if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         "${flags[@]}" \
-        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
+        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
+        set +x
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+        echo
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" \
+                "${airflow_distributions[@]}"
+    fi
     set +x
     common::install_packaging_tools
     # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
