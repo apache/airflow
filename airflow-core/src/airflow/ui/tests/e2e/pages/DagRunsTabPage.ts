@@ -99,7 +99,9 @@ export class DagRunsTabPage extends BasePage {
 
   public async navigateToDag(dagId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}`);
-    await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), { timeout: 15_000 });
+    await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), {
+      timeout: 15_000,
+    });
     await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
   }
 
