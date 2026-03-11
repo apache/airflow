@@ -79,6 +79,17 @@ Example usage:
      # Backfill a hyphenated provider
      breeze registry backfill --provider microsoft-azure --version 11.0.0
 
+Each run uses an isolated temporary ``providers.json``, so different providers
+can be backfilled in parallel from separate terminal sessions:
+
+.. code-block:: bash
+
+     # Terminal 1
+     breeze registry backfill --provider amazon --version 9.15.0 --version 9.14.0
+
+     # Terminal 2 (safe to run simultaneously)
+     breeze registry backfill --provider google --version 14.0.0 --version 13.0.0
+
 Output is written to ``registry/src/_data/versions/{provider}/{version}/``:
 
 - ``parameters.json`` — operator/sensor/hook parameters
