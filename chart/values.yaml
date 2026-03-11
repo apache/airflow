@@ -1748,9 +1748,8 @@ migrateDatabaseJob:
 
 apiServer:
   enabled: true
-  # Number of Airflow API servers in the deployment
-  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
-  # as HPA will automatically manage the number of replicas based on the configured metrics.
+  # Number of Airflow API servers in the deployment.
+  # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
