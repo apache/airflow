@@ -20,8 +20,6 @@ import asyncio
 import inspect
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from airflow.providers.common.ai.utils.toolset_bridge import (
     _build_docstring,
     _create_adk_wrapper,

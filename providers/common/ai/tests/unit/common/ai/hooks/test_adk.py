@@ -26,10 +26,10 @@ from pydantic import BaseModel
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.adk import AdkHook, _GeminiWithApiKey
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _hook_with_conn(model_id="gemini-2.5-flash", password=None, extra=None):
     """Return an AdkHook wired to a fake connection."""

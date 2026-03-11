@@ -26,7 +26,7 @@ from google.adk.agents import Agent as ADKAgent, BaseAgent, LoopAgent, ParallelA
 from google.adk.memory import InMemoryMemoryService
 from google.adk.models.google_llm import Gemini
 from google.adk.runners import Runner as ADKRunner
-from google.adk.sessions import DatabaseSessionService, InMemorySessionService
+from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
 from pydantic import BaseModel, PrivateAttr
 
@@ -50,15 +50,13 @@ def _agent_cls_for(agent_type: AgentType) -> type[BaseAgent]:
     }
     cls = mapping.get(agent_type)
     if cls is None:
-        raise ValueError(
-            f"Unknown agent_type={agent_type!r}. "
-            f"Choose from: {', '.join(mapping)}."
-        )
+        raise ValueError(f"Unknown agent_type={agent_type!r}. Choose from: {', '.join(mapping)}.")
     return cls
 
 
 class _GeminiWithApiKey(Gemini):
-    """Gemini variant that injects *api_key* at the Client level.
+    """
+    Gemini variant that injects *api_key* at the Client level.
 
     Avoids setting ``GOOGLE_API_KEY`` in the process-wide environment, which
     would leak credentials to other tasks sharing the same worker process.
