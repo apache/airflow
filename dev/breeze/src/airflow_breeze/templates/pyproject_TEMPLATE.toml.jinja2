@@ -157,12 +157,12 @@ provider_info = "airflow.providers.{{ PROVIDER_ID }}.get_provider_info:get_provi
 name = "airflow.providers.{{ PROVIDER_ID }}"
 {% else -%}
 [tool.hatch.version]
-path = "src/airflow/providers/{{ PROVIDER_ID }}/__init__.py"
+path = "src/airflow/providers/{{ PROVIDER_PATH }}/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "docs",
-    "src/airflow/providers/{{ PROVIDER_ID }}",
+    "src/airflow/providers/{{ PROVIDER_PATH }}",
     "tests",
     "NOTICE"
 ]

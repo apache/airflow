@@ -48,6 +48,11 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.openai.hooks.openai.OpenAIHook",
                 "connection-type": "openai",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {},
+                },
             }
         ],
     }
