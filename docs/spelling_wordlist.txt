@@ -265,6 +265,7 @@ comparator
 compat
 Compute
 compute
+ComputeManagementClient
 Computenodes
 ComputeNodeState
 concat
@@ -407,6 +408,9 @@ dbt
 dbutils
 ddl
 de
+deallocate
+deallocated
+Debounce
 debuggability
 declaratively
 decommissioning
