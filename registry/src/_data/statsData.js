@@ -18,9 +18,18 @@
  */
 
 const providersData = require('./providers.json');
+const modulesData = require('./modules.json');
+const typesData = require('./types.json');
 
 module.exports = function() {
   const providers = providersData.providers;
+
+  // Build module counts from modules.json (single source of truth)
+  const countsByProvider = {};
+  for (const m of modulesData.modules) {
+    if (!countsByProvider[m.provider_id]) countsByProvider[m.provider_id] = {};
+    countsByProvider[m.provider_id][m.type] = (countsByProvider[m.provider_id][m.type] || 0) + 1;
+  }
 
   // Total providers count
   const totalProviders = providers.length;
@@ -41,8 +50,9 @@ module.exports = function() {
 
   // Aggregate module counts across all providers
   const aggregateModuleCounts = providers.reduce((acc, p) => {
-    if (p.module_counts) {
-      Object.entries(p.module_counts).forEach(([type, count]) => {
+    const mc = countsByProvider[p.id];
+    if (mc) {
+      Object.entries(mc).forEach(([type, count]) => {
         acc[type] = (acc[type] || 0) + count;
       });
     }
@@ -51,64 +61,11 @@ module.exports = function() {
 
   const totalModules = Object.values(aggregateModuleCounts).reduce((a, b) => a + b, 0);
 
-  // Module type metadata
-  const moduleTypeInfo = {
-    operator: {
-      label: 'Operators',
-      icon: 'O',
-      colorClass: 'operator'
-    },
-    hook: {
-      label: 'Hooks',
-      icon: 'H',
-      colorClass: 'hook'
-    },
-    sensor: {
-      label: 'Sensors',
-      icon: 'S',
-      colorClass: 'sensor'
-    },
-    trigger: {
-      label: 'Triggers',
-      icon: 'T',
-      colorClass: 'trigger'
-    },
-    transfer: {
-      label: 'Transfers',
-      icon: 'X',
-      colorClass: 'transfer'
-    },
-    bundle: {
-      label: 'Bundles',
-      icon: 'B',
-      colorClass: 'bundle'
-    },
-    notifier: {
-      label: 'Notifiers',
-      icon: 'N',
-      colorClass: 'notifier'
-    },
-    secret: {
-      label: 'Secrets Backend',
-      icon: 'K',
-      colorClass: 'secret'
-    },
-    logging: {
-      label: 'Log Handler',
-      icon: 'L',
-      colorClass: 'logging'
-    },
-    executor: {
-      label: 'Executors',
-      icon: 'E',
-      colorClass: 'executor'
-    },
-    decorator: {
-      label: 'Decorators',
-      icon: '@',
-      colorClass: 'decorator'
-    }
-  };
+  // Module type metadata (from types.json)
+  const moduleTypeInfo = {};
+  for (const t of typesData) {
+    moduleTypeInfo[t.id] = { label: t.label, icon: t.icon, colorClass: t.id };
+  }
 
   // Module type display data with counts and percentages
   const moduleTypeStats = Object.entries(moduleTypeInfo).map(([type, info]) => {
@@ -141,8 +98,8 @@ module.exports = function() {
   // Enriched provider list with totals
   const enrichedProviders = [...providers].map(p => ({
     ...p,
-    totalModules: p.module_counts
-      ? Object.values(p.module_counts).reduce((a, b) => a + b, 0)
+    totalModules: countsByProvider[p.id]
+      ? Object.values(countsByProvider[p.id]).reduce((a, b) => a + b, 0)
       : 0,
     monthlyDownloads: (p.pypi_downloads && p.pypi_downloads.monthly) || 0,
     weeklyDownloads: (p.pypi_downloads && p.pypi_downloads.weekly) || 0

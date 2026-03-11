@@ -46,7 +46,7 @@ class TestAgentDecoratedOperator:
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt():
             return "Who is our top customer?"
@@ -78,7 +78,7 @@ class TestAgentDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(topic):
             return f"Analyze {topic}"
@@ -99,7 +99,7 @@ class TestAgentDecoratedOperator:
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("result")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         mock_toolset = MagicMock()
 
@@ -111,7 +111,7 @@ class TestAgentDecoratedOperator:
         )
         op.execute(context={})
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
@@ -126,7 +126,7 @@ class TestAgentDecoratedOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = _AgentDecoratedOperator(
             task_id="test",

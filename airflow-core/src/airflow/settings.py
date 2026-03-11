@@ -38,6 +38,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from airflow.observability.traces import configure_otel
+
 try:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 except ImportError:
@@ -722,7 +724,7 @@ def initialize():
     load_policy_plugins(policy_mgr)
     import_local_settings()
     configure_logging()
-
+    configure_otel()
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 

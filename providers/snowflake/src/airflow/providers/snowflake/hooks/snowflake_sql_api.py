@@ -17,19 +17,15 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import time
 import uuid
 import warnings
 from datetime import timedelta
-from pathlib import Path
 from typing import Any
 
 import aiohttp
 import requests
 from aiohttp import ClientConnectionError, ClientResponseError
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from tenacity import (
     AsyncRetrying,
@@ -54,10 +50,15 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     In combination with aiohttp, make post request to submit SQL statements for execution,
     poll to check the status of the execution of a statement. Fetch query results asynchronously.
 
-    This hook requires the snowflake_conn_id connection. This hooks mainly uses account, schema, database,
-    warehouse, and an authentication mechanism from one of below:
-    1. JWT Token generated from private_key_file or private_key_content. Other inputs can be defined in the connection or hook instantiation.
-    2. OAuth Token generated from the refresh_token, client_id and client_secret specified in the connection
+    This hook requires the snowflake_conn_id connection. This hook mainly uses account, schema, database,
+    warehouse, and an authentication mechanism from one of the following:
+
+    1. JWT Token generated from ``private_key_file`` or ``private_key_content``. Other inputs can be
+       defined in the connection or hook instantiation.
+    2. OAuth Token generated from the ``refresh_token``, ``client_id`` and ``client_secret`` specified
+       in the connection.
+    3. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token`` in the
+       connection extras and put the PAT value in the connection ``password`` field.
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -133,43 +134,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.http_request_kwargs = http_request_kwargs or {}
         self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
         self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
-
-    def get_private_key(self) -> None:
-        """Get the private key from snowflake connection."""
-        conn = self.get_connection(self.snowflake_conn_id)
-
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
-
-        private_key_file = conn.extra_dejson.get(
-            "extra__snowflake__private_key_file"
-        ) or conn.extra_dejson.get("private_key_file")
-        private_key_content = conn.extra_dejson.get(
-            "extra__snowflake__private_key_content"
-        ) or conn.extra_dejson.get("private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_pem = Path(private_key_file).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            self.private_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
 
     def execute_query(
         self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
@@ -253,7 +217,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Form auth headers based on either OAuth token or JWT token from private key."""
+        """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
         conn_config = self._get_conn_params()
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
@@ -261,18 +225,33 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
             oauth_token = self.get_oauth_token(conn_config=conn_config)
-            headers = {
+            return {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
                 "Accept": "application/json",
                 "User-Agent": "snowflakeSQLAPI/1.0",
                 "X-Snowflake-Authorization-Token-Type": "OAUTH",
             }
-            return headers
 
-        # Alternatively, get the JWT token from the connection details and the private key
+        # Use PAT (Programmatic Access Token) when authenticator is set to programmatic_access_token
+        if conn_config.get("authenticator") == "programmatic_access_token":
+            pat = conn_config.get("password")
+            if not pat:
+                raise AirflowException(
+                    "Programmatic Access Token (PAT) authentication requires the connection password "
+                    "field to contain the PAT token value."
+                )
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {pat}",
+                "Accept": "application/json",
+                "User-Agent": "snowflakeSQLAPI/1.0",
+                "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
+            }
+
+        # Fall back to JWT token from the connection details and the private key
         if not self.private_key:
-            self.get_private_key()
+            self.private_key = self.get_private_key()
 
         token = JWTGenerator(
             conn_config["account"],  # type: ignore[arg-type]
@@ -282,14 +261,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             renewal_delay=self.token_renewal_delta,
         ).get_token()
 
-        headers = {
+        return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
             "User-Agent": "snowflakeSQLAPI/1.0",
             "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
         }
-        return headers
 
     def get_oauth_token(
         self,

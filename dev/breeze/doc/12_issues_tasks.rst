@@ -54,5 +54,5 @@ Example usage:
 
 -----
 
-Next step: Follow the `Advanced Breeze topics <12_advanced_breeze_topics.rst>`__ instructions to learn more
-about advanced Breeze topics and internals.
+Next step: Follow the `Pull request tasks <13_pr_tasks.rst>`__ instructions to learn how to manage GitHub
+pull requests with Breeze.

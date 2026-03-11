@@ -48,8 +48,8 @@ def reset_db():
 
 @pytest.fixture
 def access_denied(client):
-    from airflow.api_fastapi.execution_api.deps import JWTBearerDep
     from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+    from airflow.api_fastapi.execution_api.security import CurrentTIToken
 
     last_route = client.app.routes[-1]
     assert isinstance(last_route.app, FastAPI)
@@ -61,7 +61,7 @@ def access_denied(client):
         run_id: str = Path(),
         task_id: str = Path(),
         xcom_key: str = Path(alias="key"),
-        token=JWTBearerDep,
+        token=CurrentTIToken,
     ):
         await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
         raise HTTPException(
@@ -394,7 +394,7 @@ class TestXComsSetEndpoint:
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
         This tests the case where the XCom value is stored from the Task API where the value is serialized
-        via Client SDK into JSON object and passed via the API Server to the DB. It by-passes
+        via Client SDK into JSON object and passed via the API Server to the DB. It bypasses
         the XComModel.serialize_value and stores valid Python JSON compatible objects to DB.
 
         This test is to ensure that the deserialization works correctly in this case as well as

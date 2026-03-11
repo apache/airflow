@@ -759,6 +759,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
 
     @classmethod
@@ -770,7 +771,52 @@ class DagRunInfo(InfoJsonEncodable):
         return (dagrun.end_date - dagrun.start_date).total_seconds()
 
     @classmethod
+    def deadlines(cls, dagrun: DagRun) -> dict[str, Any] | None:
+        """
+        Extract deadline state and alert definitions from a DagRun (on scheduler).
+
+        Returns a dict (not a list) so _cast_basic_types passes it through.
+        """
+        try:
+            # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+            deadlines = getattr(dagrun, "deadlines", None)
+            if not deadlines:
+                return None
+        except Exception as err:
+            log.warning("OpenLineage failed to retrieve deadlines. Exception: %s", err)
+            return None
+
+        result = []
+        for d in deadlines:
+            try:
+                info: dict[str, Any] = {}
+                if deadline_time := getattr(d, "deadline_time", None):
+                    info["deadline_time"] = deadline_time.isoformat()
+                if (missed := getattr(d, "missed", None)) is not None:
+                    info["missed"] = missed
+                try:
+                    # deadline_alert is a lazy-loaded ORM relationship that may
+                    # trigger a DB query; keep it isolated so a detached-session
+                    # error doesn't discard the rest of the deadline info.
+                    if alert := getattr(d, "deadline_alert", None):
+                        info.update(
+                            {
+                                k: v
+                                for k in ("name", "description", "reference", "interval", "callback_def")
+                                if (v := getattr(alert, k, None)) is not None
+                            }
+                        )
+                except Exception as err:
+                    log.warning("OpenLineage could not load deadline_alert relationship for %s", err)
+                if info:
+                    result.append(info)
+            except Exception as err:
+                log.warning("OpenLineage failed to serialize deadline: %s", err)
+        return {"alerts": result} if result else None
+
+    @classmethod
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         if not getattr(dagrun, "dag_versions", []):
             return None

@@ -230,6 +230,7 @@ def structlog_processors(
     log_format: str = "",
     colors: bool = True,
     callsite_parameters: tuple[CallsiteParameter, ...] = (),
+    log_timestamp_format: str = "iso",
 ):
     """
     Create the correct list of structlog processors for the given config.
@@ -245,7 +246,7 @@ def structlog_processors(
 
     :meta private:
     """
-    timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+    timestamper = structlog.processors.MaybeTimeStamper(fmt=log_timestamp_format)
 
     # Processors shared between stdlib handlers and structlog processors
     shared_processors: list[structlog.typing.Processor] = [
@@ -387,6 +388,7 @@ def configure_logging(
     json_output: bool = False,
     log_level: str = "DEBUG",
     log_format: str = "",
+    log_timestamp_format: str = "iso",
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
     callsite_parameters: Iterable[CallsiteParameter] | None = None,
@@ -404,6 +406,9 @@ def configure_logging(
     :param json_output: Set to true to write all logs as JSON (one per line)
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
+    :param log_timestamp_format: Timestamp format for component logs. Use ``"iso"`` for ISO 8601 format
+        (the default), or a strftime format string such as ``"%Y-%m-%d %H:%M:%S"``. Note: this only
+        applies to component logs rendered via structlog (scheduler, api-server, triggerer, etc.).
     :param output: Where to write the logs to. If ``json_output`` is true this must be a binary stream
     :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
         an interactive session), unless overridden by environment variables described below.
@@ -465,6 +470,7 @@ def configure_logging(
         log_format=log_format,
         colors=colors,
         callsite_parameters=tuple(callsite_parameters or ()),
+        log_timestamp_format=log_timestamp_format,
     )
     shared_pre_chain += list(extra_processors)
     pre_chain: list[structlog.typing.Processor] = [structlog.stdlib.add_logger_name] + shared_pre_chain
