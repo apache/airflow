@@ -14,7 +14,7 @@ eleventyComputed:
 
 {# Choose data source: latest uses providers.json + modules.json, older uses versionData #}
 {% if pv.isLatest %}
-  {% set moduleCounts = pv.provider.module_counts or {} %}
+  {% set moduleCounts = moduleCountsByProvider[pv.provider.id] or {} %}
   {% set deps = pv.provider.dependencies or [] %}
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}

@@ -73,14 +73,6 @@ module.exports = function () {
       ? provider.airflow_versions[provider.airflow_versions.length - 1]
       : null;
 
-    // Compute module_counts from modules.json (runtime discovery).
-    // providers.json no longer carries counts — modules.json is the single source.
-    const counts = {};
-    for (const m of latestModules) {
-      counts[m.type] = (counts[m.type] || 0) + 1;
-    }
-    provider.module_counts = counts;
-
     result.push({
       provider,
       version: provider.version,

@@ -21,7 +21,7 @@
     <p class="description">{{ provider.description }}</p>
 
     <div class="modules">
-      {% set counts = provider.module_counts or {} %}
+      {% set counts = moduleCountsByProvider[provider.id] or {} %}
       {% set totalMods = 0 %}
       {% for t in types %}{% set totalMods = totalMods + (counts[t.id] or 0) %}{% endfor %}
       <span class="count">{{ totalMods }} module{{ "s" if totalMods != 1 }}</span>
