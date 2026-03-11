@@ -39,7 +39,9 @@ class TestAgentDecoratedOperator:
 
     def test_execute_calls_callable_and_returns_output(self):
         """The callable's return value becomes the agent prompt."""
-        mock_hook = _mock_hook("The top customer is Acme Corp.")
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt():
             return "Who is our top customer?"
@@ -70,7 +72,9 @@ class TestAgentDecoratedOperator:
 
     def test_execute_merges_op_kwargs_into_callable(self):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_hook = _mock_hook("done")
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("done")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(topic):
             return f"Analyze {topic}"
@@ -90,7 +94,10 @@ class TestAgentDecoratedOperator:
 
     def test_execute_passes_toolsets_through(self):
         """Toolsets passed to the decorator are forwarded to the agent."""
-        mock_hook = _mock_hook("result")
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("result")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
         mock_toolset = MagicMock()
 
         op = _AgentDecoratedOperator(
@@ -103,7 +110,7 @@ class TestAgentDecoratedOperator:
             with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
                 op.execute(context={})
 
-        create_call = mock_hook.create_agent.call_args
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
@@ -115,7 +122,9 @@ class TestAgentDecoratedOperator:
         class Summary(BaseModel):
             text: str
 
-        mock_hook = _mock_hook(Summary(text="Great results"))
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = _AgentDecoratedOperator(
             task_id="test",

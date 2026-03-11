@@ -20,6 +20,7 @@ import { Box, Icon, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import {
   FiGrid,
+  FiKey,
   FiLogOut,
   FiMoon,
   FiSun,
@@ -43,6 +44,7 @@ import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
+import TokenGenerationModal from "./TokenGenerationModal";
 
 const COLOR_MODES = {
   DARK: "dark",
@@ -77,6 +79,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
 
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
+  const { onClose: onCloseToken, onOpen: onOpenToken, open: isOpenToken } = useDisclosure();
 
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
 
@@ -138,6 +141,10 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
             </Box>
           </Menu.Item>
+          <Menu.Item onClick={onOpenToken} value="generateToken">
+            <Icon as={FiKey} boxSize={4} />
+            <Box flex="1">{translate("generateToken")}</Box>
+          </Menu.Item>
           {externalViews.map((view) => (
             <PluginMenuItem {...view} key={view.name} />
           ))}
@@ -150,6 +157,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
       </Menu.Root>
       <LanguageModal isOpen={isOpenLanguage} onClose={onCloseLanguage} />
       <LogoutModal isOpen={isOpenLogout} onClose={onCloseLogout} />
+      <TokenGenerationModal isOpen={isOpenToken} onClose={onCloseToken} />
     </>
   );
 };

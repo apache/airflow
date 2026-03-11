@@ -898,6 +898,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -992,6 +993,12 @@ workers:
 
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
 
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
@@ -1246,6 +1253,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Resource configuration for Airflow Celery workers
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1300,6 +1316,15 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
@@ -1472,6 +1497,12 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2317,6 +2348,12 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2548,6 +2585,12 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled

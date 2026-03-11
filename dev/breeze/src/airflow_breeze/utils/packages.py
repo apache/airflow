@@ -77,6 +77,7 @@ class PluginInfo(NamedTuple):
 
 class ProviderPackageDetails(NamedTuple):
     provider_id: str
+    provider_path: str
     provider_yaml_path: Path
     source_date_epoch: int
     full_package_name: str
@@ -573,6 +574,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     )
     return ProviderPackageDetails(
         provider_id=provider_id,
+        provider_path=provider_id.replace(".", "/"),
         provider_yaml_path=provider_yaml_path,
         source_date_epoch=provider_info["source-date-epoch"],
         full_package_name=f"airflow.providers.{provider_id}",
@@ -707,6 +709,7 @@ def get_provider_jinja_context(
 
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
+        "PROVIDER_PATH": provider_details.provider_path,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
         "PACKAGE_DIST_PREFIX": get_dist_package_name_prefix(provider_details.provider_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
