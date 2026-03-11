@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import * as ChakraUI from "@chakra-ui/react";
+import * as EmotionReact from "@emotion/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
@@ -37,13 +39,14 @@ import { getRedirectPath } from "src/utils/links.ts";
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
 
-// Set React, ReactDOM, and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
-// Only one instance of React should be used.
-// Reflect will avoid type checking.
+// Set React, ReactDOM, Chakra UI, and Emotion on globalThis so dynamically imported React
+// plugins (e.g. HITL Review) use the host's copies instead of bundling their own.
 Reflect.set(globalThis, "React", React);
 Reflect.set(globalThis, "ReactDOM", ReactDOM);
 Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
+Reflect.set(globalThis, "ChakraUI", ChakraUI);
+Reflect.set(globalThis, "EmotionReact", EmotionReact);
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(

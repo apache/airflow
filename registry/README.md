@@ -67,6 +67,10 @@ development. In production the prefix defaults to `/registry/`.
 ### Data Pipeline
 
 ```
+registry_tools/types.py      ← Single source of truth for module type definitions
+        │
+        ├─── generate_types_json.py  → registry/src/_data/types.json (for frontend)
+        │
 provider.yaml files (providers/*/provider.yaml)
         │
         ▼
@@ -79,6 +83,7 @@ extract_parameters.py        ← Runtime class discovery + parameter extraction 
 registry/src/_data/
   ├── providers.json         ← Provider metadata (name, versions, downloads, lifecycle, ...)
   ├── modules.json           ← Individual modules (operators, hooks, sensors, ...)
+  ├── types.json             ← Module type definitions (generated from types.py)
   └── versions/{id}/{ver}/   ← Per-version metadata, parameters, connections
         │
         ▼
@@ -166,6 +171,7 @@ the same Sphinx build that generates the docs.
 |---|---|---|
 | `providers.json` | Generated | All providers with metadata, sorted alphabetically |
 | `modules.json` | Generated | All extracted modules (operators, hooks, etc.) |
+| `types.json` | Generated | Module type definitions (from `registry_tools/types.py`) |
 | `versions/` | Generated | Per-provider, per-version metadata/parameters/connections |
 | `exploreCategories.js` | Checked-in | Category definitions with keyword lists for the Explore page |
 | `statsData.js` | Checked-in | Computed statistics (lifecycle counts, top providers, etc.) |
@@ -460,6 +466,19 @@ provider appears well in the registry:
 3. **Write docstrings** — the extraction script uses runtime inspection to pull
    class-level docstrings for module descriptions
 4. **Publish to PyPI** — download stats are fetched automatically
+
+## Adding a New Module Type
+
+Module types (operator, hook, sensor, etc.) are defined in a single place:
+`dev/registry/registry_tools/types.py`. To add a new type (e.g., `auth_manager`):
+
+1. Add an entry to `MODULE_TYPES` in `dev/registry/registry_tools/types.py`
+2. Run `uv run python dev/registry/generate_types_json.py` to update
+   `registry/src/_data/types.json` (auto-propagates to frontend templates and JS)
+3. Add CSS variable `--color-auth-manager` and class `.auth-manager` in
+   `src/css/tokens.css` and `src/css/main.css`
+4. If runtime discovery is needed, add a base class entry to `BASE_CLASS_IMPORTS`
+   in `types.py`
 
 ## Development Tips
 

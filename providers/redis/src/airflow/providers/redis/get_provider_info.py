@@ -58,7 +58,31 @@ def get_provider_info():
         ],
         "hooks": [{"integration-name": "Redis", "python-modules": ["airflow.providers.redis.hooks.redis"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.redis.hooks.redis.RedisHook", "connection-type": "redis"}
+            {
+                "hook-class-name": "airflow.providers.redis.hooks.redis.RedisHook",
+                "connection-type": "redis",
+                "ui-field-behaviour": {"hidden-fields": ["schema", "extra"], "relabeling": {}},
+                "conn-fields": {
+                    "db": {"label": "DB", "schema": {"type": ["integer", "null"], "default": 0}},
+                    "ssl": {"label": "Enable SSL", "schema": {"type": ["boolean", "null"], "default": False}},
+                    "ssl_cert_reqs": {
+                        "label": "SSL verify mode",
+                        "description": "Must be one of: required, optional, none.",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "default": "required",
+                            "enum": ["required", "optional", "none"],
+                        },
+                    },
+                    "ssl_ca_certs": {"label": "CA certificate path", "schema": {"type": ["string", "null"]}},
+                    "ssl_keyfile": {"label": "Private key path", "schema": {"type": ["string", "null"]}},
+                    "ssl_certfile": {"label": "Certificate path", "schema": {"type": ["string", "null"]}},
+                    "ssl_check_hostname": {
+                        "label": "Enable hostname check",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
+            }
         ],
         "logging": ["airflow.providers.redis.redis_task_handler.RedisTaskHandler"],
     }

@@ -273,49 +273,6 @@ def extract_integrations_as_categories(provider_yaml: dict[str, Any]) -> list[Ca
     return list(categories.values())
 
 
-def count_modules_by_type(provider_yaml: dict[str, Any]) -> dict[str, int]:
-    """Count modules by type from provider.yaml."""
-    counts = {
-        "operator": 0,
-        "hook": 0,
-        "sensor": 0,
-        "trigger": 0,
-        "transfer": 0,
-        "notifier": 0,
-        "secret": 0,
-        "logging": 0,
-        "executor": 0,
-        "bundle": 0,
-        "decorator": 0,
-    }
-
-    # Sections where each entry has a python-modules list
-    MODULE_LEVEL = {
-        "operators": "operator",
-        "hooks": "hook",
-        "sensors": "sensor",
-        "triggers": "trigger",
-        "bundles": "bundle",
-    }
-    for yaml_key, count_key in MODULE_LEVEL.items():
-        for group in provider_yaml.get(yaml_key, []):
-            counts[count_key] += len(group.get("python-modules", []))
-
-    # Sections where each entry is a single item (flat list or class path)
-    FLAT_LEVEL = {
-        "transfers": "transfer",
-        "notifications": "notifier",
-        "secrets-backends": "secret",
-        "logging": "logging",
-        "executors": "executor",
-        "task-decorators": "decorator",
-    }
-    for yaml_key, count_key in FLAT_LEVEL.items():
-        counts[count_key] = len(provider_yaml.get(yaml_key, []))
-
-    return counts
-
-
 def module_path_to_file_path(module_path: str, provider_path: Path) -> Path:
     """Convert a Python module path to an actual file path.
 
@@ -448,9 +405,6 @@ def main():
         versions = provider_yaml.get("versions", [])
         version = versions[0] if versions else "0.0.0"
 
-        # Count modules
-        module_counts = count_modules_by_type(provider_yaml)
-
         # Extract categories from integrations
         categories = extract_integrations_as_categories(provider_yaml)
 
@@ -483,8 +437,11 @@ def main():
 
         # Write logos to dev/registry/logos/ — this directory is mounted in
         # breeze (unlike registry/public/) so copies survive the container.
+        # Also copy to registry/public/logos/ for local dev convenience.
         logos_dest_dir = SCRIPT_DIR / "logos"
         logos_dest_dir.mkdir(parents=True, exist_ok=True)
+        registry_logos_dir = SCRIPT_DIR.parent.parent / "registry" / "public" / "logos"
+        registry_logos_dir.mkdir(parents=True, exist_ok=True)
 
         if integration_logos_dir.exists():
             # First, check for priority logos for known providers
@@ -529,6 +486,14 @@ def main():
                     shutil.copy2(logo_source, logo_dest)
                     logo = f"/logos/{provider_id}-{logo_source.name}"
 
+        # Also copy to registry/public/logos/ so local `pnpm dev` works without
+        # the extra CI copy step.
+        if logo:
+            logo_filename = logo.split("/")[-1]
+            src = logos_dest_dir / logo_filename
+            if src.exists():
+                shutil.copy2(src, registry_logos_dir / logo_filename)
+
         # Extract connection types from provider.yaml
         # Link to the connections index page since individual connection pages might not exist
         connection_types = []
@@ -568,7 +533,6 @@ def main():
             versions=versions,
             airflow_versions=airflow_versions,
             pypi_downloads=pypi_downloads,
-            module_counts=module_counts,
             categories=[asdict(c) for c in categories],
             connection_types=connection_types,
             requires_python=pyproject_data["requires_python"],
@@ -590,11 +554,30 @@ def main():
     for provider in all_providers:
         provider.related_providers = find_related_providers(provider.id, all_provider_yamls)
 
-    # Sort providers alphabetically by name
-    all_providers.sort(key=lambda p: p.name.lower())
-
     # Convert to JSON-serializable format
-    providers_json = {"providers": [asdict(p) for p in all_providers]}
+    new_providers = [asdict(p) for p in all_providers]
+
+    # In incremental mode, merge new providers into existing providers.json
+    # so parallel runs for different providers don't clobber each other.
+    if requested_providers:
+        new_by_id = {p["id"]: p for p in new_providers}
+        for out_dir in [SCRIPT_DIR, OUTPUT_DIR]:
+            existing_path = out_dir / "providers.json"
+            if existing_path.exists():
+                try:
+                    existing = json.loads(existing_path.read_text())
+                    merged = [new_by_id.pop(p["id"], p) for p in existing["providers"]]
+                    merged.extend(new_by_id.values())
+                    new_providers = merged
+                    print(
+                        f"Merged {len(all_providers)} updated + {len(merged) - len(all_providers)} existing providers"
+                    )
+                except (json.JSONDecodeError, KeyError):
+                    pass
+                break
+
+    new_providers.sort(key=lambda p: p["name"].lower())
+    providers_json = {"providers": new_providers}
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
@@ -608,7 +591,7 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "providers.json", "w") as f:
             json.dump(providers_json, f, indent=2)
-        print(f"\nWrote {len(all_providers)} providers to {out_dir}")
+        print(f"\nWrote {len(new_providers)} providers to {out_dir}")
 
     print("\nDone!")
 

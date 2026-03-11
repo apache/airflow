@@ -20,6 +20,7 @@ import os
 import sys
 from enum import Enum
 
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.shared_options import get_forced_answer
 
 STANDARD_TIMEOUT = 10
@@ -116,6 +117,7 @@ def confirm_action(
 
 class TriageAction(Enum):
     DRAFT = "d"
+    COMMENT = "a"
     CLOSE = "c"
     READY = "r"
     SKIP = "s"
@@ -139,6 +141,7 @@ def prompt_triage_action(
 
     _LABELS = {
         TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
         TriageAction.CLOSE: "close",
         TriageAction.READY: "ready",
         TriageAction.SKIP: "skip",
@@ -172,7 +175,8 @@ def prompt_triage_action(
                     choices.append(f"[{letter}]{label}")
             choices_str = " / ".join(choices)
 
-            prompt_text = f"\n{message}\n{choices_str}"
+            get_console().print(f"\n{message}")
+            prompt_text = choices_str
             if timeout:
                 prompt_text += (
                     f"  (auto-select {_LABELS[default]} in {timeout}s"
@@ -188,7 +192,7 @@ def prompt_triage_action(
             for action in TriageAction:
                 if upper == action.value.upper():
                     return action
-            print(f"Invalid input '{user_input}'. Please enter one of: d/c/r/s/q")
+            print(f"Invalid input '{user_input}'. Please enter one of: d/a/c/r/s/q")
         except TimeoutOccurred:
             return default
         except KeyboardInterrupt:
