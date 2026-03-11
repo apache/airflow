@@ -8098,6 +8098,38 @@ export const $GanttTaskInstance = {
     description: 'Task instance data for Gantt chart.'
 } as const;
 
+export const $GenerateTokenBody = {
+    properties: {
+        token_type: {
+            '$ref': '#/components/schemas/TokenType',
+            default: 'api'
+        }
+    },
+    type: 'object',
+    title: 'GenerateTokenBody',
+    description: 'Request body for generating a token.'
+} as const;
+
+export const $GenerateTokenResponse = {
+    properties: {
+        access_token: {
+            type: 'string',
+            title: 'Access Token'
+        },
+        token_type: {
+            '$ref': '#/components/schemas/TokenType'
+        },
+        expires_in_seconds: {
+            type: 'integer',
+            title: 'Expires In Seconds'
+        }
+    },
+    type: 'object',
+    required: ['access_token', 'token_type', 'expires_in_seconds'],
+    title: 'GenerateTokenResponse',
+    description: 'Response for a generated token.'
+} as const;
+
 export const $GridNodeResponse = {
     properties: {
         id: {
@@ -8960,6 +8992,13 @@ export const $Theme = {
     required: ['tokens'],
     title: 'Theme',
     description: "JSON to modify Chakra's theme."
+} as const;
+
+export const $TokenType = {
+    type: 'string',
+    enum: ['api', 'cli'],
+    title: 'TokenType',
+    description: 'Type of token to generate.'
 } as const;
 
 export const $UIAlert = {

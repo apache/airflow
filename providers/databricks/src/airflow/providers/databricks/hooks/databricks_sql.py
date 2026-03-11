@@ -52,14 +52,23 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
-    if execution_timeout is not None:
-        seconds_to_timeout = execution_timeout.total_seconds()
-        t = threading.Timer(seconds_to_timeout, cur.connection.cancel)
-    else:
-        t = None
+def create_timeout_thread(
+    cur, execution_timeout: timedelta | None
+) -> tuple[threading.Timer | None, threading.Event | None]:
+    """Create a timeout timer that cancels the connection and sets a timeout flag."""
+    if not execution_timeout:
+        return None, None
 
-    return t
+    timeout_event = threading.Event()
+
+    def _cancel():
+        timeout_event.set()
+        cur.connection.cancel()
+
+    timer = threading.Timer(execution_timeout.total_seconds(), _cancel)
+    timer.start()
+
+    return timer, timeout_event
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -290,22 +299,25 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    t = create_timeout_thread(cur, execution_timeout)
+                    timer, timeout_event = create_timeout_thread(cur, execution_timeout)
 
-                    # TODO: adjust this to make testing easier
                     try:
                         self._run_command(cur, sql_statement, parameters)
+
                     except Exception as e:
-                        if t is None or t.is_alive():
-                            raise DatabricksSqlExecutionError(
-                                f"Error running SQL statement: {sql_statement}. {str(e)}"
-                            )
-                        raise DatabricksSqlExecutionTimeout(
-                            f"Timeout threshold exceeded for SQL statement: {sql_statement} was cancelled."
-                        )
+                        if timeout_event and timeout_event.is_set():
+                            raise DatabricksSqlExecutionTimeout(
+                                f"Timeout threshold exceeded for SQL statement: "
+                                f"{sql_statement} was cancelled."
+                            ) from e
+
+                        raise DatabricksSqlExecutionError(
+                            f"Error running SQL statement: {sql_statement}. {str(e)}"
+                        ) from e
+
                     finally:
-                        if t is not None:
-                            t.cancel()
+                        if timer:
+                            timer.cancel()
 
                     if query_id := cur.query_id:
                         self.log.info("Databricks query id: %s", query_id)
