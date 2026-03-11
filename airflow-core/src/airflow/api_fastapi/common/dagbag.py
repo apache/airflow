@@ -70,11 +70,19 @@ def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> Ser
 def get_dag_for_run_or_latest_version(
     dag_bag: DBDagBag, dag_run: DagRun | None, dag_id: str | None, session: Session
 ) -> SerializedDAG:
+    """
+    Retrieve the serialized DAG for a specific run, or the latest version if no run is given.
+
+    When a dag_run is provided, we prefer the exact DAG version the run was created with
+    (``created_dag_version_id``) so that task group lookups, operator metadata, etc. match
+    the DAG structure at the time of the run.
+
+    This is necessary because ``get_dag_for_run`` delegates to ``_version_from_dag_run``
+    which, for unversioned bundles (e.g. ``LocalDagBundle``), falls back to the *latest*
+    ``DagVersion``.
+    """
     dag: SerializedDAG | None = None
     if dag_run:
-        # Use the version the run was created with so that task group lookups,
-        # operator metadata, etc. match the DAG structure at the time of the run
-        # — not a potentially newer version where groups may have been renamed.
         if dag_run.created_dag_version_id:
             dag = dag_bag._get_dag(dag_run.created_dag_version_id, session=session)
         if not dag:
