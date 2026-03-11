@@ -1889,7 +1889,6 @@ def reinit_supervisor_comms() -> None:
 
     global SUPERVISOR_COMMS
     if SUPERVISOR_COMMS is None:
-
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
         SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
