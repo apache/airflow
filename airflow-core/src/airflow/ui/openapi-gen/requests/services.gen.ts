@@ -215,7 +215,6 @@ export class AssetService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -295,7 +294,6 @@ export class AssetService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -2415,6 +2413,7 @@ export class TaskInstanceService {
                 order_by: data.orderBy
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3976,7 +3975,7 @@ export class DeadlinesService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
-     * @returns DealineCollectionResponse Successful Response
+     * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getDagRunDeadlines(data: GetDagRunDeadlinesData): CancelablePromise<GetDagRunDeadlinesResponse> {

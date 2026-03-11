@@ -59,6 +59,49 @@ def test_str(input_str):
     assert str(o) == input_str
 
 
+class TestConnIdPropagation:
+    """conn_id must survive all path-producing operations."""
+
+    @pytest.fixture
+    def base(self):
+        return ObjectStoragePath("s3://aws_default@bucket/prefix")
+
+    def test_truediv(self, base):
+        child = base / "x"
+        assert child.conn_id == "aws_default"
+
+    def test_joinpath(self, base):
+        child = base.joinpath("a", "b")
+        assert child.conn_id == "aws_default"
+
+    def test_parent(self, base):
+        assert base.parent.conn_id == "aws_default"
+
+    def test_parents(self, base):
+        for p in base.parents:
+            assert p.conn_id == "aws_default"
+
+    def test_with_name(self, base):
+        assert base.with_name("other").conn_id == "aws_default"
+
+    def test_with_suffix(self, base):
+        p = ObjectStoragePath("s3://aws_default@bucket/file.txt")
+        assert p.with_suffix(".csv").conn_id == "aws_default"
+
+    def test_with_stem(self, base):
+        p = ObjectStoragePath("s3://aws_default@bucket/file.txt")
+        assert p.with_stem("other").conn_id == "aws_default"
+
+    def test_nested_truediv(self, base):
+        grandchild = base / "x" / "y" / "z"
+        assert grandchild.conn_id == "aws_default"
+
+    def test_no_conn_id_stays_none(self):
+        p = ObjectStoragePath("s3://bucket/key")
+        child = p / "x"
+        assert child.conn_id is None
+
+
 def test_cwd():
     assert ObjectStoragePath.cwd()
 

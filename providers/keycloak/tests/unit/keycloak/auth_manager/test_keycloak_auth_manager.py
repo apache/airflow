@@ -51,6 +51,7 @@ try:
     from airflow.providers.common.compat.sdk import AirflowException
 except ModuleNotFoundError:
     from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -107,6 +108,16 @@ def user():
     user.access_token = "access_token"
     user.refresh_token = "refresh_token"
     return user
+
+
+@pytest.fixture(autouse=True)
+def _clear_filter_cache():
+    """Clear module-level single-flight cache between tests."""
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
+    yield
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
 
 
 class TestKeycloakAuthManager:
@@ -933,3 +944,165 @@ class TestKeycloakAuthManager:
         """Test that _get_token_url normalizes server_url by stripping trailing slashes."""
         token_url = auth_manager._get_token_url(server_url, "myrealm")
         assert token_url == expected_url
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager.get_keycloak_client"
+    )
+    def test_get_teams(self, mock_get_keycloak_client, auth_manager_multi_team):
+        """_get_teams fetches Team: resources from Keycloak and returns team names."""
+        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "pat-token"}
+
+        mock_response = Mock()
+        mock_response.json.return_value = [
+            {"name": "Team:team-a", "type": "urn:airflow:resource"},
+            {"name": "Team:team-b", "type": "urn:airflow:resource"},
+            {"name": "Connection", "type": "urn:airflow:resource"},  # should be ignored
+        ]
+        mock_response.raise_for_status = Mock()
+        auth_manager_multi_team.http_session.get = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team._get_teams()
+
+        assert result == {"team-a", "team-b"}
+        auth_manager_multi_team.http_session.get.assert_called_once_with(
+            "server_url/realms/realm/authz/protection/resource_set",
+            params={"name": "Team:", "matchingUri": "false", "max": "-1", "deep": "true"},
+            headers={"Authorization": "Bearer pat-token"},
+            timeout=5,
+        )
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200, 200], True),
+            ([200, 403, 200], False),
+            ([401, 200, 200], False),
+            ([200, 200, 401], False),
+        ],
+    )
+    def test_batch_is_authorized_dag(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [{"method": "GET", "details": DagDetails(id=f"dag_{i}")} for i in range(len(status_codes))]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_dag(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([200, 403], False),
+        ],
+    )
+    def test_batch_is_authorized_connection(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": ConnectionDetails(conn_id=f"conn_{i}")}
+            for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_connection(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([403, 200], False),
+        ],
+    )
+    def test_batch_is_authorized_pool(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": PoolDetails(name=f"pool_{i}")} for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_pool(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([200, 401], False),
+        ],
+    )
+    def test_batch_is_authorized_variable(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": VariableDetails(key=f"var_{i}")} for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_variable(requests, user=user)
+
+        assert result == expected
+
+    def test_batch_is_authorized_dag_empty_requests(self, auth_manager, user):
+        result = auth_manager.batch_is_authorized_dag([], user=user)
+        assert result is True
+
+    def test_batch_is_authorized_dag_with_access_entity(self, auth_manager, user):
+        requests = [
+            {
+                "method": "GET",
+                "access_entity": DagAccessEntity.TASK_INSTANCE,
+                "details": DagDetails(id="dag_1"),
+            }
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", return_value=True) as mock_is_authorized:
+            result = auth_manager.batch_is_authorized_dag(requests, user=user)
+
+        assert result is True
+        # Verify the call included the dag_entity attribute
+        call_kwargs = mock_is_authorized.call_args
+        assert call_kwargs.kwargs["attributes"] == {"dag_entity": "TASK_INSTANCE"}
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_dag",
+        side_effect=lambda *, details, **kw: {"dag_0": True, "dag_1": False, "dag_2": True}[details.id],
+    )
+    def test_filter_authorized_dag_ids(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(
+            dag_ids={"dag_0", "dag_1", "dag_2"}, user=user, method="GET"
+        )
+
+        assert result == {"dag_0", "dag_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_dag_ids_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(dag_ids=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False)
+    def test_filter_authorized_dag_ids_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(dag_ids={"dag_0", "dag_1"}, user=user, method="GET")
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    def test_filter_authorized_dag_ids_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        dag_ids = {"dag_0", "dag_1"}
+
+        result1 = auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user, method="GET")
+
+        assert result1 == dag_ids
+        assert result2 == dag_ids
+        # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
+        assert mock_is_authorized.call_count == 2

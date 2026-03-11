@@ -80,14 +80,14 @@ Example usage:
      # Add missing translations with TODO markers
      breeze ui check-translation-completeness --add-missing
 
-     # Remove extra translations not present in English
-     breeze ui check-translation-completeness --remove-extra
+     # Remove unused translations (keys not required)
+     breeze ui check-translation-completeness --remove-unused
 
      # Fix translations for a specific language
-     breeze ui check-translation-completeness --language de --add-missing --remove-extra
+     breeze ui check-translation-completeness --language de --add-missing --remove-unused
 
 
 -----
 
-Next step: Follow the `Advanced Breeze topics <11_advanced_breeze_topics.rst>`__ instructions to learn more
-about advanced Breeze topics and internals.
+Next step: Follow the `Registry tasks <11_registry_tasks.rst>`__ instructions to learn about
+the provider registry commands.

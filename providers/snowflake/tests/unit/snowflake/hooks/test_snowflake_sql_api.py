@@ -561,8 +561,8 @@ class TestSnowflakeSqlApiHook:
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
-            hook.get_private_key()
-            assert hook.private_key is not None
+            private_key = hook.get_private_key()
+            assert private_key is not None
 
     def test_get_private_key_raise_exception(
         self, encrypted_temporary_private_key: Path, base64_encoded_encrypted_private_key: str
@@ -617,8 +617,8 @@ class TestSnowflakeSqlApiHook:
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
-            hook.get_private_key()
-            assert hook.private_key is not None
+            private_key = hook.get_private_key()
+            assert private_key is not None
 
     def test_get_private_key_should_support_private_auth_with_unencrypted_key(
         self,
@@ -640,15 +640,15 @@ class TestSnowflakeSqlApiHook:
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
-            hook.get_private_key()
-            assert hook.private_key is not None
+            private_key = hook.get_private_key()
+            assert private_key is not None
         connection_kwargs["password"] = ""
         with unittest.mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
-            hook.get_private_key()
-            assert hook.private_key is not None
+            private_key = hook.get_private_key()
+            assert private_key is not None
         connection_kwargs["password"] = _PASSWORD
         with (
             unittest.mock.patch.dict(
