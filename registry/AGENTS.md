@@ -430,7 +430,15 @@ These changes mirror the existing `/docs/*` rewrite pattern.
 
 ## Data Extraction (`dev/registry/`)
 
-The registry's JSON data is produced by four extraction scripts in `dev/registry/`.
+The registry's JSON data is produced by four extraction scripts in `dev/registry/`,
+which is a Python package (workspace member) with shared code in `registry_tools/`.
+
+**Module type definitions** live in `dev/registry/registry_tools/types.py` — this is
+the single source of truth for all module types (operator, hook, sensor, trigger, etc.).
+The three Python extraction scripts and the frontend data file (`types.json`) all derive
+from this module. To add a new type, add it to `MODULE_TYPES` in `types.py` and run
+`generate_types_json.py`.
+
 When modifying these scripts, understand the design decisions below.
 
 ### Why four separate scripts?

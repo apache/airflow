@@ -20,7 +20,6 @@ import inspect
 import itertools
 import re
 import textwrap
-import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import cached_property, partial, update_wrapper
@@ -448,12 +447,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
             return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
-        except NameError as e:
-            warnings.warn(
-                f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
-                f" type references that are not imported. (Error was {e})",
-                stacklevel=4,
-            )
+        except NameError:
+            # Forward references using TYPE_CHECKING-only imports are valid Python patterns.
+            # We cannot infer multiple_outputs when the type is not available at runtime.
             return False
         except TypeError:  # Can't evaluate return type.
             return False

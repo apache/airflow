@@ -18,6 +18,7 @@
  */
 import { chakra } from "@chakra-ui/react";
 import Anser, { type AnserJsonEntry } from "anser";
+import type { JSX } from "react";
 import * as React from "react";
 
 const fixBackspace = (inputText: string): string => {

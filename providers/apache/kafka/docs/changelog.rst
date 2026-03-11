@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+1.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add commit_offset option to AwaitMessageSensor and AwaitMessageTrigger (#62916)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 1.12.0
 ......
 
