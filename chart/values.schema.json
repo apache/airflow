@@ -2380,7 +2380,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file. Use `workers.celery.hostAliases` and/or `workers.kubernetes.hostAliases` to separate value between Celery workers and pod-template-file.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -3257,6 +3257,28 @@
                                     }
                                 }
                             }
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for Airflow Celery worker pods.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 },
@@ -3512,6 +3534,28 @@
                                     }
                                 }
                             }
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for pods created with pod-template-file.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 }
