@@ -22,6 +22,7 @@ import os
 from collections import deque
 from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
+from itertools import chain
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -75,6 +76,7 @@ class IterableOperator(BaseOperator):
         *,
         operator: BaseOperator | MappedOperator,
         expand_input: ExpandInput,
+        task_concurrency: int | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -124,6 +126,7 @@ class IterableOperator(BaseOperator):
         self._operator = operator
         self.expand_input = expand_input
         self.partial_kwargs = operator.partial_kwargs or {}
+        self.max_workers = task_concurrency or os.cpu_count() or 1
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
@@ -131,10 +134,6 @@ class IterableOperator(BaseOperator):
     def task_type(self) -> str:
         """@property: type of the task."""
         return self._operator.__class__.__name__
-
-    @property
-    def max_workers(self):
-        return self.task_concurrency or os.cpu_count() or 1
 
     @property
     def timeout(self) -> float | None:
@@ -242,20 +241,16 @@ class IterableOperator(BaseOperator):
                             )
                             exceptions.append(e)
 
-                    while len(futures) < self.max_workers:
-                        if deferred_tasks:
-                            task = deferred_tasks.popleft()
-                        else:
-                            task = next(chunked_tasks, None)
+                    if len(futures) < self.max_workers:
+                        chunked_tasks = chain(deferred_tasks, chunked_tasks)
+                        deferred_tasks.clear()
 
-                        if not task:
-                            break
-
-                        if task.is_async:
-                            future = executor.submit(self._run_async_operator, context, task)
-                        else:
-                            future = executor.submit(self._run_operator, context, task)
-                        futures[future] = task
+                        for task in next(chunked_tasks, []):
+                            if task.is_async:
+                                future = executor.submit(self._run_async_operator, context, task)
+                            else:
+                                future = executor.submit(self._run_operator, context, task)
+                            futures[future] = task
 
         if not failed_tasks:
             if exceptions:
@@ -279,7 +274,9 @@ class IterableOperator(BaseOperator):
                 trigger=DateTimeTrigger(reschedule_date),
                 method_name=self.execute_failed_tasks.__name__,
                 kwargs={
-                    "failed_tasks": {failed_task.map_index for failed_task in failed_tasks},
+                    "failed_tasks": {
+                        failed_task.map_index for failed_task in failed_tasks
+                    },
                     "try_number": next(iter(failed_tasks)).try_number,
                 },
             )
