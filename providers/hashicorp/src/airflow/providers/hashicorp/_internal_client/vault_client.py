@@ -72,7 +72,7 @@ class _VaultClient(LoggingMixin):
         (for ``token`` and ``github`` auth_type).
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
-    :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
+    :param key_id: Key ID for Authentication (for ``aws_iam`` and ``azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
     :param assume_role_kwargs: AWS assume role param.
@@ -83,7 +83,7 @@ class _VaultClient(LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path
@@ -352,19 +352,21 @@ class _VaultClient(LoggingMixin):
         service_account_email = getattr(credentials, "service_account_email", None)
         if not service_account_email or not isinstance(service_account_email, str):
             service_account_email = getattr(credentials, "client_email", None)
-        
+
         if not service_account_email or not isinstance(service_account_email, str):
             # Fallback for Compute Engine credentials if email is not yet populated
             try:
                 from google.auth import compute_engine
+
                 if isinstance(credentials, compute_engine.Credentials):
                     if not getattr(credentials, "service_account_email", None):
                         from google.auth import transport
+
                         credentials.refresh(transport.requests.Request())
                     service_account_email = credentials.service_account_email
             except Exception:
                 pass
-        
+
         if not service_account_email:
             raise VaultError("Could not determine service account email from credentials")
 
@@ -377,6 +379,7 @@ class _VaultClient(LoggingMixin):
 
         # Perform the GCP API call
         import googleapiclient.discovery
+
         iam = googleapiclient.discovery.build("iam", "v1", credentials=credentials)
         request = iam.projects().serviceAccounts().signJwt(name=name, body=body)
         resp = request.execute()

@@ -263,7 +263,7 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        
+
         mock_credentials = mock.MagicMock()
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
@@ -356,9 +356,7 @@ class TestVaultClient:
         # Validate that the HVAC client and other mocks are called correctly
         mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
-        mock_get_credentials.assert_called_with(
-            key_path=None, keyfile_dict=None, scopes=["scope1", "scope2"]
-        )
+        mock_get_credentials.assert_called_with(key_path=None, keyfile_dict=None, scopes=["scope1", "scope2"])
 
         # Extract the arguments passed to the mocked signJwt API
         args, kwargs = mock_sign_jwt.call_args
@@ -376,12 +374,16 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     def test_gcp_different_auth_mount_point(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes,
+        self,
+        mock_google_build,
+        mock_hvac_client,
+        mock_get_credentials,
+        mock_get_scopes,
     ):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        
+
         mock_credentials = mock.MagicMock()
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
@@ -446,13 +448,11 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_dict(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
-    ):
+    def test_gcp_dict(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        
+
         mock_credentials = mock.MagicMock()
         mock_credentials.client_email = "service_account_email"
         mock_get_credentials.return_value = (mock_credentials, "project_id")
