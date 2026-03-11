@@ -85,6 +85,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
     :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
+    :param execution_timeout: Maximum time allowed for the task to run. If exceeded, the dbt Cloud
+        job will be cancelled and the task will fail. When both ``execution_timeout`` and
+        ``timeout`` are set, the earlier deadline takes precedence.
     :return: The ID of the triggered dbt Cloud job run.
     """
 
