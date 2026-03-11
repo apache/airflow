@@ -25,6 +25,8 @@ All other operators are loaded from ._core on first access.
 
 from __future__ import annotations
 
+import importlib
+
 
 def __getattr__(name: str):
     if name == "DataprocCreateBatchOperator":
@@ -33,6 +35,6 @@ def __getattr__(name: str):
         )
 
         return DataprocCreateBatchOperator
-    from airflow.providers.google.cloud.operators.dataproc import _core
-
+    # Load _core via importlib to avoid __getattr__("_core") recursion
+    _core = importlib.import_module("airflow.providers.google.cloud.operators.dataproc._core")
     return getattr(_core, name)
