@@ -54,6 +54,7 @@ except ImportError:
     print("ERROR: PyYAML required. Install with: pip install pyyaml")
     sys.exit(1)
 
+from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
 from registry_tools.types import MODULE_LEVEL_SECTIONS, TYPE_SUFFIXES
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
@@ -366,13 +367,21 @@ def extract_version_data(
     if layout == "old" and not pyproject_data["dependencies"]:
         pyproject_data["dependencies"] = provider_yaml.get("dependencies", [])
 
-    # Connection types
+    # Connection types — resolve per-conn_type docs URLs from Sphinx inventory
+    package_name = provider_yaml.get("package-name", f"apache-airflow-providers-{provider_id}")
+    base_docs_url = f"https://airflow.apache.org/docs/{package_name}/stable"
+    conn_url_map: dict[str, str] = {}
+    inv_path = fetch_provider_inventory(package_name)
+    if inv_path:
+        conn_url_map = read_connection_urls(inv_path)
     connection_types = []
     for ct in provider_yaml.get("connection-types", []):
+        conn_type = ct.get("connection-type", "")
         connection_types.append(
             {
-                "conn_type": ct.get("connection-type", ""),
+                "conn_type": conn_type,
                 "hook_class": ct.get("hook-class-name", ""),
+                "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
             }
         )
 
