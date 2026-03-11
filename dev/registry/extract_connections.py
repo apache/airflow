@@ -35,6 +35,7 @@ Output:
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import defaultdict
@@ -155,15 +156,31 @@ def build_custom_fields(
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Extract provider connection metadata")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="Only output connections for this provider ID (e.g. 'amazon').",
+    )
+    parser.add_argument(
+        "--providers-json",
+        default=None,
+        help="Path to providers.json (overrides default search paths).",
+    )
+    args = parser.parse_args()
+
     print("Airflow Registry Connection Metadata Extractor")
     print("=" * 50)
 
     # Load providers.json for provider_id -> latest_version + name mapping
-    providers_json_path = None
-    for candidate in PROVIDERS_JSON_CANDIDATES:
-        if candidate.exists():
-            providers_json_path = candidate
-            break
+    if args.providers_json:
+        providers_json_path = Path(args.providers_json)
+    else:
+        providers_json_path = None
+        for candidate in PROVIDERS_JSON_CANDIDATES:
+            if candidate.exists():
+                providers_json_path = candidate
+                break
 
     if providers_json_path is None:
         print("ERROR: providers.json not found. Run extract_metadata.py first.")
@@ -224,6 +241,13 @@ def main():
     print(f"\nExtracted {total_conn_types} connection types across {len(provider_connections)} providers")
     print(f"  {total_with_custom} have custom fields")
     print(f"  {total_with_ui} have UI field customisation")
+
+    # Filter to single provider if requested
+    if args.provider:
+        provider_connections = {
+            pid: conns for pid, conns in provider_connections.items() if pid == args.provider
+        }
+        print(f"Filtering output to provider: {args.provider}")
 
     # Write per-provider files to versions/{pid}/{version}/connections.json
     for output_dir in OUTPUT_DIRS:
