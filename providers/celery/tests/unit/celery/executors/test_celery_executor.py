@@ -467,6 +467,57 @@ def test_celery_task_acks_late_loaded_from_string():
     assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is False
 
 
+@conf_vars({("celery", "BROKER_URL"): "redis://localhost:6379/0"})
+def test_visibility_timeout_default_warns_when_not_configured(caplog):
+    """Test that a warning is logged when visibility_timeout defaults to 86400 (24h)."""
+    import importlib
+
+    from airflow.providers.celery.executors.default_celery import log
+
+    with caplog.at_level(logging.WARNING, logger=log.name):
+        importlib.reload(default_celery)
+        assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["visibility_timeout"] == 86400
+        assert "No visibility_timeout configured" in caplog.text
+        assert "86400" in caplog.text
+        assert "long-running tasks" in caplog.text
+
+
+@conf_vars(
+    {
+        ("celery", "BROKER_URL"): "redis://localhost:6379/0",
+        ("celery_broker_transport_options", "visibility_timeout"): "172800",
+    }
+)
+def test_visibility_timeout_no_warning_when_configured(caplog):
+    """Test that no warning is logged when visibility_timeout is explicitly configured."""
+    import importlib
+
+    from airflow.providers.celery.executors.default_celery import log
+
+    with caplog.at_level(logging.WARNING, logger=log.name):
+        importlib.reload(default_celery)
+        assert (
+            int(default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["visibility_timeout"])
+            == 172800
+        )
+        assert "No visibility_timeout configured" not in caplog.text
+
+
+@conf_vars({("celery", "BROKER_URL"): "amqp://guest:guest@localhost:5672//"})
+def test_visibility_timeout_not_set_for_unsupported_broker(caplog):
+    """Test that visibility_timeout is not set for brokers that don't support it (e.g. RabbitMQ)."""
+    import importlib
+
+    from airflow.providers.celery.executors.default_celery import log
+
+    with caplog.at_level(logging.WARNING, logger=log.name):
+        importlib.reload(default_celery)
+        assert "visibility_timeout" not in default_celery.DEFAULT_CELERY_CONFIG.get(
+            "broker_transport_options", {}
+        )
+        assert "No visibility_timeout configured" not in caplog.text
+
+
 @conf_vars({("celery", "extra_celery_config"): '{"worker_max_tasks_per_child": 10}'})
 def test_celery_extra_celery_config_loaded_from_string():
     import importlib
@@ -687,3 +738,26 @@ class TestMultiTeamCeleryExecutor:
             # Critical: task belongs to team A's app, not module-level app
             assert task_from_call.app is team_a_executor.celery_app
             assert task_from_call.name == "execute_command"
+
+
+def test_celery_tasks_registered_on_import():
+    """
+    Ensure execute_workload (and execute_command for Airflow 2.x) are registered
+    with the Celery app when celery_executor is imported.
+
+    Regression test for https://github.com/apache/airflow/issues/63043
+    Celery provider 3.17.0 exposed that celery_executor_utils was never imported
+    at module level, so tasks were never registered at worker startup.
+    """
+    from airflow.providers.celery.executors.celery_executor_utils import app
+
+    registered_tasks = list(app.tasks.keys())
+    assert "execute_workload" in registered_tasks, (
+        "execute_workload must be registered with the Celery app at import time. "
+        "Workers need this to receive tasks without KeyError."
+    )
+    # TODO: remove this block when min supported Airflow version is >= 3.0
+    if not AIRFLOW_V_3_0_PLUS:
+        assert "execute_command" in registered_tasks, (
+            "execute_command must be registered for Airflow 2.x compatibility."
+        )

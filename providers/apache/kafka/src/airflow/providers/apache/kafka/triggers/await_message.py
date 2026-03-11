@@ -41,7 +41,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
 
     The behavior of the consumer of this trigger is as follows:
     - poll the Kafka topics for a message, if no message returned, sleep
-    - process the message with provided callable and commit the message offset:
+    - process the message with provided callable:
 
         - if callable is provided and returns any data, raise a TriggerEvent with the return data
         - else raise a TriggerEvent with the original message

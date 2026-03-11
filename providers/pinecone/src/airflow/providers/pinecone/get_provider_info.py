@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Pinecone",
                 "external-doc-url": "https://docs.pinecone.io/docs/overview",
+                "logo": "/docs/integration-logos/Pinecone.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-pinecone/operators/pinecone.rst"],
                 "tags": ["software"],
             }
@@ -41,6 +42,22 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.pinecone.hooks.pinecone.PineconeHook",
                 "connection-type": "pinecone",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "schema"],
+                    "relabeling": {
+                        "login": "Pinecone Environment",
+                        "host": "Pinecone Host",
+                        "password": "Pinecone API key",
+                    },
+                },
+                "conn-fields": {
+                    "region": {"label": "Pinecone Region", "schema": {"type": ["string", "null"]}},
+                    "debug_curl": {
+                        "label": "PINECONE_DEBUG_CURL",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "project_id": {"label": "Project ID", "schema": {"type": ["string", "null"]}},
+                },
             }
         ],
         "operators": [

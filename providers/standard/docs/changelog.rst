@@ -35,6 +35,24 @@
 Changelog
 ---------
 
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PythonVirtualenvOperator cannot run with pendulum<3 (#62604)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move SkipMixin and BranchMixIn to Task SDK (#62749)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.12.0
 ......
 

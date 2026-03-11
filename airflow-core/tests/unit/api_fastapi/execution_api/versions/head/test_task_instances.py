@@ -34,6 +34,7 @@ from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -44,6 +45,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
+    clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
@@ -76,13 +78,16 @@ def _create_asset_aliases(session, num: int = 2) -> None:
 
 
 @pytest.fixture
-def client_with_extra_route(): ...
+def _use_real_jwt_bearer(exec_app):
+    """Remove the mock jwt_bearer override so the real JWTBearer.__call__ runs."""
+    from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+    exec_app.dependency_overrides.pop(_jwt_bearer, None)
 
 
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
 def test_id_matches_sub_claim(client, session, create_task_instance):
-    # Test that this is validated at the router level, so we don't have to test it in each component
-    # We validate it is set correctly, and test it once
-
+    """Test that scope validation (ti:self) is enforced at the router level."""
     ti = create_task_instance(
         task_id="test_ti_run_state_conflict_if_not_queued",
         state="queued",
@@ -90,17 +95,10 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     session.commit()
 
     validator = mock.AsyncMock(spec=JWTValidator)
-    claims = {"sub": ti.id}
-
-    def side_effect(cred, validators):
-        if not validators:
-            return claims
-        if str(validators["sub"]["value"]) != str(ti.id):
-            raise RuntimeError("Fake auth denied")
-        return claims
-
-    validator.avalidated_claims.side_effect = side_effect
-
+    validator.avalidated_claims.return_value = {
+        "sub": str(ti.id),
+        "scope": "execution",
+    }
     lifespan.registry.register_value(JWTValidator, validator)
 
     payload = {
@@ -113,25 +111,22 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
     resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
     assert resp.status_code == 403
-    assert validator.avalidated_claims.call_args_list[1] == mock.call(
-        mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
-    )
     validator.avalidated_claims.reset_mock()
 
     resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
-
     assert resp.status_code == 200, resp.json()
-
     validator.avalidated_claims.assert_awaited()
 
 
 class TestTIRunState:
     def setup_method(self):
+        clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
 
     def teardown_method(self):
+        clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
@@ -183,7 +178,8 @@ class TestTIRunState:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
+        result = response.json()
+        assert result == {
             "dag_run": {
                 "dag_id": ti.dag_id,
                 "run_id": "test",
@@ -209,6 +205,8 @@ class TestTIRunState:
             "connections": [],
             "xcom_keys_to_clear": [],
         }
+        # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
+        assert "upstream_map_indexes" not in result
 
         # Refresh the Task Instance from the database so that we can check the updated values
         session.refresh(ti)
@@ -793,14 +791,57 @@ class TestTIRunState:
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
 
+    def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
+        """Test that transitioning to RUNNING creates an audit log record."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_creates_audit_log",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.RUNNING.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+        assert logs[0].run_id == ti.run_id
+        assert logs[0].map_index == ti.map_index
+        assert logs[0].try_number == ti.try_number
+        assert logs[0].logical_date == instant
+        assert logs[0].owner == ti.task.owner
+        assert logs[0].extra == '{"host_name": "random-hostname"}'
+
 
 class TestTIUpdateState:
     def setup_method(self):
         clear_db_assets()
+        clear_db_logs()
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_assets()
+        clear_db_logs()
         clear_db_runs()
 
     @pytest.mark.parametrize(
@@ -837,6 +878,82 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_event"),
+        [
+            pytest.param(
+                {"state": State.SUCCESS, "end_date": DEFAULT_END_DATE.isoformat()},
+                State.SUCCESS,
+                id="success",
+            ),
+            pytest.param(
+                {"state": State.FAILED, "end_date": DEFAULT_END_DATE.isoformat()},
+                State.FAILED,
+                id="failed",
+            ),
+            pytest.param(
+                {"state": State.SKIPPED, "end_date": DEFAULT_END_DATE.isoformat()},
+                State.SKIPPED,
+                id="skipped",
+            ),
+            pytest.param(
+                {"state": State.UP_FOR_RETRY, "end_date": DEFAULT_END_DATE.isoformat()},
+                TaskInstanceState.UP_FOR_RETRY.value,
+                id="up_for_retry",
+            ),
+            pytest.param(
+                {
+                    "state": "deferred",
+                    "trigger_kwargs": {"key": "value", "moment": "2026-02-18T00:00:00Z"},
+                    "trigger_timeout": "P1D",
+                    "classpath": "my-classpath",
+                    "next_method": "execute_callback",
+                },
+                TaskInstanceState.DEFERRED.value,
+                id="deferred",
+            ),
+            pytest.param(
+                {
+                    "state": "up_for_reschedule",
+                    "reschedule_date": "2026-02-18T11:03:00+00:00",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+                TaskInstanceState.UP_FOR_RESCHEDULE.value,
+                id="up_for_reschedule",
+            ),
+        ],
+    )
+    def test_ti_update_state_creates_audit_log(
+        self, client, session, create_task_instance, payload, expected_event
+    ):
+        """Test that state transition creates an audit log record."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_creates_audit_log",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+            hostname="random-hostname",
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json=payload,
+        )
+
+        assert response.status_code == 204
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == expected_event
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+        assert logs[0].run_id == ti.run_id
+        assert logs[0].map_index == ti.map_index
+        assert logs[0].try_number == ti.try_number
+        assert logs[0].logical_date == ti.dag_run.logical_date
+        assert logs[0].owner == ti.task.owner
+        assert logs[0].extra == '{"host_name": "random-hostname"}'
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state", "rendered_map_index"),
@@ -1063,8 +1180,34 @@ class TestTIUpdateState:
             mock.patch(
                 "airflow.api_fastapi.common.db.common.Session.execute",
                 side_effect=[
-                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # First call returns "queued"
-                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # Second call returns "queued"
+                    mock.Mock(
+                        one=lambda: (
+                            "running",
+                            1,
+                            0,
+                            "dag",
+                            "task",
+                            "run",
+                            -1,
+                            "localhost",
+                            timezone.utcnow(),
+                            "test_owner",
+                        )
+                    ),  # First call returns "queued"
+                    mock.Mock(
+                        one=lambda: (
+                            "running",
+                            1,
+                            0,
+                            "dag",
+                            "task",
+                            "run",
+                            -1,
+                            "localhost",
+                            timezone.utcnow(),
+                            "test_owner",
+                        )
+                    ),  # Second call returns "queued"
                     SQLAlchemyError("Database error"),  # Last call raises an error
                 ],
             ),
@@ -2925,3 +3068,88 @@ class TestTIPatchRenderedMapIndex:
         )
 
         assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+class TestTokenTypeValidation:
+    """Test token scope enforcement (workload vs execution)."""
+
+    def test_workload_scope_rejected_on_default_endpoints(self, client, session, create_task_instance):
+        """workload scoped tokens should be rejected on endpoints without token:workload Security scope."""
+        ti = create_task_instance(task_id="test_ti_run_heartbeat", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "workload",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"hostname": "test-host", "pid": 100}
+        resp = client.put(f"/execution/task-instances/{ti.id}/heartbeat", json=payload)
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+
+    def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
+        """execution scoped tokens should be able to call all endpoints."""
+        ti = create_task_instance(task_id="test_ti_star", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "execution",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
+        resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert resp.status_code in [200, 204]
+
+    def test_invalid_scope_value_rejected(self, client, session, create_task_instance):
+        """Tokens with unrecognized scope values should be rejected."""
+        ti = create_task_instance(task_id="test_invalid_scope", state=State.QUEUED)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "bogus:scope",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {
+            "state": "running",
+            "hostname": "test-host",
+            "unixname": "test-user",
+            "pid": 100,
+            "start_date": "2024-10-31T12:00:00Z",
+        }
+
+        resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+        assert resp.status_code == 403
+        assert "Invalid token scope" in resp.json()["detail"]
+
+    def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
+        """Tokens without scope claim should default to 'execution'."""
+        ti = create_task_instance(task_id="test_no_scope", state=State.RUNNING)
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
+        resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert resp.status_code in [200, 204]

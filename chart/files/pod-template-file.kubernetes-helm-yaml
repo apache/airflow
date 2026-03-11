@@ -43,7 +43,7 @@ metadata:
       {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
-    {{- toYaml $podAnnotations | nindent 4 }}
+    {{- tpl (toYaml $podAnnotations) . | nindent 4 }}
     {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
     {{- end }}
