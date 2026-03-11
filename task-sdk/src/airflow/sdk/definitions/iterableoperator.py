@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 class IterableOperator(BaseOperator):
     """Object representing an iterable operator in a DAG."""
 
-    _operator: BaseOperator | MappedOperator
+    _operator: MappedOperator
     expand_input: ExpandInput
     partial_kwargs: dict[str, Any]
     # each operator should override this class attr for shallow copy attrs.
@@ -75,7 +75,7 @@ class IterableOperator(BaseOperator):
     def __init__(
         self,
         *,
-        operator: BaseOperator | MappedOperator,
+        operator: MappedOperator,
         expand_input: ExpandInput,
         task_concurrency: int | None = None,
         **kwargs,
@@ -145,7 +145,7 @@ class IterableOperator(BaseOperator):
     def _get_specified_expand_input(self) -> ExpandInput:
         return self.expand_input
 
-    def _unmap_operator(self, mapped_kwargs: dict):
+    def _unmap_operator(self, mapped_kwargs: Context):
         self._number_of_tasks += 1
         return self._operator.unmap(mapped_kwargs)
 
@@ -312,7 +312,7 @@ class IterableOperator(BaseOperator):
         self,
         context: Context,
         map_index: int,
-        mapped_kwargs: dict,
+        mapped_kwargs: Context,
         try_number: int = 0,
     ) -> MappedTaskInstance:
         run_id = context["ti"].run_id
