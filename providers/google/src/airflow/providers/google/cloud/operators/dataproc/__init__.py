@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Google Dataproc operators package.
+"""
+Google Dataproc operators package.
 
 DataprocCreateBatchOperator is lazy-loaded from ._batch to avoid pulling in
 heavy google.cloud.dataproc_v1 and hook dependencies at DAG parse time (#62373).
@@ -30,6 +31,8 @@ def __getattr__(name: str):
         from airflow.providers.google.cloud.operators.dataproc._batch import (
             DataprocCreateBatchOperator,
         )
+
         return DataprocCreateBatchOperator
     from airflow.providers.google.cloud.operators.dataproc import _core
+
     return getattr(_core, name)

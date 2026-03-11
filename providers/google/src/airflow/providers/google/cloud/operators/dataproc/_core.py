@@ -27,7 +27,6 @@ from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -43,7 +42,6 @@ from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocResourceIsNotReadyError,
 )
 from airflow.providers.google.cloud.links.dataproc import (
-    DATAPROC_BATCH_LINK,
     DATAPROC_JOB_LINK_DEPRECATED,
     DataprocBatchesListLink,
     DataprocBatchLink,
@@ -55,7 +53,6 @@ from airflow.providers.google.cloud.links.dataproc import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataproc import (
-    DataprocBatchTrigger,
     DataprocClusterTrigger,
     DataprocDeleteClusterTrigger,
     DataprocOperationTrigger,
@@ -155,7 +152,7 @@ class ClusterGenerator:
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :param optional_components: List of optional cluster components, for more info see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#Component
-    :param num_masters: The # of master nodes to spin up
+    :param num_masters: The number of primary nodes to spin up
     :param master_machine_type: Compute engine machine type to use for the primary node
     :param master_disk_type: Type of the boot disk for the primary node
         (default is ``pd-standard``).
@@ -813,7 +810,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return Cluster.to_dict(cluster)
 
     def _reconcile_cluster_state(self, hook: DataprocHook, cluster: Cluster) -> Cluster:
-
         if cluster.status.state == cluster.status.State.CREATING:
             self.log.info("Cluster %s is in CREATING state.", self.cluster_name)
 
@@ -848,7 +844,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return cluster
 
     def execute(self, context: Context) -> dict:
-
         self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 

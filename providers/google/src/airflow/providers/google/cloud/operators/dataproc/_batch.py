@@ -25,8 +25,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.api_core.retry_async import AsyncRetry
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.links.dataproc import DATAPROC_BATCH_LINK, DataprocBatchLink
@@ -35,6 +33,8 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core import operation
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.dataproc_v1 import Batch
 
     from airflow.providers.common.compat.sdk import Context
@@ -109,7 +109,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         from google.api_core.exceptions import AlreadyExists
         from google.cloud.dataproc_v1 import Batch
 
-        from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
         from airflow.providers.google.cloud.triggers.dataproc import DataprocBatchTrigger
 
         if self.asynchronous and self.deferrable:
@@ -214,6 +213,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     @cached_property
     def hook(self):
         from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+
         return DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
     def execute_complete(self, context, event=None) -> None:
@@ -248,7 +248,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         previous_batch_id: str,
     ):
         from google.api_core.exceptions import AlreadyExists
-        from google.cloud.dataproc_v1 import Batch
 
         self.log.info("Retrying creation process for batch_id %s", self.batch_id)
         self.log.info("Deleting previous failed Batch")
