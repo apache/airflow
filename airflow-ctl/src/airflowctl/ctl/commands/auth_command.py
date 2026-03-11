@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import getpass
 import glob
 import json
 import os
@@ -36,8 +37,29 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
     success_message = "[green]Login successful! Welcome to airflowctl![/green]"
-    # Check is username and password are passed
-    if args.username and args.password:
+
+    username = args.username
+    password = args.password
+    token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
+
+    # If credentials are incomplete, prompt interactively on a real terminal
+    if not token and not (username and password):
+        if not sys.stdin.isatty():
+            rich.print("[red]No credentials provided.[/red]")
+            rich.print(
+                "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
+                "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
+                "[blue] Alternatively, you can use --username and --password to login.[/blue]"
+            )
+            sys.exit(1)
+        rich.print(f"[blue]Credentials for[/blue] [bold]{args.env}[/bold] [blue]({args.api_url})[/blue]")
+        if not username:
+            username = input(f"[{args.env}] Username: ")
+        if not password:
+            password = getpass.getpass(f"[{args.env}] Password: ")
+
+    # Username + password login (from args or interactively prompted)
+    if username and password:
         if args.skip_keyring:
             rich.print("[red]The --skip-keyring is not compatible with username and password login.")
             sys.exit(1)
@@ -52,8 +74,8 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
             login_response = api_client.login.login_with_username_and_password(
                 LoginBody(
-                    username=args.username,
-                    password=args.password,
+                    username=username,
+                    password=password,
                 )
             )
             credentials.api_token = login_response.access_token
@@ -64,9 +86,8 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             rich.print(f"[red]Login failed: {e}")
             sys.exit(1)
 
-    # Check if token is passed or environment variable is set
-    if not (token := args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")):
-        # Exit
+    # Token-based login
+    if not token:
         rich.print("[red]No token found.")
         rich.print(
             "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
@@ -81,6 +102,23 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         api_environment=args.env,
     ).save(args.skip_keyring)
     rich.print(success_message)
+
+
+@provide_api_client(kind=ClientKind.AUTH)
+def get_token(args, api_client=NEW_API_CLIENT) -> None:
+    """Generate and print a JWT token for the given credentials to stdout."""
+    username = args.username or input("Username: ")
+    password = args.password or getpass.getpass("Password: ")
+
+    try:
+        api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
+        login_response = api_client.login.login_with_username_and_password(
+            LoginBody(username=username, password=password)
+        )
+        print(login_response.access_token)
+    except Exception as e:
+        rich.print(f"[red]Token generation failed: {e}[/red]")
+        sys.exit(1)
 
 
 def list_envs(args) -> None:

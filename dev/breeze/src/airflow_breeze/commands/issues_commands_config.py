@@ -29,7 +29,7 @@ ISSUES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "Unassign options",
-            "options": ["--batch-size"],
+            "options": ["--batch-size", "--max-num"],
         },
     ],
 }

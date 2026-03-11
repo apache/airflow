@@ -70,6 +70,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.executors.workloads import BaseWorkload
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -406,7 +407,7 @@ def uuid7() -> UUID:
     return uuid6.uuid7()
 
 
-class TaskInstance(Base, LoggingMixin):
+class TaskInstance(Base, LoggingMixin, BaseWorkload):
     """
     Task instances store the state of a task instance.
 
@@ -565,6 +566,8 @@ class TaskInstance(Base, LoggingMixin):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        if run_id is not None:
+            self.run_id = run_id
 
         self.refresh_from_task(task)
         if TYPE_CHECKING:
@@ -572,8 +575,6 @@ class TaskInstance(Base, LoggingMixin):
         # init_on_load will config the log
         self.init_on_load()
 
-        if run_id is not None:
-            self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
         if not self.id:
@@ -801,6 +802,14 @@ class TaskInstance(Base, LoggingMixin):
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+
+    def get_dag_id(self) -> str:
+        """Return the DAG ID for scheduler routing."""
+        return self.dag_id
+
+    def get_executor_name(self) -> str | None:
+        """Return the executor name for scheduler routing."""
+        return self.executor
 
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
@@ -1674,6 +1683,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -1705,12 +1715,15 @@ class TaskInstance(Base, LoggingMixin):
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
+
             if map_indexes is not None or first.map_index < 0:
                 return XComModel.deserialize_value(first)
 
-            # raise RuntimeError("Nothing should hit this anymore")
-
-        # TODO: TaskSDK: We should remove this, but many tests still currently call `ti.run()`. See #45549
+            return LazyXComSelectSequence.from_select(
+                query.with_only_columns(XComModel.value).order_by(None),
+                order_by=[XComModel.map_index.expression],
+                session=session,
+            )
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
         # Order return values to match task_ids and map_indexes ordering.

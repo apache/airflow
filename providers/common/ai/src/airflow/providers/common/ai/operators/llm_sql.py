@@ -27,17 +27,20 @@ try:
         DEFAULT_ALLOWED_TYPES,
         validate_sql as _validate_sql,
     )
+    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from sqlglot import exp
 
+    from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
 
@@ -83,6 +86,13 @@ class LLMSQLQueryOperator(LLMOperator):
         Default: ``(Select, Union, Intersect, Except)``.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    When ``allow_modifications=True`` and the reviewer edits the SQL, the
+    modified query is re-validated against the same safety rules before being
+    returned.
     """
 
     template_fields: Sequence[str] = (
@@ -101,6 +111,7 @@ class LLMSQLQueryOperator(LLMOperator):
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expression], ...] = DEFAULT_ALLOWED_TYPES,
         dialect: str | None = None,
+        datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)  # SQL operator always returns str
@@ -111,6 +122,7 @@ class LLMSQLQueryOperator(LLMOperator):
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
         self.dialect = dialect
+        self.datasource_config = datasource_config
 
     @cached_property
     def db_hook(self) -> DbApiHook | None:
@@ -129,19 +141,32 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def execute(self, context: Context) -> str:
         schema_info = self._get_schema_context()
+
         full_system_prompt = self._build_system_prompt(schema_info)
 
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output)
 
         if self.validate_sql:
             _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
 
         self.log.info("Generated SQL:\n%s", sql)
+
+        if self.require_approval:
+            self.defer_for_approval(context, sql)  # type: ignore[misc]
+
         return sql
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+        """Resume after human review, re-validating if the reviewer modified the SQL."""
+        output = super().execute_complete(context, generated_output, event)
+        if output != generated_output:
+            _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        return output
 
     @staticmethod
     def _strip_llm_output(raw: str) -> str:
@@ -159,8 +184,9 @@ class LLMSQLQueryOperator(LLMOperator):
         """Return schema context from manual override or database introspection."""
         if self.schema_context:
             return self.schema_context
-        if self.db_hook and self.table_names:
+        if (self.db_hook and self.table_names) or self.datasource_config:
             return self._introspect_schemas()
+
         return ""
 
     def _introspect_schemas(self) -> str:
@@ -178,7 +204,18 @@ class LLMSQLQueryOperator(LLMOperator):
                 f"None of the requested tables ({self.table_names}) returned schema information. "
                 "Check that the table names are correct and the database connection has access."
             )
+
+        if self.datasource_config:
+            object_storage_schema = self._introspect_object_storage_schema()
+            parts.append(f"Table: {self.datasource_config.table_name}\nColumns: {object_storage_schema}")
+
         return "\n\n".join(parts)
+
+    def _introspect_object_storage_schema(self):
+        """Use DataFusion Engine to get the schema of object stores."""
+        engine = DataFusionEngine()
+        engine.register_datasource(self.datasource_config)
+        return engine.get_schema(self.datasource_config.table_name)
 
     def _build_system_prompt(self, schema_info: str) -> str:
         """Construct the system prompt for the LLM."""

@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Asana",
                 "external-doc-url": "https://developers.asana.com/docs",
+                "logo": "/docs/integration-logos/Asana.svg",
                 "how-to-guide": ["/docs/apache-airflow-providers-asana/operators/asana.rst"],
                 "tags": ["software"],
             }

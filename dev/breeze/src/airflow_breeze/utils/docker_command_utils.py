@@ -37,6 +37,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
@@ -100,6 +101,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
     ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
+    ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
@@ -175,7 +177,7 @@ def check_docker_is_running():
     response = run_command(
         ["docker", "info"],
         no_output_dump_on_exception=True,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
@@ -183,6 +185,18 @@ def check_docker_is_running():
         get_console().print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
+        if response.stderr:
+            get_console().print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
+        if os.environ.get("CODESPACES", "").lower() == "true":
+            get_console().print(
+                "\n[info]It looks like you are running in a GitHub Codespace.[/]\n"
+                "[info]Try the following troubleshooting steps:[/]\n"
+                "  1. Check if the Docker socket exists: ls -la /var/run/docker.sock\n"
+                "  2. Check Docker socket permissions: groups $USER\n"
+                "  3. Try restarting the Codespace from the GitHub Codespaces dashboard\n"
+                "  4. If the issue persists, rebuild the devcontainer "
+                "(Command Palette -> 'Codespaces: Rebuild Container')\n"
+            )
         sys.exit(1)
 
 
@@ -659,21 +673,28 @@ def fix_ownership_using_docker(quiet: bool = True):
         "run",
         "-v",
         f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
-        "-e",
-        f"HOST_OS={get_host_os()}",
-        "-e",
-        f"HOST_USER_ID={get_host_user_id()}",
-        "-e",
-        f"HOST_GROUP_ID={get_host_group_id()}",
-        "-e",
-        f"VERBOSE={str(get_verbose()).lower()}",
-        "-e",
-        f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
-        "--rm",
-        "-t",
-        OWNERSHIP_CLEANUP_DOCKER_TAG,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
+    main_git_directory = get_main_git_dir_for_worktree()
+    if main_git_directory:
+        cmd.extend(["-v", f"{main_git_directory}:{main_git_directory}:ro"])
+    cmd.extend(
+        [
+            "-e",
+            f"HOST_OS={get_host_os()}",
+            "-e",
+            f"HOST_USER_ID={get_host_user_id()}",
+            "-e",
+            f"HOST_GROUP_ID={get_host_group_id()}",
+            "-e",
+            f"VERBOSE={str(get_verbose()).lower()}",
+            "-e",
+            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            "--rm",
+            "-t",
+            OWNERSHIP_CLEANUP_DOCKER_TAG,
+            "/opt/airflow/scripts/in_container/run_fix_ownership.py",
+        ]
+    )
     run_command(cmd, text=True, check=False, quiet=quiet)
 
 

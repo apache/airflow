@@ -12,15 +12,30 @@
 
 ## Commands
 
-- **Run a single test:** `breeze run pytest path/to/test.py::TestClass::test_method -xvs`
-- **Run a test file:** `breeze run pytest path/to/test.py -xvs`
-- **Run a Python script:** `breeze run python dev/my_script.py`
+`<PROJECT>` is folder where pyproject.toml of the package you want to test is located. For example, `airflow-core` or `providers/amazon`.
+`<target_branch>` is the branch the PR will be merged into — usually `main`, but could be `v3-1-test` when creating a PR for the 3.1 branch.
+
+- **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
+- **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`
+- **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`
+- **If uv tests fail with missing system dependencies, run the tests with breeze**: `breeze run pytest <tests> -xvs`
+- **Run a Python script:** `uv run --project <PROJECT> python dev/my_script.py`
+- **Run core or provider tests suite in parallel:** `breeze testing <test_group> --run-in-parallel` (test groups: `core-tests`, `providers-tests`)
+- **Run core or provider db tests suite in parallel:** `breeze testing <test_group> --run-db-tests-only --run-in-parallel` (test groups: `core-tests`, `providers-tests`)
+- **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)
+- **Run single provider complete test suite:** `breeze testing providers-tests --test-type "Providers[PROVIDERS_LIST]"` (e.g., `Providers[google]` or `Providers[amazon]` or "Providers[amazon,google]")
+- **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`
+- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
+- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
+- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint/format (runs on host):** `prek run --all-files`
-- **Lint with ruff only:** `prek run ruff --all-files`
-- **Format with ruff only:** `prek run ruff-format --all-files`
+- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
+- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
@@ -67,6 +82,7 @@ UV workspace monorepo. Key paths:
 - Use `spec`/`autospec` when mocking.
 - Use `time_machine` for time-dependent tests.
 - Use `@pytest.mark.parametrize` for multiple similar inputs.
+- Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
 
@@ -86,20 +102,38 @@ Add a newsfragment for user-visible changes:
 **Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
 directly to `main`.
 
-Before pushing, determine the GitHub username with `gh api user -q .login` and identify the
-user's fork remote from the existing remotes. Run `git remote -v` and look for a remote
-pointing to `github.com:<GITHUB_USER>/airflow.git` where `<GITHUB_USER>` is **not** `apache`.
-That is the user's fork remote. If no such remote exists, create the fork and add it:
+Before pushing, determine the fork remote. Check `git remote -v` — if `origin` does **not**
+point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
+`apache/airflow`, look for another remote that points to the user's fork. If no fork remote
+exists, create one:
 
 ```bash
-gh repo fork apache/airflow --remote --remote-name <GITHUB_USER>
+gh repo fork apache/airflow --remote --remote-name fork
 ```
 
-Then push the branch to the user's fork remote and open the PR creation page in the browser
+Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
+in [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst) and the
+code review checklist in [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md):
+
+1. Review the full diff (`git diff main...HEAD`) and verify every change is intentional and
+   related to the task — remove any unrelated changes.
+2. Read `.github/instructions/code-review.instructions.md` and check your diff against every
+   rule — architecture boundaries, database correctness, code quality, testing requirements,
+   API correctness, and AI-generated code signals. Fix any violations before pushing.
+3. Confirm the code follows the project's coding standards and architecture boundaries
+   described in this file.
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
+   and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
+6. Run relevant individual tests and confirm they pass.
+7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
+8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
+Then push the branch to the fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
 ```bash
-git push -u <GITHUB_USER> <branch-name>
+git push -u <fork-remote> <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
 Brief description of the changes.
 
