@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.8
+ARG AIRFLOW_UV_VERSION=0.10.9
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -1201,7 +1201,7 @@ function install_from_external_spec() {
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
         echo
-        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo "${COLOR_RED}The '${AIRFLOW_INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
