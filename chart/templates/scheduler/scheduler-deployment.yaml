@@ -277,6 +277,10 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
+          {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.scheduler.logGroomerSidecar.frequencyMinutes }}"
