@@ -2248,6 +2248,61 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
+    def test_start_from_trigger_default_false(self):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        assert op.start_from_trigger is False
+
+    def test_start_from_trigger_sets_start_trigger_args(self):
+        job = {"placement": {"cluster_name": "test-cluster"}}
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+            start_from_trigger=True,
+            polling_interval_seconds=15,
+            cancel_on_kill=False,
+            request_id=REQUEST_ID,
+        )
+        assert op.start_from_trigger is True
+        assert (
+            op.start_trigger_args.trigger_cls
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger"
+        )
+        assert op.start_trigger_args.trigger_kwargs == {
+            "job": job,
+            "project_id": GCP_PROJECT,
+            "region": GCP_REGION,
+            "gcp_conn_id": GCP_CONN_ID,
+            "impersonation_chain": IMPERSONATION_CHAIN,
+            "polling_interval_seconds": 15,
+            "cancel_on_kill": False,
+            "request_id": REQUEST_ID,
+        }
+        assert op.start_trigger_args.next_method == "execute_complete"
+
+    def test_start_from_trigger_without_deferrable_does_not_set_args(self):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=False,
+            start_from_trigger=True,
+        )
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs == {}
+
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
