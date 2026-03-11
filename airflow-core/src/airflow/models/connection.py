@@ -360,7 +360,15 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt encrypted password for login={self.login}  "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
+            try:
+                return fernet.decrypt(bytes(self._password, "utf-8")).decode()
+            except Exception:
+                log.warning(
+                    "Failed to decrypt password for connection %s. "
+                    "This may happen after migrating with a different Fernet key.",
+                    self.conn_id,
+                )
+                return None
         return self._password
 
     def set_password(self, value: str | None):
@@ -385,7 +393,15 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
+            try:
+                extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
+            except Exception:
+                log.warning(
+                    "Failed to decrypt `extra` for connection %s. "
+                    "This may happen after migrating with a different Fernet key.",
+                    self.conn_id,
+                )
+                return None
         else:
             extra_val = self._extra
         if extra_val:

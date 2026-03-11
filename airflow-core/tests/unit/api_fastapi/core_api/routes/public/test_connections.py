@@ -197,6 +197,73 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["login"] == "a"
         assert body["extra"] == '{"key": "value"}'
 
+    def test_get_connection_with_undecryptable_password(self, test_client, session):
+        """Connection with an undecryptable password (e.g. migrated with a different Fernet key)
+        should return 200 with password=None instead of a 500 serialization error."""
+        conn = Connection(conn_id="bad_fernet_conn", conn_type="generic")
+        session.add(conn)
+        session.flush()
+        # Simulate a password encrypted with a different Fernet key by writing
+        # directly to _password and marking as encrypted.
+        session.execute(
+            Connection.__table__.update()
+            .where(Connection.__table__.c.conn_id == "bad_fernet_conn")
+            .values(password="not-a-valid-fernet-token", is_encrypted=True)
+        )
+        session.expire_all()
+        session.commit()
+
+        response = test_client.get("/connections/bad_fernet_conn")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == "bad_fernet_conn"
+        assert body["password"] is None
+
+    def test_get_connection_with_undecryptable_extra(self, test_client, session):
+        """Connection with undecryptable extra should return 200 with extra=None."""
+        conn = Connection(conn_id="bad_extra_conn", conn_type="generic")
+        session.add(conn)
+        session.flush()
+        session.execute(
+            Connection.__table__.update()
+            .where(Connection.__table__.c.conn_id == "bad_extra_conn")
+            .values(extra="not-a-valid-fernet-token", is_extra_encrypted=True)
+        )
+        session.expire_all()
+        session.commit()
+
+        response = test_client.get("/connections/bad_extra_conn")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == "bad_extra_conn"
+        assert body["extra"] is None
+
+    def test_get_connections_with_undecryptable_fields(self, test_client, session):
+        """Listing connections should not 500 when some have undecryptable password/extra."""
+        conn = Connection(conn_id="bad_conn", conn_type="generic")
+        session.add(conn)
+        session.flush()
+        session.execute(
+            Connection.__table__.update()
+            .where(Connection.__table__.c.conn_id == "bad_conn")
+            .values(
+                password="not-a-valid-fernet-token",
+                is_encrypted=True,
+                extra="not-a-valid-fernet-token",
+                is_extra_encrypted=True,
+            )
+        )
+        session.expire_all()
+        session.commit()
+
+        response = test_client.get("/connections")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["connections"][0]["connection_id"] == "bad_conn"
+        assert body["connections"][0]["password"] is None
+        assert body["connections"][0]["extra"] is None
+
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
