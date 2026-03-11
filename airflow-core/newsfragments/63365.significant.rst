@@ -1,0 +1,9 @@
+We can now produce 100% JSON logs from Airflow components
+
+The new ``json_logs`` option under the ``logging`` section of this makes
+Airflow product "all" its output in newline-delimited JSON, a.k.a. Structured
+Logs, instead of human readable/pretty printed logs.
+
+Not all components will be 100% json output with this mode enabled (of
+particular note is ``airflow celery worker`` doesn't support this yet) but
+anything producing non-JSON output with this enabled will be treated as a bug.
