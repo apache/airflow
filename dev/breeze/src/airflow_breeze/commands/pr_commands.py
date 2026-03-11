@@ -1174,6 +1174,71 @@ def _display_workflow_approval_panel(pr: PRData, author_profile: dict | None, pe
     console.print(Panel(info_text, title="Workflow Approval Needed", border_style="bright_cyan"))
 
 
+def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRData]) -> int:
+    """Resolve UNKNOWN mergeable status for PRs via REST API.
+
+    GitHub's GraphQL API computes mergeability lazily and often returns UNKNOWN.
+    The REST API triggers computation and returns the result. Sometimes the first
+    call still returns null, so we retry once after a short delay.
+
+    Returns the number of PRs whose status was resolved.
+    """
+    import time
+
+    import requests
+
+    unknown_prs = [pr for pr in prs if pr.mergeable == "UNKNOWN"]
+    if not unknown_prs:
+        return 0
+
+    resolved = 0
+    still_unknown: list[PRData] = []
+
+    for pr in unknown_prs:
+        url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            mergeable = data.get("mergeable")
+            if mergeable is True:
+                pr.mergeable = "MERGEABLE"
+                resolved += 1
+            elif mergeable is False:
+                pr.mergeable = "CONFLICTING"
+                resolved += 1
+            else:
+                # null means GitHub hasn't computed it yet — retry later
+                still_unknown.append(pr)
+        else:
+            still_unknown.append(pr)
+
+    if still_unknown:
+        # Give GitHub a moment to compute mergeability, then retry
+        time.sleep(2)
+        for pr in still_unknown:
+            url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=30,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                mergeable = data.get("mergeable")
+                if mergeable is True:
+                    pr.mergeable = "MERGEABLE"
+                    resolved += 1
+                elif mergeable is False:
+                    pr.mergeable = "CONFLICTING"
+                    resolved += 1
+
+    return resolved
+
+
 def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | None:
     """Fetch the diff for a PR via GitHub REST API. Returns the diff text or None on failure."""
     import requests
@@ -1643,6 +1708,23 @@ def auto_triage(
                     f"(failures beyond first 100 checks)...[/]"
                 )
                 pr.failed_checks = _fetch_failed_checks(token, github_repository, pr.head_sha)
+
+    # Phase 2b2: Resolve UNKNOWN mergeable status via REST API
+    unknown_count = sum(1 for pr in candidate_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        get_console().print(
+            f"[info]Resolving merge conflict status for {unknown_count} "
+            f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
+        )
+        resolved = _resolve_unknown_mergeable(token, github_repository, candidate_prs)
+        remaining = unknown_count - resolved
+        if remaining:
+            get_console().print(
+                f"  [dim]{resolved} resolved, {remaining} still unknown "
+                f"(GitHub hasn't computed mergeability yet).[/]"
+            )
+        else:
+            get_console().print(f"  [dim]All {resolved} resolved.[/]")
 
     # Phase 2c: Fetch unresolved review comment counts for candidate PRs
     if candidate_prs and run_ci:
