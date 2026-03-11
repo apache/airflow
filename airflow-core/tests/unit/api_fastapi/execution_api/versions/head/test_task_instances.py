@@ -178,7 +178,8 @@ class TestTIRunState:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
+        result = response.json()
+        assert result == {
             "dag_run": {
                 "dag_id": ti.dag_id,
                 "run_id": "test",
@@ -204,6 +205,8 @@ class TestTIRunState:
             "connections": [],
             "xcom_keys_to_clear": [],
         }
+        # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
+        assert "upstream_map_indexes" not in result
 
         # Refresh the Task Instance from the database so that we can check the updated values
         session.refresh(ti)
