@@ -49,9 +49,6 @@ PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent
 PYPI_PACKAGE_JSON_URL = "https://pypi.org/pypi/{package_name}/json"
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 AIRFLOW_PROVIDER_DOCS_URL = "https://airflow.apache.org/docs/{package_name}/stable/"
-AIRFLOW_PROVIDER_CONNECTIONS_URL = (
-    "https://airflow.apache.org/docs/{package_name}/stable/connections/index.html"
-)
 AIRFLOW_PROVIDER_SOURCE_URL = (
     "https://github.com/apache/airflow/tree/providers-{provider_id}/{version}/providers/{provider_path}"
 )
@@ -103,15 +100,18 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
         return {"first_released": "", "last_updated": ""}
 
 
-def read_inventory(inv_path: Path) -> dict[str, str]:
-    """Parse a Sphinx objects.inv file and return {qualified_name: url_path} for py:class entries."""
+def _parse_inventory_lines(inv_path: Path) -> list[str]:
+    """Read and decompress the body of a Sphinx objects.inv file."""
     with inv_path.open("rb") as f:
-        # Skip the 4 header lines
         for _ in range(4):
             f.readline()
-        data = zlib.decompress(f.read()).decode("utf-8").splitlines()
+        return zlib.decompress(f.read()).decode("utf-8").splitlines()
+
+
+def read_inventory(inv_path: Path) -> dict[str, str]:
+    """Parse a Sphinx objects.inv file and return {qualified_name: url_path} for py:class entries."""
     result: dict[str, str] = {}
-    for line in data:
+    for line in _parse_inventory_lines(inv_path):
         parts = line.split(None, 4)
         if len(parts) != 5:
             continue
@@ -119,6 +119,39 @@ def read_inventory(inv_path: Path) -> dict[str, str]:
         if domain_role == "py:class":
             # "$" in location means "use the name as anchor"
             result[name] = location.replace("$", name)
+    return result
+
+
+def read_connection_urls(inv_path: Path) -> dict[str, str]:
+    """Parse a Sphinx objects.inv and return {conn_type: relative_url} for connection pages.
+
+    Uses two inventory entry types:
+    - ``std:label howto/connection:{conn_type}`` — maps conn_type directly to a page
+    - ``std:doc connections/{name}`` — fallback by matching conn_type to doc name
+    """
+    label_map: dict[str, str] = {}  # conn_type -> page URL (from std:label)
+    doc_map: dict[str, str] = {}  # doc_name -> page URL (from std:doc)
+    for line in _parse_inventory_lines(inv_path):
+        parts = line.split(None, 4)
+        if len(parts) != 5:
+            continue
+        name, domain_role, _prio, location, _dispname = parts
+        if domain_role == "std:label" and name.startswith("howto/connection:"):
+            label_key = name[len("howto/connection:") :]
+            # Skip sub-section labels like "gcp:configuring_the_connection"
+            if ":" not in label_key:
+                label_map[label_key] = location.split("#")[0]
+        elif domain_role == "std:doc" and name.startswith("connections/"):
+            doc_name = name[len("connections/") :]
+            if doc_name != "index":
+                doc_map[doc_name] = location
+
+    # Merge: label_map takes precedence, doc_map fills gaps
+    result: dict[str, str] = {}
+    result.update(label_map)
+    for doc_name, url in doc_map.items():
+        if doc_name not in result:
+            result[doc_name] = url
     return result
 
 
@@ -158,6 +191,18 @@ def fetch_provider_inventory(package_name: str, cache_dir: Path = INVENTORY_CACH
             print(f"    Using stale cache for {package_name}")
             return cache_path
         return None
+
+
+def resolve_connection_docs_url(conn_type: str, conn_url_map: dict[str, str], base_docs_url: str) -> str:
+    """Resolve the docs URL for a connection type using the inventory map.
+
+    Lookup order:
+    1. Exact match on conn_type in the inventory map
+    2. Fallback to connections/ directory listing
+    """
+    if conn_type in conn_url_map:
+        return f"{base_docs_url}/{conn_url_map[conn_type]}"
+    return f"{base_docs_url}/connections/"
 
 
 # Base paths
@@ -495,9 +540,13 @@ def main():
                 shutil.copy2(src, registry_logos_dir / logo_filename)
 
         # Extract connection types from provider.yaml
-        # Link to the connections index page since individual connection pages might not exist
+        # Resolve per-connection docs URLs from Sphinx inventory when available
         connection_types = []
-        connections_index_url = AIRFLOW_PROVIDER_CONNECTIONS_URL.format(package_name=package_name)
+        base_docs_url = AIRFLOW_PROVIDER_DOCS_URL.format(package_name=package_name).rstrip("/")
+        conn_url_map: dict[str, str] = {}
+        inv_path = fetch_provider_inventory(package_name)
+        if inv_path:
+            conn_url_map = read_connection_urls(inv_path)
         for conn in provider_yaml.get("connection-types", []):
             conn_type = conn.get("connection-type", "")
             hook_class = conn.get("hook-class-name", "")
@@ -506,7 +555,7 @@ def main():
                     {
                         "conn_type": conn_type,
                         "hook_class": hook_class,
-                        "docs_url": connections_index_url,
+                        "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
                     }
                 )
 
