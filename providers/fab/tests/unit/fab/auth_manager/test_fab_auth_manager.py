@@ -38,7 +38,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_user, delete_user
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -996,7 +996,7 @@ class TestDeserializeUserSessionCleanup:
         ids=["operational_error", "pending_rollback_error"],
     )
     def test_db_error_calls_session_remove(self, auth_manager_with_appbuilder, raised_exc):
-        """session.remove() is called on SQLAlchemy errors so the next request recovers."""
+        """session.remove() is called on SQLAlchemy errors before and after retry."""
         mock_session = MagicMock(spec=["scalars", "remove"])
         mock_session.scalars.side_effect = raised_exc
         auth_manager_with_appbuilder.cache.pop(99997, None)
@@ -1005,7 +1005,7 @@ class TestDeserializeUserSessionCleanup:
             with pytest.raises(type(raised_exc)):
                 auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
 
-        mock_session.remove.assert_called_once()
+        assert mock_session.remove.call_count == 2
 
     def test_db_error_propagates_when_session_remove_raises(self, auth_manager_with_appbuilder):
         """The original SQLAlchemyError propagates even if session.remove() itself raises."""
@@ -1021,6 +1021,25 @@ class TestDeserializeUserSessionCleanup:
             with pytest.raises(OperationalError):
                 auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
 
+        assert mock_session.remove.call_count == 2
+
+    def test_db_error_retries_once_and_recovers(self, auth_manager_with_appbuilder):
+        """A transient DB disconnect is recovered by removing session and retrying once."""
+        user = Mock()
+        user.id = 99996
+        original_exc = OperationalError("connection dropped", None, Exception())
+        retry_query_result = Mock()
+        retry_query_result.one.return_value = user
+
+        mock_session = MagicMock(spec=["scalars", "remove"])
+        mock_session.scalars.side_effect = [original_exc, retry_query_result]
+        auth_manager_with_appbuilder.cache.pop(user.id, None)
+
+        with self._patched_session(auth_manager_with_appbuilder, mock_session):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert result == user
+        assert mock_session.scalars.call_count == 2
         mock_session.remove.assert_called_once()
 
 

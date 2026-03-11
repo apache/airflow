@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Github",
                 "external-doc-url": "https://www.github.com/",
+                "logo": "/docs/integration-logos/Github.svg",
                 "tags": ["software"],
             }
         ],

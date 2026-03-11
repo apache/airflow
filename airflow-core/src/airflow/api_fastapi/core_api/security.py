@@ -238,6 +238,13 @@ class PermittedDagVersionFilter(PermittedDagFilter):
         return select.where(DagVersion.dag_id.in_(self.value or set()))
 
 
+class PermittedBackfillFilter(PermittedDagFilter):
+    """A parameter that filters the permitted backfills for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Backfill.dag_id.in_(self.value or set()))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -282,6 +289,9 @@ ReadableTagsFilterDep = Annotated[
 ReadableDagVersionsFilterDep = Annotated[
     PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
 ]
+ReadableBackfillsFilterDep = Annotated[
+    PermittedBackfillFilter, Depends(permitted_dag_filter_factory("GET", PermittedBackfillFilter))
+]
 
 
 def requires_access_backfill(
@@ -297,8 +307,13 @@ def requires_access_backfill(
         dag_id = None
 
         # Try to retrieve the dag_id from the backfill_id path param
-        backfill_id = request.path_params.get("backfill_id")
-        if backfill_id is not None and isinstance(backfill_id, int):
+        backfill_id_raw = request.path_params.get("backfill_id")
+        try:
+            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
+        except ValueError:
+            backfill_id = None
+
+        if backfill_id is not None:
             backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
             dag_id = backfill.dag_id if backfill else None
 

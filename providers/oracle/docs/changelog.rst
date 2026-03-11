@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use conn.schema as service_name fallback in OracleHook (#62895)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.0
 .....
 
