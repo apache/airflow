@@ -90,7 +90,6 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -524,15 +523,13 @@ class FabAuthManager(BaseAuthManager[User]):
         )
         roles = user_query.roles
 
-        map_fab_action_name_to_method_name = get_method_from_fab_action_map()
+        fab_action_from_method_map = get_fab_action_from_method_map()
+        required_action = fab_action_from_method_map.get(method)
         resources = set()
         for role in roles:
             for permission in role.permissions:
                 action = permission.action.name
-                if (
-                    action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] == method
-                ):
+                if action == required_action:
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}

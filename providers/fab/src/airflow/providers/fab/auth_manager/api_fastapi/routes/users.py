@@ -101,7 +101,7 @@ def get_user(username: str = Path(..., min_length=1)) -> UserResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_fab_custom_view("PUT", permissions.RESOURCE_USER))],
+    dependencies=[Depends(requires_fab_custom_view("PATCH", permissions.RESOURCE_USER))],
 )
 def update_user(
     body: UserPatchBody,

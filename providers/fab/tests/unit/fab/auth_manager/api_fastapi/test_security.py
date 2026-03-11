@@ -39,6 +39,19 @@ class TestSecurityDependency:
         mgr.is_authorized_custom_view.assert_called_once_with(method="POST", resource_name="Role", user=user)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    def test_requires_fab_custom_view_allows_patch_method(self, get_auth_manager):
+        """PATCH should be treated as an edit action, same as PUT."""
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        get_auth_manager.return_value = mgr
+
+        check = requires_fab_custom_view(method="PATCH", resource_name="Role")
+        user = object()
+
+        assert check(user=user) is None
+        mgr.is_authorized_custom_view.assert_called_once_with(method="PATCH", resource_name="Role", user=user)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     def test_requires_fab_custom_view_raises_403_when_unauthorized(self, get_auth_manager):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False

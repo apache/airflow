@@ -75,8 +75,8 @@ if TYPE_CHECKING:
 
 if TYPE_CHECKING:
     # For static type checking - accepts string literals
-    ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
-    ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+    ResourceMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
+    ExtendedResourceMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE", "MENU"]
 else:
     # For runtime - provides iteration and validation
 
@@ -86,6 +86,7 @@ else:
         GET = "GET"
         POST = "POST"
         PUT = "PUT"
+        PATCH = "PATCH"
         DELETE = "DELETE"
 
         def __str__(self) -> str:
@@ -97,6 +98,7 @@ else:
         GET = "GET"
         POST = "POST"
         PUT = "PUT"
+        PATCH = "PATCH"
         DELETE = "DELETE"
         MENU = "MENU"
 
