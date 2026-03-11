@@ -1004,6 +1004,7 @@ export class DagRunService {
      * @param data.runType
      * @param data.state
      * @param data.dagVersion
+     * @param data.bundleVersion
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -1050,6 +1051,7 @@ export class DagRunService {
                 run_type: data.runType,
                 state: data.state,
                 dag_version: data.dagVersion,
+                bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 triggering_user_name_pattern: data.triggeringUserNamePattern,
