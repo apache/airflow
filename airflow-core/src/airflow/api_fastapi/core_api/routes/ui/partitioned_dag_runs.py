@@ -100,6 +100,7 @@ def get_partitioned_dag_runs(
             DagScheduleAssetReference.dag_id == AssetPartitionDagRun.target_dag_id,
             AssetModel.active.has(),
         )
+        .correlate(AssetPartitionDagRun)
     )
     received_subq = (
         select(func.count(func.distinct(PartitionedAssetKeyLog.asset_id)))

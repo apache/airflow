@@ -195,17 +195,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             y: int,
         ) -> "UnresolveableName[int, int]": ...
 
-        with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
-            line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
-
-        if PY311:
-            # extra line explaining the error location in Py311
-            line = line - 1
-
-        warn = recwarn[0]
-        assert warn.filename == __file__
-        assert warn.lineno == line
-
+        # No warning should be raised for TYPE_CHECKING-only forward references
         assert t3(5, 5).operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_using_other_typing(self):

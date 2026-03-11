@@ -10,6 +10,7 @@
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
     "missingRuns": "Eksik Dag Çalıştırmaları",
+    "permissionDenied": "Ön çalıştırma başarısız oldu: İzin reddedildi. Lütfen gerekli izinlere sahip olduğunuzdan emin olun.",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
@@ -113,6 +114,13 @@
   "sortedUnsorted": "sıralanmamış",
   "taskTries": "Görev Denemeleri",
   "taskTryPlaceholder": "Görev denemesi",
+  "team": {
+    "selector": {
+      "helperText": "Opsiyonel - Takım seçilmezse tüm takımlar gösterilir",
+      "label": "Takım",
+      "placeHolder": "Takım seçin"
+    }
+  },
   "toggleCardView": "Kart görünümünü göster",
   "toggleTableView": "Tablo görünümünü göster",
   "triggerDag": {
@@ -124,6 +132,7 @@
     "intervalStart": "Başlangıç",
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
+    "manualRunDenied": "El ile tetikleme bu Dag için devre dışı bırakıldı.",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
     "selectDescription": "Bu Dag'ın tek bir çalıştırmasını tetikle",
     "selectLabel": "Tek Çalıştırma",
@@ -137,6 +146,7 @@
         "title": "Dag Çalıştırması Tetiklendi"
       }
     },
+    "triggerAgainWithConfig": "Tekrar bir yapılandırma ile tetikleyin",
     "unpause": "Tetiklendiğinde {{dagDisplayName}} duraklatmasını kaldır"
   },
   "trimText": {
