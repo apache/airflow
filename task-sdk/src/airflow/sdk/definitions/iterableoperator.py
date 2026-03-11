@@ -51,6 +51,8 @@ from airflow.sdk.execution_time.lazy_sequence import XComIterable
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance, RuntimeTaskInstance
 
 if TYPE_CHECKING:
+    from more_itertools import batched  # type: ignore[no-redef]
+
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
