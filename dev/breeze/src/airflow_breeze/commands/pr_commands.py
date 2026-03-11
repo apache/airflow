@@ -281,6 +281,17 @@ def _resolve_github_token(github_token: str | None) -> str | None:
     return None
 
 
+_VIEWER_QUERY = """
+query { viewer { login } }
+"""
+
+
+def _resolve_viewer_login(token: str) -> str:
+    """Resolve the GitHub login of the authenticated user via the viewer query."""
+    data = _graphql_request(token, _VIEWER_QUERY, {})
+    return data["viewer"]["login"]
+
+
 def _graphql_request(token: str, query: str, variables: dict) -> dict:
     """Execute a GitHub GraphQL request. Returns the 'data' dict or exits on error."""
     import requests
@@ -608,11 +619,14 @@ def _fetch_prs_graphql(
     created_before: str | None = None,
     updated_after: str | None = None,
     updated_before: str | None = None,
+    review_requested: str | None = None,
 ) -> list[PRData]:
     """Fetch a single batch of matching PRs via GraphQL."""
     query_parts = [f"repo:{github_repository}", "type:pr", "is:open", "draft:false"]
     if filter_user:
         query_parts.append(f"author:{filter_user}")
+    if review_requested:
+        query_parts.append(f"review-requested:{review_requested}")
     for label in labels:
         query_parts.append(f'label:"{label}"')
     for label in exclude_labels:
@@ -1429,6 +1443,13 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     show_default=True,
     help="Only assess PRs that are at least this many commits behind base branch.",
 )
+@click.option(
+    "--review-requested",
+    "review_requested",
+    is_flag=True,
+    default=False,
+    help="Only show PRs where review is requested for the authenticated user.",
+)
 # --- Pagination and sorting ---
 @click.option(
     "--batch-size",
@@ -1494,6 +1515,7 @@ def auto_triage(
     pending_approval_only: bool,
     checks_state: str,
     min_commits_behind: int,
+    review_requested: bool,
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
@@ -1529,6 +1551,12 @@ def auto_triage(
 
     dry_run = get_dry_run()
 
+    # Resolve --review-requested: resolve to the authenticated user
+    review_requested_user: str | None = None
+    if review_requested:
+        review_requested_user = _resolve_viewer_login(token)
+        get_console().print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
+
     # Split labels into exact (for GitHub search) and wildcard (for client-side filtering)
     from fnmatch import fnmatch
 
@@ -1555,6 +1583,7 @@ def auto_triage(
             created_before=created_before,
             updated_after=updated_after,
             updated_before=updated_before,
+            review_requested=review_requested_user,
         )
 
     # Apply wildcard label filters client-side
