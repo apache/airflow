@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
@@ -1078,6 +1079,19 @@ def _compute_default_action(
     return action, f"{reason} — suggesting {action_label}"
 
 
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds to a human-friendly string like '2m 05s' or '3.2s'."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes = int(seconds) // 60
+    secs = int(seconds) % 60
+    if minutes < 60:
+        return f"{minutes}m {secs:02d}s"
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}h {mins:02d}m {secs:02d}s"
+
+
 def _pr_link(pr: PRData) -> str:
     """Return a Rich-markup clickable link for a PR: [link=url]#number[/link]."""
     return f"[link={pr.url}]#{pr.number}[/link]"
@@ -1565,7 +1579,10 @@ def auto_triage(
     exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
     wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
 
+    t_total_start = time.monotonic()
+
     # Phase 1: Lightweight fetch of PRs via GraphQL (no check contexts — fast)
+    t_phase1_start = time.monotonic()
     if pr_number:
         get_console().print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
@@ -1654,6 +1671,8 @@ def auto_triage(
         )
     get_console().print()
 
+    t_phase1_end = time.monotonic()
+
     # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
     candidate_prs: list[PRData] = []
     total_skipped_collaborator = 0
@@ -1722,6 +1741,7 @@ def auto_triage(
     )
 
     # Phase 2b: Fetch detailed check contexts only for candidate PRs (chunked to avoid timeouts)
+    t_phase2b_start = time.monotonic()
     if candidate_prs:
         get_console().print(
             f"[info]Fetching check details for {len(candidate_prs)} "
@@ -1755,6 +1775,8 @@ def auto_triage(
         else:
             get_console().print(f"  [dim]All {resolved} resolved.[/]")
 
+    t_phase2b_end = time.monotonic()
+
     # Phase 2c: Fetch unresolved review comment counts for candidate PRs
     if candidate_prs and run_ci:
         get_console().print(
@@ -1762,6 +1784,8 @@ def auto_triage(
             f"candidate {'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
         )
         _fetch_unresolved_comments_batch(token, github_repository, candidate_prs)
+
+    t_phase2c_end = time.monotonic()
 
     # Phase 3: Deterministic checks (CI failures + merge conflicts + unresolved comments),
     # then LLM for the rest
@@ -1771,9 +1795,11 @@ def auto_triage(
     passing_prs: list[PRData] = []
     pending_approval: list[PRData] = []
     total_deterministic_flags = 0
+    deterministic_timings: dict[int, float] = {}  # PR number -> deterministic triage duration
 
     if run_ci:
         for pr in candidate_prs:
+            t_det_start = time.monotonic()
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
             conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
             comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
@@ -1801,6 +1827,7 @@ def auto_triage(
                 pending_approval.append(pr)
             else:
                 llm_candidates.append(pr)
+            deterministic_timings[pr.number] = time.monotonic() - t_det_start
     else:
         for pr in candidate_prs:
             if pr.checks_state == "NOT_RUN":
@@ -1823,6 +1850,7 @@ def auto_triage(
 
     # Phase 4: Run LLM assessments concurrently for PRs without CI failures
     total_llm_errors = 0
+    pr_timings: dict[int, float] = {}  # PR number -> assessment duration in seconds
 
     if not run_llm:
         if llm_candidates:
@@ -1840,27 +1868,38 @@ def auto_triage(
             f"{'PRs' if len(llm_candidates) != 1 else 'PR'} (skipped {skipped_detail})...[/]\n"
         )
         with ThreadPoolExecutor(max_workers=llm_concurrency) as executor:
-            future_to_pr = {
-                executor.submit(
+            future_to_pr = {}
+            future_start_times: dict[int, float] = {}
+            for pr in llm_candidates:
+                get_console().print(f"  [dim]Assessing PR {_pr_link(pr)}: {pr.title[:60]}...[/]")
+                future_start_times[pr.number] = time.monotonic()
+                future = executor.submit(
                     assess_pr,
                     pr_number=pr.number,
                     pr_title=pr.title,
                     pr_body=pr.body,
                     check_status_summary=pr.check_summary,
                     llm_model=llm_model,
-                ): pr
-                for pr in llm_candidates
-            }
+                )
+                future_to_pr[future] = pr
             for future in as_completed(future_to_pr):
                 pr = future_to_pr[future]
+                pr_timings[pr.number] = time.monotonic() - future_start_times[pr.number]
                 assessment = future.result()
                 if assessment.error:
                     total_llm_errors += 1
                     continue
                 if not assessment.should_flag:
-                    get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
+                    get_console().print(
+                        f"  [success]PR {_pr_link(pr)}: {pr.title[:60]} — passes quality check "
+                        f"({_fmt_duration(pr_timings[pr.number])}).[/]"
+                    )
                     passing_prs.append(pr)
                     continue
+                get_console().print(
+                    f"  [red]PR {_pr_link(pr)}: {pr.title[:60]} — flagged by LLM "
+                    f"({_fmt_duration(pr_timings[pr.number])}).[/]"
+                )
                 assessments[pr.number] = assessment
 
     total_flagged = len(assessments)
@@ -1877,12 +1916,17 @@ def auto_triage(
         f"flagged ({', '.join(summary_parts)}).[/]\n"
     )
 
+    t_phase4_end = time.monotonic()
+
     # Phase 5: Present flagged PRs interactively, grouped by author
+    t_phase5_start = time.monotonic()
     total_converted = 0
     total_commented = 0
     total_closed = 0
     total_ready = 0
     total_skipped_action = 0
+    pr_actions: dict[int, str] = {}  # PR number -> action taken by user
+
     quit_early = False
 
     # Build sorted list of flagged PRs grouped by author
@@ -1955,6 +1999,7 @@ def auto_triage(
         if action == TriageAction.SKIP:
             get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
             total_skipped_action += 1
+            pr_actions[pr.number] = "skipped"
             continue
 
         if action == TriageAction.READY:
@@ -1966,6 +2011,7 @@ def auto_triage(
                     f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
                 )
                 total_ready += 1
+                pr_actions[pr.number] = "ready"
             else:
                 get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
             continue
@@ -1975,6 +2021,7 @@ def auto_triage(
             if _post_comment(token, pr.node_id, comment_only):
                 get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_commented += 1
+                pr_actions[pr.number] = "commented"
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
@@ -1991,6 +2038,7 @@ def auto_triage(
             if _post_comment(token, pr.node_id, comment):
                 get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_converted += 1
+                pr_actions[pr.number] = "drafted"
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
@@ -2014,6 +2062,7 @@ def auto_triage(
             if _post_comment(token, pr.node_id, close_comment):
                 get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_closed += 1
+                pr_actions[pr.number] = "closed"
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
 
@@ -2053,11 +2102,13 @@ def auto_triage(
                         f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
                     )
                     total_ready += 1
+                    pr_actions[pr.number] = "ready"
                 else:
                     get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
             else:
                 get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
                 total_skipped_action += 1
+                pr_actions[pr.number] = "skipped"
 
     # Phase 6: Present NOT_RUN PRs for workflow approval
     total_workflows_approved = 0
@@ -2098,6 +2149,7 @@ def auto_triage(
                     break
                 if action == TriageAction.SKIP:
                     get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                    pr_actions[pr.number] = "skipped"
                     continue
                 if action == TriageAction.CLOSE:
                     get_console().print(f"  Closing PR {_pr_link(pr)}...")
@@ -2116,6 +2168,7 @@ def auto_triage(
                     if _post_comment(token, pr.node_id, close_comment):
                         get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                         total_closed += 1
+                        pr_actions[pr.number] = "closed"
                     else:
                         get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
                     continue
@@ -2214,6 +2267,7 @@ def auto_triage(
                     f"{'PRs' if len(author_prs) != 1 else 'PR'}, commented on {commented}.[/]"
                 )
                 total_closed += closed
+                pr_actions[pr.number] = "suspicious"
                 continue
 
             approved = _approve_workflow_runs(token, github_repository, pending_runs)
@@ -2224,10 +2278,12 @@ def auto_triage(
                     f"{_pr_link(pr)}.[/]"
                 )
                 total_workflows_approved += 1
+                pr_actions[pr.number] = "approved"
             else:
                 get_console().print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
 
     # Summary
+    t_total_end = time.monotonic()
     get_console().print()
     summary_table = Table(title="Summary")
     summary_table.add_column("Metric", style="bold")
@@ -2253,3 +2309,155 @@ def auto_triage(
     summary_table.add_row("Awaiting workflow approval", str(len(pending_approval)))
     summary_table.add_row("PRs with workflows approved", str(total_workflows_approved))
     get_console().print(summary_table)
+
+    # Timing summary
+    get_console().print()
+    timing_table = Table(title="Timing Summary")
+    timing_table.add_column("Phase", style="bold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PRs", justify="right")
+    timing_table.add_column("Avg/PR", justify="right")
+    timing_table.add_column("Min/PR", justify="right")
+    timing_table.add_column("Max/PR", justify="right")
+
+    num_all = len(all_prs) or 1
+    num_candidates = len(candidate_prs) or 1
+
+    phase1_total = t_phase1_end - t_phase1_start
+    timing_table.add_row(
+        "Fetch PRs + commits behind",
+        _fmt_duration(phase1_total),
+        str(len(all_prs)),
+        _fmt_duration(phase1_total / num_all),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2b_total = t_phase2b_end - t_phase2b_start
+    timing_table.add_row(
+        "Fetch checks + resolve mergeability",
+        _fmt_duration(phase2b_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2b_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2c_total = t_phase2c_end - t_phase2b_end
+    timing_table.add_row(
+        "Fetch review comments",
+        _fmt_duration(phase2c_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2c_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    if deterministic_timings:
+        det_values = list(deterministic_timings.values())
+        det_total = sum(det_values)
+        timing_table.add_row(
+            "Deterministic triage",
+            _fmt_duration(det_total),
+            str(len(det_values)),
+            _fmt_duration(det_total / len(det_values)),
+            _fmt_duration(min(det_values)),
+            _fmt_duration(max(det_values)),
+        )
+    else:
+        timing_table.add_row("Deterministic triage", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    if pr_timings:
+        llm_values = list(pr_timings.values())
+        llm_total = sum(llm_values)
+        timing_table.add_row(
+            "LLM assessment",
+            _fmt_duration(t_phase4_end - t_phase2c_end),
+            str(len(llm_values)),
+            _fmt_duration(llm_total / len(llm_values)),
+            _fmt_duration(min(llm_values)),
+            _fmt_duration(max(llm_values)),
+        )
+    else:
+        timing_table.add_row("LLM assessment", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    timing_table.add_row(
+        "Interactive review",
+        _fmt_duration(t_total_end - t_phase5_start),
+        "",
+        "",
+        "",
+        "",
+    )
+    timing_table.add_row("", "", "", "", "", "")
+    timing_table.add_row(
+        "[bold]Total[/]",
+        f"[bold]{_fmt_duration(t_total_end - t_total_start)}[/]",
+        "",
+        "",
+        "",
+        "",
+    )
+    get_console().print(timing_table)
+
+    if deterministic_timings or pr_timings:
+        pr_titles = {pr.number: pr.title for pr in candidate_prs}
+        # Amortize batch fetch time evenly across candidate PRs
+        num_candidates = len(candidate_prs) or 1
+        fetch_per_pr = (t_phase2b_end - t_phase2b_start + t_phase2c_end - t_phase2b_end) / num_candidates
+
+        action_styles = {
+            "drafted": "[yellow]drafted[/]",
+            "commented": "[yellow]commented[/]",
+            "closed": "[red]closed[/]",
+            "ready": "[success]ready[/]",
+            "skipped": "[dim]skipped[/]",
+            "approved": "[success]approved[/]",
+            "suspicious": "[red]suspicious[/]",
+        }
+
+        pr_timing_table = Table(title="Per-PR Phase Timing")
+        pr_timing_table.add_column("PR", style="bold")
+        pr_timing_table.add_column("Title")
+        pr_timing_table.add_column("Result")
+        pr_timing_table.add_column("Action")
+        pr_timing_table.add_column("Fetch (avg)", justify="right")
+        pr_timing_table.add_column("Deterministic", justify="right")
+        pr_timing_table.add_column("LLM", justify="right")
+        pr_timing_table.add_column("Total", justify="right")
+
+        # Collect all PR numbers that went through any phase
+        all_pr_numbers = sorted(
+            deterministic_timings.keys() | pr_timings.keys(),
+            key=lambda n: deterministic_timings.get(n, 0) + pr_timings.get(n, 0) + fetch_per_pr,
+            reverse=True,
+        )
+        for pr_num in all_pr_numbers:
+            title = pr_titles.get(pr_num, "")[:60]
+            det_time = deterministic_timings.get(pr_num, 0)
+            llm_time = pr_timings.get(pr_num, 0)
+            total_time = fetch_per_pr + det_time + llm_time
+
+            if pr_num in assessments:
+                result = "[red]flagged[/]"
+            elif any(pr.number == pr_num for pr in passing_prs):
+                result = "[success]passed[/]"
+            elif any(pr.number == pr_num for pr in pending_approval):
+                result = "[dim]pending[/]"
+            else:
+                result = "[yellow]error[/]"
+
+            action_raw = pr_actions.get(pr_num, "")
+            action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+
+            pr_timing_table.add_row(
+                f"#{pr_num}",
+                title,
+                result,
+                action_display,
+                _fmt_duration(fetch_per_pr),
+                _fmt_duration(det_time) if det_time else "[dim]—[/]",
+                _fmt_duration(llm_time) if llm_time else "[dim]—[/]",
+                _fmt_duration(total_time),
+            )
+        get_console().print(pr_timing_table)
