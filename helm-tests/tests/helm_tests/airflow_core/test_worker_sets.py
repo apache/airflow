@@ -2149,6 +2149,22 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "resources": {
+                                "limits": {"cpu": "3m", "memory": "4Mi"},
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_resources(self, values):
