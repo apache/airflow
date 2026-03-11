@@ -34,7 +34,7 @@ class AwaitMessageSensor(BaseSensorOperator):
     The behavior of the consumer for this trigger is as follows:
     - poll the Kafka topics for a message
     - if no message returned, sleep
-    - process the message with provided callable and commit the message offset
+    - process the message with provided callable
     - if commit_offset is True (default), commit the message offset after processing
     - if callable returns any data, raise a TriggerEvent with the return data
     - else continue to next message
