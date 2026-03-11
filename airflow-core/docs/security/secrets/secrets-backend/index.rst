@@ -98,8 +98,8 @@ Per-key variables override the same key from ``BACKEND_KWARGS``. Values are raw 
 ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>`` prefix.
 
 .. note::
-   These environment variables are not automatically masked in logs. Avoid
-   logging backend configuration in production.
+   These environment variables are masked in logs at startup, the same way
+   ``BACKEND_KWARGS`` is masked.
 
 Worker Specific Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -438,7 +438,6 @@ class AirflowConfigParser(ConfigParser):
             backend_kwargs = {}
 
         # Collect per-key overrides; they take precedence over the JSON blob.
-        # NOTE: BACKEND_KWARG__* env vars are not auto-masked in logs.
         env_prefix = _build_kwarg_env_prefix(section, kwargs_key)
         backend_kwargs.update(_collect_kwarg_env_vars(env_prefix))
 

@@ -1451,7 +1451,6 @@ secrets:
         You can also set individual kwargs via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>=value``
         environment variables. Per-key variables override the same key in this JSON setting.
         Values are raw strings (not JSON-parsed).
-        Note: these env vars are not masked in logs unlike other sensitive config.
       version_added: 1.10.10
       type: string
       sensitive: true
@@ -1816,7 +1815,6 @@ workers:
         You can also set individual kwargs via ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>=value``
         environment variables. Per-key variables override the same key in this JSON setting.
         Values are raw strings (not JSON-parsed).
-        Note: these env vars are not masked in logs unlike other sensitive config.
       version_added: 3.0.0
       type: string
       sensitive: true

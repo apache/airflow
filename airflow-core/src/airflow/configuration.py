@@ -491,6 +491,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         )
 
     def mask_secrets(self):
+        from airflow._shared.configuration.parser import _build_kwarg_env_prefix, _collect_kwarg_env_vars
         from airflow._shared.secrets_masker import mask_secret as mask_secret_core
         from airflow.sdk.log import mask_secret as mask_secret_sdk
 
@@ -507,6 +508,17 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 continue
             mask_secret_core(value)
             mask_secret_sdk(value)
+
+        # Mask per-key backend kwarg env vars (AIRFLOW__SECRETS__BACKEND_KWARG__* etc.).
+        # These are not in sensitive_config_values but may contain sensitive values.
+        for _section, _kwargs_key in [
+            ("secrets", "backend_kwargs"),
+            ("workers", "secrets_backend_kwargs"),
+        ]:
+            _prefix = _build_kwarg_env_prefix(_section, _kwargs_key)
+            for _value in _collect_kwarg_env_vars(_prefix).values():
+                mask_secret_core(_value)
+                mask_secret_sdk(_value)
 
     def load_test_config(self):
         """

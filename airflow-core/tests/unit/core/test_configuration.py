@@ -968,6 +968,18 @@ class TestConf:
         assert secrets_backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
         assert secrets_backend.connections_prefix == "/worker/connections"
 
+    @mock.patch("airflow._shared.secrets_masker.mask_secret")
+    @mock.patch("airflow.sdk.log.mask_secret")
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID": "super-secret-role"},
+    )
+    def test_mask_secrets_includes_backend_kwarg_env_vars(self, mock_sdk_mask, mock_core_mask):
+        """Per-key BACKEND_KWARG__* env var values are registered with the masker at startup."""
+        conf.mask_secrets()
+        all_core_masked = [call.args[0] for call in mock_core_mask.call_args_list]
+        assert "super-secret-role" in all_core_masked
+
     def test_lookup_sequence_override_excludes_env_vars(self, monkeypatch):
         """Test that overriding lookup sequence to exclude env vars means env vars are not respected."""
 
