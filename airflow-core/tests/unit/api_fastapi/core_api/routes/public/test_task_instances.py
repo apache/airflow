@@ -39,7 +39,8 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
-from airflow.sdk import BaseOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import BaseOperator, TaskGroup
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -1645,6 +1646,47 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
+
+    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+        """
+        Task group lookup should use the DAG version from the run, not the latest version.
+
+        When a task group is renamed between versions, clicking on a historical run's
+        task group in the grid should still resolve correctly against the version
+        that run was created with — not the latest version where the group may have
+        a different name, i.e serialized_dag might not have that taskgroup anymore.
+        """
+        dag_id = "test_tg_version"
+
+        # Version 1: task group named "process_data"
+        with dag_maker(dag_id, session=session):
+            with TaskGroup(group_id="process_data"):
+                EmptyOperator(task_id="step_1")
+        dag_maker.create_dagrun(run_id="run_v1")
+        session.commit()
+
+        # Version 2: task group renamed to "process_data_v2"
+        with dag_maker(dag_id, session=session):
+            with TaskGroup(group_id="process_data_v2"):
+                EmptyOperator(task_id="step_1")
+        session.commit()
+
+        # The run was created with v1 which had "process_data".
+        # Querying with the old group name must succeed.
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
+            params={"task_group_id": "process_data"},
+        )
+        assert response.status_code == 200, response.json()
+        assert response.json()["total_entries"] == 1
+        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
+
+        # The new group name should NOT be found in the old run's version.
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
+            params={"task_group_id": "process_data_v2"},
+        )
+        assert response.status_code == 404
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):

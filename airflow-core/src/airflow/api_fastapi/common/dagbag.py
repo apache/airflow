@@ -72,7 +72,13 @@ def get_dag_for_run_or_latest_version(
 ) -> SerializedDAG:
     dag: SerializedDAG | None = None
     if dag_run:
-        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+        # Use the version the run was created with so that task group lookups,
+        # operator metadata, etc. match the DAG structure at the time of the run
+        # — not a potentially newer version where groups may have been renamed.
+        if dag_run.created_dag_version_id:
+            dag = dag_bag._get_dag(dag_run.created_dag_version_id, session=session)
+        if not dag:
+            dag = dag_bag.get_dag_for_run(dag_run, session=session)
     elif dag_id:
         dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
