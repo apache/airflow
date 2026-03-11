@@ -195,7 +195,7 @@ class BaseOperations:
     def execute_list(self, *, path, data_model, offset=0, limit=50, params=None):
         shared_params = {"limit": limit, **(params or {})}
 
-        def safe_validate(content: bytes) -> T:
+        def safe_validate(content: bytes) -> BaseModel:
             try:
                 return data_model.model_validate_json(content)  # type: ignore[union-attr]
             except ValidationError:
