@@ -371,7 +371,7 @@ class TestAgentOperatorAdkEdgeCases:
 
         create_call = mock_hook.create_agent.call_args
         # Only the base kwargs should be present
-        assert create_call[1]["output_type"] == str
+        assert create_call[1]["output_type"] is str
         assert create_call[1]["instructions"] == ""
         assert create_call[1]["toolsets"] is None
 
