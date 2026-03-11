@@ -203,7 +203,7 @@ class TestAgentOperatorExecute:
         mock_result.all_messages.return_value = msg_history
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.return_value = "Approved output"
 
         op = AgentOperator(
@@ -234,7 +234,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result(Summary(text="Approved summary", score=0.9))
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         # run_hitl_review returns JSON string (as stored in session.current_output)
         mock_run_hitl.return_value = '{"text": "Approved summary", "score": 0.9}'
 
@@ -261,7 +261,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.return_value = "Approved output"
 
         op = AgentOperator(
@@ -289,7 +289,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.side_effect = HITLMaxIterationsError("Task exceeded max iterations.")
 
         op = AgentOperator(
@@ -361,7 +361,7 @@ class TestAgentOperatorRegenerateWithFeedback:
         mock_result.all_messages.return_value = msg_history + [MagicMock()]
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(
             task_id="test",
@@ -391,7 +391,7 @@ class TestAgentOperatorRegenerateWithFeedback:
         mock_result.all_messages.return_value = []
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(
             task_id="test",
