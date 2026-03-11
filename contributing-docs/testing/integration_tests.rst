@@ -80,6 +80,8 @@ core or provider type of test.
 +---------------+-------------------------------------------------------+
 | mssql         | Integration required for mssql hooks.                 |
 +---------------+-------------------------------------------------------+
+| opensearch    | Integration required for OpenSearch.                  |
++---------------+-------------------------------------------------------+
 | openlineage   | Integration required for Openlineage hooks.           |
 +---------------+-------------------------------------------------------+
 | otel          | Integration required for OTEL/opentelemetry hooks.    |
