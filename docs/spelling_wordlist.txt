@@ -1216,6 +1216,7 @@ proc
 productionalize
 ProductSearchClient
 profiler
+Programmatic
 programmatically
 proj
 projectId
@@ -1509,6 +1510,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+strftime
 Stringified
 stringified
 Struct
