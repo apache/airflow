@@ -192,7 +192,7 @@ def get_provider_info():
                     },
                     "service_account_info": {
                         "label": "Service Account Info",
-                        "description": "Service account key as inline dict. Mutually exclusive with service_account_file.",
+                        "description": "Service account key as inline dict (JSON with type, project_id, private_key, etc.).",
                         "schema": {"type": ["object", "null"]},
                     },
                     "base_url": {
