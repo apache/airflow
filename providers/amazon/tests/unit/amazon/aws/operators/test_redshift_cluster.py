@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
+from tenacity import wait_fixed
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
@@ -251,14 +252,19 @@ class TestRedshiftCreateClusterOperator:
         )
         assert mock_delete_cluster.call_count >= 1
 
-    @mock.patch("tenacity.nap.time.sleep", mock.MagicMock())
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.redshift_cluster.wait_fixed",
+    )
     @mock.patch.object(RedshiftHook, "delete_cluster")
     @mock.patch.object(RedshiftHook, "conn")
     def test_create_cluster_cleanup_retries_on_active_operation(
         self,
         mock_conn,
         mock_delete_cluster,
+        mock_wait_fixed,
     ):
+
+        mock_wait_fixed.return_value = wait_fixed(0)
         # Simulate waiter failure (e.g. DescribeClusters denied).
         waiter_error = WaiterError(
             name="ClusterAvailable",
