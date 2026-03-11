@@ -53,6 +53,7 @@ from pathlib import Path
 
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
+from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -322,33 +323,6 @@ def find_json(candidates: list[Path], name: str) -> Path:
 
 
 log = logging.getLogger(__name__)
-
-# Base class import paths, ordered so more-specific types are checked first
-# (sensor before operator, since BaseSensorOperator inherits BaseOperator).
-BASE_CLASS_IMPORTS: list[tuple[str, str]] = [
-    ("sensor", "airflow.sdk.bases.sensor.BaseSensorOperator"),
-    ("trigger", "airflow.triggers.base.BaseTrigger"),
-    ("hook", "airflow.sdk.bases.hook.BaseHook"),
-    ("bundle", "airflow.dag_processing.bundles.base.BaseDagBundle"),
-    ("operator", "airflow.sdk.bases.operator.BaseOperator"),
-]
-
-# provider.yaml sections that list python-modules (module-level)
-MODULE_LEVEL_SECTIONS: dict[str, str] = {
-    "operators": "operator",
-    "hooks": "hook",
-    "sensors": "sensor",
-    "triggers": "trigger",
-    "bundles": "bundle",
-}
-
-# provider.yaml sections that list full class paths (class-level)
-CLASS_LEVEL_SECTIONS: dict[str, str] = {
-    "notifications": "notifier",
-    "secrets-backends": "secret",
-    "logging": "logging",
-    "executors": "executor",
-}
 
 
 def load_base_classes() -> dict[str, type]:

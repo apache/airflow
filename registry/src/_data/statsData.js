@@ -18,6 +18,7 @@
  */
 
 const providersData = require('./providers.json');
+const typesData = require('./types.json');
 
 module.exports = function() {
   const providers = providersData.providers;
@@ -51,64 +52,11 @@ module.exports = function() {
 
   const totalModules = Object.values(aggregateModuleCounts).reduce((a, b) => a + b, 0);
 
-  // Module type metadata
-  const moduleTypeInfo = {
-    operator: {
-      label: 'Operators',
-      icon: 'O',
-      colorClass: 'operator'
-    },
-    hook: {
-      label: 'Hooks',
-      icon: 'H',
-      colorClass: 'hook'
-    },
-    sensor: {
-      label: 'Sensors',
-      icon: 'S',
-      colorClass: 'sensor'
-    },
-    trigger: {
-      label: 'Triggers',
-      icon: 'T',
-      colorClass: 'trigger'
-    },
-    transfer: {
-      label: 'Transfers',
-      icon: 'X',
-      colorClass: 'transfer'
-    },
-    bundle: {
-      label: 'Bundles',
-      icon: 'B',
-      colorClass: 'bundle'
-    },
-    notifier: {
-      label: 'Notifiers',
-      icon: 'N',
-      colorClass: 'notifier'
-    },
-    secret: {
-      label: 'Secrets Backend',
-      icon: 'K',
-      colorClass: 'secret'
-    },
-    logging: {
-      label: 'Log Handler',
-      icon: 'L',
-      colorClass: 'logging'
-    },
-    executor: {
-      label: 'Executors',
-      icon: 'E',
-      colorClass: 'executor'
-    },
-    decorator: {
-      label: 'Decorators',
-      icon: '@',
-      colorClass: 'decorator'
-    }
-  };
+  // Module type metadata (from types.json)
+  const moduleTypeInfo = {};
+  for (const t of typesData) {
+    moduleTypeInfo[t.id] = { label: t.label, icon: t.icon, colorClass: t.id };
+  }
 
   // Module type display data with counts and percentages
   const moduleTypeStats = Object.entries(moduleTypeInfo).map(([type, info]) => {
