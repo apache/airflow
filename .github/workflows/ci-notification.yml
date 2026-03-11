@@ -56,7 +56,7 @@ jobs:
           workflow_id: ${{ matrix.workflow-id }}
 
       - name: "Send Slack notification"
-        if: steps.find-workflow-run-status.outputs.conclusion == 'failure'
+        if: steps.find-workflow-run-status.outputs.conclusion == 'failure' && env.SLACK_BOT_TOKEN != ''
         id: slack
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:

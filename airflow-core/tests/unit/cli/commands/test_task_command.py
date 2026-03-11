@@ -37,7 +37,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import DagRunNotFound
+from airflow.exceptions import DagRunNotFound, TaskInstanceNotFound
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -309,6 +309,23 @@ class TestCliTasks:
         assert "[2]" not in output
         assert "[3]" not in output
         assert "property: op_args" in output
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_rejects_out_of_range_map_index(self):
+        with pytest.raises(TaskInstanceNotFound, match="out of range"):
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "3",
+                    ]
+                )
+            )
 
     def test_mapped_task_render_with_template(self, dag_maker):
         """

@@ -31,14 +31,16 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -203,7 +205,16 @@ def _get_ti(
                 f"TaskInstance for {dag.dag_id}, {task.task_id}, map={map_index} with "
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
-        # TODO: Validate map_index is in range?
+        if task.get_needs_expansion():
+            try:
+                total_length = get_mapped_ti_count(task, dag_run.run_id, session=session)
+            except (NotFullyPopulated, NotMapped):
+                total_length = None
+            if total_length is not None and map_index >= total_length:
+                raise TaskInstanceNotFound(
+                    f"Map index {map_index} is out of range for task {dag.dag_id}.{task.task_id} "
+                    f"({total_length} mapped task instance(s) for run_id {dag_run.run_id!r})."
+                )
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
