@@ -30,8 +30,8 @@ The following terms **must remain in English unchanged** (case-sensitive):
 | Task | タスク | Standard Katakana |
 | Task Instance | タスクインスタンス | |
 | Task Group | タスクグループ | |
-| Dag Run | Dag実行 | |
-| Backfill | バックフィル | |
+| Dag Run | Dag 実行 | |
+| Backfill | 過去分の再実行 | |
 | Trigger | トリガー | |
 | Scheduler | スケジューラ | |
 | Executor | エグゼキュータ | |
@@ -45,14 +45,14 @@ The following terms **must remain in English unchanged** (case-sensitive):
 | English State | Japanese Translation |
 | :--- | :--- |
 | running | 実行中 |
-| failed | 失敗 |
+| failed | 失敗した |
 | success | 成功 |
 | queued | 待機中 |
 | scheduled | スケジュール済み |
 | skipped | スキップ済み |
-| deferred | 遅延 |
+| deferred | 延期済 |
 | removed | 削除済み |
-| upstream_failed | 上流の失敗 |
+| upstream_failed | 上流が失敗しました |
 
 ## 4. Japanese-Specific Guidelines
 
