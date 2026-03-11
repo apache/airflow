@@ -20,6 +20,7 @@ import os
 import sys
 from enum import Enum
 
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.shared_options import get_forced_answer
 
 STANDARD_TIMEOUT = 10
@@ -174,7 +175,8 @@ def prompt_triage_action(
                     choices.append(f"[{letter}]{label}")
             choices_str = " / ".join(choices)
 
-            prompt_text = f"\n{message}\n{choices_str}"
+            get_console().print(f"\n{message}")
+            prompt_text = choices_str
             if timeout:
                 prompt_text += (
                     f"  (auto-select {_LABELS[default]} in {timeout}s"
