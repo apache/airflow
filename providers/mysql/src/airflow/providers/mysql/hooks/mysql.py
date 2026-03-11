@@ -350,6 +350,14 @@ class MySqlHook(DbApiHook):
                 f"Must be one of {_VALID_DUPLICATE_KEY_HANDLING}."
             )
 
+        import re
+
+        if extra_options and not re.match(r"^[A-Z @=',;()\w\s.*/-]+$", extra_options):
+            raise ValueError(
+                f"Invalid extra_options: {extra_options!r}. "
+                "Only alphanumeric characters, spaces, and common SQL clauses are allowed."
+            )
+
         conn = self.get_conn()
         cursor = conn.cursor()
 
