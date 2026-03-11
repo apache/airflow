@@ -21,7 +21,9 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Local virtualenv Development Environment
 ----------------------------------------

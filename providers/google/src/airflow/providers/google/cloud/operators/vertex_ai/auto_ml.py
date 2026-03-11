@@ -477,7 +477,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 @deprecated(
     planned_removal_date="March 24, 2026",
-    use_instead="airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):

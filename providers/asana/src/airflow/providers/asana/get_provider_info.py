@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Asana",
                 "external-doc-url": "https://developers.asana.com/docs",
+                "logo": "/docs/integration-logos/Asana.svg",
                 "how-to-guide": ["/docs/apache-airflow-providers-asana/operators/asana.rst"],
                 "tags": ["software"],
             }
@@ -39,6 +40,21 @@ def get_provider_info():
         ],
         "hooks": [{"integration-name": "Asana", "python-modules": ["airflow.providers.asana.hooks.asana"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.asana.hooks.asana.AsanaHook", "connection-type": "asana"}
+            {
+                "hook-class-name": "airflow.providers.asana.hooks.asana.AsanaHook",
+                "connection-type": "asana",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "host", "login", "schema"],
+                    "placeholders": {
+                        "password": "Asana personal access token",
+                        "workspace": "Asana workspace gid",
+                        "project": "Asana project gid",
+                    },
+                },
+                "conn-fields": {
+                    "workspace": {"label": "Workspace", "schema": {"type": ["string", "null"]}},
+                    "project": {"label": "Project", "schema": {"type": ["string", "null"]}},
+                },
+            }
         ],
     }

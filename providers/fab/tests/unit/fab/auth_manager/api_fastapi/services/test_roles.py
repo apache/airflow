@@ -227,7 +227,7 @@ class TestRolesService:
 
         FABAuthManagerRoles.delete_role(name="roleA")
 
-        security_manager.delete_role.assert_called_once()
+        security_manager.delete_role.assert_called_once_with("roleA")
 
     def test_delete_role_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.return_value = None

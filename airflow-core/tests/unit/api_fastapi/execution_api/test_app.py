@@ -43,6 +43,23 @@ def test_access_api_contract(client):
     assert response.headers["airflow-api-version"] == bundle.versions[0].value
 
 
+def test_ti_self_routes_have_task_instance_id_param(client):
+    """Every route with ti:self scope must have a {task_instance_id} path parameter."""
+    from fastapi.params import Security as SecurityParam
+    from fastapi.routing import APIRoute
+
+    app = client.app
+
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for dep in route.dependencies:
+            if isinstance(dep, SecurityParam) and "ti:self" in (dep.scopes or []):
+                assert "task_instance_id" in route.dependant.path_param_names, (
+                    f"Route {route.path} has ti:self scope but no {{task_instance_id}} path parameter"
+                )
+
+
 class TestCorrelationIdMiddleware:
     def test_correlation_id_echoed_in_response_headers(self, client):
         """Test that correlation-id from request is echoed back in response headers."""
