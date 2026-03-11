@@ -173,7 +173,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
         """Return PydanticAIHook for the configured LLM connection."""
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        hook_params = {
+            "model_id": self.model_id,
+        }
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def _build_agent(self) -> Agent[None, Any]:
         """Build and return a pydantic-ai Agent from the operator's config."""

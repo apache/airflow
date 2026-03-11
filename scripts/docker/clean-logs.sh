@@ -20,7 +20,8 @@
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
 
@@ -45,10 +46,12 @@ fi
 retention_days="${RETENTION}"
 
 while true; do
-  echo "Trimming airflow logs to ${retention_days} days."
+  total_retention_minutes=$(( (RETENTION_DAYS * 1440) + RETENTION_MINUTES ))
+  echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
+
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${retention_days}" -name '*.log' -print0 | \
+    -type f -mmin +"${total_retention_minutes}" -name '*.log' -print0 | \
     xargs -0 rm -f || true
 
   if [[ "$MAX_SIZE_BYTES" -gt 0 && "$retention_days" -ge 0 ]]; then

@@ -501,6 +501,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.resources) }}
+
+ DEPRECATION WARNING:
+    `workers.resources` has been renamed to `workers.celery.resources`/`workers.kubernetes.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:

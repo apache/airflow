@@ -91,7 +91,7 @@ on top, concatenate them:
     LLMSchemaCompareOperator(
         task_id="compare_with_custom_rules",
         prompt="Compare schemas and flag breaking changes",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers"],
         system_prompt=DEFAULT_SYSTEM_PROMPT

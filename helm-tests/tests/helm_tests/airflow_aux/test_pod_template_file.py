@@ -1015,25 +1015,25 @@ class TestPodTemplateFile:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_should_add_resources(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "resources": {
-                        "requests": {"memory": "2Gi", "cpu": "1"},
-                        "limits": {"memory": "3Gi", "cpu": "2"},
-                    }
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}},
+            {"kubernetes": {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}}},
+            {
+                "resources": {"limits": {"memory": "1Gi", "cpu": "2"}},
+                "kubernetes": {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}},
             },
+        ],
+    )
+    def test_should_add_resources(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert jmespath.search("spec.containers[0].resources", docs[0]) == {
-            "limits": {
-                "cpu": "2",
-                "memory": "3Gi",
-            },
             "requests": {
                 "cpu": "1",
                 "memory": "2Gi",

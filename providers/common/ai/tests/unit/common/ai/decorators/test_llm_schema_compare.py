@@ -61,7 +61,9 @@ class TestLLMSchemaCompareDecoratedOperator:
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_build_ctx, mock_hook_cls):
         """The user's callable return value becomes the LLM prompt."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            _make_compare_result()
+        )
 
         def my_prompt_fn():
             return "Compare schemas and flag breaking changes"
@@ -99,7 +101,9 @@ class TestLLMSchemaCompareDecoratedOperator:
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            _make_compare_result()
+        )
 
         def my_prompt_fn(target_env):
             return f"Compare schemas for {target_env} environment"
