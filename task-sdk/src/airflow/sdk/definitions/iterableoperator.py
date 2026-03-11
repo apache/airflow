@@ -37,14 +37,14 @@ try:
 except NameError:
     from exceptiongroup import ExceptionGroup
 
-from airflow.exceptions import (
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
 from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
-from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException
+from airflow.sdk.exceptions import (
+    AirflowRescheduleTaskInstanceException,
+    AirflowTaskTimeout,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
