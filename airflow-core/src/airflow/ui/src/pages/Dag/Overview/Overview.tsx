@@ -35,6 +35,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -67,6 +68,9 @@ export const Overview = () => {
     state: ["failed"],
   });
   const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
+  const refetchInterval = useAutoRefresh({ dagId });
+  const isAutoRefreshing =
+    Boolean(refetchInterval) && (gridRuns ?? []).some((run) => isStatePending(run.state));
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit,
     orderBy: [assetSortBy],
@@ -124,7 +128,11 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
+            <DurationChart
+              entries={gridRuns?.slice().reverse()}
+              isAutoRefreshing={isAutoRefreshing}
+              kind="Dag Run"
+            />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (
