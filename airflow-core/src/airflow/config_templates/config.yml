@@ -917,11 +917,24 @@ logging:
       description: |
         Determines the formatter class used by Airflow for structuring its log messages
         The default formatter class is timezone-aware, which means that timestamps attached to log entries
-        will be adjusted to reflect the local timezone of the Airflow instance
+        will be adjusted to reflect the local timezone of the Airflow instance.
+        Note: This setting does NOT affect component logs (scheduler, api-server, triggerer, etc.) since
+        those use structlog directly. Use ``log_timestamp_format`` to control timestamps for those logs.
       version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
+    log_timestamp_format:
+      description: |
+        Timestamp format for component logs (scheduler, api-server, triggerer, etc.).
+        Use ``iso`` for ISO 8601 format (default), or a Python strftime format string
+        such as ``%Y-%m-%d %H:%M:%S``.
+        Note: This setting only applies to component logs rendered via structlog.
+        Task/DAG logs use ``log_format`` instead.
+      version_added: 3.0.4
+      type: string
+      example: "%Y-%m-%d %H:%M:%S"
+      default: "iso"
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
