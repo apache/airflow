@@ -937,9 +937,18 @@ def _load_what_to_do_next() -> str:
 
 
 def _build_comment(
-    pr_author: str, violations: list, pr_number: int, commits_behind: int, base_ref: str
+    pr_author: str,
+    violations: list,
+    pr_number: int,
+    commits_behind: int,
+    base_ref: str,
+    comment_only: bool = False,
 ) -> str:
-    """Build the comment to post on a PR being converted to draft."""
+    """Build the comment to post on a flagged PR.
+
+    When comment_only is True, the comment just lists findings without
+    mentioning draft conversion.
+    """
     violation_lines = []
     for v in violations:
         icon = "x" if v.severity == "error" else "warning"
@@ -958,6 +967,17 @@ def _build_comment(
             f"commit{'s' if commits_behind != 1 else ''} behind `{base_ref}`**. "
             "Some check failures may be caused by changes in the base branch rather than by your PR. "
             "Please rebase your branch and push again to get up-to-date CI results."
+        )
+
+    if comment_only:
+        return (
+            f"@{pr_author} This PR has a few issues that need to be addressed before it can be "
+            f"reviewed — please see our {QUALITY_CRITERIA_LINK}.\n\n"
+            f"**Issues found:**\n{violations_text}{rebase_note}\n\n"
+            f"**What to do next:**\n{what_to_do}\n\n"
+            "Please address the issues above and push again. "
+            "If you have questions, feel free to ask on the "
+            "[Airflow Slack](https://s.apache.org/airflow-slack)."
         )
 
     return (
@@ -1006,12 +1026,20 @@ def _compute_default_action(
     """Compute the suggested default triage action and reason for a flagged PR."""
     reason_parts: list[str] = []
 
-    if pr.mergeable == "CONFLICTING":
+    has_conflicts = pr.mergeable == "CONFLICTING"
+    if has_conflicts:
         reason_parts.append("has merge conflicts")
 
     failed_count = len(pr.failed_checks)
-    if failed_count > 0:
+    has_ci_failures = failed_count > 0
+    if has_ci_failures:
         reason_parts.append(f"{failed_count} CI failure{'s' if failed_count != 1 else ''}")
+
+    has_unresolved_comments = pr.unresolved_review_comments > 0
+    if has_unresolved_comments and not any("unresolved" in p for p in reason_parts):
+        reason_parts.append(
+            f"{pr.unresolved_review_comments} unresolved review comment{'s' if pr.unresolved_review_comments != 1 else ''}"
+        )
 
     if assessment.summary:
         reason_parts.append(assessment.summary.lower())
@@ -1020,6 +1048,9 @@ def _compute_default_action(
     if count > 3:
         reason_parts.append(f"author has {count} flagged {'PRs' if count != 1 else 'PR'}")
         action = TriageAction.CLOSE
+    elif not has_ci_failures and (has_conflicts or has_unresolved_comments):
+        # CI passes, no LLM issues — only conflicts or unresolved comments; just add a comment
+        action = TriageAction.COMMENT
     else:
         action = TriageAction.DRAFT
 
@@ -1027,6 +1058,7 @@ def _compute_default_action(
     reason = reason[0].upper() + reason[1:]
     action_label = {
         TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
         TriageAction.CLOSE: "close",
     }[action]
     return action, f"{reason} — suggesting {action_label}"
@@ -1625,6 +1657,7 @@ def auto_triage(
     # PRs with NOT_RUN checks are separated for workflow approval instead of LLM assessment.
     assessments: dict[int, PRAssessment] = {}
     llm_candidates: list[PRData] = []
+    passing_prs: list[PRData] = []
     pending_approval: list[PRData] = []
     total_deterministic_flags = 0
 
@@ -1686,6 +1719,7 @@ def auto_triage(
                 f"\n[info]--check-mode=ci: skipping LLM assessment for {len(llm_candidates)} "
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
             )
+            passing_prs.extend(llm_candidates)
     elif llm_candidates:
         skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
         if pending_approval:
@@ -1714,6 +1748,7 @@ def auto_triage(
                     continue
                 if not assessment.should_flag:
                     get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
+                    passing_prs.append(pr)
                     continue
                 assessments[pr.number] = assessment
 
@@ -1733,6 +1768,7 @@ def auto_triage(
 
     # Phase 5: Present flagged PRs interactively, grouped by author
     total_converted = 0
+    total_commented = 0
     total_closed = 0
     total_ready = 0
     total_skipped_action = 0
@@ -1762,6 +1798,14 @@ def auto_triage(
         comment = _build_comment(
             pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
         )
+        comment_only = _build_comment(
+            pr.author_login,
+            assessment.violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            comment_only=True,
+        )
         close_comment = _build_close_comment(
             pr.author_login,
             assessment.violations,
@@ -1778,6 +1822,7 @@ def auto_triage(
         if dry_run:
             action_label = {
                 TriageAction.DRAFT: "draft",
+                TriageAction.COMMENT: "add comment",
                 TriageAction.CLOSE: "close",
                 TriageAction.READY: "ready",
                 TriageAction.SKIP: "skip",
@@ -1812,6 +1857,15 @@ def auto_triage(
                 total_ready += 1
             else:
                 get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            continue
+
+        if action == TriageAction.COMMENT:
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+            if _post_comment(token, pr.node_id, comment_only):
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                total_commented += 1
+            else:
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
 
         if action == TriageAction.DRAFT:
@@ -1851,6 +1905,48 @@ def auto_triage(
                 total_closed += 1
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+
+    # Phase 5b: Present passing PRs for optional ready-for-review marking
+    if not quit_early and passing_prs:
+        passing_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+        get_console().print(
+            f"\n[info]{len(passing_prs)} {'PRs pass' if len(passing_prs) != 1 else 'PR passes'} "
+            f"all checks — review to mark as ready:[/]\n"
+        )
+        for pr in passing_prs:
+            author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+            _display_pr_info_panels(pr, author_profile)
+
+            if dry_run:
+                get_console().print("[warning]Dry run — skipping.[/]")
+                continue
+
+            action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=TriageAction.SKIP,
+                forced_answer=answer_triage,
+            )
+
+            if action == TriageAction.QUIT:
+                get_console().print("[warning]Quitting.[/]")
+                quit_early = True
+                break
+
+            if action == TriageAction.READY:
+                get_console().print(
+                    f"  [info]Marking PR {_pr_link(pr)} as ready "
+                    f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                )
+                if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                    get_console().print(
+                        f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                    )
+                    total_ready += 1
+                else:
+                    get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            else:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                total_skipped_action += 1
 
     # Phase 6: Present NOT_RUN PRs for workflow approval
     total_workflows_approved = 0
@@ -2037,7 +2133,9 @@ def auto_triage(
     summary_table.add_row("Flagged by LLM", str(total_flagged - total_deterministic_flags))
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))
+    summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
     summary_table.add_row("PRs converted to draft", str(total_converted))
+    summary_table.add_row("PRs commented (not drafted)", str(total_commented))
     summary_table.add_row("PRs closed", str(total_closed))
     summary_table.add_row("PRs marked ready for review", str(total_ready))
     summary_table.add_row("PRs skipped (no action)", str(total_skipped_action))

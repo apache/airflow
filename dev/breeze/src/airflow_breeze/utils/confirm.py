@@ -116,6 +116,7 @@ def confirm_action(
 
 class TriageAction(Enum):
     DRAFT = "d"
+    COMMENT = "a"
     CLOSE = "c"
     READY = "r"
     SKIP = "s"
@@ -139,6 +140,7 @@ def prompt_triage_action(
 
     _LABELS = {
         TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
         TriageAction.CLOSE: "close",
         TriageAction.READY: "ready",
         TriageAction.SKIP: "skip",
@@ -188,7 +190,7 @@ def prompt_triage_action(
             for action in TriageAction:
                 if upper == action.value.upper():
                     return action
-            print(f"Invalid input '{user_input}'. Please enter one of: d/c/r/s/q")
+            print(f"Invalid input '{user_input}'. Please enter one of: d/a/c/r/s/q")
         except TimeoutOccurred:
             return default
         except KeyboardInterrupt:
