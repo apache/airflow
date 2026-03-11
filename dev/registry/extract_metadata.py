@@ -554,11 +554,30 @@ def main():
     for provider in all_providers:
         provider.related_providers = find_related_providers(provider.id, all_provider_yamls)
 
-    # Sort providers alphabetically by name
-    all_providers.sort(key=lambda p: p.name.lower())
-
     # Convert to JSON-serializable format
-    providers_json = {"providers": [asdict(p) for p in all_providers]}
+    new_providers = [asdict(p) for p in all_providers]
+
+    # In incremental mode, merge new providers into existing providers.json
+    # so parallel runs for different providers don't clobber each other.
+    if requested_providers:
+        new_by_id = {p["id"]: p for p in new_providers}
+        for out_dir in [SCRIPT_DIR, OUTPUT_DIR]:
+            existing_path = out_dir / "providers.json"
+            if existing_path.exists():
+                try:
+                    existing = json.loads(existing_path.read_text())
+                    merged = [new_by_id.pop(p["id"], p) for p in existing["providers"]]
+                    merged.extend(new_by_id.values())
+                    new_providers = merged
+                    print(
+                        f"Merged {len(all_providers)} updated + {len(merged) - len(all_providers)} existing providers"
+                    )
+                except (json.JSONDecodeError, KeyError):
+                    pass
+                break
+
+    new_providers.sort(key=lambda p: p["name"].lower())
+    providers_json = {"providers": new_providers}
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
@@ -572,7 +591,7 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "providers.json", "w") as f:
             json.dump(providers_json, f, indent=2)
-        print(f"\nWrote {len(all_providers)} providers to {out_dir}")
+        print(f"\nWrote {len(new_providers)} providers to {out_dir}")
 
     print("\nDone!")
 
