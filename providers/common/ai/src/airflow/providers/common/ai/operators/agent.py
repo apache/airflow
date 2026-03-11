@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.base import BaseAIHook
 from airflow.providers.common.ai.utils.logging import wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
+    from airflow.providers.common.ai.hooks.base import BaseAIHook
     from airflow.sdk import Context
 
 

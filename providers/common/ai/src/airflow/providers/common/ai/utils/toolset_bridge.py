@@ -67,7 +67,7 @@ def _create_adk_wrapper(toolset: AbstractToolset[Any], tool_name: str, ts_tool: 
 
     # Build a dynamic signature so ADK knows what parameters the tool accepts.
     params = []
-    for param_name, param_info in properties.items():
+    for param_name, _param_info in properties.items():
         default = inspect.Parameter.empty if param_name in required_params else None
         params.append(
             inspect.Parameter(
