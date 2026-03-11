@@ -42,6 +42,7 @@ def load_types_from_py() -> list[dict]:
     tree = ast.parse(TYPES_PY.read_text(), filename=str(TYPES_PY))
 
     for node in ast.walk(tree):
+        target: ast.expr
         # MODULE_TYPES uses annotated assignment: MODULE_TYPES: dict[str, dict] = {...}
         if isinstance(node, ast.AnnAssign):
             target = node.target
@@ -57,11 +58,15 @@ def load_types_from_py() -> list[dict]:
                 continue
             result = []
             for key_node, value_node in zip(value.keys, value.values):
+                if key_node is None:
+                    continue
                 type_id = _extract_string(key_node)
                 if type_id is None or not isinstance(value_node, ast.Dict):
                     continue
                 info = {}
                 for k, v in zip(value_node.keys, value_node.values):
+                    if k is None:
+                        continue
                     field_name = _extract_string(k)
                     if field_name in ("label", "icon"):
                         info[field_name] = _extract_string(v)
