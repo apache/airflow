@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy import func, select
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, reassign_dags_with_unconfigured_bundles
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -115,6 +115,13 @@ class BasicBundle(BaseDagBundle):
 BASIC_BUNDLE_CONFIG = [
     {
         "name": "my-test-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+    }
+]
+SECOND_BUNDLE_CONFIG = [
+    {
+        "name": "second-bundle",
         "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
         "kwargs": {"refresh_interval": 1},
     }
@@ -470,18 +477,34 @@ def _add_dag(session, dag_id: str, bundle_name: str) -> DagModel:
 
 @pytest.mark.db_test
 class TestReassignDagsWithUnconfiguredBundles:
-    """Tests for the reassign_dags_with_unconfigured_bundles utility function."""
+    """Tests for DagBundlesManager.reassign_dags_with_unconfigured_bundles."""
 
-    def test_no_configured_bundles_returns_zero(self, clear_dags_and_bundles, session):
-        count = reassign_dags_with_unconfigured_bundles([], session=session)
-        assert count == 0
+    def _manager_with_bundle_names(self, names: list[str]) -> DagBundlesManager:
+        """Return a DagBundlesManager whose bundle_names property returns *names*."""
+        with patch.dict(
+            os.environ,
+            {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)},
+        ):
+            manager = DagBundlesManager()
+        # Override bundle_names so the method uses the names we want without
+        # requiring a full bundle config for each name variant.
+        manager.__class__ = type(
+            "PatchedManager", (DagBundlesManager,), {"bundle_names": property(lambda self: names)}
+        )
+        return manager
+
+    def test_no_configured_bundles_raises(self, clear_dags_and_bundles, session):
+        manager = self._manager_with_bundle_names([])
+        with pytest.raises(AirflowConfigException, match="No Dag bundles are currently configured"):
+            manager.reassign_dags_with_unconfigured_bundles(session=session)
 
     def test_no_stale_dags_returns_zero(self, clear_dags_and_bundles, session):
         session.add(DagBundleModel(name="bundle-a"))
         session.flush()
         _add_dag(session, "dag-1", "bundle-a")
 
-        count = reassign_dags_with_unconfigured_bundles(["bundle-a"], session=session)
+        manager = self._manager_with_bundle_names(["bundle-a"])
+        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
         assert count == 0
 
         dag = session.get(DagModel, "dag-1")
@@ -496,7 +519,8 @@ class TestReassignDagsWithUnconfiguredBundles:
         _add_dag(session, "dag-2", "old-bundle")
         _add_dag(session, "dag-3", "new-bundle")
 
-        count = reassign_dags_with_unconfigured_bundles(["new-bundle"], session=session)
+        manager = self._manager_with_bundle_names(["new-bundle"])
+        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
         assert count == 2
 
         assert session.get(DagModel, "dag-1").bundle_name == "new-bundle"
@@ -511,7 +535,8 @@ class TestReassignDagsWithUnconfiguredBundles:
 
         _add_dag(session, "dag-1", "removed-bundle")
 
-        count = reassign_dags_with_unconfigured_bundles(["primary", "secondary"], session=session)
+        manager = self._manager_with_bundle_names(["primary", "secondary"])
+        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
         assert count == 1
         assert session.get(DagModel, "dag-1").bundle_name == "primary"
 
@@ -525,21 +550,13 @@ class TestReassignDagsWithUnconfiguredBundles:
         _add_dag(session, "dag-2", "old-b")
         _add_dag(session, "dag-3", "active")
 
-        count = reassign_dags_with_unconfigured_bundles(["active"], session=session)
+        manager = self._manager_with_bundle_names(["active"])
+        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
         assert count == 2
 
         assert session.get(DagModel, "dag-1").bundle_name == "active"
         assert session.get(DagModel, "dag-2").bundle_name == "active"
         assert session.get(DagModel, "dag-3").bundle_name == "active"
-
-
-SECOND_BUNDLE_CONFIG = [
-    {
-        "name": "second-bundle",
-        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
-        "kwargs": {"refresh_interval": 1},
-    }
-]
 
 
 @pytest.mark.db_test
@@ -552,9 +569,11 @@ def test_sync_reassigns_dags_from_removed_bundle(clear_dags_and_bundles, session
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db(session=session)
-    session.flush()
+        manager.reassign_dags_with_unconfigured_bundles(session=session)
+    session.commit()
 
     _add_dag(session, "dag-1", "my-test-bundle")
+    session.commit()
 
     with patch.dict(
         os.environ,
@@ -562,6 +581,8 @@ def test_sync_reassigns_dags_from_removed_bundle(clear_dags_and_bundles, session
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db(session=session)
+        manager.reassign_dags_with_unconfigured_bundles(session=session)
+    session.commit()
 
     dag = session.get(DagModel, "dag-1")
     assert dag.bundle_name == "second-bundle"
@@ -577,9 +598,11 @@ def test_sync_does_not_reassign_dags_with_active_bundle(clear_dags_and_bundles, 
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db(session=session)
-    session.flush()
+        manager.reassign_dags_with_unconfigured_bundles(session=session)
+    session.commit()
 
     _add_dag(session, "dag-1", "my-test-bundle")
+    session.commit()
 
     with patch.dict(
         os.environ,
@@ -587,6 +610,8 @@ def test_sync_does_not_reassign_dags_with_active_bundle(clear_dags_and_bundles, 
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db(session=session)
+        manager.reassign_dags_with_unconfigured_bundles(session=session)
+    session.commit()
 
     dag = session.get(DagModel, "dag-1")
     assert dag.bundle_name == "my-test-bundle"

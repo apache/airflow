@@ -27,7 +27,6 @@ from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
-from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -184,10 +183,7 @@ class DagBundlesManager(LoggingMixin):
 
         config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
         if not config_list:
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` is not set or empty. "
-                "Please add at least one bundle configuration to your config."
-            )
+            return
         if not isinstance(config_list, list):
             raise AirflowConfigException(
                 "Section `dag_processor` key `dag_bundle_config_list` "
@@ -319,6 +315,9 @@ class DagBundlesManager(LoggingMixin):
         :param session: ORM Session
         :return: Number of Dags reassigned.
         """
+        from airflow.models.dag import DagModel
+        # lazy import to avoid circular import issues
+
         configured_names = self.bundle_names
         if not configured_names:
             # This should not happen because we already have validation at parse_config in constructor.
@@ -330,17 +329,19 @@ class DagBundlesManager(LoggingMixin):
         count = cast(
             "CursorResult",
             session.execute(
-                update(DagModel).where(
+                update(DagModel)
+                .where(
                     or_(
                         DagModel.bundle_name.notin_(configured_names),
                         DagModel.bundle_name.is_(None),
                     )
                 )
+                .values(bundle_name=default_bundle)
             ),
         ).rowcount
 
         if count:
-            self.info(
+            self.log.info(
                 "Reassigned %d Dag(s) from unconfigured bundles to '%s'",
                 count,
                 default_bundle,
