@@ -25,6 +25,8 @@ from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -370,6 +372,17 @@ def materialize_asset(
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"More than one DAG materializes asset with ID: {asset_id}",
+        )
+
+    if not get_auth_manager().is_authorized_dag(
+        method="POST",
+        access_entity=DagAccessEntity.RUN,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User is not authorized to trigger a run for DAG: {dag_id} that materializes this asset",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
