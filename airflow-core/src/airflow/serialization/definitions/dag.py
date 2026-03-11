@@ -1122,6 +1122,7 @@ def _create_orm_dagrun(
     session: Session = NEW_SESSION,
 ) -> DagRun:
     resolved_bundle_version: str | None = None
+    use_resolved_dag = False
     if not dag.disable_bundle_versioning:
         if bundle_version is not None:
             resolved_bundle_version = bundle_version
@@ -1132,15 +1133,21 @@ def _create_orm_dagrun(
                 raise DagVersionNotFound(
                     f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
                 )
+            use_resolved_dag = True
         else:
             resolved_bundle_version = session.scalar(
                 select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
             )
             dag_version = DagVersion.get_latest_version(
-                dag.dag_id, bundle_version=resolved_bundle_version, session=session
+                dag.dag_id,
+                bundle_version=resolved_bundle_version,
+                load_serialized_dag=resolved_bundle_version is not None,
+                session=session,
             )
             if dag_version is None and resolved_bundle_version is not None:
                 dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+            elif dag_version is not None and resolved_bundle_version is not None:
+                use_resolved_dag = True
     else:
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
@@ -1174,7 +1181,7 @@ def _create_orm_dagrun(
     session.add(run)
     session.flush()
     run.dag = dag
-    if bundle_version is not None:
+    if use_resolved_dag:
         resolved_dag = dag_version.serialized_dag.dag
         if hasattr(dag, "on_failure_callback"):
             resolved_dag.on_failure_callback = dag.on_failure_callback  # type: ignore[attr-defined]
