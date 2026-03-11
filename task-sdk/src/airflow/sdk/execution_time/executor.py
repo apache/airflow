@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import ExecutorSafeguard
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.context import context_get_outlet_events
@@ -37,7 +38,6 @@ from airflow.sdk.execution_time.task_runner import (
     _execute_task,
     _run_task_state_change_callbacks,
 )
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
