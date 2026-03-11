@@ -494,6 +494,23 @@ class TestPatchVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    @pytest.mark.enable_redact
+    def test_patch_with_update_mask_description_only(self, test_client, session):
+        """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "ignored_value",
+                "description": "updated description",
+            },
+            params={"update_mask": ["description"]},
+        )
+        assert response.status_code == 200
+        assert response.json()["description"] == "updated description"
+        assert response.json()["key"] == TEST_VARIABLE_KEY
+
 
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact

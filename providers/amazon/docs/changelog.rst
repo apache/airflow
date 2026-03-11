@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+9.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'SesEmailOperator' (#58312)``
+* ``Adding sftp_remote_host to S3 transfer Operators (#63147)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler not deleting local logs after streaming (#62985)``
+* ``Fix invalid RequestPayer usage in S3Hook.select_key() method (#63148)``
+* ``S3GetBucketTaggingOperator ignoring aws_conn_id parameter (#63137)``
+* ``Scope session token in cookie to base_url (#62771)``
+* ``S3DagBundle does not delete stale dag recursively (#63104)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+* ``Clarify to avoid bumping min version for sagemaker-studio (#62891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.22.0
 ......
 
@@ -33,7 +60,6 @@ Features
 ~~~~~~~~
 
 * ``Support custom KMS keys in S3CopyObjectOperator (#60597)``
-* ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
 * ``Add best-effort cleanup to EmrCreateJobFlowOperator on post-creation failure (#61010)``
 * ``Add best-effort cleanup to EksCreateNodegroupOperator on post-create failure (#61145)``
 * ``Add best-effort cleanup to EcsRunTaskOperator on post-start failure (#61051)``
@@ -43,6 +69,7 @@ Features
 * ``AwsLambdaExecutor: Support multi-team configuration (#61321)``
 * ``Add SageMaker Unified Studio domain_id, project_id, domain_region as new parameters to SageMakerNotebookOperator (#62147)``
 * ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Check teams defined in auth managers exist in DB when spinning up API server (#62527)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -58,6 +85,7 @@ Bug Fixes
 * ``Handle CrawlerRunningException gracefully in GlueCrawlerOperator (#62016)``
 * ``RedshiftCreateClusterOperator could leave clusters running when failures (#61333)``
 * ``Fix EKS operator failures by consolidating API version references into a shared constant (#61891)``
+* ``Remove Connection dependency from shared secrets backend (#61523)``
 
 Misc
 ~~~~
@@ -79,6 +107,10 @@ Misc
    * ``ECS system test occasionally fails with transient timeouts (#61895)``
    * ``Providers wave 2026-02-10 (#61746)``
    * ``Bump black to latest 26.1.0 release (#61612)``
+   * ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
+   * ``Revert "Add resume_glue_job_on_retry to GlueJobOperator (#59392)" (#62730)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
 
 9.21.0
 ......

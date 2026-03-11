@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "20.0.0"
+version = "21.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -96,7 +96,7 @@ dependencies = [
     "google-cloud-dataflow-client>=0.8.6",
     "google-cloud-dataform>=0.5.0",
     "google-cloud-dataplex>=2.6.0",
-    "google-cloud-dataproc>=5.21.0",
+    "google-cloud-dataproc>=5.25.0",
     "google-cloud-dataproc-metastore>=1.12.0",
     "google-cloud-dlp>=3.12.0",
     "google-cloud-kms>=2.15.0",
@@ -150,7 +150,7 @@ dependencies = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.0.0; python_version < '3.13'",
+    "apache-airflow-providers-fab>=2.0.0",
 ]
 "leveldb" = [
     "plyvel>=1.5.1; python_version < '3.13'",
@@ -263,8 +263,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

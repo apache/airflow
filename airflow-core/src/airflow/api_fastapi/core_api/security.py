@@ -238,6 +238,13 @@ class PermittedDagVersionFilter(PermittedDagFilter):
         return select.where(DagVersion.dag_id.in_(self.value or set()))
 
 
+class PermittedBackfillFilter(PermittedDagFilter):
+    """A parameter that filters the permitted backfills for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Backfill.dag_id.in_(self.value or set()))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -282,6 +289,9 @@ ReadableTagsFilterDep = Annotated[
 ReadableDagVersionsFilterDep = Annotated[
     PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
 ]
+ReadableBackfillsFilterDep = Annotated[
+    PermittedBackfillFilter, Depends(permitted_dag_filter_factory("GET", PermittedBackfillFilter))
+]
 
 
 def requires_access_backfill(
@@ -297,8 +307,13 @@ def requires_access_backfill(
         dag_id = None
 
         # Try to retrieve the dag_id from the backfill_id path param
-        backfill_id = request.path_params.get("backfill_id")
-        if backfill_id is not None and isinstance(backfill_id, int):
+        backfill_id_raw = request.path_params.get("backfill_id")
+        try:
+            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
+        except ValueError:
+            backfill_id = None
+
+        if backfill_id is not None:
             backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
             dag_id = backfill.dag_id if backfill else None
 
@@ -345,19 +360,20 @@ def permitted_pool_filter_factory(
 ReadablePoolsFilterDep = Annotated[PermittedPoolFilter, Depends(permitted_pool_filter_factory("GET"))]
 
 
-def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
-        team_name = Pool.get_team_name(pool_name) if pool_name else None
+        for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name):
 
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
-                method=method, details=PoolDetails(name=pool_name, team_name=team_name), user=user
-            )
-        )
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_pool(
+                    method=method, details=PoolDetails(name=pool_name, team_name=tn), user=user
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
@@ -439,21 +455,26 @@ ReadableConnectionsFilterDep = Annotated[
 ]
 
 
-def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_connection(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
-        team_name = Connection.get_team_name(connection_id) if connection_id else None
+        for team_name in await _collect_teams_to_check(
+            method, request, connection_id, Connection.get_team_name
+        ):
 
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
-                method=method,
-                details=ConnectionDetails(conn_id=connection_id, team_name=team_name),
-                user=user,
-            )
-        )
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_connection(
+                    method=method,
+                    details=ConnectionDetails(conn_id=connection_id, team_name=tn),
+                    user=user,
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
@@ -580,19 +601,22 @@ ReadableVariablesFilterDep = Annotated[
 ]
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_variable(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
+    async def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
-        team_name = Variable.get_team_name(variable_key) if variable_key else None
+        for team_name in await _collect_teams_to_check(method, request, variable_key, Variable.get_team_name):
 
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
-                method=method, details=VariableDetails(key=variable_key, team_name=team_name), user=user
-            ),
-        )
+            def _callback(tn: str | None = team_name) -> bool:
+                return get_auth_manager().is_authorized_variable(
+                    method=method, details=VariableDetails(key=variable_key, team_name=tn), user=user
+                )
+
+            _requires_access(is_authorized_callback=_callback)
 
     return inner
 
@@ -701,6 +725,30 @@ def requires_authenticated() -> Callable:
         pass
 
     return inner
+
+
+async def _collect_teams_to_check(
+    method: ResourceMethod,
+    request: Request,
+    resource_id: str | None,
+    get_existing_team: Callable[[str], str | None],
+) -> set[str | None]:
+    """Collect validated team names from existing resource (DB) and/or request body."""
+    if not conf.getboolean("core", "multi_team"):
+        return {None}
+    teams: set[str | None] = set()
+    if method != "POST":
+        teams.add(get_existing_team(resource_id) if resource_id else None)
+    if method in ("POST", "PUT"):
+        with suppress(JSONDecodeError):
+            raw = (await request.json()).get("team_name")
+            if raw and not Team.get_name_if_exists(raw):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Team {raw!r} does not exist",
+                )
+            teams.add(raw)
+    return teams
 
 
 def _requires_access(

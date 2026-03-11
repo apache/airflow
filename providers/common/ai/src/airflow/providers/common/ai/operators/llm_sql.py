@@ -34,6 +34,7 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -85,6 +86,13 @@ class LLMSQLQueryOperator(LLMOperator):
         Default: ``(Select, Union, Intersect, Except)``.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    When ``allow_modifications=True`` and the reviewer edits the SQL, the
+    modified query is re-validated against the same safety rules before being
+    returned.
     """
 
     template_fields: Sequence[str] = (
@@ -140,13 +148,25 @@ class LLMSQLQueryOperator(LLMOperator):
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt)
+        log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output)
 
         if self.validate_sql:
             _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
 
         self.log.info("Generated SQL:\n%s", sql)
+
+        if self.require_approval:
+            self.defer_for_approval(context, sql)  # type: ignore[misc]
+
         return sql
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+        """Resume after human review, re-validating if the reviewer modified the SQL."""
+        output = super().execute_complete(context, generated_output, event)
+        if output != generated_output:
+            _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        return output
 
     @staticmethod
     def _strip_llm_output(raw: str) -> str:

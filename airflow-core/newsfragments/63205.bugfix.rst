@@ -1,0 +1,1 @@
+Fix grid view URL for dynamic task groups producing 404 by not appending ``/mapped`` to group URLs.
