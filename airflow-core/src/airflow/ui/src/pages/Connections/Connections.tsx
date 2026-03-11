@@ -34,6 +34,7 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { ExportCliInfoBox } from "src/components/ExportCliInfoBox";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 
@@ -41,6 +42,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import ImportConnectionsButton from "./ImportConnectionsButton";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
@@ -197,9 +199,15 @@ export const Connections = () => {
         />
         <HStack gap={4} mt={2}>
           <Spacer />
+          <ImportConnectionsButton disabled={selectedRows.size > 0} />
           <AddConnectionButton />
         </HStack>
       </VStack>
+
+      <ExportCliInfoBox
+        cliCommand="airflow connections export -"
+        descriptionKey="exportCliInfo.connectionsDescription"
+      />
 
       <DataTable
         columns={columns}

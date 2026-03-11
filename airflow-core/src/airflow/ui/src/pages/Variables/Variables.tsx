@@ -38,6 +38,8 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useConfig } from "src/queries/useConfig.tsx";
 import { TrimText } from "src/utils/TrimText";
 
+import { ExportCliInfoBox } from "src/components/ExportCliInfoBox";
+
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -218,6 +220,10 @@ export const Variables = () => {
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
+      <ExportCliInfoBox
+        cliCommand="airflow variables export -"
+        descriptionKey="exportCliInfo.variablesDescription"
+      />
       <DataTable
         columns={columns}
         data={data?.variables ?? []}
