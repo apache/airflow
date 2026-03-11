@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import click
@@ -279,6 +280,17 @@ def _resolve_github_token(github_token: str | None) -> str | None:
     if gh_token_result.returncode == 0:
         return gh_token_result.stdout.strip()
     return None
+
+
+_VIEWER_QUERY = """
+query { viewer { login } }
+"""
+
+
+def _resolve_viewer_login(token: str) -> str:
+    """Resolve the GitHub login of the authenticated user via the viewer query."""
+    data = _graphql_request(token, _VIEWER_QUERY, {})
+    return data["viewer"]["login"]
 
 
 def _graphql_request(token: str, query: str, variables: dict) -> dict:
@@ -608,11 +620,14 @@ def _fetch_prs_graphql(
     created_before: str | None = None,
     updated_after: str | None = None,
     updated_before: str | None = None,
+    review_requested: str | None = None,
 ) -> list[PRData]:
     """Fetch a single batch of matching PRs via GraphQL."""
     query_parts = [f"repo:{github_repository}", "type:pr", "is:open", "draft:false"]
     if filter_user:
         query_parts.append(f"author:{filter_user}")
+    if review_requested:
+        query_parts.append(f"review-requested:{review_requested}")
     for label in labels:
         query_parts.append(f'label:"{label}"')
     for label in exclude_labels:
@@ -1064,6 +1079,19 @@ def _compute_default_action(
     return action, f"{reason} — suggesting {action_label}"
 
 
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds to a human-friendly string like '2m 05s' or '3.2s'."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes = int(seconds) // 60
+    secs = int(seconds) % 60
+    if minutes < 60:
+        return f"{minutes}m {secs:02d}s"
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}h {mins:02d}m {secs:02d}s"
+
+
 def _pr_link(pr: PRData) -> str:
     """Return a Rich-markup clickable link for a PR: [link=url]#number[/link]."""
     return f"[link={pr.url}]#{pr.number}[/link]"
@@ -1237,6 +1265,56 @@ def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRD
                     resolved += 1
 
     return resolved
+
+
+def _llm_progress_status(completed: int, total: int, flagged: int, errors: int) -> str:
+    """Build a one-line LLM assessment progress string for display between prompts."""
+    if total == 0:
+        return ""
+    remaining = total - completed
+    parts = [f"{completed}/{total} done"]
+    if flagged:
+        parts.append(f"{flagged} flagged")
+    if errors:
+        parts.append(f"{errors} errors")
+    if remaining:
+        parts.append(f"{remaining} in progress")
+    return f"[dim]LLM assessment: {', '.join(parts)}[/]"
+
+
+def _collect_llm_results(
+    future_to_pr: dict,
+    llm_assessments: dict,
+    llm_completed: list[int],
+    llm_errors: list[int],
+    llm_passing: list,
+    block: bool = False,
+) -> None:
+    """Collect completed LLM futures. If block=False, only collect already-done futures."""
+    from concurrent.futures import wait
+
+    if not future_to_pr:
+        return
+
+    if block:
+        # Wait for all remaining futures
+        pending = [f for f in future_to_pr if not f.done()]
+        if pending:
+            wait(pending)
+
+    done_futures = [f for f in future_to_pr if f.done() and f not in llm_completed]
+    for future in done_futures:
+        llm_completed.append(future)
+        pr = future_to_pr[future]
+        assessment = future.result()
+        if assessment.error:
+            llm_errors.append(pr.number)
+            continue
+        if not assessment.should_flag:
+            llm_passing.append(pr)
+            get_console().print(f"  [success]PR {_pr_link(pr)} passes LLM quality check.[/]")
+            continue
+        llm_assessments[pr.number] = assessment
 
 
 def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | None:
@@ -1429,6 +1507,13 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     show_default=True,
     help="Only assess PRs that are at least this many commits behind base branch.",
 )
+@click.option(
+    "--review-requested",
+    "review_requested",
+    is_flag=True,
+    default=False,
+    help="Only show PRs where review is requested for the authenticated user.",
+)
 # --- Pagination and sorting ---
 @click.option(
     "--batch-size",
@@ -1494,6 +1579,7 @@ def auto_triage(
     pending_approval_only: bool,
     checks_state: str,
     min_commits_behind: int,
+    review_requested: bool,
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
@@ -1529,6 +1615,12 @@ def auto_triage(
 
     dry_run = get_dry_run()
 
+    # Resolve --review-requested: resolve to the authenticated user
+    review_requested_user: str | None = None
+    if review_requested:
+        review_requested_user = _resolve_viewer_login(token)
+        get_console().print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
+
     # Split labels into exact (for GitHub search) and wildcard (for client-side filtering)
     from fnmatch import fnmatch
 
@@ -1537,7 +1629,10 @@ def auto_triage(
     exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
     wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
 
+    t_total_start = time.monotonic()
+
     # Phase 1: Lightweight fetch of PRs via GraphQL (no check contexts — fast)
+    t_phase1_start = time.monotonic()
     if pr_number:
         get_console().print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
@@ -1555,6 +1650,7 @@ def auto_triage(
             created_before=created_before,
             updated_after=updated_after,
             updated_before=updated_before,
+            review_requested=review_requested_user,
         )
 
     # Apply wildcard label filters client-side
@@ -1625,6 +1721,8 @@ def auto_triage(
         )
     get_console().print()
 
+    t_phase1_end = time.monotonic()
+
     # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
     candidate_prs: list[PRData] = []
     total_skipped_collaborator = 0
@@ -1693,6 +1791,7 @@ def auto_triage(
     )
 
     # Phase 2b: Fetch detailed check contexts only for candidate PRs (chunked to avoid timeouts)
+    t_phase2b_start = time.monotonic()
     if candidate_prs:
         get_console().print(
             f"[info]Fetching check details for {len(candidate_prs)} "
@@ -1726,6 +1825,8 @@ def auto_triage(
         else:
             get_console().print(f"  [dim]All {resolved} resolved.[/]")
 
+    t_phase2b_end = time.monotonic()
+
     # Phase 2c: Fetch unresolved review comment counts for candidate PRs
     if candidate_prs and run_ci:
         get_console().print(
@@ -1733,6 +1834,8 @@ def auto_triage(
             f"candidate {'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
         )
         _fetch_unresolved_comments_batch(token, github_repository, candidate_prs)
+
+    t_phase2c_end = time.monotonic()
 
     # Phase 3: Deterministic checks (CI failures + merge conflicts + unresolved comments),
     # then LLM for the rest
@@ -1742,9 +1845,11 @@ def auto_triage(
     passing_prs: list[PRData] = []
     pending_approval: list[PRData] = []
     total_deterministic_flags = 0
+    deterministic_timings: dict[int, float] = {}  # PR number -> deterministic triage duration
 
     if run_ci:
         for pr in candidate_prs:
+            t_det_start = time.monotonic()
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
             conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
             comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
@@ -1772,6 +1877,7 @@ def auto_triage(
                 pending_approval.append(pr)
             else:
                 llm_candidates.append(pr)
+            deterministic_timings[pr.number] = time.monotonic() - t_det_start
     else:
         for pr in candidate_prs:
             if pr.checks_state == "NOT_RUN":
@@ -1792,8 +1898,13 @@ def auto_triage(
             f"{'PRs' if len(pending_approval) != 1 else 'PR'} awaiting workflow approval.[/]\n"
         )
 
-    # Phase 4: Run LLM assessments concurrently for PRs without CI failures
-    total_llm_errors = 0
+    # Phase 4: Start LLM assessments in background (non-blocking) while we process deterministic flags
+    llm_future_to_pr: dict = {}
+    llm_assessments: dict[int, PRAssessment] = {}
+    llm_completed: list = []
+    llm_errors: list[int] = []
+    llm_passing: list[PRData] = []
+    llm_executor = None
 
     if not run_llm:
         if llm_candidates:
@@ -1807,238 +1918,63 @@ def auto_triage(
         if pending_approval:
             skipped_detail += f", {len(pending_approval)} awaiting workflow approval"
         get_console().print(
-            f"\n[info]Running LLM assessment for {len(llm_candidates)} "
-            f"{'PRs' if len(llm_candidates) != 1 else 'PR'} (skipped {skipped_detail})...[/]\n"
+            f"\n[info]Starting LLM assessment for {len(llm_candidates)} "
+            f"{'PRs' if len(llm_candidates) != 1 else 'PR'} in background "
+            f"(skipped {skipped_detail})...[/]\n"
         )
-        with ThreadPoolExecutor(max_workers=llm_concurrency) as executor:
-            future_to_pr = {
-                executor.submit(
-                    assess_pr,
-                    pr_number=pr.number,
-                    pr_title=pr.title,
-                    pr_body=pr.body,
-                    check_status_summary=pr.check_summary,
-                    llm_model=llm_model,
-                ): pr
-                for pr in llm_candidates
-            }
-            for future in as_completed(future_to_pr):
-                pr = future_to_pr[future]
-                assessment = future.result()
-                if assessment.error:
-                    total_llm_errors += 1
-                    continue
-                if not assessment.should_flag:
-                    get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
-                    passing_prs.append(pr)
-                    continue
-                assessments[pr.number] = assessment
+        llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
+        llm_future_to_pr = {
+            llm_executor.submit(
+                assess_pr,
+                pr_number=pr.number,
+                pr_title=pr.title,
+                pr_body=pr.body,
+                check_status_summary=pr.check_summary,
+                llm_model=llm_model,
+            ): pr
+            for pr in llm_candidates
+        }
 
-    total_flagged = len(assessments)
-    summary_parts = [
-        f"{total_deterministic_flags} CI/conflicts/comments",
-        f"{total_flagged - total_deterministic_flags} LLM-flagged",
-    ]
-    if pending_approval:
-        summary_parts.append(f"{len(pending_approval)} awaiting workflow approval")
-    if total_llm_errors:
-        summary_parts.append(f"{total_llm_errors} LLM errors")
-    get_console().print(
-        f"\n[info]Assessment complete: {total_flagged} {'PRs' if total_flagged != 1 else 'PR'} "
-        f"flagged ({', '.join(summary_parts)}).[/]\n"
-    )
-
-    # Phase 5: Present flagged PRs interactively, grouped by author
+    # Phase 4b: Present NOT_RUN PRs for workflow approval while LLM runs
+    total_workflows_approved = 0
     total_converted = 0
     total_commented = 0
     total_closed = 0
     total_ready = 0
     total_skipped_action = 0
-    quit_early = False
+    pr_actions: dict[int, str] = {}  # PR number -> action taken by user
 
-    # Build sorted list of flagged PRs grouped by author
-    flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
-    flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
+    quit_early = False
+    # author_flagged_count is populated below after deterministic flagged PRs are built,
+    # but we need a preliminary version for the workflow approval phase
     from collections import Counter
 
-    author_flagged_count: dict[str, int] = dict(Counter(pr.author_login for pr, _ in flagged_prs))
+    author_flagged_count: dict[str, int] = dict(
+        Counter(pr.author_login for pr in candidate_prs if pr.number in assessments)
+    )
 
-    current_author: str | None = None
-    for pr, assessment in flagged_prs:
-        if pr.author_login != current_author:
-            current_author = pr.author_login
-            count = author_flagged_count[current_author]
-            get_console().print()
-            get_console().rule(
-                f"[bold]Author: {current_author}[/] ({count} flagged PR{'s' if count != 1 else ''})",
-                style="cyan",
-            )
-
-        # Fetch author profile for context (only for flagged PRs)
-        author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
-
-        comment = _build_comment(
-            pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
-        )
-        comment_only = _build_comment(
-            pr.author_login,
-            assessment.violations,
-            pr.number,
-            pr.commits_behind,
-            pr.base_ref,
-            comment_only=True,
-        )
-        close_comment = _build_close_comment(
-            pr.author_login,
-            assessment.violations,
-            pr.number,
-            author_flagged_count.get(pr.author_login, 0),
-        )
-        _display_pr_panel(pr, author_profile, assessment, comment)
-
-        default_action, reason = _compute_default_action(pr, assessment, author_flagged_count)
-        if default_action == TriageAction.CLOSE:
-            get_console().print(Panel(close_comment, title="Proposed close comment", border_style="red"))
-        get_console().print(f"  [bold]{reason}[/]")
-
-        if dry_run:
-            action_label = {
-                TriageAction.DRAFT: "draft",
-                TriageAction.COMMENT: "add comment",
-                TriageAction.CLOSE: "close",
-                TriageAction.READY: "ready",
-                TriageAction.SKIP: "skip",
-            }[default_action]
-            get_console().print(f"[warning]Dry run — would default to: {action_label}[/]")
-            continue
-
-        action = prompt_triage_action(
-            f"Action for PR {_pr_link(pr)}?",
-            default=default_action,
-            forced_answer=answer_triage,
-        )
-
-        if action == TriageAction.QUIT:
-            get_console().print("[warning]Quitting.[/]")
-            quit_early = True
-            break
-
-        if action == TriageAction.SKIP:
-            get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
-            total_skipped_action += 1
-            continue
-
-        if action == TriageAction.READY:
-            get_console().print(
-                f"  [info]Marking PR {_pr_link(pr)} as ready — adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
-            )
-            if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
-                get_console().print(
-                    f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
-                )
-                total_ready += 1
-            else:
-                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
-            continue
-
-        if action == TriageAction.COMMENT:
-            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
-            if _post_comment(token, pr.node_id, comment_only):
-                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
-                total_commented += 1
-            else:
-                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
-            continue
-
-        if action == TriageAction.DRAFT:
-            get_console().print(f"  Converting PR {_pr_link(pr)} to draft...")
-            if _convert_pr_to_draft(token, pr.node_id):
-                get_console().print(f"  [success]PR {_pr_link(pr)} converted to draft.[/]")
-            else:
-                get_console().print(f"  [error]Failed to convert PR {_pr_link(pr)} to draft.[/]")
-                continue
-
-            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
-            if _post_comment(token, pr.node_id, comment):
-                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
-                total_converted += 1
-            else:
-                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
-            continue
-
-        if action == TriageAction.CLOSE:
-            get_console().print(f"  Closing PR {_pr_link(pr)}...")
-            if _close_pr(token, pr.node_id):
-                get_console().print(f"  [success]PR {_pr_link(pr)} closed.[/]")
-            else:
-                get_console().print(f"  [error]Failed to close PR {_pr_link(pr)}.[/]")
-                continue
-
-            if _add_label(token, github_repository, pr.node_id, _CLOSED_QUALITY_LABEL):
-                get_console().print(
-                    f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR {_pr_link(pr)}.[/]"
-                )
-            else:
-                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
-
-            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
-            if _post_comment(token, pr.node_id, close_comment):
-                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
-                total_closed += 1
-            else:
-                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
-
-    # Phase 5b: Present passing PRs for optional ready-for-review marking
-    if not quit_early and passing_prs:
-        passing_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
-        get_console().print(
-            f"\n[info]{len(passing_prs)} {'PRs pass' if len(passing_prs) != 1 else 'PR passes'} "
-            f"all checks — review to mark as ready:[/]\n"
-        )
-        for pr in passing_prs:
-            author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
-            _display_pr_info_panels(pr, author_profile)
-
-            if dry_run:
-                get_console().print("[warning]Dry run — skipping.[/]")
-                continue
-
-            action = prompt_triage_action(
-                f"Action for PR {_pr_link(pr)}?",
-                default=TriageAction.SKIP,
-                forced_answer=answer_triage,
-            )
-
-            if action == TriageAction.QUIT:
-                get_console().print("[warning]Quitting.[/]")
-                quit_early = True
-                break
-
-            if action == TriageAction.READY:
-                get_console().print(
-                    f"  [info]Marking PR {_pr_link(pr)} as ready "
-                    f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
-                )
-                if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
-                    get_console().print(
-                        f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
-                    )
-                    total_ready += 1
-                else:
-                    get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
-            else:
-                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
-                total_skipped_action += 1
-
-    # Phase 6: Present NOT_RUN PRs for workflow approval
-    total_workflows_approved = 0
     if not quit_early and pending_approval:
         pending_approval.sort(key=lambda p: (p.author_login.lower(), p.number))
         get_console().print(
             f"\n[info]{len(pending_approval)} {'PRs have' if len(pending_approval) != 1 else 'PR has'} "
-            f"no test workflows run — review and approve workflow runs:[/]\n"
+            f"no test workflows run — review and approve workflow runs"
+            f"{' (LLM assessments running in background)' if llm_future_to_pr else ''}:[/]\n"
         )
         for pr in pending_approval:
+            # Collect any completed LLM results and show progress
+            if llm_future_to_pr:
+                _collect_llm_results(
+                    llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing
+                )
+                progress = _llm_progress_status(
+                    len(llm_completed),
+                    len(llm_future_to_pr),
+                    len(llm_assessments),
+                    len(llm_errors),
+                )
+                if progress:
+                    get_console().print(progress)
+
             author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
             pending_runs = _find_pending_workflow_runs(token, github_repository, pr.head_sha)
             _display_workflow_approval_panel(pr, author_profile, pending_runs)
@@ -2069,6 +2005,7 @@ def auto_triage(
                     break
                 if action == TriageAction.SKIP:
                     get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                    pr_actions[pr.number] = "skipped"
                     continue
                 if action == TriageAction.CLOSE:
                     get_console().print(f"  Closing PR {_pr_link(pr)}...")
@@ -2087,11 +2024,11 @@ def auto_triage(
                     if _post_comment(token, pr.node_id, close_comment):
                         get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                         total_closed += 1
+                        pr_actions[pr.number] = "closed"
                     else:
                         get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
                     continue
                 # For DRAFT or READY, fall through to normal workflow approval
-                # (approve workflows first, then triage later)
 
             if dry_run:
                 get_console().print("[warning]Dry run — skipping workflow approval.[/]")
@@ -2185,6 +2122,7 @@ def auto_triage(
                     f"{'PRs' if len(author_prs) != 1 else 'PR'}, commented on {commented}.[/]"
                 )
                 total_closed += closed
+                pr_actions[pr.number] = "suspicious"
                 continue
 
             approved = _approve_workflow_runs(token, github_repository, pending_runs)
@@ -2195,10 +2133,395 @@ def auto_triage(
                     f"{_pr_link(pr)}.[/]"
                 )
                 total_workflows_approved += 1
+                pr_actions[pr.number] = "approved"
             else:
                 get_console().print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
 
+    # Phase 5a: Present deterministically flagged PRs for interactive review
+    # LLM assessments continue running in background during this phase
+
+    # Build sorted list of deterministic-flagged PRs grouped by author
+    det_flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
+    det_flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
+
+    if det_flagged_prs:
+        get_console().print(
+            f"\n[info]Reviewing {len(det_flagged_prs)} deterministically flagged "
+            f"{'PRs' if len(det_flagged_prs) != 1 else 'PR'}"
+            f"{' (LLM assessments running in background)' if llm_future_to_pr else ''}...[/]\n"
+        )
+
+    current_author: str | None = None
+    for pr, assessment in det_flagged_prs:
+        if pr.author_login != current_author:
+            current_author = pr.author_login
+            count = author_flagged_count[current_author]
+            get_console().print()
+            get_console().rule(
+                f"[bold]Author: {current_author}[/] ({count} flagged PR{'s' if count != 1 else ''})",
+                style="cyan",
+            )
+
+        # Collect any completed LLM results and show progress
+        if llm_future_to_pr:
+            _collect_llm_results(llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing)
+            progress = _llm_progress_status(
+                len(llm_completed),
+                len(llm_future_to_pr),
+                len(llm_assessments),
+                len(llm_errors),
+            )
+            if progress:
+                get_console().print(progress)
+
+        # Fetch author profile for context (only for flagged PRs)
+        author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+
+        comment = _build_comment(
+            pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
+        )
+        close_comment = _build_close_comment(
+            pr.author_login,
+            assessment.violations,
+            pr.number,
+            author_flagged_count.get(pr.author_login, 0),
+        )
+        _display_pr_panel(pr, author_profile, assessment, comment)
+
+        default_action, reason = _compute_default_action(pr, assessment, author_flagged_count)
+        if default_action == TriageAction.CLOSE:
+            get_console().print(Panel(close_comment, title="Proposed close comment", border_style="red"))
+        get_console().print(f"  [bold]{reason}[/]")
+
+        if dry_run:
+            action_label = {
+                TriageAction.DRAFT: "draft",
+                TriageAction.CLOSE: "close",
+                TriageAction.READY: "ready",
+                TriageAction.SKIP: "skip",
+            }[default_action]
+            get_console().print(f"[warning]Dry run — would default to: {action_label}[/]")
+            continue
+
+        action = prompt_triage_action(
+            f"Action for PR {_pr_link(pr)}?",
+            default=default_action,
+            forced_answer=answer_triage,
+        )
+
+        if action == TriageAction.QUIT:
+            get_console().print("[warning]Quitting.[/]")
+            quit_early = True
+            break
+
+        if action == TriageAction.SKIP:
+            get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+            total_skipped_action += 1
+            pr_actions[pr.number] = "skipped"
+            continue
+
+        if action == TriageAction.READY:
+            get_console().print(
+                f"  [info]Marking PR {_pr_link(pr)} as ready — adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+            )
+            if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                get_console().print(
+                    f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                )
+                total_ready += 1
+                pr_actions[pr.number] = "ready"
+            else:
+                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            continue
+
+        if action == TriageAction.DRAFT:
+            get_console().print(f"  Converting PR {_pr_link(pr)} to draft...")
+            if _convert_pr_to_draft(token, pr.node_id):
+                get_console().print(f"  [success]PR {_pr_link(pr)} converted to draft.[/]")
+            else:
+                get_console().print(f"  [error]Failed to convert PR {_pr_link(pr)} to draft.[/]")
+                continue
+
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+            if _post_comment(token, pr.node_id, comment):
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                total_converted += 1
+                pr_actions[pr.number] = "drafted"
+            else:
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+            continue
+
+        if action == TriageAction.CLOSE:
+            get_console().print(f"  Closing PR {_pr_link(pr)}...")
+            if _close_pr(token, pr.node_id):
+                get_console().print(f"  [success]PR {_pr_link(pr)} closed.[/]")
+            else:
+                get_console().print(f"  [error]Failed to close PR {_pr_link(pr)}.[/]")
+                continue
+
+            if _add_label(token, github_repository, pr.node_id, _CLOSED_QUALITY_LABEL):
+                get_console().print(
+                    f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                )
+            else:
+                get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+            if _post_comment(token, pr.node_id, close_comment):
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                total_closed += 1
+                pr_actions[pr.number] = "closed"
+            else:
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+
+    # Phase 5b: Present LLM-flagged PRs as they become ready (no blocking wait)
+    total_llm_errors = 0
+    llm_presented: set[int] = set()  # PR numbers already presented to user
+    if not quit_early and llm_future_to_pr:
+        # Collect whatever has completed so far
+        _collect_llm_results(llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing)
+
+        # Loop: present flagged PRs as they arrive, keep collecting new results
+        while not quit_early:
+            # Find newly flagged PRs not yet presented
+            new_flagged = [
+                (pr, llm_assessments[pr.number])
+                for pr in llm_candidates
+                if pr.number in llm_assessments and pr.number not in llm_presented
+            ]
+            new_flagged.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
+
+            if new_flagged:
+                remaining = len(llm_future_to_pr) - len(llm_completed)
+                status_parts = [f"{len(llm_completed)}/{len(llm_future_to_pr)} done"]
+                if remaining:
+                    status_parts.append(f"{remaining} still running")
+                get_console().print(
+                    f"\n[info]{len(new_flagged)} new LLM-flagged "
+                    f"{'PRs' if len(new_flagged) != 1 else 'PR'} ready for review "
+                    f"({', '.join(status_parts)}):[/]\n"
+                )
+
+                for pr, assessment in new_flagged:
+                    llm_presented.add(pr.number)
+                    author_flagged_count[pr.author_login] = author_flagged_count.get(pr.author_login, 0) + 1
+
+                    author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+
+                    comment = _build_comment(
+                        pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
+                    )
+                    comment_only = _build_comment(
+                        pr.author_login,
+                        assessment.violations,
+                        pr.number,
+                        pr.commits_behind,
+                        pr.base_ref,
+                        comment_only=True,
+                    )
+                    close_comment = _build_close_comment(
+                        pr.author_login,
+                        assessment.violations,
+                        pr.number,
+                        author_flagged_count.get(pr.author_login, 0),
+                    )
+                    _display_pr_panel(pr, author_profile, assessment, comment)
+
+                    default_action, reason = _compute_default_action(pr, assessment, author_flagged_count)
+                    if default_action == TriageAction.CLOSE:
+                        get_console().print(
+                            Panel(close_comment, title="Proposed close comment", border_style="red")
+                        )
+                    get_console().print(f"  [bold]{reason}[/]")
+
+                    if dry_run:
+                        action_label = {
+                            TriageAction.DRAFT: "draft",
+                            TriageAction.COMMENT: "add comment",
+                            TriageAction.CLOSE: "close",
+                            TriageAction.READY: "ready",
+                            TriageAction.SKIP: "skip",
+                        }[default_action]
+                        get_console().print(f"[warning]Dry run — would default to: {action_label}[/]")
+                        # Collect more results while in dry-run
+                        _collect_llm_results(
+                            llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing
+                        )
+                        continue
+
+                    action = prompt_triage_action(
+                        f"Action for PR {_pr_link(pr)}?",
+                        default=default_action,
+                        forced_answer=answer_triage,
+                    )
+
+                    # While user was deciding, more results may have arrived
+                    _collect_llm_results(
+                        llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing
+                    )
+
+                    if action == TriageAction.QUIT:
+                        get_console().print("[warning]Quitting.[/]")
+                        quit_early = True
+                        break
+
+                    if action == TriageAction.SKIP:
+                        get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                        total_skipped_action += 1
+                        continue
+
+                    if action == TriageAction.READY:
+                        get_console().print(
+                            f"  [info]Marking PR {_pr_link(pr)} as ready "
+                            f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                        )
+                        if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                            get_console().print(
+                                f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                            )
+                            total_ready += 1
+                        else:
+                            get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+                        continue
+
+                    if action == TriageAction.COMMENT:
+                        get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+                        if _post_comment(token, pr.node_id, comment_only):
+                            get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                            total_commented += 1
+                        else:
+                            get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+                        continue
+
+                    if action == TriageAction.DRAFT:
+                        get_console().print(f"  Converting PR {_pr_link(pr)} to draft...")
+                        if _convert_pr_to_draft(token, pr.node_id):
+                            get_console().print(f"  [success]PR {_pr_link(pr)} converted to draft.[/]")
+                        else:
+                            get_console().print(f"  [error]Failed to convert PR {_pr_link(pr)} to draft.[/]")
+                            continue
+
+                        get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+                        if _post_comment(token, pr.node_id, comment):
+                            get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                            total_converted += 1
+                        else:
+                            get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+                        continue
+
+                    if action == TriageAction.CLOSE:
+                        get_console().print(f"  Closing PR {_pr_link(pr)}...")
+                        if _close_pr(token, pr.node_id):
+                            get_console().print(f"  [success]PR {_pr_link(pr)} closed.[/]")
+                        else:
+                            get_console().print(f"  [error]Failed to close PR {_pr_link(pr)}.[/]")
+                            continue
+
+                        if _add_label(token, github_repository, pr.node_id, _CLOSED_QUALITY_LABEL):
+                            get_console().print(
+                                f"  [success]Label '{_CLOSED_QUALITY_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                            )
+                        else:
+                            get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+
+                        get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+                        if _post_comment(token, pr.node_id, close_comment):
+                            get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                            total_closed += 1
+                        else:
+                            get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+
+            # Check if all futures are done
+            if len(llm_completed) >= len(llm_future_to_pr):
+                break
+
+            # Still pending — wait briefly for more results, then loop back
+            get_console().print(
+                f"[dim]Waiting for {len(llm_future_to_pr) - len(llm_completed)} "
+                f"remaining LLM {'assessments' if len(llm_future_to_pr) - len(llm_completed) != 1 else 'assessment'}...[/]"
+            )
+            time.sleep(2)
+            _collect_llm_results(llm_future_to_pr, llm_assessments, llm_completed, llm_errors, llm_passing)
+
+        total_llm_errors = len(llm_errors)
+        get_console().print(
+            f"\n[info]LLM assessment complete: {len(llm_assessments)} flagged, "
+            f"{len(llm_passing)} passed, {total_llm_errors} errors "
+            f"(out of {len(llm_future_to_pr)} assessed).[/]\n"
+        )
+
+        # Add LLM passing PRs to the passing list
+        passing_prs.extend(llm_passing)
+
+    # Phase 5c: Present passing PRs for optional ready-for-review marking
+    if not quit_early and passing_prs:
+        passing_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+        get_console().print(
+            f"\n[info]{len(passing_prs)} {'PRs pass' if len(passing_prs) != 1 else 'PR passes'} "
+            f"all checks — review to mark as ready:[/]\n"
+        )
+        for pr in passing_prs:
+            author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+            _display_pr_info_panels(pr, author_profile)
+
+            if dry_run:
+                get_console().print("[warning]Dry run — skipping.[/]")
+                continue
+
+            action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=TriageAction.SKIP,
+                forced_answer=answer_triage,
+            )
+
+            if action == TriageAction.QUIT:
+                get_console().print("[warning]Quitting.[/]")
+                quit_early = True
+                break
+
+            if action == TriageAction.SKIP:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                total_skipped_action += 1
+                pr_actions[pr.number] = "skipped"
+                continue
+
+            if action == TriageAction.READY:
+                get_console().print(
+                    f"  [info]Marking PR {_pr_link(pr)} as ready "
+                    f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                )
+                if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                    get_console().print(
+                        f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                    )
+                    total_ready += 1
+                    pr_actions[pr.number] = "ready"
+                else:
+                    get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            else:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                total_skipped_action += 1
+                pr_actions[pr.number] = "skipped"
+
+    # Shut down LLM executor if it was started
+    if llm_executor is not None:
+        llm_executor.shutdown(wait=False, cancel_futures=True)
+
+    # Combine flagged counts for summary
+    total_flagged = total_deterministic_flags + len(llm_assessments)
+    total_llm_flagged = len(llm_assessments)
+
+    get_console().print(
+        f"\n[info]Assessment complete: {total_flagged} {'PRs' if total_flagged != 1 else 'PR'} "
+        f"flagged ({total_deterministic_flags} CI/conflicts/comments, "
+        f"{total_llm_flagged} LLM-flagged"
+        f"{f', {total_llm_errors} LLM errors' if total_llm_errors else ''}"
+        f"{f', {len(pending_approval)} awaiting workflow approval' if pending_approval else ''}"
+        f").[/]\n"
+    )
+
     # Summary
+    t_total_end = time.monotonic()
     get_console().print()
     summary_table = Table(title="Summary")
     summary_table.add_column("Metric", style="bold")
@@ -2212,7 +2535,7 @@ def auto_triage(
     summary_table.add_row("PRs skipped (filtered)", str(total_skipped))
     summary_table.add_row("PRs assessed", str(len(candidate_prs)))
     summary_table.add_row("Flagged by CI/conflicts/comments", str(total_deterministic_flags))
-    summary_table.add_row("Flagged by LLM", str(total_flagged - total_deterministic_flags))
+    summary_table.add_row("Flagged by LLM", str(total_llm_flagged))
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))
     summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
@@ -2224,3 +2547,155 @@ def auto_triage(
     summary_table.add_row("Awaiting workflow approval", str(len(pending_approval)))
     summary_table.add_row("PRs with workflows approved", str(total_workflows_approved))
     get_console().print(summary_table)
+
+    # Timing summary
+    get_console().print()
+    timing_table = Table(title="Timing Summary")
+    timing_table.add_column("Phase", style="bold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PRs", justify="right")
+    timing_table.add_column("Avg/PR", justify="right")
+    timing_table.add_column("Min/PR", justify="right")
+    timing_table.add_column("Max/PR", justify="right")
+
+    num_all = len(all_prs) or 1
+    num_candidates = len(candidate_prs) or 1
+
+    phase1_total = t_phase1_end - t_phase1_start
+    timing_table.add_row(
+        "Fetch PRs + commits behind",
+        _fmt_duration(phase1_total),
+        str(len(all_prs)),
+        _fmt_duration(phase1_total / num_all),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2b_total = t_phase2b_end - t_phase2b_start
+    timing_table.add_row(
+        "Fetch checks + resolve mergeability",
+        _fmt_duration(phase2b_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2b_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2c_total = t_phase2c_end - t_phase2b_end
+    timing_table.add_row(
+        "Fetch review comments",
+        _fmt_duration(phase2c_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2c_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    if deterministic_timings:
+        det_values = list(deterministic_timings.values())
+        det_total = sum(det_values)
+        timing_table.add_row(
+            "Deterministic triage",
+            _fmt_duration(det_total),
+            str(len(det_values)),
+            _fmt_duration(det_total / len(det_values)),
+            _fmt_duration(min(det_values)),
+            _fmt_duration(max(det_values)),
+        )
+    else:
+        timing_table.add_row("Deterministic triage", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    llm_count = len(llm_completed)
+    llm_wall_time = t_total_end - t_phase2c_end  # LLM runs in background across all interactive phases
+    if llm_count:
+        timing_table.add_row(
+            "LLM assessment (background)",
+            _fmt_duration(llm_wall_time),
+            str(llm_count),
+            "[dim]—[/]",
+            "[dim]—[/]",
+            "[dim]—[/]",
+        )
+    else:
+        timing_table.add_row(
+            "LLM assessment (background)", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]"
+        )
+
+    timing_table.add_row(
+        "Interactive review (overlaps LLM)",
+        _fmt_duration(t_total_end - t_phase2c_end),
+        "",
+        "",
+        "",
+        "",
+    )
+    timing_table.add_row("", "", "", "", "", "")
+    timing_table.add_row(
+        "[bold]Total[/]",
+        f"[bold]{_fmt_duration(t_total_end - t_total_start)}[/]",
+        "",
+        "",
+        "",
+        "",
+    )
+    get_console().print(timing_table)
+
+    if deterministic_timings:
+        pr_titles = {pr.number: pr.title for pr in candidate_prs}
+        # Amortize batch fetch time evenly across candidate PRs
+        num_candidates = len(candidate_prs) or 1
+        fetch_per_pr = (t_phase2b_end - t_phase2b_start + t_phase2c_end - t_phase2b_end) / num_candidates
+
+        action_styles = {
+            "drafted": "[yellow]drafted[/]",
+            "commented": "[yellow]commented[/]",
+            "closed": "[red]closed[/]",
+            "ready": "[success]ready[/]",
+            "skipped": "[dim]skipped[/]",
+            "approved": "[success]approved[/]",
+            "suspicious": "[red]suspicious[/]",
+        }
+
+        pr_timing_table = Table(title="Per-PR Phase Timing")
+        pr_timing_table.add_column("PR", style="bold")
+        pr_timing_table.add_column("Title")
+        pr_timing_table.add_column("Result")
+        pr_timing_table.add_column("Action")
+        pr_timing_table.add_column("Fetch (avg)", justify="right")
+        pr_timing_table.add_column("Deterministic", justify="right")
+        pr_timing_table.add_column("Total", justify="right")
+
+        all_pr_numbers = sorted(
+            deterministic_timings.keys(),
+            key=lambda n: deterministic_timings.get(n, 0) + fetch_per_pr,
+            reverse=True,
+        )
+        for pr_num in all_pr_numbers:
+            title = pr_titles.get(pr_num, "")[:60]
+            det_time = deterministic_timings.get(pr_num, 0)
+            total_time = fetch_per_pr + det_time
+
+            if pr_num in assessments or pr_num in llm_assessments:
+                result = "[red]flagged[/]"
+            elif any(pr.number == pr_num for pr in passing_prs) or any(
+                pr.number == pr_num for pr in llm_passing
+            ):
+                result = "[success]passed[/]"
+            elif any(pr.number == pr_num for pr in pending_approval):
+                result = "[dim]pending[/]"
+            else:
+                result = "[yellow]error[/]"
+
+            action_raw = pr_actions.get(pr_num, "")
+            action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+
+            pr_timing_table.add_row(
+                f"#{pr_num}",
+                title,
+                result,
+                action_display,
+                _fmt_duration(fetch_per_pr),
+                _fmt_duration(det_time) if det_time else "[dim]—[/]",
+                _fmt_duration(total_time),
+            )
+        get_console().print(pr_timing_table)
