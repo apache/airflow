@@ -768,7 +768,7 @@ class TestGetSqlEndpointByName:
         type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
 
         hook = DatabricksSqlHook(sql_endpoint_name="Nonexistent Warehouse")
-        with pytest.raises(AirflowException, match="Can't find Databricks SQL warehouse with name"):
+        with pytest.raises(ValueError, match="Can't find Databricks SQL warehouse with name"):
             hook._get_sql_endpoint_by_name("Nonexistent Warehouse")
 
     @patch("airflow.providers.databricks.hooks.databricks_base.requests")
@@ -779,5 +779,5 @@ class TestGetSqlEndpointByName:
         type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
 
         hook = DatabricksSqlHook(sql_endpoint_name="Test")
-        with pytest.raises(AirflowException, match="Can't list Databricks SQL warehouses"):
+        with pytest.raises(RuntimeError, match="Can't list Databricks SQL warehouses"):
             hook._get_sql_endpoint_by_name("Test")

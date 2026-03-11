@@ -125,11 +125,15 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         # - "endpoints" for the legacy /api/2.0/sql/endpoints path
         warehouses = result.get("warehouses") or result.get("endpoints")
         if not warehouses:
-            raise AirflowException("Can't list Databricks SQL warehouses")
+            raise RuntimeError(
+                "Can't list Databricks SQL warehouses. The API response contained neither "
+                "'warehouses' nor 'endpoints' key. Check that the connection has sufficient "
+                "permissions to list SQL warehouses."
+            )
         try:
             endpoint = next(ep for ep in warehouses if ep["name"] == endpoint_name)
         except StopIteration:
-            raise AirflowException(f"Can't find Databricks SQL warehouse with name '{endpoint_name}'")
+            raise ValueError(f"Can't find Databricks SQL warehouse with name '{endpoint_name}'")
         else:
             return endpoint
 
