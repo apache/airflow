@@ -71,13 +71,13 @@
     "dataIntervalEnd": "Fim do Intervalo de Dados",
     "dataIntervalStart": "Início do Intervalo de Dados",
     "lastSchedulingDecision": "Última Decisão de Agendamento",
+    "mappedPartitionKey": "Chave de partição mapeada",
+    "partitionKey": "Chave de partição",
     "queuedAt": "Enfileirado Em",
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
     "sourceAssetEvent": "Evento de Asset de Origem",
     "triggeredBy": "Acionado por",
-    "mappedPartitionKey": "Chave de partição mapeada",
-    "partitionKey": "Chave de partição",
     "triggeringUser": "Nome do Usuário que Disparou"
   },
   "dagRun_many": "Execuções do Dag",
@@ -173,13 +173,13 @@
     "placeholder": "Adicionar uma nota...",
     "taskInstance": "Nota da Instância de Tarefa"
   },
-  "partitionedDagRunDetail": {
-    "receivedAssetEvents": "Eventos de Asset recebidos"
-  },
   "partitionedDagRun_many": "Execuções de Dag Particionadas",
   "partitionedDagRun_one": "Execução de Dag Particionada",
   "partitionedDagRun_other": "Execuções de Dag Particionadas",
   "partitionedDagRun_zero": "Nenhuma execução de dag particionada",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Eventos de Asset recebidos"
+  },
   "pendingDagRun_many": "{{count}} Execuções de Dag Pendentes",
   "pendingDagRun_one": "{{count}} Execução de Dag Pendente",
   "pendingDagRun_other": "{{count}} Execuções de Dag Pendentes",

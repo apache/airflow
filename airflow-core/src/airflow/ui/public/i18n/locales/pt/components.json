@@ -46,13 +46,6 @@
     "configJson": "Configuração JSON",
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
-  "dateRangeFilter": {
-    "validation": {
-      "invalidDateFormat": "Formato de data inválido.",
-      "invalidTimeFormat": "Formato de hora inválido.",
-      "startBeforeEnd": "A data/hora de início deve ser anterior à data/hora de fim"
-    }
-  },
   "dagWarnings": {
     "error_many": "{{count}} Erros",
     "error_one": "1 Erro",
@@ -63,6 +56,13 @@
     "warning_one": "1 Aviso",
     "warning_other": "{{count}} Avisos",
     "warning_zero": "Nenhum aviso"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Formato de data inválido.",
+      "invalidTimeFormat": "Formato de hora inválido.",
+      "startBeforeEnd": "A data/hora de início deve ser anterior à data/hora de fim"
+    }
   },
   "durationChart": {
     "duration": "Duração (segundos)",
@@ -128,6 +128,9 @@
   },
   "reparseDag": "Reparse Dag",
   "sortedAscending": "Ordenado em ordem crescente",
+  "sortedDescending": "Ordenado em ordem decrescente",
+  "sortedUnsorted": "Não ordenado",
+  "taskTries": "Tentativas de Tarefa",
   "taskTryPlaceholder": "Tentativa de Tarefa",
   "team": {
     "selector": {
@@ -136,9 +139,6 @@
       "placeHolder": "Selecionar uma equipa"
     }
   },
-  "sortedDescending": "Ordenado em ordem decrescente",
-  "sortedUnsorted": "Não ordenado",
-  "taskTries": "Tentativas de Tarefa",
   "toggleCardView": "Mostrar visualização de cartão",
   "toggleTableView": "Mostrar visualização de tabela",
   "triggerDag": {
