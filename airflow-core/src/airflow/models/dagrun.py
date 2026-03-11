@@ -1987,29 +1987,56 @@ class DagRun(Base, LoggingMixin):
                 empty_ti_ids.append(ti.id)
 
         count = 0
+        # Guard updates by state as well as TI id so stale scheduler views do not
+        # re-schedule already transitioned rows in HA race windows.
+        non_null_schedulable_states = tuple(s for s in SCHEDULEABLE_STATES if s is not None)
+        schedulable_state_clause = or_(
+            TI.state.is_(None),
+            TI.state.in_(non_null_schedulable_states),
+        )
+        non_reschedule_schedulable_states = tuple(
+            s for s in non_null_schedulable_states if s != TaskInstanceState.UP_FOR_RESCHEDULE
+        )
+        incrementing_schedulable_state_clause = (
+            or_(
+                TI.state.is_(None),
+                TI.state.in_(non_reschedule_schedulable_states),
+            )
+            if non_reschedule_schedulable_states
+            else TI.state.is_(None)
+        )
 
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for id_chunk in schedulable_ti_ids_chunks:
-                result = session.execute(
+                up_for_reschedule_result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(
+                        TI.id.in_(id_chunk),
+                        schedulable_state_clause,
+                        TI.state == TaskInstanceState.UP_FOR_RESCHEDULE,
+                    )
                     .values(
+                        try_number=TI.try_number,
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
-                        try_number=case(
-                            (
-                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
-                                TI.try_number + 1,
-                            ),
-                            else_=TI.try_number,
-                        ),
                     )
                     .execution_options(synchronize_session=False)
                 )
-                count += getattr(result, "rowcount", 0)
+                incrementing_result = session.execute(
+                    update(TI)
+                    .where(TI.id.in_(id_chunk), incrementing_schedulable_state_clause)
+                    .values(
+                        try_number=TI.try_number + 1,
+                        state=TaskInstanceState.SCHEDULED,
+                        scheduled_dttm=timezone.utcnow(),
+                    )
+                    .execution_options(synchronize_session=False)
+                )
+                count += getattr(up_for_reschedule_result, "rowcount", 0)
+                count += getattr(incrementing_result, "rowcount", 0)
                 if debug_try_number_check:
                     rows = session.execute(
                         select(TI.id, TI.try_number, TI.state).where(TI.id.in_(id_chunk))
@@ -2026,6 +2053,8 @@ class DagRun(Base, LoggingMixin):
                             continue
                         expected_try_number, pre_update_try_number, pre_update_state = expected
                         db_try_number, db_state = db_row
+                        if db_state != TaskInstanceState.SCHEDULED:
+                            continue
                         if db_try_number != expected_try_number:
                             self.log.warning(
                                 "schedule_tis: try_number mismatch after scheduling for ti_id=%s "
@@ -2047,21 +2076,40 @@ class DagRun(Base, LoggingMixin):
         if empty_ti_ids:
             dummy_ti_ids_chunks = chunks(empty_ti_ids, max_tis_per_query or len(empty_ti_ids))
             for id_chunk in dummy_ti_ids_chunks:
-                result = session.execute(
+                up_for_reschedule_result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(
+                        TI.id.in_(id_chunk),
+                        schedulable_state_clause,
+                        TI.state == TaskInstanceState.UP_FOR_RESCHEDULE,
+                    )
                     .values(
+                        try_number=TI.try_number,
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,
-                        try_number=TI.try_number + 1,
                     )
                     .execution_options(
                         synchronize_session=False,
                     )
                 )
-                count += getattr(result, "rowcount", 0)
+                incrementing_result = session.execute(
+                    update(TI)
+                    .where(TI.id.in_(id_chunk), incrementing_schedulable_state_clause)
+                    .values(
+                        try_number=TI.try_number + 1,
+                        state=TaskInstanceState.SUCCESS,
+                        start_date=timezone.utcnow(),
+                        end_date=timezone.utcnow(),
+                        duration=0,
+                    )
+                    .execution_options(
+                        synchronize_session=False,
+                    )
+                )
+                count += getattr(up_for_reschedule_result, "rowcount", 0)
+                count += getattr(incrementing_result, "rowcount", 0)
 
         return count
 
