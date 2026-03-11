@@ -480,7 +480,11 @@ class TestReassignDagsWithUnconfiguredBundles:
     """Tests for DagBundlesManager.reassign_dags_with_unconfigured_bundles."""
 
     def _manager_with_bundle_names(self, names: list[str]) -> DagBundlesManager:
-        """Return a DagBundlesManager whose bundle_names property returns *names*."""
+        """Return a DagBundlesManager whose ``bundle_names`` property returns *names*.
+
+        :param names: Bundle names to expose via the ``bundle_names`` property.
+        :return: A patched ``DagBundlesManager`` instance.
+        """
         with patch.dict(
             os.environ,
             {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)},
@@ -494,124 +498,120 @@ class TestReassignDagsWithUnconfiguredBundles:
         return manager
 
     def test_no_configured_bundles_raises(self, clear_dags_and_bundles, session):
+        """Raise AirflowConfigException when no bundles are configured."""
         manager = self._manager_with_bundle_names([])
         with pytest.raises(AirflowConfigException, match="No Dag bundles are currently configured"):
             manager.reassign_dags_with_unconfigured_bundles(session=session)
 
-    def test_no_stale_dags_returns_zero(self, clear_dags_and_bundles, session):
-        session.add(DagBundleModel(name="bundle-a"))
-        session.flush()
-        _add_dag(session, "dag-1", "bundle-a")
+    @pytest.mark.parametrize(
+        ("configured_names", "dag_setups", "expected_count", "expected_bundle"),
+        [
+            pytest.param(
+                ["bundle-a"],
+                [("dag-1", "bundle-a")],
+                0,
+                "bundle-a",
+                id="no_stale_dags",
+            ),
+            pytest.param(
+                ["new-bundle"],
+                [("dag-1", "old-bundle"), ("dag-2", "old-bundle"), ("dag-3", "new-bundle")],
+                2,
+                "new-bundle",
+                id="unconfigured_bundle_reassigned",
+            ),
+            pytest.param(
+                ["primary", "secondary"],
+                [("dag-1", "removed-bundle")],
+                1,
+                "primary",
+                id="first_configured_bundle_is_default",
+            ),
+            pytest.param(
+                ["active"],
+                [("dag-1", "old-a"), ("dag-2", "old-b"), ("dag-3", "active")],
+                2,
+                "active",
+                id="multiple_unconfigured_bundles",
+            ),
+        ],
+    )
+    def test_reassign(
+        self,
+        clear_dags_and_bundles,
+        session,
+        configured_names: list[str],
+        dag_setups: list[tuple[str, str]],
+        expected_count: int,
+        expected_bundle: str,
+    ) -> None:
+        """Reassign DAGs with unconfigured bundle names to the first configured bundle.
 
-        manager = self._manager_with_bundle_names(["bundle-a"])
+        :param configured_names: Bundle names to treat as configured.
+        :param dag_setups: Pairs of (dag_id, bundle_name) to insert before reassignment.
+        :param expected_count: Number of DAGs expected to be reassigned.
+        :param expected_bundle: Bundle name all DAGs should have after reassignment.
+        """
+        all_bundle_names = {bundle_name for _, bundle_name in dag_setups} | set(configured_names)
+        session.add_all(DagBundleModel(name=name) for name in all_bundle_names)
+        session.flush()
+
+        for dag_id, bundle_name in dag_setups:
+            _add_dag(session, dag_id, bundle_name)
+
+        manager = self._manager_with_bundle_names(configured_names)
         count = manager.reassign_dags_with_unconfigured_bundles(session=session)
-        assert count == 0
+
+        assert count == expected_count
+        for dag_id, _ in dag_setups:
+            assert session.get(DagModel, dag_id).bundle_name == expected_bundle
+
+
+@pytest.mark.db_test
+class TestSyncAndReassign:
+    """Tests for sync_bundles_to_db followed by reassign_dags_with_unconfigured_bundles."""
+
+    def _sync_and_reassign(self, config: list[dict], session) -> None:
+        """Sync bundles to DB and reassign DAGs with unconfigured bundles.
+
+        :param config: Bundle config list to use for this sync cycle.
+        :param session: SQLAlchemy session.
+        """
+        with patch.dict(
+            os.environ,
+            {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(config)},
+        ):
+            manager = DagBundlesManager()
+            manager.sync_bundles_to_db(session=session)
+            manager.reassign_dags_with_unconfigured_bundles(session=session)
+        session.commit()
+
+    @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+    @pytest.mark.parametrize(
+        ("second_config", "expected_bundle"),
+        [
+            pytest.param(SECOND_BUNDLE_CONFIG, "second-bundle", id="bundle_removed_dag_reassigned"),
+            pytest.param(BASIC_BUNDLE_CONFIG, "my-test-bundle", id="bundle_active_dag_unchanged"),
+        ],
+    )
+    def test_sync_reassigns_or_preserves_dag_bundle(
+        self,
+        clear_dags_and_bundles,
+        session,
+        second_config: list[dict],
+        expected_bundle: str,
+    ) -> None:
+        """Reassign DAG bundle after sync when removed from config, leave it alone when still active.
+
+        :param second_config: Bundle config for the second sync cycle.
+        :param expected_bundle: Expected ``bundle_name`` on ``dag-1`` after the second sync.
+        """
+        self._sync_and_reassign(BASIC_BUNDLE_CONFIG, session)
+
+        _add_dag(session, "dag-1", "my-test-bundle")
+        session.commit()
+
+        self._sync_and_reassign(second_config, session)
 
         dag = session.get(DagModel, "dag-1")
-        assert dag.bundle_name == "bundle-a"
-
-    def test_dags_with_unconfigured_bundle_are_reassigned(self, clear_dags_and_bundles, session):
-        session.add(DagBundleModel(name="old-bundle"))
-        session.add(DagBundleModel(name="new-bundle"))
-        session.flush()
-
-        _add_dag(session, "dag-1", "old-bundle")
-        _add_dag(session, "dag-2", "old-bundle")
-        _add_dag(session, "dag-3", "new-bundle")
-
-        manager = self._manager_with_bundle_names(["new-bundle"])
-        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
-        assert count == 2
-
-        assert session.get(DagModel, "dag-1").bundle_name == "new-bundle"
-        assert session.get(DagModel, "dag-2").bundle_name == "new-bundle"
-        assert session.get(DagModel, "dag-3").bundle_name == "new-bundle"
-
-    def test_first_configured_bundle_is_used_as_default(self, clear_dags_and_bundles, session):
-        session.add(DagBundleModel(name="removed-bundle"))
-        session.add(DagBundleModel(name="primary"))
-        session.add(DagBundleModel(name="secondary"))
-        session.flush()
-
-        _add_dag(session, "dag-1", "removed-bundle")
-
-        manager = self._manager_with_bundle_names(["primary", "secondary"])
-        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
-        assert count == 1
-        assert session.get(DagModel, "dag-1").bundle_name == "primary"
-
-    def test_multiple_unconfigured_bundles(self, clear_dags_and_bundles, session):
-        session.add(DagBundleModel(name="old-a"))
-        session.add(DagBundleModel(name="old-b"))
-        session.add(DagBundleModel(name="active"))
-        session.flush()
-
-        _add_dag(session, "dag-1", "old-a")
-        _add_dag(session, "dag-2", "old-b")
-        _add_dag(session, "dag-3", "active")
-
-        manager = self._manager_with_bundle_names(["active"])
-        count = manager.reassign_dags_with_unconfigured_bundles(session=session)
-        assert count == 2
-
-        assert session.get(DagModel, "dag-1").bundle_name == "active"
-        assert session.get(DagModel, "dag-2").bundle_name == "active"
-        assert session.get(DagModel, "dag-3").bundle_name == "active"
-
-
-@pytest.mark.db_test
-@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_reassigns_dags_from_removed_bundle(clear_dags_and_bundles, session):
-    """sync_bundles_to_db reassigns DAGs when their bundle is removed from config."""
-    with patch.dict(
-        os.environ,
-        {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)},
-    ):
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db(session=session)
-        manager.reassign_dags_with_unconfigured_bundles(session=session)
-    session.commit()
-
-    _add_dag(session, "dag-1", "my-test-bundle")
-    session.commit()
-
-    with patch.dict(
-        os.environ,
-        {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(SECOND_BUNDLE_CONFIG)},
-    ):
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db(session=session)
-        manager.reassign_dags_with_unconfigured_bundles(session=session)
-    session.commit()
-
-    dag = session.get(DagModel, "dag-1")
-    assert dag.bundle_name == "second-bundle"
-
-
-@pytest.mark.db_test
-@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_does_not_reassign_dags_with_active_bundle(clear_dags_and_bundles, session):
-    """sync_bundles_to_db leaves DAGs alone when their bundle is still configured."""
-    with patch.dict(
-        os.environ,
-        {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)},
-    ):
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db(session=session)
-        manager.reassign_dags_with_unconfigured_bundles(session=session)
-    session.commit()
-
-    _add_dag(session, "dag-1", "my-test-bundle")
-    session.commit()
-
-    with patch.dict(
-        os.environ,
-        {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)},
-    ):
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db(session=session)
-        manager.reassign_dags_with_unconfigured_bundles(session=session)
-    session.commit()
-
-    dag = session.get(DagModel, "dag-1")
-    assert dag.bundle_name == "my-test-bundle"
+        assert dag.bundle_name == expected_bundle
