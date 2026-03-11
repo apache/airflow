@@ -347,6 +347,9 @@ def get_dag_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     dag_version: QueryDagRunVersionFilter,
+    bundle_version: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
+    ],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -408,6 +411,7 @@ def get_dag_runs(
             state,
             run_type,
             dag_version,
+            bundle_version,
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,

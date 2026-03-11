@@ -2285,6 +2285,14 @@ paths:
           items:
             type: integer
           title: Dag Version
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
