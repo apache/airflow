@@ -25,11 +25,21 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+import time_machine
 from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials, _bounded_get_new_password
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlKeyringException
+
+
+def make_client_w_responses(responses: list[httpx.Response]) -> Client:
+    """Get a client with custom responses."""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return responses.pop(0)
+
+    return Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
 
 @pytest.fixture(autouse=True)
@@ -314,3 +324,55 @@ class TestSaveKeyringPatching:
 
         assert not hasattr(mock_backend, "_get_new_password")
         mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "token")
+
+    def test_retry_handling_unrecoverable_error(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                *[httpx.Response(500, text="Internal Server Error")] * 6,
+                httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            with pytest.raises(httpx.HTTPStatusError) as err:
+                client.get("http://error")
+            assert not isinstance(err.value, ServerResponseError)
+            assert len(responses) == 5
+
+    def test_retry_handling_recovered(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                *[httpx.Response(500, text="Internal Server Error")] * 2,
+                httpx.Response(200, json={"detail": "Recovered from error"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            response = client.get("http://error")
+            assert response.status_code == 200
+            assert len(responses) == 1
+
+    def test_retry_handling_non_retry_error(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            with pytest.raises(ServerResponseError) as err:
+                client.get("http://error")
+            assert len(responses) == 1
+            assert err.value.args == ("Client error message: {'detail': 'Somehow this is a bad request'}",)
+
+    def test_retry_handling_ok(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                httpx.Response(200, json={"detail": "Recovered from error"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            response = client.get("http://error")
+            assert response.status_code == 200
+            assert len(responses) == 1

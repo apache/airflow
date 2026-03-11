@@ -21,12 +21,13 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
 lifecycle: production
-source-date-epoch: 1770752842
+source-date-epoch: 1773070980
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 13.0.1
   - 13.0.0
   - 12.10.3
   - 12.10.2
@@ -117,6 +118,12 @@ integrations:
       - /docs/apache-airflow-providers-microsoft-azure/operators/batch.rst
     logo: /docs/integration-logos/Microsoft-Azure-Batch.png
     tags: [azure]
+  - integration-name: Microsoft Azure Compute
+    external-doc-url: https://azure.microsoft.com/en-us/products/virtual-machines/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/compute.rst
+    logo: /docs/integration-logos/Microsoft-Azure.png
+    tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/blobs/
     how-to-guide:
@@ -190,6 +197,9 @@ integrations:
     tags: [azure]
 
 operators:
+  - integration-name: Microsoft Azure Compute
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.compute
   - integration-name: Microsoft Azure Data Lake Storage
     python-modules:
       - airflow.providers.microsoft.azure.operators.adls
@@ -225,6 +235,9 @@ operators:
       - airflow.providers.microsoft.azure.operators.powerbi
 
 sensors:
+  - integration-name: Microsoft Azure Compute
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.compute
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
       - airflow.providers.microsoft.azure.sensors.cosmos
@@ -243,6 +256,9 @@ filesystems:
   - airflow.providers.microsoft.azure.fs.msgraph
 
 hooks:
+  - integration-name: Microsoft Azure Compute
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.compute
   - integration-name: Microsoft Azure Container Instances
     python-modules:
       - airflow.providers.microsoft.azure.hooks.container_volume
@@ -289,6 +305,9 @@ hooks:
       - airflow.providers.microsoft.azure.hooks.powerbi
 
 triggers:
+  - integration-name: Microsoft Azure Compute
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.compute
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.triggers.data_factory
@@ -338,6 +357,36 @@ connection-types:
       relabeling:
         login: Azure Client ID
         password: Azure Secret
+      placeholders:
+        extra: '{"key_path": "path to json file for auth", "key_json": "specifies json dict for auth"}'
+        login: client_id (token credentials auth)
+        password: secret (token credentials auth)
+        tenantId: tenantId (token credentials auth)
+        subscriptionId: subscriptionId (token credentials auth)
+    conn-fields:
+      tenantId:
+        label: Azure Tenant ID
+        schema:
+          type: ["string", "null"]
+      subscriptionId:
+        label: Azure Subscription ID
+        schema:
+          type: ["string", "null"]
+      managed_identity_client_id:
+        label: Managed Identity Client ID
+        schema:
+          type: ["string", "null"]
+      workload_identity_tenant_id:
+        label: Workload Identity Tenant ID
+        schema:
+          type: ["string", "null"]
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.compute.AzureComputeHook
+    connection-type: azure_compute
+    ui-field-behaviour:
+      hidden-fields: ["schema", "port", "host"]
+      relabeling:
+        login: Client ID
+        password: Client Secret
       placeholders:
         extra: '{"key_path": "path to json file for auth", "key_json": "specifies json dict for auth"}'
         login: client_id (token credentials auth)

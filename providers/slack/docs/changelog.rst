@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add thread_ts parameter to Slack operators for thread replies (#62289)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.7.0
 .....
 

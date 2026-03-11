@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{ description or 'Discover Airflow Providers, Operators, Hooks, Sensors, and more.' }}">
+  {% if noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+  <link rel="canonical" href="https://airflow.apache.org{{ page.url }}">
+  <meta property="og:title" content="{{ title }} | Airflow Registry">
+  <meta property="og:description" content="{{ description or 'Discover Airflow Providers, Operators, Hooks, Sensors, and more.' }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://airflow.apache.org{{ page.url }}">
+  <meta property="og:site_name" content="Airflow Registry">
+  <meta property="og:image" content="https://airflow.apache.org{{ '/og-image.png' | url }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://airflow.apache.org{{ '/og-image.png' | url }}">
+  <meta name="twitter:title" content="{{ title }} | Airflow Registry">
+  <meta name="twitter:description" content="{{ description or 'Discover Airflow Providers, Operators, Hooks, Sensors, and more.' }}">
+  <link rel="icon" type="image/svg+xml" href="{{ '/favicon.svg' | url }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ '/favicon.png' | url }}">
+  <link rel="apple-touch-icon" href="{{ '/pin_100.png' | url }}">
+  <title>{{ title }} | Airflow Registry</title>
+  <script>
+    // Progressive enhancement - indicate JS is available
+    document.documentElement.className = document.documentElement.className.replace('no-js', 'js');
+
+    // Set theme before page renders to prevent flash
+    (function() {
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = stored || (prefersDark ? 'dark' : 'light');
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
+  <script>window.__REGISTRY_BASE__ = '{{ "/" | url }}';</script>
+  <link rel="stylesheet" href="{{ '/css/main.css' | url }}">
+  <!-- Matomo -->
+  <script>
+    var _paq = window._paq = window._paq || [];
+    _paq.push(['disableCookies']);
+    _paq.push(['trackPageView']);
+    _paq.push(['enableLinkTracking']);
+    (function() {
+      var u='https://analytics.apache.org/';
+      _paq.push(['setTrackerUrl', u+'matomo.php']);
+      _paq.push(['setSiteId', '13']);
+      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+      g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+    })();
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to content</a>
+  <header id="site-header">
+    <div class="container">
+      <a href="{{ '/' | url }}">
+        <img class="logo-light" src="{{ '/airflow_logo_light.svg' | url }}" alt="Apache Airflow">
+        <img class="logo-dark" src="{{ '/airflow_logo_dark.svg' | url }}" alt="Apache Airflow">
+        <span class="wordmark">Registry</span>
+      </a>
+
+      <nav>
+        <a href="{{ '/providers/' | url }}">Providers</a>
+        <a href="{{ '/stats/' | url }}">Stats</a>
+        <a href="{{ '/explore/' | url }}">Explore</a>
+        <a href="https://airflow.apache.org/docs/" target="_blank" rel="noopener">
+          Docs
+          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="display:inline;vertical-align:middle;margin-left:2px">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </nav>
+
+      <button id="search-trigger" class="search">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <span>Search...</span>
+        <span class="kbd">⌘K</span>
+      </button>
+
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <svg id="theme-icon-sun" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg id="theme-icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
+      <button id="mobile-menu-btn" aria-label="Open mobile menu" aria-expanded="false">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      <nav id="mobile-nav">
+        <a href="{{ '/providers/' | url }}">Providers</a>
+        <a href="{{ '/stats/' | url }}">Stats</a>
+        <a href="{{ '/explore/' | url }}">Explore</a>
+        <a href="https://airflow.apache.org/docs/" target="_blank" rel="noopener">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content"{% if mainClass %} class="{{ mainClass }}"{% endif %}>
+    {{ content | safe }}
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="links">
+          <a href="https://github.com/apache/airflow" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://airflow.apache.org/" target="_blank" rel="noopener">Apache Airflow</a>
+          <a href="https://airflow.apache.org/community/" target="_blank" rel="noopener">Community</a>
+        </div>
+        <div class="links">
+          <a href="https://www.apache.org/" target="_blank" rel="noopener">Foundation</a>
+          <a href="https://www.apache.org/licenses/" target="_blank" rel="noopener">License</a>
+          <a href="https://www.apache.org/foundation/sponsorship.html" target="_blank" rel="noopener">Donate</a>
+          <a href="https://www.apache.org/foundation/thanks.html" target="_blank" rel="noopener">Thanks</a>
+          <a href="https://www.apache.org/security/" target="_blank" rel="noopener">Security</a>
+          <a href="https://privacy.apache.org/policies/privacy-policy-public.html" target="_blank" rel="noopener">Privacy</a>
+          <a href="https://events.apache.org/" target="_blank" rel="noopener">Events</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© {% year %} The Apache Software Foundation</p>
+        <p class="trademark">Apache Airflow, Apache, Airflow, the Airflow logo, and the Apache logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</p>
+      </div>
+    </div>
+  </footer>
+
+  <div id="search-modal" role="dialog" aria-modal="true" aria-label="Search">
+    <div class="modal-container">
+      <header>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" id="search-input" placeholder="Search for operators, hooks, sensors, providers..." autocomplete="off">
+        <button id="search-close" aria-label="Close search">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </header>
+
+      <div aria-live="polite" class="sr-only" id="search-status"></div>
+
+      <nav>
+        <button class="active" data-filter="all">All</button>
+        <button data-filter="provider">Providers <span class="count" id="provider-count">0</span></button>
+        <button data-filter="module">Modules <span class="count" id="module-count">0</span></button>
+      </nav>
+
+      <div id="search-results">
+        <div>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p>Start typing to search...</p>
+        </div>
+      </div>
+
+      <footer>
+        <span>
+          <kbd>↑</kbd>
+          <kbd>↓</kbd>
+          to navigate
+        </span>
+        <span>
+          <kbd>↵</kbd>
+          to select
+        </span>
+        <span>
+          <kbd>esc</kbd>
+          to close
+        </span>
+      </footer>
+    </div>
+  </div>
+
+  <script id="types-data" type="application/json">{{ types | dump | safe }}</script>
+  <script src="{{ '/js/theme.js' | url }}" defer></script>
+  <script src="{{ '/js/mobile-menu.js' | url }}" defer></script>
+  <script src="{{ '/js/copy-button.js' | url }}" defer></script>
+  <script src="{{ '/js/search.js' | url }}" defer></script>
+</body>
+</html>
