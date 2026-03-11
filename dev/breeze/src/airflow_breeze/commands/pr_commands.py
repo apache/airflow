@@ -937,9 +937,18 @@ def _load_what_to_do_next() -> str:
 
 
 def _build_comment(
-    pr_author: str, violations: list, pr_number: int, commits_behind: int, base_ref: str
+    pr_author: str,
+    violations: list,
+    pr_number: int,
+    commits_behind: int,
+    base_ref: str,
+    comment_only: bool = False,
 ) -> str:
-    """Build the comment to post on a PR being converted to draft."""
+    """Build the comment to post on a flagged PR.
+
+    When comment_only is True, the comment just lists findings without
+    mentioning draft conversion.
+    """
     violation_lines = []
     for v in violations:
         icon = "x" if v.severity == "error" else "warning"
@@ -958,6 +967,17 @@ def _build_comment(
             f"commit{'s' if commits_behind != 1 else ''} behind `{base_ref}`**. "
             "Some check failures may be caused by changes in the base branch rather than by your PR. "
             "Please rebase your branch and push again to get up-to-date CI results."
+        )
+
+    if comment_only:
+        return (
+            f"@{pr_author} This PR has a few issues that need to be addressed before it can be "
+            f"reviewed — please see our {QUALITY_CRITERIA_LINK}.\n\n"
+            f"**Issues found:**\n{violations_text}{rebase_note}\n\n"
+            f"**What to do next:**\n{what_to_do}\n\n"
+            "Please address the issues above and push again. "
+            "If you have questions, feel free to ask on the "
+            "[Airflow Slack](https://s.apache.org/airflow-slack)."
         )
 
     return (
@@ -1006,12 +1026,20 @@ def _compute_default_action(
     """Compute the suggested default triage action and reason for a flagged PR."""
     reason_parts: list[str] = []
 
-    if pr.mergeable == "CONFLICTING":
+    has_conflicts = pr.mergeable == "CONFLICTING"
+    if has_conflicts:
         reason_parts.append("has merge conflicts")
 
     failed_count = len(pr.failed_checks)
-    if failed_count > 0:
+    has_ci_failures = failed_count > 0
+    if has_ci_failures:
         reason_parts.append(f"{failed_count} CI failure{'s' if failed_count != 1 else ''}")
+
+    has_unresolved_comments = pr.unresolved_review_comments > 0
+    if has_unresolved_comments and not any("unresolved" in p for p in reason_parts):
+        reason_parts.append(
+            f"{pr.unresolved_review_comments} unresolved review comment{'s' if pr.unresolved_review_comments != 1 else ''}"
+        )
 
     if assessment.summary:
         reason_parts.append(assessment.summary.lower())
@@ -1020,6 +1048,9 @@ def _compute_default_action(
     if count > 3:
         reason_parts.append(f"author has {count} flagged {'PRs' if count != 1 else 'PR'}")
         action = TriageAction.CLOSE
+    elif not has_ci_failures and (has_conflicts or has_unresolved_comments):
+        # CI passes, no LLM issues — only conflicts or unresolved comments; just add a comment
+        action = TriageAction.COMMENT
     else:
         action = TriageAction.DRAFT
 
@@ -1027,6 +1058,7 @@ def _compute_default_action(
     reason = reason[0].upper() + reason[1:]
     action_label = {
         TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
         TriageAction.CLOSE: "close",
     }[action]
     return action, f"{reason} — suggesting {action_label}"
@@ -1140,6 +1172,71 @@ def _display_workflow_approval_panel(pr: PRData, author_profile: dict | None, pe
         f"  [link={pr.url}/files]View changes on GitHub[/link]"
     )
     console.print(Panel(info_text, title="Workflow Approval Needed", border_style="bright_cyan"))
+
+
+def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRData]) -> int:
+    """Resolve UNKNOWN mergeable status for PRs via REST API.
+
+    GitHub's GraphQL API computes mergeability lazily and often returns UNKNOWN.
+    The REST API triggers computation and returns the result. Sometimes the first
+    call still returns null, so we retry once after a short delay.
+
+    Returns the number of PRs whose status was resolved.
+    """
+    import time
+
+    import requests
+
+    unknown_prs = [pr for pr in prs if pr.mergeable == "UNKNOWN"]
+    if not unknown_prs:
+        return 0
+
+    resolved = 0
+    still_unknown: list[PRData] = []
+
+    for pr in unknown_prs:
+        url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            mergeable = data.get("mergeable")
+            if mergeable is True:
+                pr.mergeable = "MERGEABLE"
+                resolved += 1
+            elif mergeable is False:
+                pr.mergeable = "CONFLICTING"
+                resolved += 1
+            else:
+                # null means GitHub hasn't computed it yet — retry later
+                still_unknown.append(pr)
+        else:
+            still_unknown.append(pr)
+
+    if still_unknown:
+        # Give GitHub a moment to compute mergeability, then retry
+        time.sleep(2)
+        for pr in still_unknown:
+            url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=30,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                mergeable = data.get("mergeable")
+                if mergeable is True:
+                    pr.mergeable = "MERGEABLE"
+                    resolved += 1
+                elif mergeable is False:
+                    pr.mergeable = "CONFLICTING"
+                    resolved += 1
+
+    return resolved
 
 
 def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | None:
@@ -1478,17 +1575,18 @@ def auto_triage(
     for pr in all_prs:
         pr.commits_behind = behind_map.get(pr.number, 0)
 
-    # Display fetched PRs overview (CI status is rollup state only — details fetched later)
-    pr_table = Table(title=f"Fetched PRs ({len(all_prs)})")
+    # Display fetched PRs overview (skip collaborator PRs — they'll be summarised below)
+    non_collab_prs = [pr for pr in all_prs if pr.author_association not in _COLLABORATOR_ASSOCIATIONS]
+    collab_count = len(all_prs) - len(non_collab_prs)
+    pr_table = Table(title=f"Fetched PRs ({len(non_collab_prs)} non-collaborator)")
     pr_table.add_column("PR", style="cyan", no_wrap=True)
     pr_table.add_column("Title", max_width=50)
     pr_table.add_column("Author")
-    pr_table.add_column("Association", style="dim")
     pr_table.add_column("Status")
     pr_table.add_column("Behind", justify="right")
     pr_table.add_column("Conflicts")
     pr_table.add_column("CI Status")
-    for pr in all_prs:
+    for pr in non_collab_prs:
         if pr.checks_state == "FAILURE":
             ci_status = "[red]Failing[/]"
         elif pr.checks_state == "PENDING":
@@ -1508,26 +1606,23 @@ def auto_triage(
         else:
             conflicts_text = "[green]No[/]"
 
-        # Overall status: flag if any issue detected
         has_issues = pr.checks_state == "FAILURE" or pr.mergeable == "CONFLICTING"
-        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
-            overall = "[dim]Collaborator[/]"
-        elif has_issues:
-            overall = "[red]Flag[/]"
-        else:
-            overall = "[green]OK[/]"
+        overall = "[red]Flag[/]" if has_issues else "[green]OK[/]"
 
         pr_table.add_row(
             _pr_link(pr),
             pr.title[:50],
             pr.author_login,
-            pr.author_association.lower(),
             overall,
             behind_text,
             conflicts_text,
             ci_status,
         )
     get_console().print(pr_table)
+    if collab_count:
+        get_console().print(
+            f"  [dim]({collab_count} collaborator/member {'PRs' if collab_count != 1 else 'PR'} not shown)[/]"
+        )
     get_console().print()
 
     # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
@@ -1614,6 +1709,23 @@ def auto_triage(
                 )
                 pr.failed_checks = _fetch_failed_checks(token, github_repository, pr.head_sha)
 
+    # Phase 2b2: Resolve UNKNOWN mergeable status via REST API
+    unknown_count = sum(1 for pr in candidate_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        get_console().print(
+            f"[info]Resolving merge conflict status for {unknown_count} "
+            f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
+        )
+        resolved = _resolve_unknown_mergeable(token, github_repository, candidate_prs)
+        remaining = unknown_count - resolved
+        if remaining:
+            get_console().print(
+                f"  [dim]{resolved} resolved, {remaining} still unknown "
+                f"(GitHub hasn't computed mergeability yet).[/]"
+            )
+        else:
+            get_console().print(f"  [dim]All {resolved} resolved.[/]")
+
     # Phase 2c: Fetch unresolved review comment counts for candidate PRs
     if candidate_prs and run_ci:
         get_console().print(
@@ -1627,6 +1739,7 @@ def auto_triage(
     # PRs with NOT_RUN checks are separated for workflow approval instead of LLM assessment.
     assessments: dict[int, PRAssessment] = {}
     llm_candidates: list[PRData] = []
+    passing_prs: list[PRData] = []
     pending_approval: list[PRData] = []
     total_deterministic_flags = 0
 
@@ -1688,6 +1801,7 @@ def auto_triage(
                 f"\n[info]--check-mode=ci: skipping LLM assessment for {len(llm_candidates)} "
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
             )
+            passing_prs.extend(llm_candidates)
     elif llm_candidates:
         skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
         if pending_approval:
@@ -1716,6 +1830,7 @@ def auto_triage(
                     continue
                 if not assessment.should_flag:
                     get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
+                    passing_prs.append(pr)
                     continue
                 assessments[pr.number] = assessment
 
@@ -1735,6 +1850,7 @@ def auto_triage(
 
     # Phase 5: Present flagged PRs interactively, grouped by author
     total_converted = 0
+    total_commented = 0
     total_closed = 0
     total_ready = 0
     total_skipped_action = 0
@@ -1764,6 +1880,14 @@ def auto_triage(
         comment = _build_comment(
             pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
         )
+        comment_only = _build_comment(
+            pr.author_login,
+            assessment.violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            comment_only=True,
+        )
         close_comment = _build_close_comment(
             pr.author_login,
             assessment.violations,
@@ -1780,6 +1904,7 @@ def auto_triage(
         if dry_run:
             action_label = {
                 TriageAction.DRAFT: "draft",
+                TriageAction.COMMENT: "add comment",
                 TriageAction.CLOSE: "close",
                 TriageAction.READY: "ready",
                 TriageAction.SKIP: "skip",
@@ -1814,6 +1939,15 @@ def auto_triage(
                 total_ready += 1
             else:
                 get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            continue
+
+        if action == TriageAction.COMMENT:
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+            if _post_comment(token, pr.node_id, comment_only):
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                total_commented += 1
+            else:
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
 
         if action == TriageAction.DRAFT:
@@ -1853,6 +1987,48 @@ def auto_triage(
                 total_closed += 1
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+
+    # Phase 5b: Present passing PRs for optional ready-for-review marking
+    if not quit_early and passing_prs:
+        passing_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+        get_console().print(
+            f"\n[info]{len(passing_prs)} {'PRs pass' if len(passing_prs) != 1 else 'PR passes'} "
+            f"all checks — review to mark as ready:[/]\n"
+        )
+        for pr in passing_prs:
+            author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+            _display_pr_info_panels(pr, author_profile)
+
+            if dry_run:
+                get_console().print("[warning]Dry run — skipping.[/]")
+                continue
+
+            action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=TriageAction.SKIP,
+                forced_answer=answer_triage,
+            )
+
+            if action == TriageAction.QUIT:
+                get_console().print("[warning]Quitting.[/]")
+                quit_early = True
+                break
+
+            if action == TriageAction.READY:
+                get_console().print(
+                    f"  [info]Marking PR {_pr_link(pr)} as ready "
+                    f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                )
+                if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                    get_console().print(
+                        f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                    )
+                    total_ready += 1
+                else:
+                    get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            else:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                total_skipped_action += 1
 
     # Phase 6: Present NOT_RUN PRs for workflow approval
     total_workflows_approved = 0
@@ -2039,7 +2215,9 @@ def auto_triage(
     summary_table.add_row("Flagged by LLM", str(total_flagged - total_deterministic_flags))
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))
+    summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
     summary_table.add_row("PRs converted to draft", str(total_converted))
+    summary_table.add_row("PRs commented (not drafted)", str(total_commented))
     summary_table.add_row("PRs closed", str(total_closed))
     summary_table.add_row("PRs marked ready for review", str(total_ready))
     summary_table.add_row("PRs skipped (no action)", str(total_skipped_action))
