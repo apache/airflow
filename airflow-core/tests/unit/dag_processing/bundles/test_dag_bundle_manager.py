@@ -511,9 +511,7 @@ class TestReassignDagsWithUnconfiguredBundles:
 
         _add_dag(session, "dag-1", "removed-bundle")
 
-        count = reassign_dags_with_unconfigured_bundles(
-            ["primary", "secondary"], session=session
-        )
+        count = reassign_dags_with_unconfigured_bundles(["primary", "secondary"], session=session)
         assert count == 1
         assert session.get(DagModel, "dag-1").bundle_name == "primary"
 

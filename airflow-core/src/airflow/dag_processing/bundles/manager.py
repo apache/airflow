@@ -17,24 +17,26 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
+from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Iterable
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
 _example_dag_bundle_name = "example_dags"
@@ -161,51 +163,6 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
     return serializer.dumps(payload)
 
 
-def reassign_dags_with_unconfigured_bundles(
-    configured_bundle_names: Collection[str],
-    *,
-    session: Session,
-) -> int:
-    """
-    Reassign DAGs that reference unconfigured bundles to the first configured bundle.
-
-    After a bundle is removed from configuration, DAGs that still reference it need
-    to be moved to an active bundle so they can be picked up by the dag processor
-    on the next parsing cycle.
-
-    :param configured_bundle_names: Ordered collection of currently configured bundle names.
-        The first name is used as the fallback target.
-    :param session: ORM Session (caller is responsible for committing).
-    :return: Number of DAGs reassigned.
-    """
-    import logging
-
-    from airflow.models.dag import DagModel
-
-    logger = logging.getLogger(__name__)
-
-    if not configured_bundle_names:
-        return 0
-
-    configured_names = set(configured_bundle_names)
-    default_bundle = next(iter(configured_bundle_names))
-
-    count = session.execute(
-        update(DagModel)
-        .where(DagModel.bundle_name.notin_(configured_names))
-        .values(bundle_name=default_bundle)
-    ).rowcount
-
-    if count:
-        logger.info(
-            "Reassigned %d DAG(s) from unconfigured bundles to '%s'",
-            count,
-            default_bundle,
-        )
-
-    return count
-
-
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
@@ -227,7 +184,10 @@ class DagBundlesManager(LoggingMixin):
 
         config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
         if not config_list:
-            return
+            raise AirflowConfigException(
+                "Section `dag_processor` key `dag_bundle_config_list` is not set or empty. "
+                "Please add at least one bundle configuration to your config."
+            )
         if not isinstance(config_list, list):
             raise AirflowConfigException(
                 "Section `dag_processor` key `dag_bundle_config_list` "
@@ -339,9 +299,59 @@ class DagBundlesManager(LoggingMixin):
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
         session.flush()
-        reassign_dags_with_unconfigured_bundles(
-            list(self._bundle_config.keys()), session=session
-        )
+
+    @provide_session
+    def reassign_dags_with_unconfigured_bundles(self, *, session: Session = NEW_SESSION) -> int:
+        """
+        Reassign Dags that reference unconfigured bundles (None or incorrect) to the first configured bundle as a fallback.
+
+        This addresses Dags that reference bundles incorrectly (i.e. the Dag's `bundle_name` matches a value in the database, but that database value does not correspond to a user-configured bundle) as a side effect of the
+        `0082_3_1_0_make_bundle_name_not_nullable.py` migration (see: https://github.com/apache/airflow/issues/63323).
+
+        Instead of attempting to infer the correct bundle for each Dag during the migration, we reassign all Dags with unconfigured bundles to the first configured bundle at DagFileProcessorManager startup. This relaxes the
+        "Requested bundle '{name}' is not configured."
+        error that would otherwise occur when triggering a DagRun immediately after the migration.
+
+        This fallback is not always semantically correct in environments using multiple bundles, but it is a safe, temporary measure that allows users to successfully trigger DagRuns right after the migration.
+
+        The correct Dag-to-bundle assignments will be restored by the Dag processor on the next parsing cycle.
+
+        :param session: ORM Session
+        :return: Number of Dags reassigned.
+        """
+        configured_names = self.bundle_names
+        if not configured_names:
+            # This should not happen because we already have validation at parse_config in constructor.
+            raise AirflowConfigException(
+                "No Dag bundles are currently configured. Cannot reassign Dags with unconfigured bundles to a valid bundle. Please add at least one bundle configuration to your config."
+            )
+        default_bundle = configured_names[0]
+
+        count = cast(
+            "CursorResult",
+            session.execute(
+                update(DagModel).where(
+                    or_(
+                        DagModel.bundle_name.notin_(configured_names),
+                        DagModel.bundle_name.is_(None),
+                    )
+                )
+            ),
+        ).rowcount
+
+        if count:
+            self.info(
+                "Reassigned %d Dag(s) from unconfigured bundles to '%s'",
+                count,
+                default_bundle,
+            )
+
+        return count
+
+    @property
+    def bundle_names(self) -> list[str]:
+        """Return the list of bundle names."""
+        return list(self._bundle_config.keys())
 
     @staticmethod
     def _extract_template_params(bundle_instance: BaseDagBundle) -> dict:
