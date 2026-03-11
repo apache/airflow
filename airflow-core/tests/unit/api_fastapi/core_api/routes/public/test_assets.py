@@ -25,6 +25,7 @@ import time_machine
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -1196,15 +1197,15 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         response = unauthorized_test_client.get("/dags/random/assets/queuedEvents")
         assert response.status_code == 403
 
-    def test_should_respond_404(self, test_client):
+    def test_should_respond_200_empty(self, test_client):
         dag_id = "not_exists"
 
         response = test_client.get(
             f"/dags/{dag_id}/assets/queuedEvents",
         )
 
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
+        assert response.status_code == 200
+        assert response.json() == {"queued_events": [], "total_entries": 0}
 
 
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -1444,6 +1445,27 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_403_when_user_cannot_trigger_dag(self, test_client):
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.post("/assets/1/materialize")
+
+            assert response.status_code == 403
+            assert response.json()["detail"] == (
+                f"User is not authorized to trigger a run for DAG: {self.DAG_ASSET1_ID} that materializes this asset"
+            )
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="POST",
+                access_entity=DagAccessEntity.RUN,
+                details=DagDetails(id=self.DAG_ASSET1_ID),
+                user=mock.ANY,
+            )
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
@@ -1477,10 +1499,10 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         response = unauthorized_test_client.get("/assets/1/queuedEvents")
         assert response.status_code == 403
 
-    def test_should_respond_404(self, test_client):
+    def test_should_respond_200_empty(self, test_client):
         response = test_client.get("/assets/1/queuedEvents")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
+        assert response.status_code == 200
+        assert response.json() == {"queued_events": [], "total_entries": 0}
 
 
 class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):

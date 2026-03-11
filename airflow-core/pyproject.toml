@@ -23,7 +23,7 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "smmap==5.0.2",
+    "smmap==5.0.3",
     "tomli==2.4.0; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
@@ -287,7 +287,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
+    "apache-airflow-providers-fab>=2.2.0",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]

@@ -1,0 +1,9 @@
+---
+pagination:
+  data: providerVersions
+  size: 1
+  alias: pv
+permalink: "/api/providers/{{ pv.provider.id }}/{{ pv.version }}/modules.json"
+eleventyExcludeFromCollections: true
+---
+{{ { "provider_id": pv.provider.id, "provider_name": pv.provider.name, "version": pv.version, "modules": pv.modules } | dump | safe }}

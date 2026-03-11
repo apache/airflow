@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "GIT (Git)",
                 "external-doc-url": "https://git-scm.com/",
+                "logo": "/docs/integration-logos/GIT.svg",
                 "tags": ["software"],
             }
         ],
