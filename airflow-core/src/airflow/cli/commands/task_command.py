@@ -33,9 +33,9 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
