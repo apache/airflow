@@ -70,7 +70,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         enabled but could be disabled to perform an asynchronous wait for a long-running job run execution
         using the ``DbtCloudJobRunSensor``.
     :param timeout: Time in seconds to wait for a job run to reach a terminal status for non-asynchronous
-        waits. Used only if ``wait_for_termination`` is True.This limits how long the operator waits for the
+        waits. Used only if ``wait_for_termination`` is True. This limits how long the operator waits for the
         job to complete and does not imply job cancellation. Task-level timeouts should be
         enforced via ``execution_timeout``. Defaults to 7 days.
     :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
