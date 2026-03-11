@@ -274,9 +274,7 @@ class IterableOperator(BaseOperator):
                 trigger=DateTimeTrigger(reschedule_date),
                 method_name=self.execute_failed_tasks.__name__,
                 kwargs={
-                    "failed_tasks": {
-                        failed_task.map_index for failed_task in failed_tasks
-                    },
+                    "failed_tasks": {failed_task.map_index for failed_task in failed_tasks},
                     "try_number": next(iter(failed_tasks)).try_number,
                 },
             )

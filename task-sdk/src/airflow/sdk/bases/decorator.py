@@ -570,7 +570,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         task_concurrency = operator.partial_kwargs.pop("task_concurrency", None)
         return XComArg(
             operator=IterableOperator(
-                operator=operator, expand_input=DecoratedExpandInput(expand_input), task_concurrency=task_concurrency
+                operator=operator,
+                expand_input=DecoratedExpandInput(expand_input),
+                task_concurrency=task_concurrency,
             )
         )
 
@@ -608,7 +610,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         task_concurrency = operator.partial_kwargs.pop("task_concurrency", None)
         return XComArg(
             operator=IterableOperator(
-                operator=operator, expand_input=DecoratedExpandInput(expand_input), task_concurrency=task_concurrency
+                operator=operator,
+                expand_input=DecoratedExpandInput(expand_input),
+                task_concurrency=task_concurrency,
             )
         )
 
