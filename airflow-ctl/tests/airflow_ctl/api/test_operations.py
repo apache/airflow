@@ -912,8 +912,6 @@ class TestDagOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.list()
-        print(f"Iamresponse: {response}")
-        print(f"Iamexpected: {self.dag_collection_response}")
         assert response == self.dag_collection_response
 
     def test_update(self):
