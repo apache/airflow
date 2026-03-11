@@ -68,12 +68,11 @@
       // Set title
       titleEl.textContent = connType;
 
-      // Show/hide docs link (derive per-connection-type URL)
+      // Show/hide docs link (URL is resolved per-connection-type by extract scripts)
       if (docsLink) {
-        var baseDocsUrl = chip.dataset.docsUrl;
-        if (baseDocsUrl) {
-          var perTypeUrl = baseDocsUrl.replace(/index\.html$/, connType + ".html");
-          docsLink.href = perTypeUrl;
+        var docsUrl = chip.dataset.docsUrl;
+        if (docsUrl) {
+          docsLink.href = docsUrl;
           docsLink.hidden = false;
         } else {
           docsLink.hidden = true;
