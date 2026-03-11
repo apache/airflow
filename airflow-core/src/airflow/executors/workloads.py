@@ -40,7 +40,7 @@ log = structlog.get_logger(__name__)
 
 
 class BaseWorkload(BaseModel):
-    token: str
+    token: str = Field(repr=False)
     """The identity token for this workload"""
 
 
