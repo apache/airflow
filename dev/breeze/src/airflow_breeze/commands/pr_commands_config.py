@@ -28,19 +28,41 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": ["--github-token", "--github-repository"],
         },
         {
-            "name": "Filter options",
-            "options": ["--pr", "--label", "--author", "--sort"],
+            "name": "Target selection",
+            "options": ["--pr"],
         },
         {
-            "name": "Processing options",
+            "name": "Filter options",
             "options": [
-                "--batch-size",
-                "--max-num",
+                "--label",
+                "--exclude-label",
+                "--author",
+                "--created-after",
+                "--created-before",
+                "--updated-after",
+                "--updated-before",
+                "--include-collaborators",
+                "--pending-approval-only",
+                "--checks-state",
+                "--min-commits-behind",
+                "--review-requested",
+            ],
+        },
+        {
+            "name": "Pagination and sorting",
+            "options": ["--batch-size", "--max-num", "--sort"],
+        },
+        {
+            "name": "Assessment options",
+            "options": [
                 "--check-mode",
                 "--llm-model",
                 "--llm-concurrency",
-                "--answer-triage",
             ],
+        },
+        {
+            "name": "Action options",
+            "options": ["--answer-triage"],
         },
     ],
 }

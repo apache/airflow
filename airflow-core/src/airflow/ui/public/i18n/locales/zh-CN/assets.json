@@ -1,5 +1,9 @@
 {
+  "additional_data": "附加数据",
+  "asset_many": "资源",
+  "asset_one": "资源",
   "consumingDags": "消费者 Dags",
+  "consumingTasks": "消费者任务",
   "createEvent": {
     "button": "创建事件",
     "manual": {
@@ -21,10 +25,13 @@
     },
     "title": "为 {{name}} 创建资源事件"
   },
+  "extra": "额外信息",
   "group": "分组",
   "lastAssetEvent": "最后资源事件",
   "name": "名称",
   "producingTasks": "生产任务",
   "scheduledDags": "已调度的 Dags",
-  "searchPlaceholder": "搜索资源"
+  "scheduling": "调度",
+  "searchPlaceholder": "搜索资源",
+  "taskDependencies": "任务依赖"
 }

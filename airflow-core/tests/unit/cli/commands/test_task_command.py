@@ -310,6 +310,68 @@ class TestCliTasks:
         assert "[3]" not in output
         assert "property: op_args" in output
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_out_of_range_map_index(self):
+        """Raise ValueError when map_index exceeds the parse-time mapped count."""
+        with pytest.raises(ValueError, match=r"map_index 5 is out of range.*3 mapped instance"):
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "5",
+                    ]
+                )
+            )
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_boundary_map_index(self):
+        """Render should succeed for the last valid map_index (count - 1)."""
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "2",
+                    ]
+                )
+            )
+        output = stdout.getvalue()
+        assert "[3]" in output
+        assert "property: op_args" in output
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_dynamic_skips_validation(self):
+        """Dynamic (XCom-based) mapping should skip map_index validation."""
+        # consumer depends on XCom from make_arg_lists, so parse-time count
+        # is not available. Validation should be skipped (NotFullyPopulated).
+        # The render may fail for other reasons, but not with our
+        # "out of range" ValueError.
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer",
+                        "2022-01-01",
+                        "--map-index",
+                        "999",
+                    ]
+                )
+            )
+        assert "out of range" not in str(exc_info.value)
+
     def test_mapped_task_render_with_template(self, dag_maker):
         """
         tasks render should render and displays templated fields for a given mapping task

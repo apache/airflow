@@ -1473,6 +1473,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",
     "dev",
