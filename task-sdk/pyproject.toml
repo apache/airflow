@@ -22,11 +22,9 @@ description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-# We know that it will take a while before we can support Python 3.14 because of all our dependencies
-# in all our providers - and usually it will take a while before we can support it for majority of
-# providers, so we proactively limit it to <3.14.
-# It takes about 4-7 months after Python release before we can support it
-requires-python = ">=3.10,!=3.14"
+# Supporting new Python releases typically takes 4-7 months due to all our provider dependencies.
+# We proactively limit the version to allow time for all dependencies to update.
+requires-python = ">=3.10,!=3.15"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},

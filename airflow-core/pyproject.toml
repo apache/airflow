@@ -36,12 +36,11 @@ description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-# We know that it will take a while before we can support Python 3.14 because of all our dependencies
-# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
-# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
-# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
-# also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10,!=3.14"
+# Supporting new Python releases typically takes 4-7 months due to all our dependencies.
+# We proactively exclude the next major version to avoid dependency conflicts, then test it and
+# bump the upper binding once ready. Providers that don't support it yet are marked with
+# != constraint - until they support it - which also excludes resolving uv workspace dependencies.
+requires-python = ">=3.10,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
