@@ -43,62 +43,63 @@ airflow_version = "3.1.0"
 
 def upgrade():
     """Make bundle_name not nullable."""
-    import contextlib
-
-    # We need the DagBundlesManager here to respect and validate the user configured bundles instead of hardcoding 'dags-folder' and 'example_dags' as the only two bundles.
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-    user_config_bundles = DagBundlesManager().bundle_names
     dialect_name = op.get_bind().dialect.name
-    conn = op.get_bind()
-
-    exitstack = contextlib.ExitStack()
+    if dialect_name == "postgresql":
+        op.execute(
+            text("""
+                INSERT INTO dag_bundle (name) VALUES
+                    ('example_dags'),
+                    ('dags-folder')
+                ON CONFLICT (name) DO NOTHING;
+                """)
+        )
+    if dialect_name == "mysql":
+        op.execute(
+            text("""
+                    INSERT IGNORE INTO dag_bundle (name) VALUES
+                    ('example_dags'),
+                    ('dags-folder');
+                    """)
+        )
     if dialect_name == "sqlite":
-        # SQLite requires foreign key constraints to be disabled during batch operations
-        conn = op.get_bind()
-        conn.execute(text("PRAGMA foreign_keys=OFF"))
-        exitstack.callback(conn.execute, text("PRAGMA foreign_keys=ON"))
+        op.execute(text("PRAGMA foreign_keys=OFF"))
+        op.execute(
+            text("""
+                    INSERT OR IGNORE INTO dag_bundle (name) VALUES
+                    ('example_dags'),
+                    ('dags-folder');
+                    """)
+        )
 
-    for bundle_name in user_config_bundles:
-        if dialect_name == "postgresql":
-            conn.execute(
-                text("INSERT INTO dag_bundle (name) VALUES (:name) ON CONFLICT (name) DO NOTHING"),
-                {"name": bundle_name},
+    conn = op.get_bind()
+    with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
+        conn.execute(
+            text(
+                """
+                UPDATE dag
+                SET bundle_name =
+                    CASE
+                        WHEN fileloc LIKE '%/airflow/example_dags/%' THEN 'example_dags'
+                        ELSE 'dags-folder'
+                    END
+                WHERE bundle_name IS NULL
+                """
             )
-        elif dialect_name == "mysql":
-            conn.execute(
-                text("INSERT IGNORE INTO dag_bundle (name) VALUES (:name)"),
-                {"name": bundle_name},
-            )
-        elif dialect_name == "sqlite":
-            conn.execute(
-                text("INSERT OR IGNORE INTO dag_bundle (name) VALUES (:name)"),
-                {"name": bundle_name},
-            )
+        )
+        # drop the foreign key temporarily and recreate it once both columns are changed
+        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+        batch_op.alter_column("bundle_name", nullable=False, existing_type=StringID())
 
-    # Determine the fallback bundle for DAGs with NULL bundle_name.
-    # The default config always has 'dags-folder'; fall back to the first configured bundle.
-    # This should be more correct than setting the dag_bundle_name as 'dags-folder' for all existing Dags.
-    default_bundle = user_config_bundles[0]
+    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+        batch_op.alter_column("name", nullable=False, existing_type=StringID())
 
-    with exitstack:
-        with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
-            # Let's update existing NULL values to the default bundle before making the column non-nullable instead of relying on `fileloc LIKE '%/airflow/example_dags/%' THEN 'example_dags' ELSE 'dags-folder'` hardcoded value to respect the user config
-            conn.execute(
-                text("UPDATE dag SET bundle_name = :default_bundle WHERE bundle_name IS NULL"),
-                {"default_bundle": default_bundle},
-            )
-            # drop the foreign key temporarily and recreate it once both columns are changed
-            batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
-            batch_op.alter_column("bundle_name", nullable=False, existing_type=StringID())
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )
 
-        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-            batch_op.alter_column("name", nullable=False, existing_type=StringID())
-
-        with op.batch_alter_table("dag", schema=None) as batch_op:
-            batch_op.create_foreign_key(
-                batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
-            )
+    if dialect_name == "sqlite":
+        op.execute(text("PRAGMA foreign_keys=ON"))
 
 
 def downgrade():

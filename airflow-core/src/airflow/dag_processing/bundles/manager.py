@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Collection, Iterable
 
     from sqlalchemy.orm import Session
 
@@ -161,6 +161,51 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
     return serializer.dumps(payload)
 
 
+def reassign_dags_with_unconfigured_bundles(
+    configured_bundle_names: Collection[str],
+    *,
+    session: Session,
+) -> int:
+    """
+    Reassign DAGs that reference unconfigured bundles to the first configured bundle.
+
+    After a bundle is removed from configuration, DAGs that still reference it need
+    to be moved to an active bundle so they can be picked up by the dag processor
+    on the next parsing cycle.
+
+    :param configured_bundle_names: Ordered collection of currently configured bundle names.
+        The first name is used as the fallback target.
+    :param session: ORM Session (caller is responsible for committing).
+    :return: Number of DAGs reassigned.
+    """
+    import logging
+
+    from airflow.models.dag import DagModel
+
+    logger = logging.getLogger(__name__)
+
+    if not configured_bundle_names:
+        return 0
+
+    configured_names = set(configured_bundle_names)
+    default_bundle = next(iter(configured_bundle_names))
+
+    count = session.execute(
+        update(DagModel)
+        .where(DagModel.bundle_name.notin_(configured_names))
+        .values(bundle_name=default_bundle)
+    ).rowcount
+
+    if count:
+        logger.info(
+            "Reassigned %d DAG(s) from unconfigured bundles to '%s'",
+            count,
+            default_bundle,
+        )
+
+    return count
+
+
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
@@ -182,10 +227,7 @@ class DagBundlesManager(LoggingMixin):
 
         config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
         if not config_list:
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` is not set or empty. "
-                "Please add at least one bundle configuration to your config."
-            )
+            return
         if not isinstance(config_list, list):
             raise AirflowConfigException(
                 "Section `dag_processor` key `dag_bundle_config_list` "
@@ -210,11 +252,6 @@ class DagBundlesManager(LoggingMixin):
                 team_name=bundle_config.team_name,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
-
-    @property
-    def bundle_names(self) -> list[str]:
-        """Return the list of bundle names."""
-        return list(self._bundle_config.keys())
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
@@ -300,6 +337,11 @@ class DagBundlesManager(LoggingMixin):
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
+
+        session.flush()
+        reassign_dags_with_unconfigured_bundles(
+            list(self._bundle_config.keys()), session=session
+        )
 
     @staticmethod
     def _extract_template_params(bundle_instance: BaseDagBundle) -> dict:
