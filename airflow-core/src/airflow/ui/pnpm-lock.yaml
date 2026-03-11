@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  tar@<7.5.10: '>=7.5.10'
+  tar@<7.5.11: '>=7.5.11'
   minimatch@>=3.0.0 <3.1.4: '>=3.1.4 <4.0.0'
   minimatch@>=9.0.0 <9.0.7: '>=9.0.7 <10.0.0'
   minimatch@>=10.0.0 <10.2.3: '>=10.2.3'
@@ -4284,8 +4284,8 @@ packages:
     resolution: {integrity: sha512-+XZ+r1XGIJGeQk3VvXhT6xx/VpbHsRzsTkGgF6E5RX9TTXD0118l87puaEBZ566FhqblC6U0d4XnubznJDm30A==}
     engines: {node: ^14.18.0 || >=16.0.0}
 
-  tar@7.5.10:
-    resolution: {integrity: sha512-8mOPs1//5q/rlkNSPcCegA6hiHJYDmSLEI8aMH/CdSQJNWztHC9WHNam5zdQlfpTwB9Xp7IBEsHfV5LKMJGVAw==}
+  tar@7.5.11:
+    resolution: {integrity: sha512-ChjMH33/KetonMTAtpYdgUFr0tbz69Fp2v7zWxQfYZX4g5ZN2nOBXm1R2xyA+lMIKrLKIoKAwFj93jE/avX9cQ==}
     engines: {node: '>=18'}
 
   test-exclude@7.0.1:
@@ -8128,7 +8128,7 @@ snapshots:
       node-fetch-native: 1.6.7
       nypm: 0.5.4
       pathe: 2.0.3
-      tar: 7.5.10
+      tar: 7.5.11
 
   glob-parent@5.1.2:
     dependencies:
@@ -9964,7 +9964,7 @@ snapshots:
     dependencies:
       '@pkgr/core': 0.2.4
 
-  tar@7.5.10:
+  tar@7.5.11:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
