@@ -160,22 +160,23 @@ class DataFusionEngine(LoggingMixin):
 
             case "google_cloud_platform":
                 try:
-                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+                    from airflow.providers.google.common.hooks.base_google import get_field as gcp_get_field
                 except ImportError:
                     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
                     raise AirflowOptionalProviderFeatureException(
-                        "Failed to import GoogleBaseHook. To use the GCS storage functionality, please install the "
+                        "Failed to import get_field. To use the GCS storage functionality, please install the "
                         "apache-airflow-providers-google package."
                     )
-                gcp_hook: GoogleBaseHook = GoogleBaseHook(gcp_conn_id=conn.conn_id)
-                key_path = gcp_hook._get_field("key_path")
+                key_path = gcp_get_field(conn.extra_dejson, "key_path")
                 if key_path:
                     credentials.update({"service_account_path": key_path})
+                # Without key_path, credentials stays empty and DataFusion falls back to ADC.
                 extra_config = {}
 
             case "wasb":
                 try:
+                    # Imported as a feature gate only: verifies the Azure provider is installed
                     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa: F401
                 except ImportError:
                     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -184,18 +185,26 @@ class DataFusionEngine(LoggingMixin):
                         "Failed to import WasbHook. To use the Azure storage functionality, please install the "
                         "apache-airflow-providers-microsoft-azure package."
                     )
-                account_name = conn.host or conn.login
                 tenant_id = conn.extra_dejson.get("tenant_id")
                 if tenant_id:
+                    # Service Principal auth: conn.host holds the storage account (name or full URL);
+                    # conn.login is the client_id (AAD app ID), matching WasbHook convention.
+                    # DataFusion requires just the account name, so strip any URL components.
+                    from urllib.parse import urlparse
+
+                    host = conn.host or ""
+                    parsed = urlparse(host if "://" in host else f"https://{host}")
+                    account = parsed.netloc.split(".")[0] if "." in (parsed.netloc or "") else host
                     credentials = {
-                        "account": account_name,
+                        "account": account or None,
                         "client_id": conn.extra_dejson.get("client_id") or conn.login,
                         "client_secret": conn.extra_dejson.get("client_secret") or conn.password,
                         "tenant_id": tenant_id,
                     }
                 else:
+                    # Key auth: conn.login = storage account name
                     credentials = {
-                        "account": account_name,
+                        "account": conn.login,
                         "access_key": conn.password or conn.extra_dejson.get("account_key"),
                     }
                 credentials = self._remove_none_values(credentials)

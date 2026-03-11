@@ -252,28 +252,25 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="Unknown connection type dummy"):
             engine._get_credentials(mock_conn)
 
-    @patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook", autospec=True)
-    def test_get_credentials_google_cloud_platform(self, mock_hook_class):
-        mock_hook = mock_hook_class.return_value
-        mock_hook._get_field.return_value = "/path/to/keyfile.json"
+    @patch("airflow.providers.google.common.hooks.base_google.get_field", autospec=True)
+    def test_get_credentials_google_cloud_platform(self, mock_get_field):
+        mock_get_field.return_value = "/path/to/keyfile.json"
 
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "google_cloud_platform"
         mock_conn.conn_id = "gcp_default"
-        mock_conn.extra_dejson = {}
+        mock_conn.extra_dejson = {"key_path": "/path/to/keyfile.json"}
 
         engine = DataFusionEngine()
         credentials, extra_config = engine._get_credentials(mock_conn)
 
-        mock_hook_class.assert_called_once_with(gcp_conn_id="gcp_default")
-        mock_hook._get_field.assert_called_once_with("key_path")
+        mock_get_field.assert_called_once_with(mock_conn.extra_dejson, "key_path")
         assert credentials == {"service_account_path": "/path/to/keyfile.json"}
         assert extra_config == {}
 
-    @patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook", autospec=True)
-    def test_get_credentials_google_cloud_platform_no_key_path(self, mock_hook_class):
-        mock_hook = mock_hook_class.return_value
-        mock_hook._get_field.return_value = None
+    @patch("airflow.providers.google.common.hooks.base_google.get_field", autospec=True)
+    def test_get_credentials_google_cloud_platform_no_key_path(self, mock_get_field):
+        mock_get_field.return_value = None
 
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "google_cloud_platform"
@@ -286,6 +283,18 @@ class TestDataFusionEngine:
         assert credentials == {}
         assert extra_config == {}
 
+    def test_get_credentials_google_cloud_platform_legacy_extra_format(self):
+        """key_path stored with legacy extra__google_cloud_platform__ prefix is resolved correctly."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {"extra__google_cloud_platform__key_path": "/legacy/path/key.json"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials == {"service_account_path": "/legacy/path/key.json"}
+
     def test_get_credentials_google_missing_provider(self):
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "google_cloud_platform"
@@ -295,14 +304,14 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         with patch.dict("sys.modules", {"airflow.providers.google.common.hooks.base_google": None}):
-            with pytest.raises(Exception, match="Failed to import GoogleBaseHook"):
+            with pytest.raises(Exception, match="Failed to import get_field"):
                 engine._get_credentials(mock_conn)
 
     def test_get_credentials_wasb(self):
+        """Key auth: conn.login is the storage account name."""
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "wasb"
         mock_conn.conn_id = "wasb_default"
-        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = "mykey"
         mock_conn.extra_dejson = {}
@@ -318,7 +327,6 @@ class TestDataFusionEngine:
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "wasb"
         mock_conn.conn_id = "wasb_default"
-        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = None
         mock_conn.extra_dejson = {"account_key": "key_from_extra"}
@@ -328,21 +336,6 @@ class TestDataFusionEngine:
 
         assert credentials["account"] == "myaccount"
         assert credentials["access_key"] == "key_from_extra"
-
-    def test_get_credentials_wasb_host_takes_priority_over_login(self):
-        """host is the storage account name when set; login falls back when host is absent."""
-        mock_conn = MagicMock(spec=Connection)
-        mock_conn.conn_type = "wasb"
-        mock_conn.conn_id = "wasb_default"
-        mock_conn.host = "hostaccount"
-        mock_conn.login = "loginaccount"
-        mock_conn.password = "mykey"
-        mock_conn.extra_dejson = {}
-
-        engine = DataFusionEngine()
-        credentials, _ = engine._get_credentials(mock_conn)
-
-        assert credentials["account"] == "hostaccount"
 
     def test_get_credentials_wasb_service_principal(self):
         mock_conn = MagicMock(spec=Connection)
@@ -361,6 +354,21 @@ class TestDataFusionEngine:
         assert credentials["client_secret"] == "my-client-secret"
         assert credentials["tenant_id"] == "my-tenant-id"
         assert "access_key" not in credentials
+
+    def test_get_credentials_wasb_service_principal_host_full_url(self):
+        """Account name is extracted from conn.host when it is a full URL, not passed raw."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "https://mystorageaccount.blob.core.windows.net/"
+        mock_conn.login = "my-client-id"
+        mock_conn.password = "my-client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "my-tenant-id"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "mystorageaccount"
 
     def test_get_credentials_wasb_service_principal_client_id_from_extra(self):
         """client_id in extra takes priority over login when tenant_id is present."""
