@@ -79,9 +79,6 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) (not .Values.jwtSecretName) }}
-        checksum/jwt-secret: {{ include (print $.Template.BasePath "/secrets/jwt-secret.yaml") . | sha256sum }}
-        {{- end }}
         {{- if .Values.dagProcessor.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
@@ -138,7 +135,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.dagProcessor.waitForMigrations.env }}
               {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -183,7 +180,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
