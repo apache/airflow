@@ -8028,6 +8028,18 @@ export const $GanttTaskInstance = {
                 }
             ]
         },
+        queued_dttm: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queued Dttm'
+        },
         start_date: {
             anyOf: [
                 {
@@ -8064,7 +8076,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'task_display_name', 'try_number', 'state', 'start_date', 'end_date'],
+    required: ['task_id', 'task_display_name', 'try_number', 'state', 'queued_dttm', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;

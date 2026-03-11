@@ -2249,6 +2249,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
         start_date:
           anyOf:
           - type: string
@@ -2275,6 +2281,7 @@ components:
       - task_display_name
       - try_number
       - state
+      - queued_dttm
       - start_date
       - end_date
       title: GanttTaskInstance
