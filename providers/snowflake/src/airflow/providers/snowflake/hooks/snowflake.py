@@ -521,11 +521,7 @@ class SnowflakeHook(DbApiHook):
             data |= {
                 "refresh_token": conn_config["refresh_token"],
             }
-<<<<<<< HEAD
-=======
-        
 
->>>>>>> 631a55f2a0 (Refactor get_oauth_token for better error handling)
 
         response = self._request_oauth_token(
             url=url,
