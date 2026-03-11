@@ -2535,6 +2535,7 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
+    bundleVersion?: string | null;
     confContains?: string;
     dagId: string;
     /**
