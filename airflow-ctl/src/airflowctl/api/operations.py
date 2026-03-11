@@ -164,7 +164,7 @@ class BaseOperations:
         limit: int = 50,
         params: dict | None = None,
     ) -> T | ServerResponseError:
-        shared_params = {**(params or {})}
+        shared_params = {"limit": limit, **(params or {})}
         self.response = self.client.get(path, params=shared_params)
         first_pass = data_model.model_validate_json(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]

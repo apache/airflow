@@ -62,6 +62,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param api_version: Optional Google Ads API version to use.
+    :param unwrap_single: If True, return the GCS URI as a string instead of a list.
+        Defaults to False for backward compatibility.
     """
 
     template_fields: Sequence[str] = (
@@ -86,6 +88,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         gzip: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         api_version: str | None = None,
+        unwrap_single: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,8 +102,15 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
+        self.unwrap_single = unwrap_single
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> str | list[str]:
+        """
+        Fetch data from Google Ads API and upload CSV to GCS.
+
+        :return: The destination GCS URI of the uploaded CSV file.
+            Returns a string if unwrap_single is True, otherwise returns a list containing the URI.
+        """
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
@@ -129,3 +139,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
                 gzip=self.gzip,
             )
             self.log.info("%s uploaded to GCS", self.obj)
+
+            gcs_uri = f"gs://{self.bucket}/{self.obj}"
+            if self.unwrap_single:
+                return gcs_uri
+            return [gcs_uri]

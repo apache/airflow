@@ -17,19 +17,15 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import time
 import uuid
 import warnings
 from datetime import timedelta
-from pathlib import Path
 from typing import Any
 
 import aiohttp
 import requests
 from aiohttp import ClientConnectionError, ClientResponseError
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from tenacity import (
     AsyncRetrying,
@@ -134,43 +130,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
         self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
-    def get_private_key(self) -> None:
-        """Get the private key from snowflake connection."""
-        conn = self.get_connection(self.snowflake_conn_id)
-
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
-
-        private_key_file = conn.extra_dejson.get(
-            "extra__snowflake__private_key_file"
-        ) or conn.extra_dejson.get("private_key_file")
-        private_key_content = conn.extra_dejson.get(
-            "extra__snowflake__private_key_content"
-        ) or conn.extra_dejson.get("private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_pem = Path(private_key_file).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            self.private_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
-
     def execute_query(
         self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
     ) -> list[str]:
@@ -272,7 +231,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         # Alternatively, get the JWT token from the connection details and the private key
         if not self.private_key:
-            self.get_private_key()
+            self.private_key = self.get_private_key()
 
         token = JWTGenerator(
             conn_config["account"],  # type: ignore[arg-type]

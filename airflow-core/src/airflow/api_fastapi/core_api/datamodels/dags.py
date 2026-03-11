@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
@@ -32,7 +33,7 @@ from pydantic import (
     field_validator,
 )
 
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
@@ -41,6 +42,19 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.param import SerializedParamsDict
+
+
+@cache
+def _get_file_token_serializer() -> URLSafeSerializer:
+    """
+    Return a cached URLSafeSerializer instance.
+
+    Uses @cache for lazy initialization - the serializer is created on first
+    call rather than at module import time. This avoids issues if the module
+    is imported before configuration is fully loaded.
+    """
+    return URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
+
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -74,6 +88,7 @@ class DAGResponse(BaseModel):
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None
+    timetable_partitioned: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
     max_active_runs: int | None
@@ -118,18 +133,20 @@ class DAGResponse(BaseModel):
     @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
         payload = {
             "bundle_name": self.bundle_name,
             "relative_fileloc": self.relative_fileloc,
         }
-        return serializer.dumps(payload)
+        return _get_file_token_serializer().dumps(payload)
 
 
 class DAGPatchBody(StrictBaseModel):
     """Dag Serializer for updatable bodies."""
 
     is_paused: bool
+
+
+DAGPatchBodyPartial = make_partial_model(DAGPatchBody)
 
 
 class DAGCollectionResponse(BaseModel):

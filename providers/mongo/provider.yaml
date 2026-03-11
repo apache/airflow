@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768335322
+source-date-epoch: 1773071003
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.3.3
   - 5.3.2
   - 5.3.1
   - 5.3.0
@@ -86,3 +87,28 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.mongo.hooks.mongo.MongoHook
     connection-type: mongo
+    conn-fields:
+      srv:
+        label: Srv
+        schema:
+          type:
+            - boolean
+            - 'null'
+      ssl:
+        label: Ssl
+        schema:
+          type:
+            - boolean
+            - 'null'
+      allow_insecure:
+        label: Allow Insecure
+        schema:
+          type:
+            - boolean
+            - 'null'
+    ui-field-behaviour:
+      relabeling:
+        login: Username
+        schema: Default DB
+      placeholders:
+        port: 'Note: port should not be set for SRV connections'
