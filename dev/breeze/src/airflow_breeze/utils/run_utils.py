@@ -40,6 +40,9 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    COMMON_AI_PLUGIN_PREK_HOOK,
+    COMMON_AI_UI_PLUGIN_DIST_PATH,
+    COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH,
     EDGE_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_UI_DIST_PATH,
     EDGE_PLUGIN_UI_NODE_MODULES_PATH,
@@ -514,6 +517,10 @@ def _clean_ui_assets(additional_ui_hooks: list[str]):
     if FAB_AUTH_MANAGER_WWW_PREK_HOOK in additional_ui_hooks:
         shutil.rmtree(FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH, ignore_errors=True)
         shutil.rmtree(FAB_AUTH_MANAGER_WWW_DIST_PATH, ignore_errors=True)
+    if COMMON_AI_PLUGIN_PREK_HOOK in additional_ui_hooks:
+        shutil.rmtree(COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH, ignore_errors=True)
+        shutil.rmtree(COMMON_AI_UI_PLUGIN_DIST_PATH, ignore_errors=True)
+
     get_console().print("[success]Cleaned ui assets[/]")
 
 

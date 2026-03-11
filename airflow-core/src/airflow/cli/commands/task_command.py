@@ -31,10 +31,11 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
@@ -203,7 +204,18 @@ def _get_ti(
                 f"TaskInstance for {dag.dag_id}, {task.task_id}, map={map_index} with "
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
-        # TODO: Validate map_index is in range?
+        if map_index >= 0:
+            try:
+                total = task.get_parse_time_mapped_ti_count()
+                if map_index >= total:
+                    raise ValueError(
+                        f"map_index {map_index} is out of range. "
+                        f"Task '{task.task_id}' has {total} mapped instance(s) [0..{total - 1}]."
+                    )
+            except NotFullyPopulated:
+                pass  # Dynamic mapping — cannot validate at parse time
+            except NotMapped:
+                raise ValueError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise

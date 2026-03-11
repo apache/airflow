@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.3.2'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
+repos:
+  - repo: local
+    hooks:
+      - id: ts-compile-lint-hitl-review-ui
+        name: Compile / format / lint HITL Review UI
+        description: TS types generation / ESLint / Prettier new UI files in HITL Review
+        language: node
+        files: |
+          (?x)
+          ^src/airflow/providers/common/ai/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$
+        exclude: |
+          (?x)
+          ^src/airflow/providers/common/ai/plugins/www/node-modules/.*|
+          ^src/airflow/providers/common/ai/plugins/www/.pnpm-store
+        entry: ../../../scripts/ci/prek/ts_compile_lint_common_ai.py
+        additional_dependencies: ['pnpm@10.25.0']
+        pass_filenames: true
+        require_serial: true
+      - id: compile-common-ai-provider-assets
+        name: Compile Common AI provider assets
+        language: node
+        stages: ['pre-commit', 'manual']
+        files: ^src/airflow/providers/common/ai/plugins/www/
+        entry: ../../../scripts/ci/prek/compile_provider_assets.py ai
+        pass_filenames: false
+        additional_dependencies: ['pnpm@10.25.0']

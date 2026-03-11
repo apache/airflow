@@ -55,6 +55,31 @@ PROVIDERS_PATHS = {
         / "dist",
         "hash": PROVIDERS_ROOT / "edge3" / "www-hash.txt",
     },
+    "ai": {
+        "root": PROVIDERS_ROOT / "common" / "ai",
+        "www": PROVIDERS_ROOT
+        / "common"
+        / "ai"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "common"
+        / "ai"
+        / "plugins"
+        / "www",
+        "dist": PROVIDERS_ROOT
+        / "common"
+        / "ai"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "common"
+        / "ai"
+        / "plugins"
+        / "www"
+        / "dist",
+        "hash": PROVIDERS_ROOT / "common" / "ai" / "www-hash.txt",
+    },
 }
 
 

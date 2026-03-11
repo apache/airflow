@@ -45,6 +45,7 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--pending-approval-only",
                 "--checks-state",
                 "--min-commits-behind",
+                "--review-requested",
             ],
         },
         {
