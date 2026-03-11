@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datafusion.object_store import AmazonS3, LocalFileSystem
-
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
@@ -33,6 +31,8 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an S3 object store using DataFusion's AmazonS3."""
+        from datafusion.object_store import AmazonS3
+
         if connection_config is None:
             raise ValueError("connection_config must be provided for %s", self.get_storage_type)
 
@@ -63,6 +63,8 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create a Local object store."""
+        from datafusion.object_store import LocalFileSystem
+
         return LocalFileSystem()
 
     def get_scheme(self) -> str:
