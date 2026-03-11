@@ -21,7 +21,9 @@ Provider hook to YAML Migration
 We can now, redefine connection form metadata declaratively in ``provider.yaml`` of a provider instead of Python hook code,
 reducing dependencies and improving API server startup performance.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Background
 ----------
