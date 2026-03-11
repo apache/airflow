@@ -267,16 +267,29 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
+        user_id = int(token["sub"])
+
+        def _fetch_user() -> User:
+            try:
+                return self.session.scalars(select(User).where(User.id == user_id)).one()
+            except NoResultFound:
+                raise ValueError(f"User with id {token['sub']} not found")
+
         try:
-            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
-        except NoResultFound:
-            raise ValueError(f"User with id {token['sub']} not found")
+            return _fetch_user()
         except SQLAlchemyError:
             # Discard the poisoned scoped session so the next request gets a
             # fresh connection from the pool instead of a PendingRollbackError.
             with suppress(Exception):
                 self.session.remove()
-            raise
+            try:
+                return _fetch_user()
+            except SQLAlchemyError:
+                # If retry also fails, remove the scoped session again to keep
+                # future requests from reusing a broken transaction state.
+                with suppress(Exception):
+                    self.session.remove()
+                raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}

@@ -34,8 +34,8 @@ importers:
         specifier: ^7.29.0
         version: 7.29.0(@babel/core@7.29.0)
       babel-loader:
-        specifier: ^10.0.0
-        version: 10.0.0(@babel/core@7.29.0)(webpack@5.105.4)
+        specifier: ^10.1.0
+        version: 10.1.0(@babel/core@7.29.0)(webpack@5.105.4)
       copy-webpack-plugin:
         specifier: ^14.0.0
         version: 14.0.0(webpack@5.105.4)
@@ -919,12 +919,18 @@ packages:
     resolution: {integrity: sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ==}
     engines: {node: '>=8'}
 
-  babel-loader@10.0.0:
-    resolution: {integrity: sha512-z8jt+EdS61AMw22nSfoNJAZ0vrtmhPRVi6ghL3rCeRZI8cdNYFiV5xeV3HbE7rlZZNmGH8BVccwWt8/ED0QOHA==}
+  babel-loader@10.1.0:
+    resolution: {integrity: sha512-5HTUZa013O4SWEYlJDHexrqSIYkWatfA9w/ZZQa7V2nMc0dRWkfu/0pmioC7XMYm8M7Z/3+q42NWj6e+fAT0MQ==}
     engines: {node: ^18.20.0 || ^20.10.0 || >=22.0.0}
     peerDependencies:
-      '@babel/core': ^7.12.0
+      '@babel/core': ^7.12.0 || ^8.0.0-beta.1
+      '@rspack/core': ^1.0.0 || ^2.0.0-0
       webpack: '>=5.61.0'
+    peerDependenciesMeta:
+      '@rspack/core':
+        optional: true
+      webpack:
+        optional: true
 
   babel-plugin-polyfill-corejs2@0.4.15:
     resolution: {integrity: sha512-hR3GwrRwHUfYwGfrisXPIDP3JcYfBrW7wKE7+Au6wDYl7fm/ka1NEII6kORzxNU556JjfidZeBsO10kYvtV1aw==}
@@ -3329,10 +3335,11 @@ snapshots:
 
   astral-regex@2.0.0: {}
 
-  babel-loader@10.0.0(@babel/core@7.29.0)(webpack@5.105.4):
+  babel-loader@10.1.0(@babel/core@7.29.0)(webpack@5.105.4):
     dependencies:
       '@babel/core': 7.29.0
       find-up: 5.0.0
+    optionalDependencies:
       webpack: 5.105.4(webpack-cli@6.0.1)
 
   babel-plugin-polyfill-corejs2@0.4.15(@babel/core@7.29.0):

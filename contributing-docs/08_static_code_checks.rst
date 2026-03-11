@@ -26,7 +26,9 @@ for the first time.
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Prek hooks
 ----------
