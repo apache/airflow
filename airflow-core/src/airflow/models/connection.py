@@ -231,7 +231,9 @@ class Connection(Base, LoggingMixin):
         uri_parts = urlsplit(uri)
         self._prenormalized_conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(self._prenormalized_conn_type)
-        rest_of_the_url = uri.replace(f"{self._prenormalized_conn_type}://", ("" if host_with_protocol else "//"))
+        rest_of_the_url = uri.replace(
+            f"{self._prenormalized_conn_type}://", ("" if host_with_protocol else "//")
+        )
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:

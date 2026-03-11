@@ -274,60 +274,51 @@ class TestConnection:
     @pytest.mark.parametrize(
         ("connection", "expected_warned"),
         [
-            (
-                Connection(
-                    conn_id="test-uri-1",
-                    uri="google-cloud-platform://testlogin:testpassword@"
-                ),
-                False
-            ),
-            (
-                Connection(
-                    conn_id="test-uri-2",
-                    uri="amazon://test:test@"
-                ),
-                False
-            ),
+            (Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"), False),
+            (Connection(conn_id="test-uri-2", uri="amazon://test:test@"), False),
             (
                 Connection(
                     conn_id="test-non-uri-1",
                     conn_type="google-cloud-platform",
                     login="testlogin",
-                    password="testpassword"
+                    password="testpassword",
                 ),
-                False
+                False,
             ),
             (
                 Connection(
                     conn_id="test-non-uri-2",
                     conn_type="google_cloud_platform",
                     login="testlogin",
-                    password="testpassword"
+                    password="testpassword",
                 ),
-                True
+                True,
             ),
             (
                 Connection(
-                    conn_id="test-non-uri-3",
-                    conn_type="amazon",
-                    login="testlogin",
-                    password="testpassword"
+                    conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
                 ),
-                False
-            )
-        ]
+                False,
+            ),
+        ],
     )
     def test_get_uri_conn_type_warning(self, connection: Connection, expected_warned: bool):
         with capture_logs() as captured_logs:
             connection.get_uri()
-        conn_type_warnings = list(filter(
-            lambda captured_log: captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"],
-            captured_logs
-        ))
+        conn_type_warnings = list(
+            filter(
+                lambda captured_log: (
+                    captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"]
+                ),
+                captured_logs,
+            )
+        )
         if expected_warned:
             assert conn_type_warnings, f"RFC3986 warning expected for connection '{connection.conn_id}'."
         else:
-            assert not conn_type_warnings, f"RFC3986 warning not expected for connection '{connection.conn_id}'."
+            assert not conn_type_warnings, (
+                f"RFC3986 warning not expected for connection '{connection.conn_id}'."
+            )
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
