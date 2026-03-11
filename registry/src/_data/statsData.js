@@ -18,10 +18,18 @@
  */
 
 const providersData = require('./providers.json');
+const modulesData = require('./modules.json');
 const typesData = require('./types.json');
 
 module.exports = function() {
   const providers = providersData.providers;
+
+  // Build module counts from modules.json (single source of truth)
+  const countsByProvider = {};
+  for (const m of modulesData.modules) {
+    if (!countsByProvider[m.provider_id]) countsByProvider[m.provider_id] = {};
+    countsByProvider[m.provider_id][m.type] = (countsByProvider[m.provider_id][m.type] || 0) + 1;
+  }
 
   // Total providers count
   const totalProviders = providers.length;
@@ -42,8 +50,9 @@ module.exports = function() {
 
   // Aggregate module counts across all providers
   const aggregateModuleCounts = providers.reduce((acc, p) => {
-    if (p.module_counts) {
-      Object.entries(p.module_counts).forEach(([type, count]) => {
+    const mc = countsByProvider[p.id];
+    if (mc) {
+      Object.entries(mc).forEach(([type, count]) => {
         acc[type] = (acc[type] || 0) + count;
       });
     }
@@ -89,8 +98,8 @@ module.exports = function() {
   // Enriched provider list with totals
   const enrichedProviders = [...providers].map(p => ({
     ...p,
-    totalModules: p.module_counts
-      ? Object.values(p.module_counts).reduce((a, b) => a + b, 0)
+    totalModules: countsByProvider[p.id]
+      ? Object.values(countsByProvider[p.id]).reduce((a, b) => a + b, 0)
       : 0,
     monthlyDownloads: (p.pypi_downloads && p.pypi_downloads.monthly) || 0,
     weeklyDownloads: (p.pypi_downloads && p.pypi_downloads.weekly) || 0
