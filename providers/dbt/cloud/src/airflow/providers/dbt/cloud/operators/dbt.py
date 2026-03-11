@@ -23,7 +23,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -70,7 +70,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         enabled but could be disabled to perform an asynchronous wait for a long-running job run execution
         using the ``DbtCloudJobRunSensor``.
     :param timeout: Time in seconds to wait for a job run to reach a terminal status for non-asynchronous
-        waits. Used only if ``wait_for_termination`` is True. Defaults to 7 days.
+        waits. Used only if ``wait_for_termination`` is True. This limits how long the operator waits for the
+        job to complete and does not imply job cancellation. Task-level timeouts should be
+        enforced via ``execution_timeout``. Defaults to 7 days.
     :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True. Defaults to 60 seconds.
     :param additional_run_config: Optional. Any additional parameters that should be included in the API
@@ -83,6 +85,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
     :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
+    :param execution_timeout: Maximum time allowed for the task to run. If exceeded, the dbt Cloud
+        job will be cancelled and the task will fail. When both ``execution_timeout`` and
+        ``timeout`` are set, the earlier deadline takes precedence.
     :return: The ID of the triggered dbt Cloud job run.
     """
 
@@ -212,16 +217,26 @@ class DbtCloudRunJobOperator(BaseOperator):
                     raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
 
                 return self.run_id
+
+            # Derive absolute deadlines for deferrable execution.
+            # execution_timeout is a hard task-level limit (cancels the job),
+            # while timeout only limits how long we wait for the job to finish.
+            # If both are set, the earliest deadline wins.
             end_time = time.time() + self.timeout
+            execution_deadline = None
+            if self.execution_timeout:
+                execution_deadline = time.time() + self.execution_timeout.total_seconds()
+
             job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
             job_run_status = self.hook.get_job_run_status(**job_run_info)
             if not DbtCloudJobRunStatus.is_terminal(job_run_status):
                 self.defer(
-                    timeout=self.execution_timeout,
+                    timeout=None,
                     trigger=DbtCloudRunJobTrigger(
                         conn_id=self.dbt_cloud_conn_id,
                         run_id=self.run_id,
                         end_time=end_time,
+                        execution_deadline=execution_deadline,
                         account_id=self.account_id,
                         poll_interval=self.check_interval,
                     ),
@@ -252,6 +267,12 @@ class DbtCloudRunJobOperator(BaseOperator):
             raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
         if event["status"] == "error":
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
+
+        # Enforce execution_timeout semantics in deferrable mode by cancelling the job.
+        if event["status"] == "timeout":
+            self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+            raise AirflowException(f"Job run {self.run_id} has timed out.")
+
         self.log.info(event["message"])
         return int(event["run_id"])
 
