@@ -58,6 +58,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
                 queue_name=self.queue_name,
                 poll_interval=self.poll_interval,
             )
-            yield TriggerEvent(event)
+            if event:
+                yield TriggerEvent(event)
         except asyncio.CancelledError:
             return

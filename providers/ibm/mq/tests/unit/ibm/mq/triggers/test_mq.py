@@ -79,11 +79,7 @@ class TestMQTrigger:
         )
 
         with caplog.at_level("WARNING"):
-            event = await anext(trigger.run())
+            with pytest.raises(StopAsyncIteration):
+                await anext(trigger.run())
 
-        # The trigger yields a TriggerEvent with payload None because consume handles the exception
-        assert isinstance(event, TriggerEvent)
-        assert event.payload is None
-
-        # The consume warning log should be present
         assert "MQ connection broken" in caplog.text
