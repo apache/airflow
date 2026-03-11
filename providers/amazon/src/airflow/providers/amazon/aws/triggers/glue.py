@@ -162,10 +162,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         log_stream: str,
         next_token: str | None,
     ) -> str | None:
-        """
-        Fetch new CloudWatch log events and print them.
-        Matches the format used by the synchronous GlueJobHook.print_job_logs.
-        """
+        # Matches the format used by the synchronous GlueJobHook.print_job_logs.
         fetched_logs: list[str] = []
         while True:
             token_arg: dict[str, str] = {"nextToken": next_token} if next_token else {}
