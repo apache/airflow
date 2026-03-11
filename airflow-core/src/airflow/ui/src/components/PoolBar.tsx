@@ -69,8 +69,8 @@ export const PoolBar = ({
     (slot) => barSlots.includes(slot.slotType) && slot.slotValue > 0,
   );
   const usedSlots = displayedSlots
-    .filter((s) => s.slotType !== "open")
-    .reduce((sum, s) => sum + s.slotValue, 0);
+    .filter((slot) => slot.slotType !== "open")
+    .reduce((sum, slot) => sum + slot.slotValue, 0);
 
   return (
     <VStack align="stretch" gap={1} w="100%">
