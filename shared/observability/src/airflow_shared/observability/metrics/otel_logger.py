@@ -22,7 +22,7 @@ import logging
 import random
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
@@ -45,6 +45,7 @@ from .validators import (
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
+    from opentelemetry.sdk.metrics._internal.export import MetricExporter
     from opentelemetry.util.types import Attributes
 
     from .protocols import DeltaType
@@ -418,7 +419,7 @@ def get_otel_logger(
 
     readers = [
         PeriodicExportingMetricReader(
-            exporter=metric_exporter,
+            exporter=cast("MetricExporter", metric_exporter),
             export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]

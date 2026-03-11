@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import random
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pendulum
 from opentelemetry import trace
@@ -366,7 +366,7 @@ def get_otel_tracer(
 
     log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
-        span_exporter=exporter,
+        span_exporter=cast("SpanExporter", exporter),
         use_simple_processor=use_simple_processor,
         tag_string=tag_string,
         otel_service=otel_service,

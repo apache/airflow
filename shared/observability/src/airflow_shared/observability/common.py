@@ -52,9 +52,14 @@ def get_otel_data_exporter(
         from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     else:
-        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import (  # type: ignore[assignment]
+            OTLPMetricExporter,
+        )
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[assignment]
+            OTLPSpanExporter,
+        )
 
+    exporter: SpanExporter | MetricExporter
     if env_endpoint:
         if host is not None and port is not None:
             log.warning(

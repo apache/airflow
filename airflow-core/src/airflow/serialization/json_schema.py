@@ -71,4 +71,4 @@ def load_dag_schema() -> Validator:
     import jsonschema
 
     schema = load_dag_schema_dict()
-    return jsonschema.Draft7Validator(schema)
+    return jsonschema.Draft7Validator(schema)  # type: ignore[return-value]

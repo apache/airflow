@@ -65,6 +65,7 @@ def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
 class _Stats(type):
     factory: Callable[[], StatsLogger | NoStatsLogger] | None = None
     instance: StatsLogger | NoStatsLogger | None = None
+    _instance_pid: int | None = None
 
     def __getattr__(cls, name: str) -> str:
         factory = type.__getattribute__(cls, "factory")
