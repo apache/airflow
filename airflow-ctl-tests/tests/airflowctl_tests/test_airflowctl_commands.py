@@ -44,10 +44,13 @@ def date_param():
 
 # Passing password via command line is insecure but acceptable for testing purposes
 # Please do not do this in production, it enables possibility of exposing your credentials
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
+CREDENTIAL_SUFFIX = "--username airflow --password airflow"
+LOGIN_COMMAND = f"auth login {CREDENTIAL_SUFFIX}"
 LOGIN_COMMAND_SKIP_KEYRING = "auth login --skip-keyring"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
+    # Auth commands
+    f"auth token {CREDENTIAL_SUFFIX}",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -131,7 +134,6 @@ TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
 ]
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_DEBUG_MODE,
@@ -144,7 +146,6 @@ def test_airflowctl_commands(command: str, run_command):
     run_command(command, env_vars, skip_login=True)
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_SKIP_KEYRING,

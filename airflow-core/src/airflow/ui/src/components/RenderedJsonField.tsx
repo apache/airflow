@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, type FlexProps } from "@chakra-ui/react";
+import { Box, Flex, type FlexProps } from "@chakra-ui/react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { useCallback } from "react";
 
@@ -46,30 +46,34 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
   );
 
   return (
-    <Flex {...rest}>
-      <Editor
-        height={height}
-        language="json"
-        onMount={handleMount}
-        options={{
-          automaticLayout: true,
-          contextmenu: false,
-          folding: true,
-          fontSize: 13,
-          glyphMargin: false,
-          lineDecorationsWidth: 0,
-          lineNumbers: "off",
-          minimap: { enabled: false },
-          overviewRulerLanes: 0,
-          readOnly: true,
-          renderLineHighlight: "none",
-          scrollbar: { vertical: "hidden", verticalScrollbarSize: 0 },
-          scrollBeyondLastLine: false,
-          wordWrap: "on",
-        }}
-        theme={theme}
-        value={contentFormatted}
-      />
+    <Flex flex={1} minW={200} {...rest}>
+      <Box h={height} minW={0} position="relative" w="100%">
+        <Box bottom={0} left={0} position="absolute" right={0} top={0}>
+          <Editor
+            height={height}
+            language="json"
+            onMount={handleMount}
+            options={{
+              automaticLayout: true,
+              contextmenu: false,
+              folding: true,
+              fontSize: 13,
+              glyphMargin: false,
+              lineDecorationsWidth: 0,
+              lineNumbers: "off",
+              minimap: { enabled: false },
+              overviewRulerLanes: 0,
+              readOnly: true,
+              renderLineHighlight: "none",
+              scrollbar: { vertical: "hidden", verticalScrollbarSize: 0 },
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+            }}
+            theme={theme}
+            value={contentFormatted}
+          />
+        </Box>
+      </Box>
       {enableClipboard ? (
         <ClipboardRoot value={contentFormatted}>
           <ClipboardIconButton h={7} minW={7} />
