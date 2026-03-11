@@ -23,7 +23,6 @@ from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
-import psycopg2.errors
 from more_itertools import chunked
 from psycopg2 import connect as ppg2_connect
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
@@ -52,19 +51,8 @@ except (ImportError, ModuleNotFoundError):
     USE_PSYCOPG3 = False
 
 if USE_PSYCOPG3:
-    from psycopg.errors import (
-        OperationalError as Psycopg3OperationalError,
-        ProgrammingError as Psycopg3ProgrammingError,
-    )
     from psycopg.rows import dict_row, namedtuple_row
     from psycopg.types.json import register_default_adapters
-
-_POSTGRES_RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
-    psycopg2.errors.UndefinedColumn,
-    psycopg2.errors.UndefinedTable,
-)
-if USE_PSYCOPG3:
-    _POSTGRES_RETRYABLE_ERRORS += (Psycopg3ProgrammingError, Psycopg3OperationalError)
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
@@ -148,10 +136,6 @@ class PostgresHook(DbApiHook):
 
     conn_name_attr = "postgres_conn_id"
     default_conn_name = "postgres_default"
-
-    # Exceptions that indicate the model should retry with a corrected query (e.g. undefined column).
-    RETRYABLE_ERRORS: tuple[type[Exception], ...] = _POSTGRES_RETRYABLE_ERRORS
-
     default_client_log_level = "warning"
     default_connector_version: int = 2
     conn_type = "postgres"

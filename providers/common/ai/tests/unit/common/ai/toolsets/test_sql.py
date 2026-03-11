@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sqlite3
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -170,10 +171,8 @@ class TestSQLToolsetQuery:
         """When the query fails with a retryable error, raise ModelRetry so the model retries."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.get_records.side_effect = Exception(
-            'column "nonexistent" does not exist\nLINE 1: SELECT id, nonexistent FROM users'
-        )
-        ts._hook.get_retry_exceptions.return_value = (Exception,)
+        ts._hook.conn_type = "sqlite"
+        ts._hook.get_records.side_effect = sqlite3.OperationalError("no such column: nonexistent")
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -192,8 +191,8 @@ class TestSQLToolsetQuery:
         """ModelRetry message tells the model to use get_schema and list_tables for more details."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.get_records.side_effect = Exception("column 'foo' does not exist")
-        ts._hook.get_retry_exceptions.return_value = (Exception,)
+        ts._hook.conn_type = "sqlite"
+        ts._hook.get_records.side_effect = sqlite3.OperationalError("no such table: missing_table")
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -201,6 +200,34 @@ class TestSQLToolsetQuery:
             )
         assert "get_schema" in exc_info.value.message
         assert "list_tables" in exc_info.value.message
+
+    def test_non_retryable_error_is_propagated(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.conn_type = "sqlite"
+        ts._hook.get_records.side_effect = sqlite3.OperationalError("database is locked")
+
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+
+    def test_error_propagates_when_hook_conn_type_not_supported(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.conn_type = "mysql"
+        ts._hook.get_records.side_effect = RuntimeError("unexpected db error")
+
+        with pytest.raises(RuntimeError, match="unexpected db error"):
+            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
+
+    def test_error_propagates_when_hook_has_no_conn_type(self):
+        ts = SQLToolset("pg_default")
+        mock_hook = MagicMock(spec=["get_records", "last_description"])
+        mock_hook.get_records.side_effect = RuntimeError("hook error")
+        type(mock_hook).last_description = PropertyMock(return_value=[])
+        ts._hook = mock_hook
+
+        with pytest.raises(RuntimeError, match="hook error"):
+            asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
 
 
 class TestSQLToolsetCheckQuery:

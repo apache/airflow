@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import warnings
 from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
@@ -41,22 +40,6 @@ except ImportError:
     make_url = None  # type: ignore[assignment]
     ArgumentError = Exception  # type: ignore[misc,assignment]
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
-
-if importlib.util.find_spec("sqlalchemy") is not None:
-    try:
-        from sqlalchemy.exc import (
-            IntegrityError as _SQLAlchemyIntegrityError,
-            ProgrammingError as _SQLAlchemyProgrammingError,
-        )
-
-        _DEFAULT_SQLALCHEMY_RETRYABLE: tuple[type[Exception], ...] = (
-            _SQLAlchemyProgrammingError,
-            _SQLAlchemyIntegrityError,
-        )
-    except ImportError:
-        _DEFAULT_SQLALCHEMY_RETRYABLE = ()  # type: ignore[assignment]
-else:
-    _DEFAULT_SQLALCHEMY_RETRYABLE = ()  # type: ignore[assignment]
 
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -181,9 +164,6 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
-    # Exception types that indicate the model should retry the query (e.g. undefined column).
-    # Used by SQLToolset to raise ModelRetry. Override in subclasses (e.g. PostgresHook, SqliteHook).
-    RETRYABLE_ERRORS: tuple[type[Exception], ...] = ()
     # Default SQL placeholder
     _placeholder: str = "%s"
     _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
@@ -214,15 +194,6 @@ class DbApiHook(BaseHook):
 
     def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
-
-    def get_retry_exceptions(self) -> tuple[type[Exception], ...]:
-        """
-        Return exception types that indicate the model should retry the query (e.g. undefined column).
-
-        Used by SQLToolset to raise ModelRetry. Merges hook-specific RETRYABLE_ERRORS with
-        default SQLAlchemy ProgrammingError and IntegrityError when sqlalchemy is available.
-        """
-        return self.RETRYABLE_ERRORS + _DEFAULT_SQLALCHEMY_RETRYABLE
 
     @cached_property
     def placeholder(self) -> str:

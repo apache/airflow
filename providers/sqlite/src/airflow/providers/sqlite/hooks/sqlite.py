@@ -27,8 +27,6 @@ class SqliteHook(DbApiHook):
     """Interact with SQLite."""
 
     conn_name_attr = "sqlite_conn_id"
-    # Exceptions that indicate the llm model should retry with a corrected query (e.g. no such column).
-    RETRYABLE_ERRORS: tuple[type[Exception], ...] = (sqlite3.OperationalError, sqlite3.ProgrammingError)
     default_conn_name = "sqlite_default"
     conn_type = "sqlite"
     hook_name = "Sqlite"
