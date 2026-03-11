@@ -1,4 +1,8 @@
 {
+  "exportCliInfo": {
+    "connectionsDescription": "Export for connections is only available via the local Airflow CLI. Use the command below to export to stdout or to a file.",
+    "variablesDescription": "Export for variables is only available via the local Airflow CLI. Use the command below to export to stdout or to a file."
+  },
   "columns": {
     "description": "Description",
     "key": "Key",
@@ -14,6 +18,28 @@
   },
   "connections": {
     "add": "Add Connection",
+    "import": {
+      "button": "Import",
+      "conflictResolution": "Select Connection Conflict Resolution",
+      "errorParsingJsonFile": "Error parsing JSON file. Upload a JSON or YAML file from the output of the CLI export command (e.g., airflow connections export -).",
+      "options": {
+        "fail": {
+          "description": "Fails the import if any existing connections are detected.",
+          "title": "Fail"
+        },
+        "overwrite": {
+          "description": "Overwrites the connection in case of a conflict.",
+          "title": "Overwrite"
+        },
+        "skip": {
+          "description": "Skips importing connections that already exist.",
+          "title": "Skip"
+        }
+      },
+      "title": "Import Connections",
+      "upload": "Upload a JSON or YAML File",
+      "uploadPlaceholder": "Upload a file from airflow connections export output"
+    },
     "columns": {
       "connectionId": "Connection ID",
       "connectionType": "Connection Type",
