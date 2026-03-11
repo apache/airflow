@@ -162,6 +162,19 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
 
 
+class Queues(RootModel[list[str]]):
+    root: Annotated[list[str], Field(title="Queues")]
+
+
+class NextTriggersBody(BaseModel):
+    """
+    Request body sent by TriggerRunnerSupervisor each loop iteration.
+    """
+
+    capacity: Annotated[int, Field(title="Capacity")]
+    queues: Annotated[Queues | None, Field(title="Queues")] = None
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -306,6 +319,25 @@ class TaskBreadcrumbsResponse(BaseModel):
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
 
 
+class TaskInstanceDTO(BaseModel):
+    """
+    Schema for TaskInstance with minimal required fields needed for Executors and Task SDK.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    pool_slots: Annotated[int, Field(title="Pool Slots")]
+    queue: Annotated[str, Field(title="Queue")]
+    priority_weight: Annotated[int, Field(title="Priority Weight")]
+    parent_context_carrier: Annotated[dict[str, Any] | None, Field(title="Parent Context Carrier")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -359,6 +391,44 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+
+
+class TriggerDetail(BaseModel):
+    """
+    Serialized details of a single trigger.
+
+    Uses TaskInstanceDTO (which has pool_slots/queue/priority_weight)
+    so the supervisor can pass it directly into RunTrigger.ti.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    classpath: Annotated[str, Field(title="Classpath")]
+    encrypted_kwargs: Annotated[str, Field(title="Encrypted Kwargs")]
+    task_instance: TaskInstanceDTO | None = None
+    log_path: Annotated[str | None, Field(title="Log Path")] = None
+    timeout_after: Annotated[AwareDatetime | None, Field(title="Timeout After")] = None
+
+
+class TriggerEventBody(BaseModel):
+    """
+    Request body for POST /triggers/{trigger_id}/event.
+
+    ``event`` is a pre-serialized TriggerEvent dict produced by the
+    supervisor via ``event.model_dump(mode="json")``.
+    We accept a plain dict here to avoid Pydantic discriminated-union
+    issues with TriggerEvent (which has no ``type`` literal field).
+    The route handler reconstructs the typed object using TypeAdapter.
+    """
+
+    event: Annotated[dict[str, Any], Field(title="Event")]
+
+
+class TriggerFailureBody(BaseModel):
+    """
+    Request body for POST /triggers/{trigger_id}/failure.
+    """
+
+    error: Annotated[list[str] | None, Field(title="Error")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -549,6 +619,17 @@ class HITLDetailResponse(BaseModel):
 
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class NextTriggersResponse(BaseModel):
+    """
+    Response from POST /triggerer/{triggerer_id}/next-triggers.
+    """
+
+    triggers: Annotated[list[TriggerDetail], Field(title="Triggers")]
+    trigger_ids_with_non_task_associations: Annotated[
+        list[int], Field(title="Trigger Ids With Non Task Associations")
+    ]
 
 
 class TITerminalStatePayload(BaseModel):
