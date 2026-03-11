@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
@@ -195,11 +196,16 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         output = result.output
 
         if self.enable_hitl_review:
-            return self.run_hitl_review(  # type: ignore[misc]
+            result_str = self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
                 message_history=result.all_messages(),
             )
+            # Deserialize back to dict
+            try:
+                return json.loads(result_str)
+            except (ValueError, TypeError):
+                return result_str
 
         if isinstance(output, BaseModel):
             return output.model_dump()

@@ -295,6 +295,11 @@ async def submit_feedback(
     map_index: MapIndexDep,
 ) -> HITLReviewResponse:
     """Request changes — provide human feedback for the LLM."""
+    if not (body.feedback and body.feedback.strip()):
+        raise HTTPException(
+            status_code=400,
+            detail="Feedback is required when requesting changes.",
+        )
     raw = _read_xcom(
         db,
         dag_id=dag_id,

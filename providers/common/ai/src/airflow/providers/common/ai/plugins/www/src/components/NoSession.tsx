@@ -62,8 +62,7 @@ export const NoSession: FC = () => {
           <Text as="span" opacity={0.8}>
             &#x25CF;
           </Text>{" "}
-          If the task is currently running, the session may still be initialising. Checking
-          periodically for updates.
+          If the task is currently running, the session may still be initialising.
         </Box>
       </Box>
     </Box>

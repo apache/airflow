@@ -17,6 +17,17 @@
  * under the License.
  */
 
+/** Terminal session states (no further human action expected). */
+export function isTerminalStatus(s: Pick<SessionResponse, "status" | "task_completed">): boolean {
+  return (
+    s.status === "approved" ||
+    s.status === "rejected" ||
+    s.status === "max_iterations_exceeded" ||
+    s.status === "timeout_exceeded" ||
+    s.task_completed
+  );
+}
+
 export type SessionStatus =
   | "pending_review"
   | "changes_requested"

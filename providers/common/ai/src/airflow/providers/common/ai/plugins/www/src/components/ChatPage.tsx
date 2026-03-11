@@ -41,6 +41,7 @@ import {
 import { MessageBubble } from "src/components/MessageBubble";
 import { NoSession } from "src/components/NoSession";
 import { useSession } from "src/hooks/useSession";
+import { isTerminalStatus } from "src/types/feedback";
 import { toaster } from "src/toaster";
 
 interface ChatPageProps {
@@ -181,12 +182,7 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
     return <NoSession />;
   }
 
-  const isTerminal =
-    session.status === "approved" ||
-    session.status === "rejected" ||
-    session.status === "max_iterations_exceeded" ||
-    session.status === "timeout_exceeded" ||
-    session.task_completed;
+  const isTerminal = isTerminalStatus(session);
   const canAct = session.status === "pending_review" && !session.task_completed;
   const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE["pending_review"];
 
@@ -234,8 +230,11 @@ export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) 
       )}
 
       <Box flex={1} overflowY="auto" p={5} display="flex" flexDirection="column" gap={3} ref={chatRef}>
-        {session.conversation.map((entry) => (
-          <MessageBubble key={`${entry.role}-${entry.iteration}`} entry={entry} />
+        {session.conversation.map((entry, idx) => (
+          <MessageBubble
+            key={`${entry.role}-${entry.iteration}-${idx}`}
+            entry={entry}
+          />
         ))}
         {session.status === "pending_review" && !isTerminal && (
           <Text color="fg.muted" fontSize="sm" textAlign="center" py={4}>

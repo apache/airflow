@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, createApi } from "src/api";
-import type { SessionResponse } from "src/types/feedback";
+import { type SessionResponse, isTerminalStatus } from "src/types/feedback";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -50,16 +50,6 @@ export function useSession(
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const apiRef = useRef(createApi(dagId, runId, taskId, mapIndex));
 
-  const isTerminal = useCallback((s: SessionResponse) => {
-    return (
-      s.status === "approved" ||
-      s.status === "rejected" ||
-      s.status === "max_iterations_exceeded" ||
-      s.status === "timeout_exceeded" ||
-      s.task_completed
-    );
-  }, []);
-
   const stopPolling = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -73,7 +63,7 @@ export function useSession(
       setSession(data);
       setError(null);
       setTaskActive(true);
-      if (isTerminal(data)) stopPolling();
+      if (isTerminalStatus(data)) stopPolling();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -87,7 +77,7 @@ export function useSession(
     } finally {
       setLoading(false);
     }
-  }, [isTerminal, stopPolling]);
+  }, [stopPolling]);
 
   useEffect(() => {
     void fetchSession();

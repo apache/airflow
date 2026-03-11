@@ -224,6 +224,64 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_deserializes_base_model_to_dict(self, mock_hook_cls, mock_run_hitl):
+        """When enable_hitl_review=True and output_type is BaseModel, execute deserializes JSON to dict."""
+
+        class Summary(BaseModel):
+            text: str
+            score: float
+
+        mock_result = _make_mock_run_result(Summary(text="Approved summary", score=0.9))
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        # run_hitl_review returns JSON string (as stored in session.current_output)
+        mock_run_hitl.return_value = '{"text": "Approved summary", "score": 0.9}'
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=Summary,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        context = MagicMock()
+        result = op.execute(context=context)
+
+        assert result == {"text": "Approved summary", "score": 0.9}
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_returns_string_unchanged(self, mock_hook_cls, mock_run_hitl):
+        """When enable_hitl_review=True and output_type is str, execute returns string as-is."""
+        mock_result = _make_mock_run_result("Initial output")
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = "Approved output"
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=str,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        context = MagicMock()
+        result = op.execute(context=context)
+
+        assert result == "Approved output"
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_propagates_hitl_max_iterations_error(self, mock_hook_cls, mock_run_hitl):
         """When run_hitl_review raises HITLMaxIterationsError, execute propagates it."""
         from airflow.providers.common.ai.exceptions import HITLMaxIterationsError

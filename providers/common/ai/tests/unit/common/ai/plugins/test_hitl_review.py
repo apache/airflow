@@ -1153,6 +1153,17 @@ class TestSubmitFeedbackEndpoint:
         )
         assert response.status_code == 404
 
+    def test_submit_feedback_400_when_empty_feedback(self, test_client):
+        _create_hitl_session()
+        for feedback in ("", "   ", "\t\n"):
+            response = test_client.post(
+                "/hitl-review/sessions/feedback",
+                params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
+                json={"feedback": feedback},
+            )
+            assert response.status_code == 400
+            assert "Feedback is required" in response.json()["detail"]
+
 
 class TestApproveEndpoint:
     """Test the /sessions/approve endpoint."""
