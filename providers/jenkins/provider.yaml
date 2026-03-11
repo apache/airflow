@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768335202
+source-date-epoch: 1773070923
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.2.3
   - 4.2.2
   - 4.2.1
   - 4.2.0
@@ -93,3 +94,20 @@ sensors:
 connection-types:
   - hook-class-name: airflow.providers.jenkins.hooks.jenkins.JenkinsHook
     connection-type: jenkins
+    ui-field-behaviour:
+      hidden-fields:
+        - extra
+      relabeling: {}
+      placeholders:
+        login: Login for the Jenkins service you would like to connect to
+        password: Password for the Jenkins service you would like to connect too
+        host: Host for your Jenkins server. Should NOT contain scheme (http:// or https://)
+        port: Specify a port number
+    conn-fields:
+      use_https:
+        label: Use Https
+        description: Specifies whether to use https scheme. Defaults to http
+        schema:
+          type:
+            - boolean
+            - 'null'

@@ -25,11 +25,21 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+import time_machine
 from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials, _bounded_get_new_password
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlKeyringException
+
+
+def make_client_w_responses(responses: list[httpx.Response]) -> Client:
+    """Get a client with custom responses."""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return responses.pop(0)
+
+    return Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
 
 @pytest.fixture(autouse=True)
@@ -126,6 +136,38 @@ class TestCredentials:
                 "api_url": credentials.api_url,
             }
 
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_KEYRING"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_no_keyring(self, mock_keyring):
+        from keyring.errors import NoKeyringError
+
+        cli_client = ClientKind.CLI
+        mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+
+        with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
+            Credentials(client_kind=cli_client).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_no_keyring_backend_skip_keyring(self, mock_keyring):
+
+        env = "TEST_SAVE_SKIP_KEYRING"
+        cli_client = ClientKind.CLI
+        mock_keyring.set_password = MagicMock()
+        mock_keyring.get_password = MagicMock()
+
+        Credentials(client_kind=cli_client).save(skip_keyring=True)
+
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        assert os.path.exists(config_dir)
+        with open(os.path.join(config_dir, f"{env}.json")) as f:
+            credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
+            assert json.load(f) == {
+                "api_url": credentials.api_url,
+            }
+        mock_keyring.set_password.assert_not_called()
+        mock_keyring.get_password.assert_not_called()
+
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflowctl.api.client.keyring")
@@ -195,6 +237,21 @@ class TestCredentials:
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
             Credentials(client_kind=cli_client).load()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_KEYRING_BACKEND"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_no_keyring_backend_token_provided(self, mock_keyring):
+        from keyring.errors import NoKeyringError
+
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_NO_KEYRING_BACKEND.json"), "w") as f:
+            json.dump({"api_url": "http://localhost:8080"}, f)
+        mock_keyring.get_password.side_effect = NoKeyringError("no backend")
+
+        credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
+        assert credentials.api_token == "TEST_TOKEN"
 
 
 class TestBoundedGetNewPassword:
@@ -267,3 +324,55 @@ class TestSaveKeyringPatching:
 
         assert not hasattr(mock_backend, "_get_new_password")
         mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "token")
+
+    def test_retry_handling_unrecoverable_error(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                *[httpx.Response(500, text="Internal Server Error")] * 6,
+                httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            with pytest.raises(httpx.HTTPStatusError) as err:
+                client.get("http://error")
+            assert not isinstance(err.value, ServerResponseError)
+            assert len(responses) == 5
+
+    def test_retry_handling_recovered(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                *[httpx.Response(500, text="Internal Server Error")] * 2,
+                httpx.Response(200, json={"detail": "Recovered from error"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            response = client.get("http://error")
+            assert response.status_code == 200
+            assert len(responses) == 1
+
+    def test_retry_handling_non_retry_error(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            with pytest.raises(ServerResponseError) as err:
+                client.get("http://error")
+            assert len(responses) == 1
+            assert err.value.args == ("Client error message: {'detail': 'Somehow this is a bad request'}",)
+
+    def test_retry_handling_ok(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                httpx.Response(200, json={"detail": "Recovered from error"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            response = client.get("http://error")
+            assert response.status_code == 200
+            assert len(responses) == 1

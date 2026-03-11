@@ -1548,6 +1548,23 @@ class TestBigQueryAsyncHookMethods:
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.sync_to_async")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
+    async def test_get_job_runs_via_sync_to_async(self, mock_get_sync_hook, mock_sync_to_async):
+        """Verify _get_job wraps the sync get_job call with sync_to_async (#63182)."""
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+
+        mock_async_get_job = mock.AsyncMock(return_value=mock.MagicMock())
+        mock_sync_to_async.return_value = mock_async_get_job
+
+        hook = BigQueryAsyncHook()
+        await hook._get_job(job_id=JOB_ID, project_id=PROJECT_ID, location="US")
+
+        mock_sync_to_async.assert_called_once_with(mock_sync_hook.get_job)
+        mock_async_get_job.assert_awaited_once_with(job_id=JOB_ID, project_id=PROJECT_ID, location="US")
+
     @pytest.mark.parametrize(
         ("job_state", "error_result", "expected"),
         [
@@ -2068,23 +2085,13 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] == parameters
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_hook_lineage_for_bq_job")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_insert_job_hook_lineage(self, mock_client, mock_query_job, mock_send_lineage):
-        query_job_type = "query"
-        job_conf = {
-            query_job_type: {
-                query_job_type: "SELECT * FROM test",
-                "useLegacySql": "False",
-            }
-        }
-        mock_query_job._JOB_TYPE = query_job_type
-        mock_query_job.job_type = query_job_type
+        job_conf = {"query": {"query": "SELECT * FROM test", "useLegacySql": "False"}}
+        mock_query_job._JOB_TYPE = "query"
         mock_job_instance = mock.MagicMock()
-        mock_job_instance.job_id = JOB_ID
-        mock_job_instance.query = "SELECT * FROM test"
-        mock_job_instance.job_type = query_job_type
         mock_query_job.from_api_repr.return_value = mock_job_instance
 
         self.hook.insert_job(
@@ -2095,8 +2102,4 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
             nowait=True,
         )
 
-        mock_send_lineage.assert_called_once()
-        call_kw = mock_send_lineage.call_args.kwargs
-        assert call_kw["context"] is self.hook
-        assert call_kw["sql"] == "SELECT * FROM test"
-        assert call_kw["job_id"] == JOB_ID
+        mock_send_lineage.assert_called_once_with(context=self.hook, job=mock_job_instance)

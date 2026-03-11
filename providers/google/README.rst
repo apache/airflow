@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``20.0.0``
+Release: ``21.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0/>`_.
 
 Installation
 ------------
@@ -62,7 +62,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
 ``gcloud-aio-auth``                         ``>=5.2.0``
@@ -92,7 +92,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.21.0``
+``google-cloud-dataproc``                   ``>=5.25.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``
@@ -125,8 +125,7 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
 ``proto-plus``                              ``>=1.26.0``
-``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+``pyarrow``                                 ``>=18.0.0``
 ``python-slugify``                          ``>=7.0.0``
 ``PyOpenSSL``                               ``>=23.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``
@@ -178,12 +177,11 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-====================  =========================================================================================================================================
+====================  ====================================================
 Extra                 Dependencies
-====================  =========================================================================================================================================
-``apache.beam``       ``apache-beam[gcp]>=2.53.0; python_version < "3.12"``, ``apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"``
+====================  ====================================================
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
-``fab``               ``apache-airflow-providers-fab>=2.0.0; python_version < '3.13'``
+``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
@@ -202,7 +200,7 @@ Extra                 Dependencies
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  =========================================================================================================================================
+====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.0.0/changelog.html>`_.

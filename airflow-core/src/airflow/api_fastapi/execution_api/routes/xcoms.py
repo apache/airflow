@@ -32,7 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -44,7 +44,7 @@ async def has_xcom_access(
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
-    token=JWTBearerDep,
+    token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the XCom."""
     # TODO: Placeholder for actual implementation

@@ -25,6 +25,34 @@
 Changelog
 ---------
 
+1.33.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Iceberg support to AnalyticsOperator (#62754)``
+* ``Add @task.analytics Decorator (#62648)``
+* ``Add ObjectStorage support to LLMSQLQueryOperator via DataFusion (#62640)``
+* ``Add 'LLMSQLQueryOperator' and '@task.llm_sql' to common.ai provider (#62599)``
+* ``AIP-99: Add AnalyticsOperator (#62232)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache DbApiHook.inspector to avoid creating N engines (#62594)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix removal of '__str__' method from Datafusion Format enums (#62830)``
+   * ``Explicitly set extra for connections in generic transfer tests (#62581)``
+
 1.32.0
 ......
 
@@ -34,9 +62,16 @@ Features
 * ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
 * ``'task-sql-decorator': Introducing the '@task.sql' decorator (#60851)``
 
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Providers ad-hoc 2026-02-20 (#62209)``
 
 1.31.0
 ......

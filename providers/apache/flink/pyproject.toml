@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-flink"
-version = "1.8.2"
+version = "1.8.3"
 description = "Provider package apache-airflow-providers-apache-flink for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,8 +60,11 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.10.1",
-    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
-    "cryptography>=41.0.0,<46.0.0",
+    # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
+    # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
+    # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
+    # support for Airflow 3.1.
+    "cryptography>=44.0.3",
     "apache-airflow-providers-cncf-kubernetes>=5.1.0",
 ]
 
@@ -101,8 +104,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

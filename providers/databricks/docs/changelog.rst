@@ -26,6 +26,43 @@
 Changelog
 ---------
 
+7.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add validation for table_name and expression_list in DatabricksCopyIntoOperator (#62499)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise ValueError instead of KeyError when cancel_previous_runs=True and no job identifier is provided (#62393)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage methods to DatabricksHook (#62179)``
+* ``Databricks OIDC token federation for Kubernetes deployment (#61458)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Add missing template fields to 'DatabricksWorkflowTaskGroup' (#61865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``cleanup test_databricks_workflow (#61907)``
+
 7.9.1
 .....
 

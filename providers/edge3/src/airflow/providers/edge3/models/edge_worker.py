@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
+from airflow.providers.edge3.models.edge_base import Base
 
 try:
     from airflow.sdk.observability.stats import DualStatsManager
@@ -103,6 +103,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     jobs_success: Mapped[int] = mapped_column(Integer, default=0)
     jobs_failed: Mapped[int] = mapped_column(Integer, default=0)
     sysinfo: Mapped[str | None] = mapped_column(String(256))
+    concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     def __init__(
         self,
@@ -392,3 +393,23 @@ def remove_worker_queues(worker_name: str, queues: list[str], session: Session =
         logger.error(error_message)
         raise TypeError(error_message)
     worker.remove_queues(queues)
+
+
+@provide_session
+def set_worker_concurrency(worker_name: str, concurrency: int, session: Session = NEW_SESSION) -> None:
+    """Set the concurrency of an edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        error_message = (
+            f"Cannot set concurrency for edge worker {worker_name} as it is in {worker.state} state!"
+        )
+        logger.error(error_message)
+        raise TypeError(error_message)
+    worker.concurrency = concurrency
