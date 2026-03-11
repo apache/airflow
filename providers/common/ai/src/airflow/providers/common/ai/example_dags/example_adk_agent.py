@@ -14,15 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAGs demonstrating AdkAgentOperator and @task.adk_agent."""
+"""Example DAGs demonstrating AgentOperator with Google ADK backend.
+
+The same ``AgentOperator`` and ``@task.agent`` decorator used for pydantic-ai
+also work with Google ADK — the backend is selected by the **connection type**
+(``adk``) rather than a different operator class.
+"""
 
 from __future__ import annotations
 
-from airflow.providers.common.ai.operators.adk_agent import AdkAgentOperator
+from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 # ---------------------------------------------------------------------------
-# 1. ADK Agent: answer a question using Google ADK with custom tools
+# 1. AgentOperator with ADK backend: answer using custom tools
 # ---------------------------------------------------------------------------
 
 
@@ -50,14 +55,17 @@ def example_adk_agent_operator():
             ][:limit],
         }
 
-    AdkAgentOperator(
+    # Same AgentOperator — ADK backend is selected by connection type.
+    # Pass ADK-specific ``tools`` via ``agent_params``.
+    AgentOperator(
         task_id="adk_analyst",
         prompt="What are the top 5 customers by order count?",
+        llm_conn_id="adk_default",
         model_id="gemini-2.5-flash",
         system_prompt=(
             "You are a data analyst. Use the available tools to answer questions about customer data."
         ),
-        tools=[get_customer_count, get_top_customers],
+        agent_params={"tools": [get_customer_count, get_top_customers]},
     )
 
 
@@ -67,7 +75,7 @@ example_adk_agent_operator()
 
 
 # ---------------------------------------------------------------------------
-# 2. @task.adk_agent decorator with ADK backend
+# 2. @task.agent decorator with ADK backend
 # ---------------------------------------------------------------------------
 
 
@@ -85,10 +93,11 @@ def example_adk_agent_decorator():
         """
         return {"status": "success", "month": month, "total_revenue": 42000.50}
 
-    @task.adk_agent(
+    @task.agent(
+        llm_conn_id="adk_default",
         model_id="gemini-2.5-flash",
         system_prompt="You are a data analyst. Use tools to answer questions.",
-        tools=[lookup_order_total],
+        agent_params={"tools": [lookup_order_total]},
     )
     def analyze(question: str):
         return f"Answer this question about our revenue data: {question}"

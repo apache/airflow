@@ -1,3 +1,0 @@
-- Ajustar Logging toolset operador
-- Ajustar logica do run sync no pydantic nao é feito no hook
-- ADKhook esta instruction e no pydanticai esta instructions

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -25,23 +25,12 @@ from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
-
-
-def _make_mock_agent(output):
-    """Create a mock agent that returns the given output."""
-    mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = _make_mock_run_result(output)
-    return mock_agent
+def _mock_hook(output="The answer is 42."):
+    """Create a mock BaseAIHook that returns the given output."""
+    hook = MagicMock()
+    hook.create_agent.return_value = MagicMock(name="mock_agent")
+    hook.run_agent.return_value = output
+    return hook
 
 
 class TestAgentOperatorValidation:
@@ -56,53 +45,101 @@ class TestAgentOperatorTemplateFields:
         assert set(AgentOperator.template_fields) == expected
 
 
-class TestAgentOperatorExecute:
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_creates_agent_from_hook(self, mock_hook_cls):
-        mock_agent = _make_mock_agent("The answer is 42.")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+class TestAgentOperatorResolveConnType:
+    @patch("airflow.providers.common.ai.operators.agent.BaseHook", autospec=True)
+    def test_resolve_pydanticai_conn_type(self, mock_base_hook):
+        conn = MagicMock()
+        conn.conn_type = "pydanticai"
+        mock_base_hook.get_connection.return_value = conn
 
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="my_llm")
+        assert op._resolve_conn_type() == "pydanticai"
+
+    @patch("airflow.providers.common.ai.operators.agent.BaseHook", autospec=True)
+    def test_resolve_adk_conn_type(self, mock_base_hook):
+        conn = MagicMock()
+        conn.conn_type = "adk"
+        mock_base_hook.get_connection.return_value = conn
+
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="my_adk")
+        assert op._resolve_conn_type() == "adk"
+
+    @patch("airflow.providers.common.ai.operators.agent.BaseHook", autospec=True)
+    def test_resolve_defaults_to_pydanticai_on_error(self, mock_base_hook):
+        mock_base_hook.get_connection.side_effect = Exception("Not found")
+
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="missing")
+        assert op._resolve_conn_type() == "pydanticai"
+
+
+class TestAgentOperatorLlmHook:
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_creates_pydanticai_hook(self, mock_hook_cls):
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="my_llm")
+        with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+            hook = op.llm_hook
+
+        assert hook is not None
+
+    @patch("airflow.providers.common.ai.hooks.adk.AdkHook", autospec=True)
+    def test_creates_adk_hook(self, mock_hook_cls):
+        op = AgentOperator(task_id="test", prompt="hello", llm_conn_id="my_adk")
+        with patch.object(op, "_resolve_conn_type", return_value="adk"):
+            hook = op.llm_hook
+
+        assert hook is not None
+
+
+class TestAgentOperatorExecute:
+    def test_execute_creates_agent_and_runs(self):
+        mock_hook = _mock_hook("The answer is 42.")
         op = AgentOperator(
             task_id="test",
             prompt="What is the answer?",
             llm_conn_id="my_llm",
             system_prompt="You are helpful.",
         )
-        result = op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+                result = op.execute(context=MagicMock())
 
         assert result == "The answer is 42."
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id=None)
-        mock_hook_cls.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions="You are helpful."
+        mock_hook.create_agent.assert_called_once_with(
+            output_type=str,
+            instructions="You are helpful.",
+            toolsets=None,
         )
-        mock_agent.run_sync.assert_called_once_with("What is the answer?")
+        mock_hook.run_agent.assert_called_once_with(
+            agent=mock_hook.create_agent.return_value,
+            prompt="What is the answer?",
+        )
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls):
-        """Toolsets are passed through to the agent constructor."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("done")
-
+    def test_execute_passes_toolsets_wrapped_for_logging(self):
+        """Toolsets are wrapped in LoggingToolset for pydantic-ai backend."""
+        mock_hook = _mock_hook("done")
         mock_toolset = MagicMock()
+
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
             llm_conn_id="my_llm",
             toolsets=[mock_toolset],
         )
-        op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+                op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
         assert passed_toolsets[0].wrapped is mock_toolset
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls):
+    def test_enable_tool_logging_false_skips_wrapping(self):
         """enable_tool_logging=False passes toolsets through unwrapped."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("done")
-
+        mock_hook = _mock_hook("done")
         mock_toolset = MagicMock()
+
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
@@ -110,61 +147,86 @@ class TestAgentOperatorExecute:
             toolsets=[mock_toolset],
             enable_tool_logging=False,
         )
-        op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+                op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         assert create_call[1]["toolsets"] == [mock_toolset]
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_passes_agent_params(self, mock_hook_cls):
-        """agent_params are unpacked into create_agent."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("ok")
+    def test_adk_backend_skips_logging_wrapping(self):
+        """ADK backend does not wrap toolsets in LoggingToolset."""
+        mock_hook = _mock_hook("done")
+        mock_toolset = MagicMock()
 
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_adk",
+            toolsets=[mock_toolset],
+        )
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="adk"):
+                op.execute(context=MagicMock())
+
+        create_call = mock_hook.create_agent.call_args
+        assert create_call[1]["toolsets"] == [mock_toolset]
+
+    def test_execute_passes_agent_params(self):
+        """agent_params are unpacked into create_agent."""
+        mock_hook = _mock_hook("ok")
         op = AgentOperator(
             task_id="test",
             prompt="test",
             llm_conn_id="my_llm",
             agent_params={"retries": 3, "model_settings": {"temperature": 0}},
         )
-        op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+                op.execute(context=MagicMock())
 
-        create_call = mock_hook_cls.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_structured_output(self, mock_hook_cls):
+    def test_execute_structured_output(self):
         """Structured output via BaseModel is serialized with model_dump."""
 
         class Summary(BaseModel):
             text: str
             score: float
 
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(
-            Summary(text="Great", score=0.95)
-        )
-
+        mock_hook = _mock_hook(Summary(text="Great", score=0.95))
         op = AgentOperator(
             task_id="test",
             prompt="Analyze this",
             llm_conn_id="my_llm",
             output_type=Summary,
         )
-        result = op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="pydanticai"):
+                result = op.execute(context=MagicMock())
 
         assert result == {"text": "Great", "score": 0.95}
 
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_model_id(self, mock_hook_cls):
-        """model_id is passed to PydanticAIHook."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent("ok")
+    def test_execute_with_adk_tools_via_agent_params(self):
+        """ADK-specific tools can be passed via agent_params."""
+        mock_hook = _mock_hook("adk result")
+
+        def my_tool():
+            """A test tool."""
+            return {"result": "ok"}
 
         op = AgentOperator(
             task_id="test",
-            prompt="test",
-            llm_conn_id="my_llm",
-            model_id="openai:gpt-5",
+            prompt="Do something",
+            llm_conn_id="my_adk",
+            agent_params={"tools": [my_tool]},
         )
-        op.execute(context=MagicMock())
+        with patch.object(type(op), "llm_hook", new_callable=PropertyMock, return_value=mock_hook):
+            with patch.object(op, "_resolve_conn_type", return_value="adk"):
+                result = op.execute(context=MagicMock())
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id="openai:gpt-5")
+        assert result == "adk result"
+        create_call = mock_hook.create_agent.call_args
+        assert create_call[1]["tools"] == [my_tool]

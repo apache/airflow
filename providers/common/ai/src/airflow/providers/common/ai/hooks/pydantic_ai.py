@@ -22,15 +22,17 @@ from pydantic_ai import Agent
 from pydantic_ai.models import Model, infer_model
 from pydantic_ai.providers import Provider, infer_provider, infer_provider_class
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.ai.hooks.base import BaseAIHook
 
 OutputT = TypeVar("OutputT")
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName
+    from pydantic_ai.result import AgentRunResult
+    from pydantic_ai.toolsets.abstract import AbstractToolset
 
 
-class PydanticAIHook(BaseHook):
+class PydanticAIHook(BaseAIHook):
     """
     Hook for LLM access via pydantic-ai.
 
@@ -142,16 +144,41 @@ class PydanticAIHook(BaseHook):
     def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
 
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
+        self,
+        *,
+        output_type: type[Any] = str,
+        instructions: str = "",
+        toolsets: list[AbstractToolset] | None = None,
+        **agent_kwargs,
     ) -> Agent[None, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
+        :param toolsets: List of pydantic-ai toolsets.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
+        if toolsets is not None:
+            agent_kwargs["toolsets"] = toolsets
         return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+
+    def run_agent(self, *, agent: Agent[None, Any], prompt: str) -> Any:
+        """
+        Run the agent synchronously and return the output.
+
+        Logs a post-run summary with model name, token usage, and tool call
+        sequence via :func:`~airflow.providers.common.ai.utils.logging.log_run_summary`.
+
+        :param agent: A pydantic-ai Agent instance.
+        :param prompt: The user prompt.
+        :return: The agent's output (``result.output``).
+        """
+        from airflow.providers.common.ai.utils.logging import log_run_summary
+
+        result: AgentRunResult[Any] = agent.run_sync(prompt)
+        log_run_summary(self.log, result)
+        return result.output
 
     def test_connection(self) -> tuple[bool, str]:
         """

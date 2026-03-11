@@ -253,6 +253,36 @@ class TestPydanticAIHookCreateAgent:
         )
 
 
+class TestPydanticAIHookRunAgent:
+    @patch("airflow.providers.common.ai.utils.logging.log_run_summary")
+    def test_run_agent_calls_run_sync_and_returns_output(self, mock_log_summary):
+        """run_agent calls agent.run_sync and returns the output."""
+        mock_result = MagicMock()
+        mock_result.output = "The answer is 42."
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        output = hook.run_agent(agent=mock_agent, prompt="What is the answer?")
+
+        assert output == "The answer is 42."
+        mock_agent.run_sync.assert_called_once_with("What is the answer?")
+        mock_log_summary.assert_called_once()
+
+    @patch("airflow.providers.common.ai.utils.logging.log_run_summary")
+    def test_run_agent_logs_summary(self, mock_log_summary):
+        """run_agent calls log_run_summary with the result."""
+        mock_result = MagicMock()
+        mock_result.output = "done"
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook.run_agent(agent=mock_agent, prompt="test")
+
+        mock_log_summary.assert_called_once_with(hook.log, mock_result)
+
+
 class TestPydanticAIHookTestConnection:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_successful_connection(self, mock_infer_model):
