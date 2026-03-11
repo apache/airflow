@@ -199,6 +199,8 @@ class TestVaultHook:
         [
             (True, "https://localhost:8180"),
             (False, "http://localhost:8180"),
+            ("true", "https://localhost:8180"),
+            ("false", "http://localhost:8180"),
         ],
     )
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")

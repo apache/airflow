@@ -166,7 +166,7 @@ class TestDeadline:
             mock_session.execute.return_value.all.assert_called_once()
             mock_session.delete.assert_called_once_with(mock_deadline)
         else:
-            mock_session.query.assert_not_called()
+            mock_session.execute.assert_not_called()
 
     def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
         repr_str = repr(deadline_orm)

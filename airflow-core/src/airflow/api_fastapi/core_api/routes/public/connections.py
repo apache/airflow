@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
+    ConnectionBodyPartial,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -203,10 +204,17 @@ def patch_connection(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
-    try:
-        ConnectionBody(**patch_body.model_dump())
-    except ValidationError as e:
-        raise RequestValidationError(errors=e.errors())
+    if update_mask:
+        fields_to_update = patch_body.model_fields_set & set(update_mask)
+        try:
+            ConnectionBodyPartial(**patch_body.model_dump(include=fields_to_update))
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+    else:
+        try:
+            ConnectionBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
 
     update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection

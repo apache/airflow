@@ -41,15 +41,15 @@ def setup_method():
 
 @pytest.fixture
 def access_denied(client):
-    from airflow.api_fastapi.execution_api.deps import JWTBearerDep
     from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
+    from airflow.api_fastapi.execution_api.security import CurrentTIToken
 
     last_route = client.app.routes[-1]
     assert isinstance(last_route, Mount)
     assert isinstance(last_route.app, FastAPI)
     exec_app = last_route.app
 
-    async def _(request: Request, variable_key: str, token=JWTBearerDep):
+    async def _(request: Request, variable_key: str, token=CurrentTIToken):
         await has_variable_access(request, variable_key, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

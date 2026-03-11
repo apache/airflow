@@ -57,9 +57,8 @@ from unit.utils.test_config import (
 
 HOME_DIR = os.path.expanduser("~")
 
-# The conf has been updated with sql_alchemy_con and deactivate_stale_dags_interval to test the
+# The conf has been updated with deactivate_stale_dags_interval to test the
 # functionality of deprecated options support.
-conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
 conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
     "scheduler",
     "deactivate_stale_dags_interval",
@@ -1183,38 +1182,25 @@ sql_alchemy_conn=sqlite://test
         ("old", "new"),
         [
             (
-                ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
-                ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
+                ("webserver", "secret_key", "test_secret_value"),
+                ("api", "secret_key", "test_secret_value"),
             ),
         ],
     )
-    def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
-        test_conf = AirflowConfigParser(
-            default_config="""
-[core]
-executor=LocalExecutor
-[database]
-sql_alchemy_conn=sqlite://test
-"""
-        )
+    def test_deprecated_env_vars_lookup(self, old, new):
+        test_conf = AirflowConfigParser()
         old_section, old_key, old_value = old
         new_section, new_key, new_value = new
         old_env_var = test_conf._env_var_name(old_section, old_key)
         new_env_var = test_conf._env_var_name(new_section, new_key)
 
-        with mock.patch.dict("os.environ", **{old_env_var: old_value}):
+        env_patch = {old_env_var: old_value}
+        with mock.patch.dict("os.environ", env_patch):
             # Can't start with the new env var existing...
             os.environ.pop(new_env_var, None)
 
-            with pytest.warns(FutureWarning):
-                test_conf.validate()
-            assert test_conf.get(new_section, new_key) == new_value
-            # We also need to make sure the deprecated env var is removed
-            # so that any subprocesses don't use it in place of our updated
-            # value.
-            assert old_env_var not in os.environ
-            # and make sure we track the old value as well, under the new section/key
-            assert test_conf.upgraded_values[(new_section, new_key)] == old_value
+            with pytest.warns(DeprecationWarning, match="the old setting has been used"):
+                assert test_conf.get(new_section, new_key) == new_value
 
     @pytest.mark.parametrize(
         "conf_dict",
@@ -1328,19 +1314,19 @@ sql_alchemy_conn=sqlite://test
                 include_env=False,
                 include_cmds=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("mysql://", "airflow.cfg") if display_source else "mysql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("my_secret_key", "airflow.cfg") if display_source else "my_secret_key"
             )
-            # database should be None because the deprecated value is set in config
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in config
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "mysql://"
+                assert conf.get("api", "secret_key") == "my_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    @mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY": "env_secret_key"}, clear=True)
     def test_conf_as_dict_when_deprecated_value_in_both_env_and_config(self, display_source: bool):
         with use_config(config="deprecated.cfg"):
             cfg_dict = conf.as_dict(
@@ -1350,19 +1336,19 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_cmds=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("postgresql://", "env var") if display_source else "postgresql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("env_secret_key", "env var") if display_source else "env_secret_key"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in env value
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
+                assert conf.get("api", "secret_key") == "env_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    @mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY": "env_secret_key"}, clear=True)
     def test_conf_as_dict_when_deprecated_value_in_both_env_and_config_exclude_env(
         self, display_source: bool
     ):
@@ -1374,52 +1360,51 @@ sql_alchemy_conn=sqlite://test
                 include_env=False,
                 include_cmds=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("mysql://", "airflow.cfg") if display_source else "mysql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("my_secret_key", "airflow.cfg") if display_source else "my_secret_key"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in config (env excluded)
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "mysql://"
+                assert conf.get("api", "secret_key") == "my_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    @mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY": "env_secret_key"}, clear=True)
     def test_conf_as_dict_when_deprecated_value_in_env(self, display_source: bool):
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source, raw=True, display_sensitive=True, include_env=True
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("postgresql://", "env var") if display_source else "postgresql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("env_secret_key", "env var") if display_source else "env_secret_key"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in env value
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
+                assert conf.get("api", "secret_key") == "env_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
     def test_conf_as_dict_when_both_conf_and_env_are_empty(self, display_source: bool):
+        default_secret_key = conf.get_default_value("api", "secret_key")
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(display_source=display_source, raw=True, display_sensitive=True)
-            assert cfg_dict["core"].get("sql_alchemy_conn") is None
-            # database should be taken from default because the deprecated value is missing in config
-            assert cfg_dict["database"].get("sql_alchemy_conn") == (
-                (f"sqlite:///{HOME_DIR}/airflow/airflow.db", "default")
-                if display_source
-                else f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+            assert cfg_dict.get("webserver", {}).get("secret_key") is None
+            # api should be taken from default because the deprecated value is missing in config
+            assert cfg_dict["api"].get("secret_key") == (
+                (default_secret_key, "default") if display_source else default_secret_key
             )
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert conf.get("api", "secret_key") == default_secret_key
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
@@ -1432,20 +1417,20 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_cmds=True,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("postgresql://", "cmd") if display_source else "postgresql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("test_secret_key", "cmd") if display_source else "test_secret_key"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in cmd
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
+                assert conf.get("api", "secret_key") == "test_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": "echo -n 'test_secret_key'"}, clear=True
     )
     def test_conf_as_dict_when_deprecated_value_in_cmd_env(self, display_source: bool):
         with use_config(config="empty.cfg"):
@@ -1456,22 +1441,23 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_cmds=True,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("postgresql://", "cmd") if display_source else "postgresql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("test_secret_key", "cmd") if display_source else "test_secret_key"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in cmd env
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
+                assert conf.get("api", "secret_key") == "test_secret_key"
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": "echo -n 'test_secret_key'"}, clear=True
     )
     def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_env(self, display_source: bool):
+        default_secret_key = conf.get_default_value("api", "secret_key")
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1480,21 +1466,20 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_cmds=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") is None
-            assert cfg_dict["database"].get("sql_alchemy_conn") == (
-                (f"sqlite:///{HOME_DIR}/airflow/airflow.db", "default")
-                if display_source
-                else f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+            assert cfg_dict.get("webserver", {}).get("secret_key") is None
+            assert cfg_dict["api"].get("secret_key") == (
+                (default_secret_key, "default") if display_source else default_secret_key
             )
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert conf.get("api", "secret_key") == default_secret_key
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
     def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_config(self, display_source: bool):
+        default_secret_key = conf.get_default_value("api", "secret_key")
         with use_config(config="deprecated_cmd.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1503,25 +1488,23 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_cmds=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") is None
-            assert cfg_dict["database"].get("sql_alchemy_conn") == (
-                (f"sqlite:///{HOME_DIR}/airflow/airflow.db", "default")
-                if display_source
-                else f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+            assert cfg_dict.get("webserver", {}).get("secret_key") is None
+            assert cfg_dict["api"].get("secret_key") == (
+                (default_secret_key, "default") if display_source else default_secret_key
             )
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert conf.get("api", "secret_key") == default_secret_key
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_SECRET": "secret_path"}, clear=True)
     @mock.patch("airflow.configuration.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        get_custom_secret_backend.return_value.get_config.return_value = "secret_from_backend"
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1530,24 +1513,25 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_secret=True,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") == (
-                ("postgresql://", "secret") if display_source else "postgresql://"
+            assert cfg_dict["webserver"].get("secret_key") == (
+                ("secret_from_backend", "secret") if display_source else "secret_from_backend"
             )
-            # database should be None because the deprecated value is set in env value
-            assert cfg_dict["database"].get("sql_alchemy_conn") is None
+            # api should be None because the deprecated value is set in secret
+            assert cfg_dict["api"].get("secret_key") is None
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
+                assert conf.get("api", "secret_key") == "secret_from_backend"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_SECRET": "secret_path"}, clear=True)
     @mock.patch("airflow.configuration.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_env(
         self, get_custom_secret_backend, display_source: bool
     ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        default_secret_key = conf.get_default_value("api", "secret_key")
+        get_custom_secret_backend.return_value.get_config.return_value = "secret_from_backend"
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1556,17 +1540,15 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_secret=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") is None
-            assert cfg_dict["database"].get("sql_alchemy_conn") == (
-                (f"sqlite:///{HOME_DIR}/airflow/airflow.db", "default")
-                if display_source
-                else f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+            assert cfg_dict.get("webserver", {}).get("secret_key") is None
+            assert cfg_dict["api"].get("secret_key") == (
+                (default_secret_key, "default") if display_source else default_secret_key
             )
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert conf.get("api", "secret_key") == default_secret_key
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch("airflow.configuration.get_custom_secret_backend")
@@ -1574,7 +1556,8 @@ sql_alchemy_conn=sqlite://test
     def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_config(
         self, get_custom_secret_backend, display_source: bool
     ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        default_secret_key = conf.get_default_value("api", "secret_key")
+        get_custom_secret_backend.return_value.get_config.return_value = "secret_from_backend"
         with use_config(config="deprecated_secret.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1583,17 +1566,15 @@ sql_alchemy_conn=sqlite://test
                 include_env=True,
                 include_secret=False,
             )
-            assert cfg_dict["core"].get("sql_alchemy_conn") is None
-            assert cfg_dict["database"].get("sql_alchemy_conn") == (
-                (f"sqlite:///{HOME_DIR}/airflow/airflow.db", "default")
-                if display_source
-                else f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+            assert cfg_dict.get("webserver", {}).get("secret_key") is None
+            assert cfg_dict["api"].get("secret_key") == (
+                (default_secret_key, "default") if display_source else default_secret_key
             )
             if not display_source:
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert conf.get("api", "secret_key") == default_secret_key
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
         from airflow.configuration import AirflowConfigParser
@@ -1815,7 +1796,6 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("keycloak_auth_manager", "client_secret"),
-        ("core", "sql_alchemy_conn"),
         ("celery_broker_transport_options", "sentinel_kwargs"),
         ("celery", "broker_url"),
         ("celery", "flower_basic_auth"),

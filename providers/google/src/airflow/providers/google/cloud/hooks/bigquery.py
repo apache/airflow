@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 import pendulum
 from aiohttp import ClientSession as ClientSession
+from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -2089,7 +2090,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     ) -> BigQueryJob | UnknownJob:
         """Get BigQuery job by its ID, project ID and location."""
         sync_hook = await self.get_sync_hook()
-        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
+        job = await sync_to_async(sync_hook.get_job)(job_id=job_id, project_id=project_id, location=location)
         return job
 
     async def get_job_status(
