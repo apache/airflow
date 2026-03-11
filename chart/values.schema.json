@@ -2418,7 +2418,7 @@
                     }
                 },
                 "schedulerName": {
-                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file. Use `workers.celery.schedulerName` and/or `workers.kubernetes.schedulerName` to separate value between Celery workers and pod-template-file.",
                     "type": [
                         "string",
                         "null"
@@ -3257,6 +3257,15 @@
                                     }
                                 }
                             }
+                        },
+                        "schedulerName": {
+                            "description": "Specify kube scheduler name for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": "Common"
                         }
                     }
                 },
@@ -3512,6 +3521,15 @@
                                     }
                                 }
                             }
+                        },
+                        "schedulerName": {
+                            "description": "Specify kube scheduler name for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": "Common"
                         }
                     }
                 }
