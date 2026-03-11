@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
@@ -279,6 +280,17 @@ def _resolve_github_token(github_token: str | None) -> str | None:
     if gh_token_result.returncode == 0:
         return gh_token_result.stdout.strip()
     return None
+
+
+_VIEWER_QUERY = """
+query { viewer { login } }
+"""
+
+
+def _resolve_viewer_login(token: str) -> str:
+    """Resolve the GitHub login of the authenticated user via the viewer query."""
+    data = _graphql_request(token, _VIEWER_QUERY, {})
+    return data["viewer"]["login"]
 
 
 def _graphql_request(token: str, query: str, variables: dict) -> dict:
@@ -600,16 +612,39 @@ def _fetch_prs_graphql(
     token: str,
     github_repository: str,
     labels: tuple[str, ...],
+    exclude_labels: tuple[str, ...],
     filter_user: str | None,
     sort: str,
     batch_size: int,
+    created_after: str | None = None,
+    created_before: str | None = None,
+    updated_after: str | None = None,
+    updated_before: str | None = None,
+    review_requested: str | None = None,
 ) -> list[PRData]:
     """Fetch a single batch of matching PRs via GraphQL."""
     query_parts = [f"repo:{github_repository}", "type:pr", "is:open", "draft:false"]
     if filter_user:
         query_parts.append(f"author:{filter_user}")
+    if review_requested:
+        query_parts.append(f"review-requested:{review_requested}")
     for label in labels:
         query_parts.append(f'label:"{label}"')
+    for label in exclude_labels:
+        query_parts.append(f'-label:"{label}"')
+    # Date range filters — GitHub search supports created: and updated: qualifiers
+    if created_after and created_before:
+        query_parts.append(f"created:{created_after}..{created_before}")
+    elif created_after:
+        query_parts.append(f"created:>={created_after}")
+    elif created_before:
+        query_parts.append(f"created:<={created_before}")
+    if updated_after and updated_before:
+        query_parts.append(f"updated:{updated_after}..{updated_before}")
+    elif updated_after:
+        query_parts.append(f"updated:>={updated_after}")
+    elif updated_before:
+        query_parts.append(f"updated:<={updated_before}")
     search_query = " ".join(query_parts)
 
     sort_field, sort_direction = sort.rsplit("-", 1)
@@ -917,9 +952,18 @@ def _load_what_to_do_next() -> str:
 
 
 def _build_comment(
-    pr_author: str, violations: list, pr_number: int, commits_behind: int, base_ref: str
+    pr_author: str,
+    violations: list,
+    pr_number: int,
+    commits_behind: int,
+    base_ref: str,
+    comment_only: bool = False,
 ) -> str:
-    """Build the comment to post on a PR being converted to draft."""
+    """Build the comment to post on a flagged PR.
+
+    When comment_only is True, the comment just lists findings without
+    mentioning draft conversion.
+    """
     violation_lines = []
     for v in violations:
         icon = "x" if v.severity == "error" else "warning"
@@ -938,6 +982,17 @@ def _build_comment(
             f"commit{'s' if commits_behind != 1 else ''} behind `{base_ref}`**. "
             "Some check failures may be caused by changes in the base branch rather than by your PR. "
             "Please rebase your branch and push again to get up-to-date CI results."
+        )
+
+    if comment_only:
+        return (
+            f"@{pr_author} This PR has a few issues that need to be addressed before it can be "
+            f"reviewed — please see our {QUALITY_CRITERIA_LINK}.\n\n"
+            f"**Issues found:**\n{violations_text}{rebase_note}\n\n"
+            f"**What to do next:**\n{what_to_do}\n\n"
+            "Please address the issues above and push again. "
+            "If you have questions, feel free to ask on the "
+            "[Airflow Slack](https://s.apache.org/airflow-slack)."
         )
 
     return (
@@ -986,12 +1041,20 @@ def _compute_default_action(
     """Compute the suggested default triage action and reason for a flagged PR."""
     reason_parts: list[str] = []
 
-    if pr.mergeable == "CONFLICTING":
+    has_conflicts = pr.mergeable == "CONFLICTING"
+    if has_conflicts:
         reason_parts.append("has merge conflicts")
 
     failed_count = len(pr.failed_checks)
-    if failed_count > 0:
+    has_ci_failures = failed_count > 0
+    if has_ci_failures:
         reason_parts.append(f"{failed_count} CI failure{'s' if failed_count != 1 else ''}")
+
+    has_unresolved_comments = pr.unresolved_review_comments > 0
+    if has_unresolved_comments and not any("unresolved" in p for p in reason_parts):
+        reason_parts.append(
+            f"{pr.unresolved_review_comments} unresolved review comment{'s' if pr.unresolved_review_comments != 1 else ''}"
+        )
 
     if assessment.summary:
         reason_parts.append(assessment.summary.lower())
@@ -1000,6 +1063,9 @@ def _compute_default_action(
     if count > 3:
         reason_parts.append(f"author has {count} flagged {'PRs' if count != 1 else 'PR'}")
         action = TriageAction.CLOSE
+    elif not has_ci_failures and (has_conflicts or has_unresolved_comments):
+        # CI passes, no LLM issues — only conflicts or unresolved comments; just add a comment
+        action = TriageAction.COMMENT
     else:
         action = TriageAction.DRAFT
 
@@ -1007,9 +1073,23 @@ def _compute_default_action(
     reason = reason[0].upper() + reason[1:]
     action_label = {
         TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
         TriageAction.CLOSE: "close",
     }[action]
     return action, f"{reason} — suggesting {action_label}"
+
+
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds to a human-friendly string like '2m 05s' or '3.2s'."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes = int(seconds) // 60
+    secs = int(seconds) % 60
+    if minutes < 60:
+        return f"{minutes}m {secs:02d}s"
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}h {mins:02d}m {secs:02d}s"
 
 
 def _pr_link(pr: PRData) -> str:
@@ -1120,6 +1200,71 @@ def _display_workflow_approval_panel(pr: PRData, author_profile: dict | None, pe
         f"  [link={pr.url}/files]View changes on GitHub[/link]"
     )
     console.print(Panel(info_text, title="Workflow Approval Needed", border_style="bright_cyan"))
+
+
+def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRData]) -> int:
+    """Resolve UNKNOWN mergeable status for PRs via REST API.
+
+    GitHub's GraphQL API computes mergeability lazily and often returns UNKNOWN.
+    The REST API triggers computation and returns the result. Sometimes the first
+    call still returns null, so we retry once after a short delay.
+
+    Returns the number of PRs whose status was resolved.
+    """
+    import time
+
+    import requests
+
+    unknown_prs = [pr for pr in prs if pr.mergeable == "UNKNOWN"]
+    if not unknown_prs:
+        return 0
+
+    resolved = 0
+    still_unknown: list[PRData] = []
+
+    for pr in unknown_prs:
+        url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            mergeable = data.get("mergeable")
+            if mergeable is True:
+                pr.mergeable = "MERGEABLE"
+                resolved += 1
+            elif mergeable is False:
+                pr.mergeable = "CONFLICTING"
+                resolved += 1
+            else:
+                # null means GitHub hasn't computed it yet — retry later
+                still_unknown.append(pr)
+        else:
+            still_unknown.append(pr)
+
+    if still_unknown:
+        # Give GitHub a moment to compute mergeability, then retry
+        time.sleep(2)
+        for pr in still_unknown:
+            url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=30,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                mergeable = data.get("mergeable")
+                if mergeable is True:
+                    pr.mergeable = "MERGEABLE"
+                    resolved += 1
+                elif mergeable is False:
+                    pr.mergeable = "CONFLICTING"
+                    resolved += 1
+
+    return resolved
 
 
 def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | None:
@@ -1237,6 +1382,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
 )
 @option_github_token
 @option_github_repository
+# --- Target selection ---
 @click.option(
     "--pr",
     "pr_number",
@@ -1244,13 +1390,81 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     default=None,
     help="Triage a specific PR by number instead of searching.",
 )
+# --- Filter options ---
 @click.option(
     "--label",
     "labels",
     type=NotVerifiedBetterChoice(_load_labels_from_boring_cyborg()),
     multiple=True,
-    help="Filter PRs by label (can be repeated).",
+    help="Filter PRs by label. Supports wildcards (e.g. 'area:*', 'provider:amazon*'). Can be repeated.",
 )
+@click.option(
+    "--exclude-label",
+    "exclude_labels",
+    type=str,
+    multiple=True,
+    help="Exclude PRs with this label. Supports wildcards. Can be repeated.",
+)
+@click.option(
+    "--author",
+    "filter_user",
+    default=None,
+    help="Filter PRs to a specific author.",
+)
+@click.option(
+    "--created-after",
+    default=None,
+    help="Only PRs created on or after this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--created-before",
+    default=None,
+    help="Only PRs created on or before this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--updated-after",
+    default=None,
+    help="Only PRs updated on or after this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--updated-before",
+    default=None,
+    help="Only PRs updated on or before this date (YYYY-MM-DD).",
+)
+@click.option(
+    "--include-collaborators",
+    is_flag=True,
+    default=False,
+    help="Include PRs from collaborators/members/owners (normally skipped).",
+)
+@click.option(
+    "--pending-approval-only",
+    is_flag=True,
+    default=False,
+    help="Only show PRs with workflow runs awaiting approval.",
+)
+@click.option(
+    "--checks-state",
+    type=click.Choice(["failure", "success", "pending", "any"]),
+    default="any",
+    show_default=True,
+    help="Only assess PRs with this CI checks state.",
+)
+@click.option(
+    "--min-commits-behind",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Only assess PRs that are at least this many commits behind base branch.",
+)
+@click.option(
+    "--review-requested",
+    "review_requested",
+    is_flag=True,
+    default=False,
+    help="Only show PRs where review is requested for the authenticated user.",
+)
+# --- Pagination and sorting ---
 @click.option(
     "--batch-size",
     type=int,
@@ -1272,12 +1486,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     show_default=True,
     help="Sort order for PR search results.",
 )
-@click.option(
-    "--author",
-    "filter_user",
-    default=None,
-    help="Filter PRs to a specific author.",
-)
+# --- Assessment options ---
 @click.option(
     "--check-mode",
     type=click.Choice(["both", "ci", "llm"]),
@@ -1293,6 +1502,7 @@ def _approve_workflow_runs(token: str, github_repository: str, pending_runs: lis
     help="Number of concurrent LLM assessment calls.",
 )
 @option_llm_model
+# --- Action options ---
 @click.option(
     "--answer-triage",
     type=click.Choice(["d", "c", "r", "s", "q", "y", "n"], case_sensitive=False),
@@ -1306,10 +1516,20 @@ def auto_triage(
     github_repository: str,
     pr_number: int | None,
     labels: tuple[str, ...],
+    exclude_labels: tuple[str, ...],
     batch_size: int,
     max_num: int,
     sort: str,
     filter_user: str | None,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    include_collaborators: bool,
+    pending_approval_only: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    review_requested: bool,
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
@@ -1345,13 +1565,55 @@ def auto_triage(
 
     dry_run = get_dry_run()
 
+    # Resolve --review-requested: resolve to the authenticated user
+    review_requested_user: str | None = None
+    if review_requested:
+        review_requested_user = _resolve_viewer_login(token)
+        get_console().print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
+
+    # Split labels into exact (for GitHub search) and wildcard (for client-side filtering)
+    from fnmatch import fnmatch
+
+    exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
+    wildcard_labels = [lbl for lbl in labels if "*" in lbl or "?" in lbl]
+    exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
+    wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
+
+    t_total_start = time.monotonic()
+
     # Phase 1: Lightweight fetch of PRs via GraphQL (no check contexts — fast)
+    t_phase1_start = time.monotonic()
     if pr_number:
         get_console().print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
     else:
         get_console().print("[info]Fetching PRs via GraphQL...[/]")
-        all_prs = _fetch_prs_graphql(token, github_repository, labels, filter_user, sort, batch_size)
+        all_prs = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            review_requested=review_requested_user,
+        )
+
+    # Apply wildcard label filters client-side
+    if wildcard_labels:
+        all_prs = [
+            pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
+        ]
+    if wildcard_exclude_labels:
+        all_prs = [
+            pr
+            for pr in all_prs
+            if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
+        ]
 
     # Resolve how far behind base branch each PR is (chunked GraphQL)
     get_console().print("[info]Checking how far behind base branch each PR is...[/]")
@@ -1359,17 +1621,18 @@ def auto_triage(
     for pr in all_prs:
         pr.commits_behind = behind_map.get(pr.number, 0)
 
-    # Display fetched PRs overview (CI status is rollup state only — details fetched later)
-    pr_table = Table(title=f"Fetched PRs ({len(all_prs)})")
+    # Display fetched PRs overview (skip collaborator PRs — they'll be summarised below)
+    non_collab_prs = [pr for pr in all_prs if pr.author_association not in _COLLABORATOR_ASSOCIATIONS]
+    collab_count = len(all_prs) - len(non_collab_prs)
+    pr_table = Table(title=f"Fetched PRs ({len(non_collab_prs)} non-collaborator)")
     pr_table.add_column("PR", style="cyan", no_wrap=True)
     pr_table.add_column("Title", max_width=50)
     pr_table.add_column("Author")
-    pr_table.add_column("Association", style="dim")
     pr_table.add_column("Status")
     pr_table.add_column("Behind", justify="right")
     pr_table.add_column("Conflicts")
     pr_table.add_column("CI Status")
-    for pr in all_prs:
+    for pr in non_collab_prs:
         if pr.checks_state == "FAILURE":
             ci_status = "[red]Failing[/]"
         elif pr.checks_state == "PENDING":
@@ -1389,36 +1652,37 @@ def auto_triage(
         else:
             conflicts_text = "[green]No[/]"
 
-        # Overall status: flag if any issue detected
         has_issues = pr.checks_state == "FAILURE" or pr.mergeable == "CONFLICTING"
-        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
-            overall = "[dim]Collaborator[/]"
-        elif has_issues:
-            overall = "[red]Flag[/]"
-        else:
-            overall = "[green]OK[/]"
+        overall = "[red]Flag[/]" if has_issues else "[green]OK[/]"
 
         pr_table.add_row(
             _pr_link(pr),
             pr.title[:50],
             pr.author_login,
-            pr.author_association.lower(),
             overall,
             behind_text,
             conflicts_text,
             ci_status,
         )
     get_console().print(pr_table)
+    if collab_count:
+        get_console().print(
+            f"  [dim]({collab_count} collaborator/member {'PRs' if collab_count != 1 else 'PR'} not shown)[/]"
+        )
     get_console().print()
 
-    # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply --max-num
+    t_phase1_end = time.monotonic()
+
+    # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
     candidate_prs: list[PRData] = []
     total_skipped_collaborator = 0
     total_skipped_bot = 0
     total_skipped_accepted = 0
+    total_skipped_checks_state = 0
+    total_skipped_commits_behind = 0
     verbose = get_verbose()
     for pr in all_prs:
-        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
+        if not include_collaborators and pr.author_association in _COLLABORATOR_ASSOCIATIONS:
             total_skipped_collaborator += 1
             if verbose:
                 get_console().print(
@@ -1435,27 +1699,49 @@ def auto_triage(
                 get_console().print(
                     f"  [dim]Skipping PR {_pr_link(pr)} — already has '{_READY_FOR_REVIEW_LABEL}' label[/]"
                 )
+        elif checks_state != "any" and pr.checks_state.lower() != checks_state:
+            total_skipped_checks_state += 1
+            if verbose:
+                get_console().print(
+                    f"  [dim]Skipping PR {_pr_link(pr)} — checks state {pr.checks_state} != {checks_state}[/]"
+                )
+        elif min_commits_behind > 0 and pr.commits_behind < min_commits_behind:
+            total_skipped_commits_behind += 1
+            if verbose:
+                get_console().print(
+                    f"  [dim]Skipping PR {_pr_link(pr)} — only "
+                    f"{pr.commits_behind} commits behind (min: {min_commits_behind})[/]"
+                )
         else:
             candidate_prs.append(pr)
 
     if max_num and len(candidate_prs) > max_num:
         candidate_prs = candidate_prs[:max_num]
 
-    skipped_parts = [
-        f"{total_skipped_collaborator} {'collaborators' if total_skipped_collaborator != 1 else 'collaborator'}"
-    ]
+    skipped_parts: list[str] = []
+    if total_skipped_collaborator:
+        skipped_parts.append(
+            f"{total_skipped_collaborator} "
+            f"{'collaborators' if total_skipped_collaborator != 1 else 'collaborator'}"
+        )
     if total_skipped_bot:
         skipped_parts.append(f"{total_skipped_bot} {'bots' if total_skipped_bot != 1 else 'bot'}")
     if total_skipped_accepted:
         skipped_parts.append(f"{total_skipped_accepted} ready-for-review")
+    if total_skipped_checks_state:
+        skipped_parts.append(f"{total_skipped_checks_state} checks-state mismatch")
+    if total_skipped_commits_behind:
+        skipped_parts.append(f"{total_skipped_commits_behind} below min-commits-behind")
+    skipped_text = f"skipped {', '.join(skipped_parts)}, " if skipped_parts else ""
     get_console().print(
         f"\n[info]Fetched {len(all_prs)} {'PRs' if len(all_prs) != 1 else 'PR'}, "
-        f"skipped {', '.join(skipped_parts)}, "
+        f"{skipped_text}"
         f"assessing {len(candidate_prs)} {'PRs' if len(candidate_prs) != 1 else 'PR'}"
         f"{f' (capped at {max_num})' if max_num else ''}...[/]\n"
     )
 
     # Phase 2b: Fetch detailed check contexts only for candidate PRs (chunked to avoid timeouts)
+    t_phase2b_start = time.monotonic()
     if candidate_prs:
         get_console().print(
             f"[info]Fetching check details for {len(candidate_prs)} "
@@ -1472,6 +1758,25 @@ def auto_triage(
                 )
                 pr.failed_checks = _fetch_failed_checks(token, github_repository, pr.head_sha)
 
+    # Phase 2b2: Resolve UNKNOWN mergeable status via REST API
+    unknown_count = sum(1 for pr in candidate_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        get_console().print(
+            f"[info]Resolving merge conflict status for {unknown_count} "
+            f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
+        )
+        resolved = _resolve_unknown_mergeable(token, github_repository, candidate_prs)
+        remaining = unknown_count - resolved
+        if remaining:
+            get_console().print(
+                f"  [dim]{resolved} resolved, {remaining} still unknown "
+                f"(GitHub hasn't computed mergeability yet).[/]"
+            )
+        else:
+            get_console().print(f"  [dim]All {resolved} resolved.[/]")
+
+    t_phase2b_end = time.monotonic()
+
     # Phase 2c: Fetch unresolved review comment counts for candidate PRs
     if candidate_prs and run_ci:
         get_console().print(
@@ -1480,16 +1785,21 @@ def auto_triage(
         )
         _fetch_unresolved_comments_batch(token, github_repository, candidate_prs)
 
+    t_phase2c_end = time.monotonic()
+
     # Phase 3: Deterministic checks (CI failures + merge conflicts + unresolved comments),
     # then LLM for the rest
     # PRs with NOT_RUN checks are separated for workflow approval instead of LLM assessment.
     assessments: dict[int, PRAssessment] = {}
     llm_candidates: list[PRData] = []
+    passing_prs: list[PRData] = []
     pending_approval: list[PRData] = []
     total_deterministic_flags = 0
+    deterministic_timings: dict[int, float] = {}  # PR number -> deterministic triage duration
 
     if run_ci:
         for pr in candidate_prs:
+            t_det_start = time.monotonic()
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
             conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
             comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
@@ -1517,6 +1827,7 @@ def auto_triage(
                 pending_approval.append(pr)
             else:
                 llm_candidates.append(pr)
+            deterministic_timings[pr.number] = time.monotonic() - t_det_start
     else:
         for pr in candidate_prs:
             if pr.checks_state == "NOT_RUN":
@@ -1524,8 +1835,22 @@ def auto_triage(
             else:
                 llm_candidates.append(pr)
 
+    # If --pending-approval-only, discard all assessment results and only keep pending_approval
+    if pending_approval_only:
+        assessments = {}
+        llm_candidates = []
+        total_deterministic_flags = 0
+        if not pending_approval:
+            get_console().print("[success]No PRs with pending workflow approvals found.[/]")
+            sys.exit(0)
+        get_console().print(
+            f"[info]--pending-approval-only: found {len(pending_approval)} "
+            f"{'PRs' if len(pending_approval) != 1 else 'PR'} awaiting workflow approval.[/]\n"
+        )
+
     # Phase 4: Run LLM assessments concurrently for PRs without CI failures
     total_llm_errors = 0
+    pr_timings: dict[int, float] = {}  # PR number -> assessment duration in seconds
 
     if not run_llm:
         if llm_candidates:
@@ -1533,6 +1858,7 @@ def auto_triage(
                 f"\n[info]--check-mode=ci: skipping LLM assessment for {len(llm_candidates)} "
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
             )
+            passing_prs.extend(llm_candidates)
     elif llm_candidates:
         skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
         if pending_approval:
@@ -1542,26 +1868,38 @@ def auto_triage(
             f"{'PRs' if len(llm_candidates) != 1 else 'PR'} (skipped {skipped_detail})...[/]\n"
         )
         with ThreadPoolExecutor(max_workers=llm_concurrency) as executor:
-            future_to_pr = {
-                executor.submit(
+            future_to_pr = {}
+            future_start_times: dict[int, float] = {}
+            for pr in llm_candidates:
+                get_console().print(f"  [dim]Assessing PR {_pr_link(pr)}: {pr.title[:60]}...[/]")
+                future_start_times[pr.number] = time.monotonic()
+                future = executor.submit(
                     assess_pr,
                     pr_number=pr.number,
                     pr_title=pr.title,
                     pr_body=pr.body,
                     check_status_summary=pr.check_summary,
                     llm_model=llm_model,
-                ): pr
-                for pr in llm_candidates
-            }
+                )
+                future_to_pr[future] = pr
             for future in as_completed(future_to_pr):
                 pr = future_to_pr[future]
+                pr_timings[pr.number] = time.monotonic() - future_start_times[pr.number]
                 assessment = future.result()
                 if assessment.error:
                     total_llm_errors += 1
                     continue
                 if not assessment.should_flag:
-                    get_console().print(f"  [success]PR {_pr_link(pr)} passes quality check.[/]")
+                    get_console().print(
+                        f"  [success]PR {_pr_link(pr)}: {pr.title[:60]} — passes quality check "
+                        f"({_fmt_duration(pr_timings[pr.number])}).[/]"
+                    )
+                    passing_prs.append(pr)
                     continue
+                get_console().print(
+                    f"  [red]PR {_pr_link(pr)}: {pr.title[:60]} — flagged by LLM "
+                    f"({_fmt_duration(pr_timings[pr.number])}).[/]"
+                )
                 assessments[pr.number] = assessment
 
     total_flagged = len(assessments)
@@ -1578,11 +1916,17 @@ def auto_triage(
         f"flagged ({', '.join(summary_parts)}).[/]\n"
     )
 
+    t_phase4_end = time.monotonic()
+
     # Phase 5: Present flagged PRs interactively, grouped by author
+    t_phase5_start = time.monotonic()
     total_converted = 0
+    total_commented = 0
     total_closed = 0
     total_ready = 0
     total_skipped_action = 0
+    pr_actions: dict[int, str] = {}  # PR number -> action taken by user
+
     quit_early = False
 
     # Build sorted list of flagged PRs grouped by author
@@ -1609,6 +1953,14 @@ def auto_triage(
         comment = _build_comment(
             pr.author_login, assessment.violations, pr.number, pr.commits_behind, pr.base_ref
         )
+        comment_only = _build_comment(
+            pr.author_login,
+            assessment.violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            comment_only=True,
+        )
         close_comment = _build_close_comment(
             pr.author_login,
             assessment.violations,
@@ -1625,6 +1977,7 @@ def auto_triage(
         if dry_run:
             action_label = {
                 TriageAction.DRAFT: "draft",
+                TriageAction.COMMENT: "add comment",
                 TriageAction.CLOSE: "close",
                 TriageAction.READY: "ready",
                 TriageAction.SKIP: "skip",
@@ -1646,6 +1999,7 @@ def auto_triage(
         if action == TriageAction.SKIP:
             get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
             total_skipped_action += 1
+            pr_actions[pr.number] = "skipped"
             continue
 
         if action == TriageAction.READY:
@@ -1657,8 +2011,19 @@ def auto_triage(
                     f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
                 )
                 total_ready += 1
+                pr_actions[pr.number] = "ready"
             else:
                 get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            continue
+
+        if action == TriageAction.COMMENT:
+            get_console().print(f"  Posting comment on PR {_pr_link(pr)}...")
+            if _post_comment(token, pr.node_id, comment_only):
+                get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
+                total_commented += 1
+                pr_actions[pr.number] = "commented"
+            else:
+                get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
 
         if action == TriageAction.DRAFT:
@@ -1673,6 +2038,7 @@ def auto_triage(
             if _post_comment(token, pr.node_id, comment):
                 get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_converted += 1
+                pr_actions[pr.number] = "drafted"
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
             continue
@@ -1696,8 +2062,53 @@ def auto_triage(
             if _post_comment(token, pr.node_id, close_comment):
                 get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                 total_closed += 1
+                pr_actions[pr.number] = "closed"
             else:
                 get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+
+    # Phase 5b: Present passing PRs for optional ready-for-review marking
+    if not quit_early and passing_prs:
+        passing_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+        get_console().print(
+            f"\n[info]{len(passing_prs)} {'PRs pass' if len(passing_prs) != 1 else 'PR passes'} "
+            f"all checks — review to mark as ready:[/]\n"
+        )
+        for pr in passing_prs:
+            author_profile = _fetch_author_profile(token, pr.author_login, github_repository)
+            _display_pr_info_panels(pr, author_profile)
+
+            if dry_run:
+                get_console().print("[warning]Dry run — skipping.[/]")
+                continue
+
+            action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=TriageAction.SKIP,
+                forced_answer=answer_triage,
+            )
+
+            if action == TriageAction.QUIT:
+                get_console().print("[warning]Quitting.[/]")
+                quit_early = True
+                break
+
+            if action == TriageAction.READY:
+                get_console().print(
+                    f"  [info]Marking PR {_pr_link(pr)} as ready "
+                    f"— adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
+                )
+                if _add_label(token, github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                    get_console().print(
+                        f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
+                    )
+                    total_ready += 1
+                    pr_actions[pr.number] = "ready"
+                else:
+                    get_console().print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
+            else:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                total_skipped_action += 1
+                pr_actions[pr.number] = "skipped"
 
     # Phase 6: Present NOT_RUN PRs for workflow approval
     total_workflows_approved = 0
@@ -1738,6 +2149,7 @@ def auto_triage(
                     break
                 if action == TriageAction.SKIP:
                     get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                    pr_actions[pr.number] = "skipped"
                     continue
                 if action == TriageAction.CLOSE:
                     get_console().print(f"  Closing PR {_pr_link(pr)}...")
@@ -1756,6 +2168,7 @@ def auto_triage(
                     if _post_comment(token, pr.node_id, close_comment):
                         get_console().print(f"  [success]Comment posted on PR {_pr_link(pr)}.[/]")
                         total_closed += 1
+                        pr_actions[pr.number] = "closed"
                     else:
                         get_console().print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
                     continue
@@ -1854,6 +2267,7 @@ def auto_triage(
                     f"{'PRs' if len(author_prs) != 1 else 'PR'}, commented on {commented}.[/]"
                 )
                 total_closed += closed
+                pr_actions[pr.number] = "suspicious"
                 continue
 
             approved = _approve_workflow_runs(token, github_repository, pending_runs)
@@ -1864,10 +2278,12 @@ def auto_triage(
                     f"{_pr_link(pr)}.[/]"
                 )
                 total_workflows_approved += 1
+                pr_actions[pr.number] = "approved"
             else:
                 get_console().print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
 
     # Summary
+    t_total_end = time.monotonic()
     get_console().print()
     summary_table = Table(title="Summary")
     summary_table.add_column("Metric", style="bold")
@@ -1884,10 +2300,164 @@ def auto_triage(
     summary_table.add_row("Flagged by LLM", str(total_flagged - total_deterministic_flags))
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))
+    summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
     summary_table.add_row("PRs converted to draft", str(total_converted))
+    summary_table.add_row("PRs commented (not drafted)", str(total_commented))
     summary_table.add_row("PRs closed", str(total_closed))
     summary_table.add_row("PRs marked ready for review", str(total_ready))
     summary_table.add_row("PRs skipped (no action)", str(total_skipped_action))
     summary_table.add_row("Awaiting workflow approval", str(len(pending_approval)))
     summary_table.add_row("PRs with workflows approved", str(total_workflows_approved))
     get_console().print(summary_table)
+
+    # Timing summary
+    get_console().print()
+    timing_table = Table(title="Timing Summary")
+    timing_table.add_column("Phase", style="bold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PRs", justify="right")
+    timing_table.add_column("Avg/PR", justify="right")
+    timing_table.add_column("Min/PR", justify="right")
+    timing_table.add_column("Max/PR", justify="right")
+
+    num_all = len(all_prs) or 1
+    num_candidates = len(candidate_prs) or 1
+
+    phase1_total = t_phase1_end - t_phase1_start
+    timing_table.add_row(
+        "Fetch PRs + commits behind",
+        _fmt_duration(phase1_total),
+        str(len(all_prs)),
+        _fmt_duration(phase1_total / num_all),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2b_total = t_phase2b_end - t_phase2b_start
+    timing_table.add_row(
+        "Fetch checks + resolve mergeability",
+        _fmt_duration(phase2b_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2b_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    phase2c_total = t_phase2c_end - t_phase2b_end
+    timing_table.add_row(
+        "Fetch review comments",
+        _fmt_duration(phase2c_total),
+        str(len(candidate_prs)),
+        _fmt_duration(phase2c_total / num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    if deterministic_timings:
+        det_values = list(deterministic_timings.values())
+        det_total = sum(det_values)
+        timing_table.add_row(
+            "Deterministic triage",
+            _fmt_duration(det_total),
+            str(len(det_values)),
+            _fmt_duration(det_total / len(det_values)),
+            _fmt_duration(min(det_values)),
+            _fmt_duration(max(det_values)),
+        )
+    else:
+        timing_table.add_row("Deterministic triage", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    if pr_timings:
+        llm_values = list(pr_timings.values())
+        llm_total = sum(llm_values)
+        timing_table.add_row(
+            "LLM assessment",
+            _fmt_duration(t_phase4_end - t_phase2c_end),
+            str(len(llm_values)),
+            _fmt_duration(llm_total / len(llm_values)),
+            _fmt_duration(min(llm_values)),
+            _fmt_duration(max(llm_values)),
+        )
+    else:
+        timing_table.add_row("LLM assessment", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    timing_table.add_row(
+        "Interactive review",
+        _fmt_duration(t_total_end - t_phase5_start),
+        "",
+        "",
+        "",
+        "",
+    )
+    timing_table.add_row("", "", "", "", "", "")
+    timing_table.add_row(
+        "[bold]Total[/]",
+        f"[bold]{_fmt_duration(t_total_end - t_total_start)}[/]",
+        "",
+        "",
+        "",
+        "",
+    )
+    get_console().print(timing_table)
+
+    if deterministic_timings or pr_timings:
+        pr_titles = {pr.number: pr.title for pr in candidate_prs}
+        # Amortize batch fetch time evenly across candidate PRs
+        num_candidates = len(candidate_prs) or 1
+        fetch_per_pr = (t_phase2b_end - t_phase2b_start + t_phase2c_end - t_phase2b_end) / num_candidates
+
+        action_styles = {
+            "drafted": "[yellow]drafted[/]",
+            "commented": "[yellow]commented[/]",
+            "closed": "[red]closed[/]",
+            "ready": "[success]ready[/]",
+            "skipped": "[dim]skipped[/]",
+            "approved": "[success]approved[/]",
+            "suspicious": "[red]suspicious[/]",
+        }
+
+        pr_timing_table = Table(title="Per-PR Phase Timing")
+        pr_timing_table.add_column("PR", style="bold")
+        pr_timing_table.add_column("Title")
+        pr_timing_table.add_column("Result")
+        pr_timing_table.add_column("Action")
+        pr_timing_table.add_column("Fetch (avg)", justify="right")
+        pr_timing_table.add_column("Deterministic", justify="right")
+        pr_timing_table.add_column("LLM", justify="right")
+        pr_timing_table.add_column("Total", justify="right")
+
+        # Collect all PR numbers that went through any phase
+        all_pr_numbers = sorted(
+            deterministic_timings.keys() | pr_timings.keys(),
+            key=lambda n: deterministic_timings.get(n, 0) + pr_timings.get(n, 0) + fetch_per_pr,
+            reverse=True,
+        )
+        for pr_num in all_pr_numbers:
+            title = pr_titles.get(pr_num, "")[:60]
+            det_time = deterministic_timings.get(pr_num, 0)
+            llm_time = pr_timings.get(pr_num, 0)
+            total_time = fetch_per_pr + det_time + llm_time
+
+            if pr_num in assessments:
+                result = "[red]flagged[/]"
+            elif any(pr.number == pr_num for pr in passing_prs):
+                result = "[success]passed[/]"
+            elif any(pr.number == pr_num for pr in pending_approval):
+                result = "[dim]pending[/]"
+            else:
+                result = "[yellow]error[/]"
+
+            action_raw = pr_actions.get(pr_num, "")
+            action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+
+            pr_timing_table.add_row(
+                f"#{pr_num}",
+                title,
+                result,
+                action_display,
+                _fmt_duration(fetch_per_pr),
+                _fmt_duration(det_time) if det_time else "[dim]—[/]",
+                _fmt_duration(llm_time) if llm_time else "[dim]—[/]",
+                _fmt_duration(total_time),
+            )
+        get_console().print(pr_timing_table)
