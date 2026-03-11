@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import cast
 
 from fastapi import Depends, status
@@ -58,10 +59,11 @@ def historical_metrics(
     """Return cluster activity historical metrics."""
     current_time = timezone.utcnow()
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
-    end_date_value = end_date if end_date is not None else current_time
+    start_date_dt = cast("datetime", start_date)
+    end_date_value = cast("datetime", end_date) if end_date is not None else current_time
 
     start_date_filter = or_(
-        DagRun.start_date >= start_date, DagRun.start_date.is_(None) & (current_time >= start_date)
+        DagRun.start_date >= start_date_dt, DagRun.start_date.is_(None) & (current_time >= start_date_dt)
     )
     end_date_filter = or_(
         DagRun.end_date <= end_date_value, DagRun.end_date.is_(None) & (current_time <= end_date_value)
@@ -83,8 +85,8 @@ def historical_metrics(
     ).all()
 
     # Aggregate dag_run_metrics into separate dictionaries
-    dag_run_types_dict = {}
-    dag_run_states_dict = {}
+    dag_run_types_dict: dict[str, int] = {}
+    dag_run_states_dict: dict[str, int] = {}
     for run_type, state, count in dag_run_metrics:
         dag_run_types_dict[run_type] = dag_run_types_dict.get(run_type, 0) + count
         dag_run_states_dict[state] = dag_run_states_dict.get(state, 0) + count
