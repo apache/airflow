@@ -1478,17 +1478,18 @@ def auto_triage(
     for pr in all_prs:
         pr.commits_behind = behind_map.get(pr.number, 0)
 
-    # Display fetched PRs overview (CI status is rollup state only — details fetched later)
-    pr_table = Table(title=f"Fetched PRs ({len(all_prs)})")
+    # Display fetched PRs overview (skip collaborator PRs — they'll be summarised below)
+    non_collab_prs = [pr for pr in all_prs if pr.author_association not in _COLLABORATOR_ASSOCIATIONS]
+    collab_count = len(all_prs) - len(non_collab_prs)
+    pr_table = Table(title=f"Fetched PRs ({len(non_collab_prs)} non-collaborator)")
     pr_table.add_column("PR", style="cyan", no_wrap=True)
     pr_table.add_column("Title", max_width=50)
     pr_table.add_column("Author")
-    pr_table.add_column("Association", style="dim")
     pr_table.add_column("Status")
     pr_table.add_column("Behind", justify="right")
     pr_table.add_column("Conflicts")
     pr_table.add_column("CI Status")
-    for pr in all_prs:
+    for pr in non_collab_prs:
         if pr.checks_state == "FAILURE":
             ci_status = "[red]Failing[/]"
         elif pr.checks_state == "PENDING":
@@ -1508,26 +1509,23 @@ def auto_triage(
         else:
             conflicts_text = "[green]No[/]"
 
-        # Overall status: flag if any issue detected
         has_issues = pr.checks_state == "FAILURE" or pr.mergeable == "CONFLICTING"
-        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
-            overall = "[dim]Collaborator[/]"
-        elif has_issues:
-            overall = "[red]Flag[/]"
-        else:
-            overall = "[green]OK[/]"
+        overall = "[red]Flag[/]" if has_issues else "[green]OK[/]"
 
         pr_table.add_row(
             _pr_link(pr),
             pr.title[:50],
             pr.author_login,
-            pr.author_association.lower(),
             overall,
             behind_text,
             conflicts_text,
             ci_status,
         )
     get_console().print(pr_table)
+    if collab_count:
+        get_console().print(
+            f"  [dim]({collab_count} collaborator/member {'PRs' if collab_count != 1 else 'PR'} not shown)[/]"
+        )
     get_console().print()
 
     # Phase 2: Filter out collaborators, bots, and ready-for-review PRs, then apply post-fetch filters
