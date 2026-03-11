@@ -80,10 +80,10 @@ def mock_get_requests():
     mock_patch = patch("airflow.providers.databricks.hooks.databricks_base.requests")
     mock_requests = mock_patch.start()
 
-    # Configure the mock object
+    # Configure the mock object with the current API response format ("warehouses" key)
     mock_requests.codes.ok = 200
     mock_requests.get.return_value.json.return_value = {
-        "endpoints": [
+        "warehouses": [
             {
                 "id": "1264e5078741679a",
                 "name": "Test",
@@ -712,3 +712,83 @@ def test_get_df(df_type, df_class, description):
             assert df.row(1)[0] == result_sets[1][0]
 
         assert isinstance(df, df_class)
+
+
+class TestGetSqlEndpointByName:
+    """Tests for _get_sql_endpoint_by_name with both 'warehouses' and legacy 'endpoints' API response keys."""
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_with_warehouses_key(self, mock_requests):
+        """Test that the current API response format with 'warehouses' key works."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "warehouses": [
+                {
+                    "id": "abc123",
+                    "name": "My Warehouse",
+                    "odbc_params": {
+                        "hostname": "xx.cloud.databricks.com",
+                        "path": "/sql/1.0/warehouses/abc123",
+                    },
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="My Warehouse")
+        endpoint = hook._get_sql_endpoint_by_name("My Warehouse")
+        assert endpoint["id"] == "abc123"
+        assert endpoint["odbc_params"]["path"] == "/sql/1.0/warehouses/abc123"
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_with_legacy_endpoints_key(self, mock_requests):
+        """Test that the legacy API response format with 'endpoints' key still works."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "endpoints": [
+                {
+                    "id": "def456",
+                    "name": "Legacy Endpoint",
+                    "odbc_params": {
+                        "hostname": "xx.cloud.databricks.com",
+                        "path": "/sql/1.0/endpoints/def456",
+                    },
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Legacy Endpoint")
+        endpoint = hook._get_sql_endpoint_by_name("Legacy Endpoint")
+        assert endpoint["id"] == "def456"
+        assert endpoint["odbc_params"]["path"] == "/sql/1.0/endpoints/def456"
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_not_found(self, mock_requests):
+        """Test that a clear error is raised when the warehouse name doesn't match any warehouse."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "warehouses": [
+                {
+                    "id": "abc123",
+                    "name": "Some Other Warehouse",
+                    "odbc_params": {"path": "/sql/1.0/warehouses/abc123"},
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Nonexistent Warehouse")
+        with pytest.raises(ValueError, match="Can't find Databricks SQL warehouse with name"):
+            hook._get_sql_endpoint_by_name("Nonexistent Warehouse")
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_empty_response(self, mock_requests):
+        """Test that a clear error is raised when the API returns no warehouses."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {}
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Test")
+        with pytest.raises(RuntimeError, match="Can't list Databricks SQL warehouses"):
+            hook._get_sql_endpoint_by_name("Test")
