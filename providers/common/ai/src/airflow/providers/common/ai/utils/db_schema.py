@@ -125,14 +125,27 @@ def _introspect_schemas(
 ) -> str:
     """Build schema context by introspecting tables and/or object-storage sources."""
     parts: list[str] = []
+    table_to_columns: dict[str, list[dict[str, str]]] = {}
 
-    for table in table_names or []:
-        columns = db_hook.get_table_schema(table)  # type: ignore[union-attr]
-        if not columns:
-            log.warning("Table %r returned no columns — it may not exist.", table)
-            continue
-        col_info = ", ".join(f"{c['name']} {c['type']}" for c in columns)
-        parts.append(f"Table: {table}\nColumns: {col_info}")
+    if table_names and db_hook is None:
+        raise ValueError("table_names requires db_conn_id so table schema can be introspected.")
+
+    if db_hook and table_names:
+        bulk_schemas = _try_to_get_bulk_table_schemas(db_hook=db_hook, table_names=table_names)
+        if bulk_schemas is not None:
+            table_to_columns = bulk_schemas
+
+        for table in table_names:
+            columns = table_to_columns.get(table)
+            if columns is None:
+                columns = db_hook.get_table_schema(table)
+
+            if not columns:
+                log.warning("Table %r returned no columns — it may not exist.", table)
+                continue
+
+            col_info = ", ".join(f"{c['name']} {c['type']}" for c in columns)
+            parts.append(f"Table: {table}\nColumns: {col_info}")
 
     if not parts and table_names:
         raise ValueError(
@@ -147,9 +160,41 @@ def _introspect_schemas(
     return "\n\n".join(parts)
 
 
+def _try_to_get_bulk_table_schemas(
+    *,
+    db_hook: DbApiHook,
+    table_names: list[str],
+) -> dict[str, list[dict[str, str]]] | None:
+    """Try a single-call schema fetch when the hook exposes a bulk API."""
+    get_table_schemas = getattr(db_hook, "get_table_schemas", None)
+    if not callable(get_table_schemas):
+        return None
+
+    try:
+        raw_result = get_table_schemas(table_names)
+    except TypeError:
+        return None
+
+    if not isinstance(raw_result, dict):
+        log.warning(
+            "Ignoring get_table_schemas() result from %s because it is not a dict.",
+            type(db_hook).__name__,
+        )
+        return None
+
+    result: dict[str, list[dict[str, str]]] = {}
+    for table in table_names:
+        columns = raw_result.get(table)
+        if isinstance(columns, list):
+            result[table] = columns
+
+    return result
+
+
 def _introspect_object_storage_schema(datasource_config: DataSourceConfig) -> str:
     """Use DataFusion Engine to get the schema of an object-storage source."""
     try:
+        # Lazy load for optional feature degradation — datafusion extra may not be installed
         from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
     except ImportError as e:
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException

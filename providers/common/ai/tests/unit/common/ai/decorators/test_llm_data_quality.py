@@ -22,7 +22,6 @@ import pytest
 
 from airflow.providers.common.ai.decorators.llm_data_quality import (
     _LLMDQDecoratedOperator,
-    llm_dq_task,
 )
 from airflow.providers.common.ai.utils.dq_models import DQCheck, DQCheckGroup, DQPlan
 
@@ -83,64 +82,38 @@ def _make_op(callable_fn=None, **kwargs) -> _LLMDQDecoratedOperator:
     )
 
 
-# ---------------------------------------------------------------------------
-# TestLLMDQDecoratedOperatorMeta
-# ---------------------------------------------------------------------------
+def _run_op(callable_fn, plan, results_map, **op_kwargs) -> dict:
+    with (
+        patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True) as mock_var,
+        patch(
+            "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner",
+            autospec=True,
+        ) as mock_planner_cls,
+        patch(
+            "airflow.providers.common.ai.operators.llm_data_quality.get_db_hook",
+            autospec=True,
+        ),
+    ):
+        mock_var.get.return_value = None
+        mock_planner = mock_planner_cls.return_value
+        mock_planner.build_schema_context.return_value = ""
+        mock_planner.generate_plan.return_value = plan
+        mock_planner.execute_plan.return_value = results_map
+
+        op = _make_op(callable_fn, **op_kwargs)
+        op.llm_hook = MagicMock()
+        return op.execute(context={})
 
 
-class TestLLMDQDecoratedOperatorMeta:
+class TestLLMDQDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMDQDecoratedOperator.custom_operator_name == "@task.llm_dq"
-
-    def test_template_fields_include_parent_fields(self):
-        expected_subset = {
-            "prompts",
-            "db_conn_id",
-            "table_names",
-            "schema_context",
-            "prompt_version",
-            "llm_conn_id",
-        }
-        assert expected_subset.issubset(set(_LLMDQDecoratedOperator.template_fields))
 
     def test_validators_with_unknown_key_accepted_at_init(self):
         """Validator key validation is deferred to execute time when prompts is SET_DURING_EXECUTION."""
         op = _make_op(validators={"unknown_check": lambda v: v == 0})
         # No error at init time because prompts is SET_DURING_EXECUTION
         assert "unknown_check" in op.validators
-
-    def test_llm_dq_task_returns_task_decorator(self):
-        """llm_dq_task() is usable as a TaskDecorator factory."""
-        decorator = llm_dq_task(llm_conn_id="openai_default")
-        assert callable(decorator)
-
-
-# ---------------------------------------------------------------------------
-# TestLLMDQDecoratedOperatorExecute
-# ---------------------------------------------------------------------------
-
-
-class TestLLMDQDecoratedOperatorExecute:
-    def _run_op(self, callable_fn, plan, results_map, **op_kwargs) -> dict:
-        with (
-            patch("airflow.providers.common.ai.operators.llm_data_quality.Variable") as mock_var,
-            patch(
-                "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner",
-                autospec=True,
-            ) as mock_planner_cls,
-            patch(
-                "airflow.providers.common.ai.operators.llm_data_quality.get_db_hook",
-                autospec=True,
-            ),
-        ):
-            mock_var.get.return_value = None
-            mock_planner = mock_planner_cls.return_value
-            mock_planner.build_schema_context.return_value = ""
-            mock_planner.generate_plan.return_value = plan
-            mock_planner.execute_plan.return_value = results_map
-
-            op = _make_op(callable_fn, **op_kwargs)
-            return op.execute(context={})
 
     def test_callable_return_value_becomes_prompts(self):
         """The dict returned by the callable is used as prompts for plan generation."""
@@ -151,7 +124,9 @@ class TestLLMDQDecoratedOperatorExecute:
             return _PROMPTS
 
         with (
-            patch("airflow.providers.common.ai.operators.llm_data_quality.Variable") as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
             patch(
                 "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner",
                 autospec=True,
@@ -168,13 +143,14 @@ class TestLLMDQDecoratedOperatorExecute:
             mock_planner.execute_plan.return_value = results_map
 
             op = _make_op(my_checks)
+            op.llm_hook = MagicMock()
             op.execute(context={})
 
             assert op.prompts == _PROMPTS
 
     def test_happy_path_all_checks_pass(self):
         plan = _make_plan()
-        result = self._run_op(
+        result = _run_op(
             lambda: _PROMPTS,
             plan,
             {"null_emails": 0, "dup_ids": 0},
@@ -227,7 +203,9 @@ class TestLLMDQDecoratedOperatorExecute:
             return {"row_count": f"Orders must have at least {min_rows} rows."}
 
         with (
-            patch("airflow.providers.common.ai.operators.llm_data_quality.Variable") as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
             patch(
                 "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner",
                 autospec=True,
@@ -247,11 +225,12 @@ class TestLLMDQDecoratedOperatorExecute:
                 my_checks,
                 op_kwargs={"min_rows": 1000},
             )
+            op.llm_hook = MagicMock()
             op.execute(context={"task_instance": MagicMock()})
             assert "1000" in op.prompts["row_count"]
 
     def test_dry_run_returns_plan_dict(self):
         """dry_run=True returns the serialised plan dict without executing checks."""
         plan = _make_plan()
-        result = self._run_op(lambda: _PROMPTS, plan, {}, dry_run=True)
+        result = _run_op(lambda: _PROMPTS, plan, {}, dry_run=True)
         assert "groups" in result

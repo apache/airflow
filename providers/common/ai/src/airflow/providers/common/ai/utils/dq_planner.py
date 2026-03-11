@@ -26,6 +26,7 @@ touching the operator.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -275,15 +276,26 @@ class SQLDQPlanner:
         """Execute *group.query* via the relational DB hook and return the first row as a dict."""
         rows = self._db_hook.get_records(group.query)  # type: ignore[union-attr]
         if not rows:
+            log.warning("Query for group %r returned no rows.", group.group_id)
             return {}
+
+        metric_keys = [check.metric_key for check in group.checks]
         raw_row = rows[0]
         if isinstance(raw_row, dict):
             return raw_row
-        return dict(zip([c.metric_key for c in group.checks], raw_row))
 
-    # ------------------------------------------------------------------
-    # Private helpers — SQL validation / retry
-    # ------------------------------------------------------------------
+        if isinstance(raw_row, Sequence) and not isinstance(raw_row, str | bytes | bytearray):
+            if len(raw_row) != len(metric_keys):
+                raise ValueError(
+                    f"Query for group {group.group_id!r} returned {len(raw_row)} value(s) but "
+                    f"{len(metric_keys)} metric key(s) are required ({metric_keys})."
+                )
+            return dict(zip(metric_keys, raw_row, strict=True))
+
+        raise ValueError(
+            f"Unsupported row type from DbApiHook.get_records for group {group.group_id!r}: "
+            f"{type(raw_row).__name__}. Expected dict or sequence."
+        )
 
     def _validate_or_fix_group(self, group: DQCheckGroup) -> DQCheckGroup:
         """
@@ -329,16 +341,10 @@ class SQLDQPlanner:
                 last_error,
             )
 
-            fix_prompt = (
-                f'The SQL query for group "{current_group.group_id}" failed safety validation.\n\n'
-                f"Failing query:\n{current_group.query}\n\n"
-                f"Validation error: {last_error}\n\n"
-                f"Rules reminder:\n"
-                f"- Generate only SELECT queries (no INSERT, UPDATE, DELETE, DROP, or DDL).\n"
-                f"- Use {dialect_label} syntax.\n"
-                f"- Keep the same check_name and metric_key values for every check in this group.\n\n"
-                f"Please return a corrected DQPlan with a valid SELECT-only query for group "
-                f'"{current_group.group_id}".'
+            fix_prompt = self._build_fix_prompt(
+                group=current_group,
+                last_error=last_error,
+                dialect_label=dialect_label,
             )
 
             result = self._plan_agent.run_sync(
@@ -348,9 +354,9 @@ class SQLDQPlanner:
             self._plan_all_messages = result.all_messages()
             corrected_plan: DQPlan = result.output
 
-            fixed_group = next(
-                (g for g in corrected_plan.groups if g.group_id == current_group.group_id),
-                None,
+            fixed_group = self._extract_group_by_id(
+                corrected_plan=corrected_plan,
+                target_group_id=current_group.group_id,
             )
             if fixed_group is None:
                 log.warning(
@@ -380,6 +386,26 @@ class SQLDQPlanner:
             f"SQL for group {group.group_id!r} could not be corrected after "
             f"{self._max_sql_retries} attempt(s). Last error: {last_error}"
         )
+
+    @staticmethod
+    def _build_fix_prompt(*, group: DQCheckGroup, last_error: SQLSafetyError, dialect_label: str) -> str:
+        """Build the retry prompt used to ask the LLM for a corrected query."""
+        return (
+            f'The SQL query for group "{group.group_id}" failed safety validation.\n\n'
+            f"Failing query:\n{group.query}\n\n"
+            f"Validation error: {last_error}\n\n"
+            f"Rules reminder:\n"
+            f"- Generate only SELECT queries (no INSERT, UPDATE, DELETE, DROP, or DDL).\n"
+            f"- Use {dialect_label} syntax.\n"
+            f"- Keep the same check_name and metric_key values for every check in this group.\n\n"
+            f"Please return a corrected DQPlan with a valid SELECT-only query for group "
+            f'"{group.group_id}".'
+        )
+
+    @staticmethod
+    def _extract_group_by_id(*, corrected_plan: DQPlan, target_group_id: str) -> DQCheckGroup | None:
+        """Return a group from *corrected_plan* by group_id, or ``None`` when absent."""
+        return next((group for group in corrected_plan.groups if group.group_id == target_group_id), None)
 
     @staticmethod
     def _build_user_message(prompts: dict[str, str]) -> str:

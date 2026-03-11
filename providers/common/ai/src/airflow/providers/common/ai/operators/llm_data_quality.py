@@ -23,12 +23,11 @@ import json
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.db_schema import get_db_hook
 from airflow.providers.common.ai.utils.dq_models import DQCheckResult, DQPlan, DQReport
 from airflow.providers.common.ai.utils.dq_planner import SQLDQPlanner
-from airflow.providers.common.compat.sdk import Variable
+from airflow.providers.common.compat.sdk import AirflowException, Variable
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
@@ -126,19 +125,18 @@ class LLMDataQualityOperator(LLMOperator):
         self.datasource_config = datasource_config
         self.prompt_version = prompt_version
         self.dq_dry_run = dry_run
+        self._plan_hash: str | None = None
+        if isinstance(self.prompts, dict):
+            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version)
 
         self._validate_validator_keys()
 
-    # ------------------------------------------------------------------
-    # Airflow operator lifecycle
-    # ------------------------------------------------------------------
-
-    def execute(self, context: Context) -> dict[str, Any]:
+    def execute(self, context: Context) -> str | dict[str, Any]:
         """
         Generate the DQ plan (or load from cache), optionally execute it, and validate results.
 
         :returns: Serialised :class:`~airflow.providers.common.ai.utils.dq_models.DQReport`
-            dict on success, or a serialised DQPlan dict when ``dry_run=True``.
+            dict on success, or a markdown preview string when ``dry_run=True``.
         :raises AirflowException: If any data-quality check fails threshold validation.
         """
         db_hook = self._resolve_db_hook()
@@ -172,7 +170,7 @@ class LLMDataQualityOperator(LLMOperator):
                     ", ".join(c.check_name for c in group.checks),
                     group.query,
                 )
-            return plan.model_dump()
+            return self._build_dry_run_markdown(plan)
 
         results_map = planner.execute_plan(plan)
         check_results = self._validate_results(results_map, plan)
@@ -196,19 +194,54 @@ class LLMDataQualityOperator(LLMOperator):
             ],
         }
 
-    # ------------------------------------------------------------------
-    # Plan caching
-    # ------------------------------------------------------------------
+    def _build_dry_run_markdown(self, plan: DQPlan) -> str:
+        """Build a markdown summary of grouped SQL checks for dry-run XCom output."""
+        lines = [
+            "# LLM Data Quality Dry Run",
+            "",
+            f"- Plan hash: {plan.plan_hash or 'N/A'}",
+            f"- Groups: {len(plan.groups)}",
+            f"- Checks: {len(plan.check_names)}",
+            "",
+        ]
+
+        for group_index, group in enumerate(plan.groups, start=1):
+            lines.extend(
+                [
+                    f"## Group {group_index}: {group.group_id}",
+                    "",
+                    "### Query",
+                    "",
+                    "```sql",
+                    group.query,
+                    "```",
+                    "",
+                    "### Checks",
+                    "",
+                ]
+            )
+            for check in group.checks:
+                lines.append(f"- {check.check_name} ({check.metric_key})")
+            lines.append("")
+
+        return "\n".join(lines).rstrip()
 
     def _load_or_generate_plan(self, planner: SQLDQPlanner, schema_ctx: str) -> DQPlan:
         """Return a cached plan when available, otherwise generate and cache a new one."""
-        plan_hash = _compute_plan_hash(self.prompts, self.prompt_version)
+        if self._plan_hash is None:
+            if not isinstance(self.prompts, dict):
+                raise TypeError("prompts must be a dict[str, str] before generating a DQ plan.")
+            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version)
+
+        plan_hash = self._plan_hash
         variable_key = f"{_PLAN_VARIABLE_PREFIX}{plan_hash}"
 
         cached_json = Variable.get(variable_key, default=None)
         if cached_json is not None:
             self.log.info("DQ plan cache hit — key: %r", variable_key)
             plan = DQPlan.model_validate_json(cached_json)
+            if not plan.plan_hash:
+                plan.plan_hash = plan_hash
             return plan
 
         self.log.info("DQ plan cache miss — generating via LLM (key: %r).", variable_key)
@@ -216,10 +249,6 @@ class LLMDataQualityOperator(LLMOperator):
         plan.plan_hash = plan_hash
         Variable.set(variable_key, plan.model_dump_json())
         return plan
-
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
 
     def _validate_results(
         self,
@@ -282,11 +311,6 @@ class LLMDataQualityOperator(LLMOperator):
         if not self.db_conn_id:
             return None
         return get_db_hook(self.db_conn_id)
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
 
 
 def _compute_plan_hash(prompts: dict[str, str], prompt_version: str | None) -> str:

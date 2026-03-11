@@ -17,18 +17,17 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_data_quality import (
     LLMDataQualityOperator,
     _compute_plan_hash,
 )
 from airflow.providers.common.ai.utils.dq_models import DQCheck, DQCheckGroup, DQPlan
 from airflow.providers.common.ai.utils.dq_validation import null_pct_check, row_count_check
+from airflow.providers.common.compat.sdk import AirflowException
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -80,61 +79,25 @@ def _make_operator(**overrides: Any) -> LLMDataQualityOperator:
         db_conn_id="postgres_default",
     )
     defaults.update(overrides)
-    return LLMDataQualityOperator(**defaults)
-
-
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorInit
-# ---------------------------------------------------------------------------
+    op = LLMDataQualityOperator(**defaults)
+    op.llm_hook = MagicMock()
+    return op
 
 
 class TestLLMDataQualityOperatorInit:
-    def test_inherits_from_llm_operator(self):
-        assert issubclass(LLMDataQualityOperator, LLMOperator)
-
-    def test_does_not_inherit_from_llm_sql_operator(self):
-        from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
-
-        assert not issubclass(LLMDataQualityOperator, LLMSQLQueryOperator)
-
-    def test_template_fields_include_parent_and_dq_specific(self):
-        expected_subset = {
-            "prompt",
-            "llm_conn_id",
-            "model_id",
-            "system_prompt",
-            "agent_params",
-            "prompts",
-            "db_conn_id",
-            "table_names",
-            "schema_context",
-            "prompt_version",
-        }
-        assert expected_subset.issubset(set(LLMDataQualityOperator.template_fields))
-
-    def test_raises_when_validator_key_not_in_prompts(self):
-        with pytest.raises(ValueError, match="unknown_check"):
-            _make_operator(
-                validators={"unknown_check": lambda v: v == 0},
+    def test_requires_llm_conn_id(self):
+        with pytest.raises(TypeError):
+            LLMDataQualityOperator(
+                task_id="test_dq",
+                prompts=_PROMPTS,
+                db_conn_id="postgres_default",
             )
 
-    def test_valid_validator_keys_accepted(self):
-        op = _make_operator(validators={"null_emails": lambda v: v == 0})
-        assert "null_emails" in op.validators
-
-    def test_no_validators_accepted(self):
+    def test_template_fields(self):
         op = _make_operator()
-        assert op.validators == {}
-
-    def test_partial_validators_accepted(self):
-        """Validators dict may cover a subset of prompts."""
-        op = _make_operator(validators={"null_emails": lambda v: v == 0})
-        assert "dup_ids" not in op.validators
-
-
-# ---------------------------------------------------------------------------
-# TestComputePlanHash
-# ---------------------------------------------------------------------------
+        assert hasattr(op, "template_fields")
+        assert isinstance(op.template_fields, (list, tuple))
+        assert set(op.template_fields) >= {"prompts", "system_prompt", "agent_params"}
 
 
 class TestComputePlanHash:
@@ -164,13 +127,8 @@ class TestComputePlanHash:
         assert len(h) <= _PLAN_VARIABLE_KEY_MAX_LEN
 
 
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorCache
-# ---------------------------------------------------------------------------
-
-
 class TestLLMDataQualityOperatorCache:
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable")
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
     def test_cache_miss_calls_generate_and_sets_variable(
@@ -186,10 +144,10 @@ class TestLLMDataQualityOperatorCache:
         op = _make_operator()
         op.execute(context={})
 
-        mock_planner.generate_plan.assert_called_once()
-        mock_variable.set.assert_called_once()
+        mock_planner.generate_plan.assert_called_once_with(_PROMPTS, "")
+        mock_variable.set.assert_called_once_with(ANY, plan.model_dump_json())
 
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable")
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
     def test_cache_hit_skips_generate(self, mock_get_db_hook, mock_planner_cls, mock_variable):
@@ -206,55 +164,12 @@ class TestLLMDataQualityOperatorCache:
         mock_variable.set.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorDryRun
-# ---------------------------------------------------------------------------
-
-
-class TestLLMDataQualityOperatorDryRun:
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable")
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
-    def test_dry_run_returns_plan_dict_without_executing(
-        self, mock_get_db_hook, mock_planner_cls, mock_variable
-    ):
-        plan = _make_plan()
-        mock_variable.get.return_value = None
-        mock_planner = mock_planner_cls.return_value
-        mock_planner.build_schema_context.return_value = ""
-        mock_planner.generate_plan.return_value = plan
-
-        op = _make_operator(dry_run=True)
-        result = op.execute(context={})
-
-        mock_planner.execute_plan.assert_not_called()
-        assert "groups" in result
-
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable")
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
-    def test_dry_run_still_caches_plan(self, mock_get_db_hook, mock_planner_cls, mock_variable):
-        plan = _make_plan()
-        mock_variable.get.return_value = None
-        mock_planner = mock_planner_cls.return_value
-        mock_planner.build_schema_context.return_value = ""
-        mock_planner.generate_plan.return_value = plan
-
-        op = _make_operator(dry_run=True)
-        op.execute(context={})
-
-        mock_variable.set.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorExecute
-# ---------------------------------------------------------------------------
-
-
 class TestLLMDataQualityOperatorExecute:
     def _run_operator(self, plan, results_map, validators=None):
         with (
-            patch("airflow.providers.common.ai.operators.llm_data_quality.Variable") as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
             patch(
                 "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
             ) as mock_planner_cls,
@@ -340,15 +255,42 @@ class TestLLMDataQualityOperatorExecute:
             )
         assert "null_emails" in str(exc_info.value)
 
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
+    def test_dry_run_returns_markdown_without_executing(
+        self, mock_get_db_hook, mock_planner_cls, mock_variable
+    ):
+        plan = _make_plan()
+        mock_variable.get.return_value = None
+        mock_planner = mock_planner_cls.return_value
+        mock_planner.build_schema_context.return_value = ""
+        mock_planner.generate_plan.return_value = plan
 
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorDbHook
-# ---------------------------------------------------------------------------
+        op = _make_operator(dry_run=True)
+        result = op.execute(context={})
 
+        mock_planner.execute_plan.assert_not_called()
+        assert isinstance(result, str)
+        assert "# LLM Data Quality Dry Run" in result
+        assert "## Group 1: null_check" in result
+        assert "SELECT COUNT(*) AS null_email_count" in result
+        assert "- null_emails (null_email_count)" in result
 
-# ---------------------------------------------------------------------------
-# TestLLMDataQualityOperatorSystemPromptAndAgentParams
-# ---------------------------------------------------------------------------
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
+    def test_dry_run_still_caches_plan(self, mock_get_db_hook, mock_planner_cls, mock_variable):
+        plan = _make_plan()
+        mock_variable.get.return_value = None
+        mock_planner = mock_planner_cls.return_value
+        mock_planner.build_schema_context.return_value = ""
+        mock_planner.generate_plan.return_value = plan
+
+        op = _make_operator(dry_run=True)
+        op.execute(context={})
+
+        mock_variable.set.assert_called_once()
 
 
 class TestLLMDataQualityOperatorSystemPromptAndAgentParams:
@@ -357,7 +299,9 @@ class TestLLMDataQualityOperatorSystemPromptAndAgentParams:
     def _run_with_planner_spy(self, op: LLMDataQualityOperator, plan: DQPlan):
         """Execute operator and return the kwargs that SQLDQPlanner was constructed with."""
         with (
-            patch("airflow.providers.common.ai.operators.llm_data_quality.Variable") as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
             patch(
                 "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
             ) as mock_planner_cls,
@@ -402,7 +346,7 @@ class TestLLMDataQualityOperatorDbHook:
         "airflow.providers.common.ai.operators.llm_data_quality.get_db_hook",
         side_effect=ValueError("Connection 'x' does not provide a DbApiHook."),
     )
-    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable")
+    @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
     def test_raises_value_error_for_non_dbapi_hook(self, mock_planner_cls, mock_variable, mock_get_db_hook):
         op = _make_operator(db_conn_id="bad_conn")

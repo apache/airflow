@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.utils.dq_models import DQCheck, DQCheckGroup, DQPlan
 from airflow.providers.common.ai.utils.dq_planner import SQLDQPlanner
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
@@ -45,14 +46,14 @@ def _make_llm_hook(plan: DQPlan) -> MagicMock:
     mock_result.all_messages.return_value = []
     mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = mock_result
-    mock_hook = MagicMock()
+    mock_hook = MagicMock(spec=PydanticAIHook)
     mock_hook.create_agent.return_value = mock_agent
     return mock_hook
 
 
 class TestSQLDQPlannerBuildSchema:
     def test_returns_manual_schema_context_verbatim(self):
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=None)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=None)
         result = planner.build_schema_context(
             table_names=None,
             schema_context="Table: t\nColumns: id INT",
@@ -63,7 +64,7 @@ class TestSQLDQPlannerBuildSchema:
         mock_db_hook = MagicMock()
         mock_db_hook.get_table_schema.return_value = [{"name": "id", "type": "INT"}]
 
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         result = planner.build_schema_context(
             table_names=["customers"],
             schema_context=None,
@@ -76,7 +77,7 @@ class TestSQLDQPlannerBuildSchema:
     def test_manual_context_takes_priority_over_db_hook(self):
         mock_db_hook = MagicMock()
 
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         result = planner.build_schema_context(
             table_names=["t"],
             schema_context="manual override",
@@ -86,7 +87,7 @@ class TestSQLDQPlannerBuildSchema:
         assert result == "manual override"
 
     def test_returns_empty_string_when_no_source(self):
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=None)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=None)
         result = planner.build_schema_context(
             table_names=None,
             schema_context=None,
@@ -209,7 +210,7 @@ class TestSQLDQPlannerExecutePlan:
                 )
             ]
         )
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         results = planner.execute_plan(plan)
 
         assert results["null_emails"] == 5
@@ -225,7 +226,7 @@ class TestSQLDQPlannerExecutePlan:
                 )
             ]
         )
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         with pytest.raises(SQLSafetyError):
             planner.execute_plan(plan)
 
@@ -244,13 +245,13 @@ class TestSQLDQPlannerExecutePlan:
                 )
             ]
         )
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         with pytest.raises(ValueError, match="expected_column"):
             planner.execute_plan(plan)
 
     def test_raises_when_db_hook_is_none(self):
         plan = _make_plan("some_check")
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=None)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=None)
         with pytest.raises(ValueError, match="db_conn_id|datasource_config"):
             planner.execute_plan(plan)
 
@@ -268,14 +269,47 @@ class TestSQLDQPlannerExecutePlan:
                 )
             ]
         )
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         results = planner.execute_plan(plan)
         assert results["rows"] == 42
 
+    def test_raises_when_tuple_length_does_not_match_metric_keys(self):
+        """Tuple-shaped rows must match the number of expected metric keys."""
+        mock_db_hook = MagicMock()
+        mock_db_hook.get_records.return_value = [(1, 2)]
 
-# ---------------------------------------------------------------------------
-# TestSQLDQPlannerDataFusion
-# ---------------------------------------------------------------------------
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT COUNT(*) AS row_count FROM t",
+                    checks=[DQCheck(check_name="rows", metric_key="row_count", group_id="g")],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
+        with pytest.raises(ValueError, match=r"returned 2 value\(s\)"):
+            planner.execute_plan(plan)
+
+    def test_raises_for_unsupported_row_type(self):
+        """Unexpected row types should fail fast with a clear error."""
+        mock_db_hook = MagicMock()
+        mock_db_hook.get_records.return_value = [1]
+
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT COUNT(*) AS row_count FROM t",
+                    checks=[DQCheck(check_name="rows", metric_key="row_count", group_id="g")],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
+        with pytest.raises(ValueError, match="Unsupported row type"):
+            planner.execute_plan(plan)
 
 
 class TestSQLDQPlannerDataFusion:
@@ -295,7 +329,7 @@ class TestSQLDQPlannerDataFusion:
     def test_raises_when_neither_db_hook_nor_datasource(self):
         """Both db_hook and datasource_config are absent — must raise ValueError."""
         plan = _make_plan("some_check")
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=None)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=None)
         with pytest.raises(ValueError, match="db_conn_id|datasource_config"):
             planner.execute_plan(plan)
 
@@ -308,7 +342,7 @@ class TestSQLDQPlannerDataFusion:
 
         mock_datasource = MagicMock()
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=None,
             datasource_config=mock_datasource,
         )
@@ -325,7 +359,7 @@ class TestSQLDQPlannerDataFusion:
         mock_build_engine.return_value = mock_engine
 
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=None,
             datasource_config=MagicMock(),
         )
@@ -340,7 +374,7 @@ class TestSQLDQPlannerDataFusion:
         mock_build_engine.return_value = mock_engine
 
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=None,
             datasource_config=MagicMock(),
         )
@@ -372,7 +406,7 @@ class TestSQLDQPlannerDataFusion:
             ]
         )
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=None,
             datasource_config=MagicMock(),
         )
@@ -387,7 +421,7 @@ class TestSQLDQPlannerDataFusion:
         mock_db_hook.get_records.return_value = [{"null_count": 5}]
 
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=mock_db_hook,
             datasource_config=MagicMock(),
         )
@@ -399,17 +433,19 @@ class TestSQLDQPlannerDataFusion:
 class TestSQLDQPlannerDialect:
     def test_explicit_dialect_forwarded(self):
         mock_db_hook = MagicMock(spec=[])  # no dialect_name attribute
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook, dialect="postgres")
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook, dialect="postgres"
+        )
         assert planner._dialect == "postgres"
 
     def test_dialect_auto_detected_from_hook(self):
         mock_db_hook = MagicMock()
         mock_db_hook.dialect_name = "postgresql"
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook)
         assert planner._dialect == "postgres"  # normalised by resolve_dialect
 
     def test_dialect_none_when_not_set(self):
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=None)
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=None)
         assert planner._dialect is None
 
     @patch("airflow.providers.common.ai.utils.dq_planner._validate_sql")
@@ -427,17 +463,12 @@ class TestSQLDQPlannerDialect:
                 )
             ]
         )
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook, dialect="mysql")
+        planner = SQLDQPlanner(llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook, dialect="mysql")
         planner.execute_plan(plan)
 
         mock_validate.assert_called_once()
         _, kwargs = mock_validate.call_args
         assert kwargs.get("dialect") == "mysql"
-
-
-# ---------------------------------------------------------------------------
-# TestSQLDQPlannerSQLRetry
-# ---------------------------------------------------------------------------
 
 
 def _single_group_plan(query: str = "SELECT 1 AS c FROM t") -> DQPlan:
@@ -454,10 +485,10 @@ def _single_group_plan(query: str = "SELECT 1 AS c FROM t") -> DQPlan:
 
 def _make_agent_returning(plan: DQPlan) -> MagicMock:
     """Mock pydantic-ai agent whose run_sync always returns *plan*."""
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=["output", "all_messages"])
     mock_result.output = plan
     mock_result.all_messages.return_value = []
-    mock_agent = MagicMock()
+    mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = mock_result
     return mock_agent
 
@@ -466,7 +497,7 @@ class TestSQLDQPlannerSQLRetry:
     def _planner_with_agent(self, plan_agent, db_hook=None, max_sql_retries=2) -> SQLDQPlanner:
         """Return a planner with _plan_agent already set (simulates post-generate_plan state)."""
         planner = SQLDQPlanner(
-            llm_hook=MagicMock(),
+            llm_hook=MagicMock(spec=PydanticAIHook),
             db_hook=db_hook,
             max_sql_retries=max_sql_retries,
         )
@@ -571,7 +602,9 @@ class TestSQLDQPlannerSQLRetry:
         bad_plan = _single_group_plan("DROP TABLE t")
         mock_db_hook = MagicMock()
 
-        planner = SQLDQPlanner(llm_hook=MagicMock(), db_hook=mock_db_hook, max_sql_retries=2)
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook), db_hook=mock_db_hook, max_sql_retries=2
+        )
         # _plan_agent is None — no generate_plan was called
         with pytest.raises(SQLSafetyError):
             planner.execute_plan(bad_plan)

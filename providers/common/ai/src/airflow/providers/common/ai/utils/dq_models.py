@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 
 class DQCheck(BaseModel):
@@ -40,9 +40,13 @@ class DQCheck(BaseModel):
         (e.g. ``numeric_aggregate``, ``null_check``, ``uniqueness``, ``text``).
     """
 
-    check_name: str
-    metric_key: str
-    group_id: str
+    check_name: str = Field(description="Matches the key supplied by the user in prompts.")
+    metric_key: str = Field(
+        description="Column alias used in the generated SQL (e.g. null_email_count). The operator reads row[metric_key] from the query result."
+    )
+    group_id: str = Field(
+        description="Logical bucket for grouping checks into a single SQL query (e.g. numeric_aggregate, null_check, uniqueness, text)."
+    )
 
 
 class DQCheckGroup(BaseModel):
@@ -55,9 +59,13 @@ class DQCheckGroup(BaseModel):
     :param checks: The checks whose metrics can be extracted from ``query``'s result.
     """
 
-    group_id: str
-    query: str
-    checks: list[DQCheck]
+    group_id: str = Field(description="Matches DQCheck.group_id for each member check.")
+    query: str = Field(
+        description="A single SELECT statement whose result columns correspond to the metric_key values of all member checks."
+    )
+    checks: list[DQCheck] = Field(
+        description="The checks whose metrics can be extracted from query's result."
+    )
 
 
 class DQPlan(BaseModel):
@@ -70,8 +78,13 @@ class DQPlan(BaseModel):
         after generation — not populated by the LLM).
     """
 
-    groups: list[DQCheckGroup]
-    plan_hash: str = ""
+    groups: list[DQCheckGroup] = Field(
+        description="All SQL check groups. Together, the checks inside every group must cover every key in the user's prompts dict exactly once."
+    )
+    plan_hash: str = Field(
+        default="",
+        description="SHA-256 fingerprint of the prompt dict (set by the operator after generation — not populated by the LLM).",
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
