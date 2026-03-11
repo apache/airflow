@@ -14,7 +14,7 @@ eleventyComputed:
 
 {# Choose data source: latest uses providers.json + modules.json, older uses versionData #}
 {% if pv.isLatest %}
-  {% set moduleCounts = pv.provider.module_counts or {} %}
+  {% set moduleCounts = moduleCountsByProvider[pv.provider.id] or {} %}
   {% set deps = pv.provider.dependencies or [] %}
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}
@@ -35,7 +35,8 @@ eleventyComputed:
   {% set sourceUrl = pv.provider.source_url %}
 {% endif %}
 
-{% set totalModules = (moduleCounts.operator or 0) + (moduleCounts.hook or 0) + (moduleCounts.sensor or 0) + (moduleCounts.trigger or 0) + (moduleCounts.transfer or 0) + (moduleCounts.bundle or 0) + (moduleCounts.notifier or 0) + (moduleCounts.secret or 0) + (moduleCounts.logging or 0) + (moduleCounts.executor or 0) + (moduleCounts.decorator or 0) %}
+{% set totalModules = 0 %}
+{% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
 
 <div class="container">
   {# Breadcrumb #}
@@ -94,76 +95,15 @@ eleventyComputed:
       </div>
     </div>
 
-    {# Stats Grid #}
-    <div class="stats">
-      {% if moduleCounts.operator > 0 %}
-      <div class="stat operator">
-        <div class="stat-row">
-          <span class="icon">O</span>
-          <span class="count">{{ moduleCounts.operator }}</span>
-        </div>
-        <span class="label">Operators</span>
-      </div>
-      {% endif %}
-      {% if moduleCounts.hook > 0 %}
-      <div class="stat hook">
-        <div class="stat-row">
-          <span class="icon">H</span>
-          <span class="count">{{ moduleCounts.hook }}</span>
-        </div>
-        <span class="label">Hooks</span>
-      </div>
-      {% endif %}
-      {% if moduleCounts.sensor > 0 %}
-      <div class="stat sensor">
-        <div class="stat-row">
-          <span class="icon">S</span>
-          <span class="count">{{ moduleCounts.sensor }}</span>
-        </div>
-        <span class="label">Sensors</span>
-      </div>
-      {% endif %}
-      {% if moduleCounts.trigger > 0 %}
-      <div class="stat trigger">
-        <div class="stat-row">
-          <span class="icon">T</span>
-          <span class="count">{{ moduleCounts.trigger }}</span>
-        </div>
-        <span class="label">Triggers</span>
-      </div>
-      {% endif %}
-      {% if moduleCounts.transfer > 0 %}
-      <div class="stat transfer">
-        <div class="stat-row">
-          <span class="icon">X</span>
-          <span class="count">{{ moduleCounts.transfer }}</span>
-        </div>
-        <span class="label">Transfers</span>
-      </div>
-      {% endif %}
-      {% if moduleCounts.bundle > 0 %}
-      <div class="stat bundle">
-        <div class="stat-row">
-          <span class="icon">B</span>
-          <span class="count">{{ moduleCounts.bundle }}</span>
-        </div>
-        <span class="label">Bundles</span>
-      </div>
-      {% endif %}
-      <div class="stat total">
-        <div class="stat-row">
-          <span class="icon">&Sigma;</span>
-          <span class="count">{{ totalModules }}</span>
-        </div>
-        <span class="label">Total Modules</span>
-      </div>
-    </div>
-
-    {# Bottom row: Downloads and actions #}
+    {# Bottom row: Downloads, module count, and actions #}
     <div class="footer">
       <div class="downloads">
         <div class="count">{{ pv.provider.pypi_downloads.monthly | formatDownloads }}</div>
         <div class="label">Monthly Downloads</div>
+      </div>
+      <div class="downloads">
+        <div class="count">{{ totalModules }}</div>
+        <div class="label">Total Modules</div>
       </div>
       <div class="actions">
         <a href="{{ docsUrl }}" target="_blank" rel="noopener" class="btn-primary">
@@ -339,61 +279,13 @@ eleventyComputed:
   {# Module Type Tabs #}
   <nav class="module-tabs">
     <button class="module-tab active" data-type="all">All ({{ totalModules }})</button>
-    {% if moduleCounts.operator > 0 %}
-    <button class="module-tab" data-type="operator">
-      <span class="tab-icon operator">O</span> Operators ({{ moduleCounts.operator }})
+    {% for t in types %}
+    {% if moduleCounts[t.id] > 0 %}
+    <button class="module-tab" data-type="{{ t.id }}">
+      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
     </button>
     {% endif %}
-    {% if moduleCounts.hook > 0 %}
-    <button class="module-tab" data-type="hook">
-      <span class="tab-icon hook">H</span> Hooks ({{ moduleCounts.hook }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.sensor > 0 %}
-    <button class="module-tab" data-type="sensor">
-      <span class="tab-icon sensor">S</span> Sensors ({{ moduleCounts.sensor }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.trigger > 0 %}
-    <button class="module-tab" data-type="trigger">
-      <span class="tab-icon trigger">T</span> Triggers ({{ moduleCounts.trigger }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.transfer > 0 %}
-    <button class="module-tab" data-type="transfer">
-      <span class="tab-icon transfer">X</span> Transfers ({{ moduleCounts.transfer }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.bundle > 0 %}
-    <button class="module-tab" data-type="bundle">
-      <span class="tab-icon bundle">B</span> Bundles ({{ moduleCounts.bundle }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.notifier > 0 %}
-    <button class="module-tab" data-type="notifier">
-      <span class="tab-icon notifier">N</span> Notifiers ({{ moduleCounts.notifier }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.secret > 0 %}
-    <button class="module-tab" data-type="secret">
-      <span class="tab-icon secret">K</span> Secrets Backend ({{ moduleCounts.secret }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.logging > 0 %}
-    <button class="module-tab" data-type="logging">
-      <span class="tab-icon logging">L</span> Log Handler ({{ moduleCounts.logging }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.executor > 0 %}
-    <button class="module-tab" data-type="executor">
-      <span class="tab-icon executor">E</span> Executors ({{ moduleCounts.executor }})
-    </button>
-    {% endif %}
-    {% if moduleCounts.decorator > 0 %}
-    <button class="module-tab" data-type="decorator">
-      <span class="tab-icon decorator">@</span> Decorators ({{ moduleCounts.decorator }})
-    </button>
-    {% endif %}
+    {% endfor %}
   </nav>
 
   {# Main content with sidebar #}
@@ -419,36 +311,11 @@ eleventyComputed:
       <div class="sidebar-section card">
         <h3>Module Types</h3>
         <nav class="category-nav">
-          {% if moduleCounts.operator > 0 %}
-          <button class="category-btn" data-type="operator"><span class="tab-icon operator">O</span> <span>Operators</span> <span class="count">{{ moduleCounts.operator }}</span></button>
+          {% for t in types %}
+          {% if moduleCounts[t.id] > 0 %}
+          <button class="category-btn" data-type="{{ t.id }}"><span class="tab-icon {{ t.id }}">{{ t.icon }}</span> <span>{{ t.label }}</span> <span class="count">{{ moduleCounts[t.id] }}</span></button>
           {% endif %}
-          {% if moduleCounts.hook > 0 %}
-          <button class="category-btn" data-type="hook"><span class="tab-icon hook">H</span> <span>Hooks</span> <span class="count">{{ moduleCounts.hook }}</span></button>
-          {% endif %}
-          {% if moduleCounts.sensor > 0 %}
-          <button class="category-btn" data-type="sensor"><span class="tab-icon sensor">S</span> <span>Sensors</span> <span class="count">{{ moduleCounts.sensor }}</span></button>
-          {% endif %}
-          {% if moduleCounts.trigger > 0 %}
-          <button class="category-btn" data-type="trigger"><span class="tab-icon trigger">T</span> <span>Triggers</span> <span class="count">{{ moduleCounts.trigger }}</span></button>
-          {% endif %}
-          {% if moduleCounts.transfer > 0 %}
-          <button class="category-btn" data-type="transfer"><span class="tab-icon transfer">X</span> <span>Transfers</span> <span class="count">{{ moduleCounts.transfer }}</span></button>
-          {% endif %}
-          {% if moduleCounts.executor > 0 %}
-          <button class="category-btn" data-type="executor"><span class="tab-icon executor">E</span> <span>Executors</span> <span class="count">{{ moduleCounts.executor }}</span></button>
-          {% endif %}
-          {% if moduleCounts.bundle > 0 %}
-          <button class="category-btn" data-type="bundle"><span class="tab-icon bundle">B</span> <span>Bundles</span> <span class="count">{{ moduleCounts.bundle }}</span></button>
-          {% endif %}
-          {% if moduleCounts.notifier > 0 %}
-          <button class="category-btn" data-type="notifier"><span class="tab-icon notifier">N</span> <span>Notifiers</span> <span class="count">{{ moduleCounts.notifier }}</span></button>
-          {% endif %}
-          {% if moduleCounts.secret > 0 %}
-          <button class="category-btn" data-type="secret"><span class="tab-icon secret">K</span> <span>Secrets</span> <span class="count">{{ moduleCounts.secret }}</span></button>
-          {% endif %}
-          {% if moduleCounts.logging > 0 %}
-          <button class="category-btn" data-type="logging"><span class="tab-icon logging">L</span> <span>Log Handlers</span> <span class="count">{{ moduleCounts.logging }}</span></button>
-          {% endif %}
+          {% endfor %}
         </nav>
       </div>
       {% endif %}

@@ -1683,6 +1683,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -1714,12 +1715,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
+
             if map_indexes is not None or first.map_index < 0:
                 return XComModel.deserialize_value(first)
 
-            # raise RuntimeError("Nothing should hit this anymore")
-
-        # TODO: TaskSDK: We should remove this, but many tests still currently call `ti.run()`. See #45549
+            return LazyXComSelectSequence.from_select(
+                query.with_only_columns(XComModel.value).order_by(None),
+                order_by=[XComModel.map_index.expression],
+                session=session,
+            )
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
         # Order return values to match task_ids and map_indexes ordering.

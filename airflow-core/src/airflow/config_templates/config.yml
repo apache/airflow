@@ -1414,9 +1414,21 @@ traces:
       description: |
         If True, then traces from Airflow internal methods are exported. Defaults to False.
       version_added: 3.1.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "False"
+    task_runner_flush_timeout_milliseconds:
+      description: |
+        Timeout in milliseconds to wait for the OpenTelemetry span exporter to flush pending spans
+        when a task runner process exits. If the exporter does not finish within this time, any
+        buffered spans may be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30000"
 secrets:
   description: ~
   options:
