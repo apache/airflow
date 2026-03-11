@@ -25,7 +25,9 @@ Airflow is split into core and providers. They are delivered as separate distrib
 * ``apache-airflow-task-sdk`` - task-sdk distribution that are imported by the providers
 * ``apache-airflow-providers-*`` - More than 90 providers to communicate with external services
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Where providers are kept in our repository
 ------------------------------------------
