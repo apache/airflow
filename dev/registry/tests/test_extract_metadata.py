@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from extract_metadata import (
-    count_modules_by_type,
     determine_airflow_versions,
     extract_integrations_as_categories,
     fetch_provider_inventory,
@@ -96,43 +95,6 @@ class TestExtractIntegrationsAsCategories:
         }
         categories = extract_integrations_as_categories(yaml_data)
         assert len(categories) == 1
-
-
-# ---------------------------------------------------------------------------
-# count_modules_by_type
-# ---------------------------------------------------------------------------
-class TestCountModulesByType:
-    def test_empty_yaml_returns_all_zero(self):
-        counts = count_modules_by_type({})
-        assert len(counts) == 11
-        assert all(v == 0 for v in counts.values())
-
-    def test_operators_only(self):
-        yaml_data = {
-            "operators": [
-                {"python-modules": ["mod1", "mod2"]},
-                {"python-modules": ["mod3"]},
-            ]
-        }
-        counts = count_modules_by_type(yaml_data)
-        assert counts["operator"] == 3
-        assert counts["hook"] == 0
-
-    def test_mixed_module_types(self):
-        yaml_data = {
-            "operators": [{"python-modules": ["op1"]}],
-            "hooks": [{"python-modules": ["h1", "h2"]}],
-            "transfers": [{"source": "a", "target": "b"}],
-            "notifications": ["notifier.Class"],
-            "task-decorators": [{"name": "my_task", "class-name": "mod.func"}],
-        }
-        counts = count_modules_by_type(yaml_data)
-        assert counts["operator"] == 1
-        assert counts["hook"] == 2
-        assert counts["transfer"] == 1
-        assert counts["notifier"] == 1
-        assert counts["decorator"] == 1
-        assert counts["sensor"] == 0
 
 
 # ---------------------------------------------------------------------------

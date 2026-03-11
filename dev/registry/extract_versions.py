@@ -54,6 +54,7 @@ except ImportError:
     print("ERROR: PyYAML required. Install with: pip install pyyaml")
     sys.exit(1)
 
+from registry_tools.types import MODULE_LEVEL_SECTIONS, TYPE_SUFFIXES
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 PROVIDERS_DIR = AIRFLOW_ROOT / "providers"
@@ -203,14 +204,7 @@ def extract_modules_from_yaml(
     else:
         base_source_url = f"https://github.com/apache/airflow/blob/{tag}/providers/src"
 
-    type_patterns = {
-        "operator": ["Operator", "Command"],
-        "hook": ["Hook"],
-        "sensor": ["Sensor"],
-        "trigger": ["Trigger"],
-        "transfer": ["Operator", "Transfer"],
-        "bundle": ["Bundle"],
-    }
+    type_patterns = TYPE_SUFFIXES
 
     def get_category(integration_name: str) -> str:
         cat_id = integration_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
@@ -277,14 +271,7 @@ def extract_modules_from_yaml(
         )
 
     # Module-level sections (each group has integration-name + python-modules)
-    MODULE_SECTIONS = {
-        "operators": "operator",
-        "hooks": "hook",
-        "sensors": "sensor",
-        "triggers": "trigger",
-        "bundles": "bundle",
-    }
-    for yaml_key, mod_type in MODULE_SECTIONS.items():
+    for yaml_key, mod_type in MODULE_LEVEL_SECTIONS.items():
         for group in provider_yaml.get(yaml_key, []):
             integration = group.get("integration-name", "")
             category = get_category(integration)
