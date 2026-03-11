@@ -288,6 +288,10 @@
         "title": "Delete {{resourceName}} Request Submitted"
       }
     },
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    },
     "import": {
       "error": "Import {{resourceName}} Request Failed",
       "success": {
