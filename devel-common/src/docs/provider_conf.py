@@ -145,6 +145,7 @@ extensions.extend(
         "providers_extensions",
         "providers_commits",
         "sphinx_jinja",
+        "generate_erd",
     ]
 )
 

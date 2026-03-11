@@ -45,6 +45,12 @@
 
 .. toctree::
     :hidden:
+    :caption: Internal DB details
+
+    Database ERD Schema <database-erd-ref>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
