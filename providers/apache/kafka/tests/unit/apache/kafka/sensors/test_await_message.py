@@ -16,8 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-# Resource Constants
-RESOURCE_BACKFILL = "Backfills"
-RESOURCE_DAG_VERSION = "DAG Versions"
-RESOURCE_ASSET = "Assets"
-RESOURCE_ASSET_ALIAS = "Asset Aliases"
+from datetime import timedelta
+
+from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
+
+
+def test_await_message_sensor_passes_timeout(mocker):
+    """Regression test for #62097: user-provided timeout must be passed to defer()."""
+    sensor = AwaitMessageSensor(
+        task_id="test",
+        topics=["test"],
+        apply_function="builtins.print",
+        timeout=timedelta(seconds=30),
+    )
+
+    defer_mock = mocker.patch.object(sensor, "defer")
+
+    sensor.execute({})
+
+    defer_mock.assert_called_once()
+    assert defer_mock.call_args.kwargs["timeout"] == timedelta(seconds=30)
