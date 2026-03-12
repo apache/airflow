@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Module for executing an Airflow task using the workload json provided by a input file.
+Module for executing an Airflow workload (task or callback) using the workload json provided by an input file.
 
 Usage:
     python execute_workload.py <input_file>
@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from airflow.executors.workloads import ExecuteTask
+    from airflow.executors import workloads
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(workload: ExecuteTask) -> None:
+def execute_workload(workload: workloads.All) -> None:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
@@ -52,8 +52,7 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     BaseExecutor.run_workload(
         workload,
-        # Include the output of the task to stdout too, so that in process logs can be read from via the
-        # kubeapi as pod logs.
+        # Include the output to stdout so logs are readable via the kubeapi as pod logs.
         subprocess_logs_to_stdout=True,
     )
 
