@@ -1460,6 +1460,10 @@ secrets:
 
         Example for AWS Systems Manager ParameterStore:
         ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
+
+        You can also set individual kwargs via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>=value``
+        environment variables. Per-key variables override the same key in this JSON setting.
+        Values are raw strings (not JSON-parsed).
       version_added: 1.10.10
       type: string
       sensitive: true
@@ -1820,6 +1824,10 @@ workers:
 
         Example for AWS Systems Manager ParameterStore:
         ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
+
+        You can also set individual kwargs via ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>=value``
+        environment variables. Per-key variables override the same key in this JSON setting.
+        Values are raw strings (not JSON-parsed).
       version_added: 3.0.0
       type: string
       sensitive: true
