@@ -4275,6 +4275,29 @@ class TestDataprocCreateBatchOperator:
         )
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_labels_sanitize_underscores_and_dots(self, mock_hook, to_dict_mock):
+        """Labels with dots and underscores should be replaced with dashes (GCP requirement)."""
+        dag_id_with_dots = "my.dag_id.with.dots"
+        task_id_with_underscores = "process_data.step_one"
+        expected_batch = {
+            **BATCH,
+            "labels": {
+                "airflow-dag-id": "my-dag-id-with-dots",
+                "airflow-dag-display-name": "my-dag-id-with-dots",
+                "airflow-task-id": "process-data-step-one",
+            },
+        }
+        DataprocCreateBatchOperator(
+            task_id=task_id_with_underscores,
+            dag=DAG(dag_id=dag_id_with_dots),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
 
 class TestDataprocDeleteBatchOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
