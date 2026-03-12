@@ -572,6 +572,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
+        if not isinstance(key, tuple):
+            raise ValueError(f"Expected a TaskInstanceKey for task workload, got: {type(key)}")
         dag_id, task_id, run_id, try_number, map_index = key
 
         base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)

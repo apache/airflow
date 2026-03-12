@@ -690,6 +690,9 @@ class KubernetesExecutor(BaseExecutor):
 
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
         ti_key = annotations_to_key(pod.metadata.annotations)
+        if not isinstance(ti_key, tuple):
+            self.log.debug("Skipping non-task pod in adopt_launched_task: %s", pod.metadata.name)
+            return
         if ti_key not in tis_to_flush_by_key:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", ti_key)
             return
