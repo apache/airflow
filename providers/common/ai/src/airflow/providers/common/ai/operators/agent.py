@@ -217,7 +217,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Look up the connection type for ``llm_conn_id``."""
         try:
             conn = BaseHook.get_connection(self.llm_conn_id)
-            return conn.conn_type
+            return conn.conn_type or "pydanticai"
         except Exception:
             return "pydanticai"
 

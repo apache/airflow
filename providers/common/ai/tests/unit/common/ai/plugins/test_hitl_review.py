@@ -130,6 +130,8 @@ def _create_hitl_session(
 @pytest.fixture
 def test_client():
     """Test client for HITL Review plugin endpoints. Use full paths like /hitl-review/sessions/find."""
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
     with (
         conf_vars(
             {
@@ -141,6 +143,7 @@ def test_client():
             }
         ),
         mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+        mock_plugin_manager(),
     ):
         purge_cached_app()
         app = create_app()
@@ -164,6 +167,8 @@ def test_client():
 @pytest.fixture
 def unauthenticated_test_client():
     """Test client with no Authorization header."""
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
     with (
         conf_vars(
             {
@@ -175,6 +180,7 @@ def unauthenticated_test_client():
             }
         ),
         mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+        mock_plugin_manager(),
     ):
         purge_cached_app()
         app = create_app()
@@ -184,6 +190,8 @@ def unauthenticated_test_client():
 @pytest.fixture
 def unauthorized_test_client():
     """Test client with a user lacking DAG access (role=None)."""
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
     with (
         conf_vars(
             {
@@ -195,6 +203,7 @@ def unauthorized_test_client():
             }
         ),
         mock.patch("airflow.settings.LAZY_LOAD_PROVIDERS", False),
+        mock_plugin_manager(),
     ):
         purge_cached_app()
         app = create_app()

@@ -187,14 +187,14 @@ class AdkHook(BaseAIHook):
         self._configured = True
         return self.model_id
 
-    def _resolve_model(self) -> str | Gemini:
+    def _resolve_model(self) -> str | Gemini:  # type: ignore[valid-type]
         """Return a model string or a ``_GeminiWithApiKey`` with the API key baked in."""
-        self.get_conn()
+        model_id = self.get_conn()
         if self._api_key:
-            gemini = _GeminiWithApiKey(model=self.model_id)
+            gemini = _GeminiWithApiKey(model=model_id)
             gemini._api_key = self._api_key
             return gemini
-        return self.model_id  # type: ignore[return-value]
+        return model_id
 
     # -----------------------------------------------------------------
     # Agent creation
