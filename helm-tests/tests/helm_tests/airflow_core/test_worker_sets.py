@@ -2177,21 +2177,34 @@ class TestWorkerSets:
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
 
-    def test_overwrite_termination_grace_period_seconds(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "terminationGracePeriodSeconds": 5,
-                            }
-                        ],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
                 }
             },
+            {
+                "terminationGracePeriodSeconds": 20,
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                },
+            },
+            {
+                "celery": {
+                    "terminationGracePeriodSeconds": 20,
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_termination_grace_period_seconds(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
