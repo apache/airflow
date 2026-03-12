@@ -256,7 +256,7 @@ Using Multiple MCP Servers
     AgentOperator(
         task_id="multi_mcp",
         prompt="Get the weather in London and run a calculation",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         toolsets=[
             MCPToolset(mcp_conn_id="weather_mcp", tool_prefix="weather"),
             MCPToolset(mcp_conn_id="code_runner_mcp", tool_prefix="code"),
@@ -276,7 +276,7 @@ server instances directly — no Airflow connection needed:
     AgentOperator(
         task_id="direct_mcp",
         prompt="What tools are available?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         toolsets=[
             MCPServerStreamableHTTP("http://localhost:3001/mcp"),
             MCPServerStdio("uvx", args=["mcp-run-python"]),
