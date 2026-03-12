@@ -254,18 +254,21 @@ class DecoratedOperator(BaseOperator):
             for param in signature.parameters.values()
         ]
 
-        # Find first parameter with a default
-        first_default_idx = next(
-            (i for i, p in enumerate(parameters) if p.default != inspect.Parameter.empty), len(parameters)
-        )
-
-        # Add defaults to all params after first default
-        parameters = [
-            param
-            if i < first_default_idx
-            else (param.replace(default=None) if param.default == inspect.Parameter.empty else param)
-            for i, param in enumerate(parameters)
-        ]
+        # Python requires that positional parameters with defaults don't precede those without.
+        # This only applies to POSITIONAL_ONLY and POSITIONAL_OR_KEYWORD parameters — *args,
+        # **kwargs, and keyword-only parameters follow different rules.
+        positional_kinds = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        positional = [(i, p) for i, p in enumerate(parameters) if p.kind in positional_kinds]
+        first_default_idx = next((i for i, p in positional if p.default != inspect.Parameter.empty), None)
+        if first_default_idx is not None:
+            parameters = [
+                param.replace(default=None)
+                if i > first_default_idx
+                and param.kind in positional_kinds
+                and param.default == inspect.Parameter.empty
+                else param
+                for i, param in enumerate(parameters)
+            ]
 
         try:
             signature = signature.replace(parameters=parameters)

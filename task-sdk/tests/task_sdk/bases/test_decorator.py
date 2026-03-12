@@ -228,12 +228,10 @@ class TestDefaultFillingLogic:
     def test_non_context_param_after_context_key_gets_none_injected(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        assert "start_date" in KNOWN_CONTEXT_KEYS, "start_date should be a context key"
-
-        def dummy_task(start_date, a): ...
-
-        assert make_op(dummy_task, op_kwargs={"a": "2024-01-01"}) is not None
-        assert make_op(dummy_task) is not None
+        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        f = _make_func(f"def dummy_task({ctx_key}, a): ...")
+        assert make_op(f, op_kwargs={"a": "2024-01-01"}) is not None
+        assert make_op(f) is not None
 
     def test_bind_validation_fails_for_missing_required_args(self):
         """Truly required args with no supplied value must still cause a bind failure."""
@@ -243,6 +241,19 @@ class TestDefaultFillingLogic:
 
         with pytest.raises(TypeError):
             make_op(dummy_task)
+
+    def test_variadic_and_keyword_only_params_are_not_assigned_defaults(self):
+        """*args, **kwargs, and keyword-only params must never get a None default injected."""
+
+        def dummy_task(a, b=1, *args, kw_required, **kwargs):
+            return (a, b, args, kw_required, kwargs)
+
+        op = make_op(dummy_task, op_kwargs={"a": 1, "kw_required": "x"})
+        sig = inspect.signature(op.python_callable)
+        params = sig.parameters
+        assert params["args"].default == inspect.Parameter.empty
+        assert params["kw_required"].default == inspect.Parameter.empty
+        assert params["kwargs"].default == inspect.Parameter.empty
 
 
 def make_op(func, op_args=None, op_kwargs=None, **kwargs):
