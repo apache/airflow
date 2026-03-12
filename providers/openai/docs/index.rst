@@ -72,6 +72,7 @@ apache-airflow-providers-openai package
 Enables interaction with OpenAI APIs for text generation, embeddings,
 and other AI-powered workflows directly from Airflow DAGs.
 
+
 Release: 1.7.2
 
 Provider package
