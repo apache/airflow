@@ -645,6 +645,10 @@ export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
+     * Only queue newly added tasks in the latest DAG version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
      * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
      */
     run_on_latest_version?: boolean;

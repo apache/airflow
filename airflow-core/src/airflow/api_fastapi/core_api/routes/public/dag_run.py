@@ -21,6 +21,7 @@ import textwrap
 from typing import Annotated, Literal, cast
 
 import structlog
+import uuid6
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
@@ -293,9 +294,74 @@ def clear_dag_run(
 
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
+    if body.only_new:
+        if body.dry_run:
+            new_task_ids = dag.clear(
+                run_id=dag_run_id,
+                task_ids=None,
+                only_new=True,
+                dry_run=True,
+                session=session,
+            )
+            dag_display_name = dag_run.dag_model.dag_display_name if dag_run.dag_model else dag_id
+            placeholder_tis = [
+                TaskInstanceResponse.model_construct(
+                    id=uuid6.uuid7(),
+                    task_id=task_id,
+                    dag_id=dag_id,
+                    run_id=dag_run_id,
+                    map_index=-1,
+                    logical_date=dag_run.logical_date,
+                    run_after=dag_run.run_after,
+                    start_date=None,
+                    end_date=None,
+                    duration=None,
+                    state=None,
+                    try_number=0,
+                    max_tries=0,
+                    task_display_name=task_id,
+                    dag_display_name=dag_display_name,
+                    hostname=None,
+                    unixname=None,
+                    pool="default_pool",
+                    pool_slots=1,
+                    queue=None,
+                    priority_weight=None,
+                    operator=None,
+                    operator_name=None,
+                    queued_dttm=None,
+                    scheduled_dttm=None,
+                    pid=None,
+                    executor=None,
+                    executor_config="{}",
+                    note=None,
+                    rendered_map_index=None,
+                    rendered_fields={},
+                    trigger=None,
+                    queued_by_job=None,
+                    dag_version=None,
+                )
+                for task_id in sorted(new_task_ids)
+            ]
+            return TaskInstanceCollectionResponse(
+                task_instances=placeholder_tis,
+                total_entries=len(placeholder_tis),
+            )
+        dag.clear(
+            run_id=dag_run_id,
+            task_ids=None,
+            only_new=True,
+            session=session,
+        )
+        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+        if not dag_run_cleared:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG run not found after clearing")
+        return dag_run_cleared
+
     if body.dry_run:
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
         task_instances = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
@@ -309,8 +375,6 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,

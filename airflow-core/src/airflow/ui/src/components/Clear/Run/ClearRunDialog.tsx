@@ -45,6 +45,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
+  const onlyNew = selectedOptions.includes("new_tasks");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   // Get current DAG's bundle version to compare with DAG run's bundle version
@@ -59,11 +60,16 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     options: {
       refetchInterval: (query) =>
+        !onlyNew &&
         query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
           ? refetchInterval
           : false,
     },
-    requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
+    requestBody: {
+      only_failed: onlyFailed,
+      only_new: onlyNew,
+      run_on_latest_version: runOnLatestVersion,
+    },
   });
 
   const { isPending, mutate } = useClearDagRun({
@@ -78,12 +84,14 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccess: onClose,
   });
 
-  // Check if bundle versions are different
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const dagRunBundleVersion = dagRun.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
-  const shouldShowBundleVersionOption =
-    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
+  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
+  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
+  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
+  const versionsDiffer =
+    latestDagVersionNumber !== undefined &&
+    dagRunVersionNumber !== undefined &&
+    latestDagVersionNumber !== dagRunVersionNumber;
+  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -116,7 +124,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   value: "onlyFailed",
                 },
                 {
-                  disabled: true,
+                  disabled: false,
                   label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
@@ -148,6 +156,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   requestBody: {
                     dry_run: false,
                     only_failed: onlyFailed,
+                    only_new: onlyNew,
                     run_on_latest_version: runOnLatestVersion,
                   },
                 });

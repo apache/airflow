@@ -2454,6 +2454,12 @@ export const $DAGRunClearBody = {
             title: 'Only Failed',
             default: false
         },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest DAG version without clearing existing tasks.',
+            default: false
+        },
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',

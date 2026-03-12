@@ -287,6 +287,13 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
