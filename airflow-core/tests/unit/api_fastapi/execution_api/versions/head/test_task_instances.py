@@ -1539,6 +1539,62 @@ class TestTIUpdateState:
         session.refresh(ti)
         assert ti.state == State.SUCCESS
 
+    def test_ti_update_state_same_state_is_idempotent(self, client, session, create_task_instance):
+        """Test that setting a TI to its current state is treated as an idempotent no-op."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_same_state_is_idempotent",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 200
+        assert response.text == ""
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
+
+    def test_ti_update_state_terminal_state_mismatch_returns_conflict(
+        self, client, session, create_task_instance
+    ):
+        """Only duplicate terminal-state updates are idempotent."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_terminal_state_mismatch_returns_conflict",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "failed",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "invalid_state",
+            "message": "TI was not in the running state so it cannot be updated",
+            "previous_state": State.SUCCESS,
+        }
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
+
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
         """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
         with dag_maker(dag_id="test_dag_no_fail_fast", serialized=True):

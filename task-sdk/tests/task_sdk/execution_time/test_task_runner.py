@@ -158,26 +158,6 @@ def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     return dag
 
 
-def api_server_invalid_state_error(previous_state: str) -> AirflowRuntimeError:
-    """Build an API_SERVER_ERROR that mirrors execution API 409 invalid_state responses."""
-    return AirflowRuntimeError(
-        error=ErrorResponse(
-            error=ErrorType.API_SERVER_ERROR,
-            detail={
-                "status_code": 409,
-                "message": "Server returned error",
-                "detail": {
-                    "detail": {
-                        "reason": "invalid_state",
-                        "message": "TI was not in the running state so it cannot be updated",
-                        "previous_state": previous_state,
-                    }
-                },
-            },
-        )
-    )
-
-
 class CustomOperator(BaseOperator):
     def execute(self, context):
         task_id = context["task_instance"].task_id
@@ -1263,46 +1243,6 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
     mock_supervisor_comms.send.assert_called_once_with(
         msg=SucceedTask(state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
     )
-
-
-def test_run_ignores_duplicate_success_state_update_conflict(
-    create_runtime_ti, mock_supervisor_comms, time_machine
-):
-    """Task runner should not crash when success state was already persisted by the API server."""
-
-    class IdempotentSuccessOperator(BaseOperator):
-        def execute(self, context):
-            return None
-
-    ti = create_runtime_ti(task=IdempotentSuccessOperator(task_id="idempotent_success_task"))
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    mock_supervisor_comms.send.side_effect = api_server_invalid_state_error(previous_state="success")
-
-    state, msg, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
-
-    assert state == TaskInstanceState.SUCCESS
-    assert isinstance(msg, SucceedTask)
-    assert error is None
-    assert ti.state == TaskInstanceState.SUCCESS
-
-
-def test_run_raises_for_conflicting_state_update(create_runtime_ti, mock_supervisor_comms, time_machine):
-    """Conflicts where API state differs from requested state should still fail the task process."""
-
-    class ConflictingStateOperator(BaseOperator):
-        def execute(self, context):
-            return None
-
-    ti = create_runtime_ti(task=ConflictingStateOperator(task_id="conflicting_state_task"))
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    mock_supervisor_comms.send.side_effect = api_server_invalid_state_error(previous_state="failed")
-
-    with pytest.raises(AirflowRuntimeError, match="API_SERVER_ERROR"):
-        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
 
 @pytest.mark.parametrize(
