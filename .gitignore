@@ -10,6 +10,10 @@ airflow.db
 
 # Airflow temporary artifacts
 airflow-core/src/airflow/git_version
+# ERD diagrams (generated at doc build time)
+airflow-core/docs/img/airflow_erd.svg
+providers/fab/docs/img/fab_erd.svg
+providers/edge3/docs/img/edge3_erd.svg
 airflow-core/src/airflow/ui/coverage/
 # and legacy ones
 airflow/git_version

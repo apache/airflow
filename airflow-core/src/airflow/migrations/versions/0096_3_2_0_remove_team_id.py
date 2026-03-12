@@ -139,6 +139,7 @@ def downgrade():
             )
 
     with op.batch_alter_table("dag_bundle_team") as batch_op:
+        batch_op.create_index("idx_dag_bundle_team_team_id", ["team_id"])
         batch_op.create_foreign_key(
             "dag_bundle_team_team_id_fkey",
             "team",
