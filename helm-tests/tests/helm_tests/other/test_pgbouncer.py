@@ -615,6 +615,19 @@ class TestPgbouncerConfig:
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
+    def test_should_not_render_cert_secret_when_pgbouncer_disabled(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": False,
+                    "ssl": {"ca": "someca", "cert": "somecert", "key": "somekey"},
+                },
+            },
+            show_only=["templates/secrets/pgbouncer-certificates-secret.yaml"],
+        )
+
+        assert len(docs) == 0
+
     def test_extra_ini_configs(self):
         values = {"pgbouncer": {"enabled": True, "extraIni": "server_round_robin = 1\nstats_period = 30"}}
         ini = self._get_pgbouncer_ini(values)
