@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -421,6 +422,98 @@ def _process_check_contexts(contexts: list[dict], total_count: int) -> tuple[str
     return summary, failed, has_test_checks
 
 
+def _fetch_check_status_counts(
+    token: str, github_repository: str, head_sha: str
+) -> dict[str, int]:
+    """Fetch counts of checks by status for a commit. Returns a dict like {"SUCCESS": 5, "FAILURE": 2, ...}.
+
+    Also includes an "IN_PROGRESS" key for checks still running.
+    """
+    owner, repo = github_repository.split("/", 1)
+    counts: dict[str, int] = {}
+    cursor: str | None = None
+
+    while True:
+        variables: dict = {"owner": owner, "repo": repo, "oid": head_sha, "first": 100}
+        if cursor:
+            variables["after"] = cursor
+
+        data = _graphql_request(token, _CHECK_CONTEXTS_QUERY, variables)
+        rollup = (data.get("repository", {}).get("object", {}) or {}).get("statusCheckRollup")
+        if not rollup:
+            break
+
+        contexts_data = rollup.get("contexts", {})
+        for ctx in contexts_data.get("nodes", []):
+            typename = ctx.get("__typename")
+            if typename == "CheckRun":
+                status = ctx.get("status", "")
+                if status.upper() in ("IN_PROGRESS", "QUEUED"):
+                    key = status.upper()
+                else:
+                    conclusion = ctx.get("conclusion") or status or "UNKNOWN"
+                    key = conclusion.upper()
+            elif typename == "StatusContext":
+                state = ctx.get("state", "UNKNOWN")
+                key = state.upper() if state.upper() != "PENDING" else "PENDING"
+            else:
+                continue
+            counts[key] = counts.get(key, 0) + 1
+
+        page_info = contexts_data.get("pageInfo", {})
+        if not page_info.get("hasNextPage"):
+            break
+        cursor = page_info.get("endCursor")
+
+    return counts
+
+
+def _format_check_status_counts(counts: dict[str, int]) -> str:
+    """Format check status counts with Rich color markup."""
+    _STATUS_COLORS = {
+        "SUCCESS": "green",
+        "FAILURE": "red",
+        "TIMED_OUT": "red",
+        "ACTION_REQUIRED": "yellow",
+        "CANCELLED": "dim",
+        "SKIPPED": "dim",
+        "NEUTRAL": "dim",
+        "STALE": "dim",
+        "STARTUP_FAILURE": "red",
+        "IN_PROGRESS": "bright_cyan",
+        "QUEUED": "bright_cyan",
+        "PENDING": "yellow",
+        "ERROR": "red",
+        "EXPECTED": "green",
+    }
+    if not counts:
+        return "[dim]No checks found[/]"
+    parts = []
+    # Show in a consistent order: failures first, then in-progress, then success, then others
+    order = [
+        "FAILURE", "TIMED_OUT", "ERROR", "STARTUP_FAILURE", "ACTION_REQUIRED",
+        "IN_PROGRESS", "QUEUED", "PENDING",
+        "SUCCESS", "EXPECTED",
+        "CANCELLED", "SKIPPED", "NEUTRAL", "STALE",
+    ]
+    shown = set()
+    for status in order:
+        if status in counts:
+            color = _STATUS_COLORS.get(status, "white")
+            parts.append(f"[{color}]{counts[status]} {status.lower()}[/]")
+            shown.add(status)
+    for status, count in sorted(counts.items()):
+        if status not in shown:
+            parts.append(f"{count} {status.lower()}")
+    total = sum(counts.values())
+    return f"{total} checks: " + ", ".join(parts)
+
+
+def _has_running_checks(counts: dict[str, int]) -> bool:
+    """Return True if any checks are still running (in_progress, queued, or pending)."""
+    return any(counts.get(s, 0) > 0 for s in ("IN_PROGRESS", "QUEUED", "PENDING"))
+
+
 def _fetch_failed_checks(token: str, github_repository: str, head_sha: str) -> list[str]:
     """Fetch all failing check names for a commit by paginating through check contexts."""
     owner, repo = github_repository.split("/", 1)
@@ -652,11 +745,35 @@ def _find_already_triaged_prs(
         If False, match any comment from the viewer (useful for workflow approval PRs
         where a rebase comment may have been posted instead of a full triage comment).
     """
+    result = _classify_already_triaged_prs(
+        token, github_repository, prs, viewer_login, require_marker=require_marker
+    )
+    return result["waiting"] | result["responded"]
+
+
+def _classify_already_triaged_prs(
+    token: str,
+    github_repository: str,
+    prs: list[PRData],
+    viewer_login: str,
+    *,
+    require_marker: bool = True,
+) -> dict[str, set[int]]:
+    """Classify already-triaged PRs into waiting vs responded.
+
+    Returns a dict with keys:
+    - "waiting": PR numbers where we commented but author has not responded
+    - "responded": PR numbers where author responded after our triage comment
+
+    :param require_marker: if True, only match comments containing _TRIAGE_COMMENT_MARKER.
+        If False, match any comment from the viewer (useful for workflow approval PRs
+        where a rebase comment may have been posted instead of a full triage comment).
+    """
+    result: dict[str, set[int]] = {"waiting": set(), "responded": set()}
     if not prs:
-        return set()
+        return result
 
     owner, repo = github_repository.split("/", 1)
-    already_triaged: set[int] = set()
 
     # Batch fetch last 10 comments + last commit date for each PR
     for chunk_start in range(0, len(prs), _COMMITS_BEHIND_BATCH_SIZE):
@@ -700,6 +817,7 @@ def _find_already_triaged_prs(
 
             # Check if any comment is from the viewer and contains the triage marker
             comments = pr_data.get("comments", {}).get("nodes", [])
+            triage_comment_date = ""
             for comment in reversed(comments):
                 author = (comment.get("author") or {}).get("login", "")
                 body = comment.get("body", "")
@@ -710,10 +828,30 @@ def _find_already_triaged_prs(
                     and (not require_marker or _TRIAGE_COMMENT_MARKER in body)
                     and comment_date >= last_commit_date
                 ):
-                    already_triaged.add(pr.number)
+                    triage_comment_date = comment_date
                     break
 
-    return already_triaged
+            if not triage_comment_date:
+                continue
+
+            # Check if the PR author responded after our triage comment
+            author_responded = False
+            for comment in comments:
+                comment_author = (comment.get("author") or {}).get("login", "")
+                comment_date = comment.get("createdAt", "")
+                if (
+                    comment_author == pr.author_login
+                    and comment_date > triage_comment_date
+                ):
+                    author_responded = True
+                    break
+
+            if author_responded:
+                result["responded"].add(pr.number)
+            else:
+                result["waiting"].add(pr.number)
+
+    return result
 
 
 _STALE_REVIEW_BATCH_SIZE = 10
@@ -1344,6 +1482,10 @@ def _compute_default_action(
     if count > 3:
         reason_parts.append(f"author has {count} flagged {'PRs' if count != 1 else 'PR'}")
         action = TriageAction.CLOSE
+    elif pr.checks_state == "UNKNOWN" and not has_conflicts:
+        # No checks at all — suggest rebase so CI workflows get triggered
+        reason_parts.append("no CI checks found — needs rebase")
+        action = TriageAction.DRAFT
     elif (
         not has_conflicts
         and has_ci_failures
@@ -1527,7 +1669,12 @@ def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
     )
 
 
-def _display_workflow_approval_panel(pr: PRData, author_profile: dict | None, pending_runs: list[dict]):
+def _display_workflow_approval_panel(
+    pr: PRData,
+    author_profile: dict | None,
+    pending_runs: list[dict],
+    check_counts: dict[str, int] | None = None,
+):
     """Display Rich panels for a PR needing workflow approval."""
     console = get_console()
     _display_pr_info_panels(pr, author_profile)
@@ -1548,6 +1695,9 @@ def _display_workflow_approval_panel(pr: PRData, author_profile: dict | None, pe
         )
     else:
         info_text = "[bright_cyan]No test workflows have run on this PR.[/]\n\n"
+
+    if check_counts:
+        info_text += f"Check status: {_format_check_status_counts(check_counts)}\n\n"
 
     if pr.is_draft:
         info_text += "[yellow]This PR is a draft.[/]\n"
@@ -1986,15 +2136,23 @@ def _prompt_and_execute_flagged_pr(
     )
 
 
-def _display_pr_overview_table(all_prs: list[PRData]) -> None:
+def _display_pr_overview_table(
+    all_prs: list[PRData],
+    *,
+    triaged_waiting_nums: set[int] | None = None,
+    triaged_responded_nums: set[int] | None = None,
+) -> None:
     """Display a Rich table overview of non-collaborator PRs."""
+    commented = triaged_waiting_nums or set()
+    responded = triaged_responded_nums or set()
     non_collab_prs = [pr for pr in all_prs if pr.author_association not in _COLLABORATOR_ASSOCIATIONS]
     collab_count = len(all_prs) - len(non_collab_prs)
     pr_table = Table(title=f"Fetched PRs ({len(non_collab_prs)} non-collaborator)")
     pr_table.add_column("PR", style="cyan", no_wrap=True)
+    pr_table.add_column("Triage", no_wrap=True)
+    pr_table.add_column("Status")
     pr_table.add_column("Title", max_width=50)
     pr_table.add_column("Author")
-    pr_table.add_column("Status")
     pr_table.add_column("Behind", justify="right")
     pr_table.add_column("Conflicts")
     pr_table.add_column("CI Status")
@@ -2004,8 +2162,8 @@ def _display_pr_overview_table(all_prs: list[PRData]) -> None:
             ci_status = "[red]Failing[/]"
         elif pr.checks_state == "PENDING":
             ci_status = "[yellow]Pending[/]"
-        elif pr.checks_state == "UNKNOWN":
-            ci_status = "[dim]No checks[/]"
+        elif pr.checks_state in ("UNKNOWN", "NOT_RUN"):
+            ci_status = "[yellow]Not run[/]"
         else:
             ci_status = f"[green]{pr.checks_state.capitalize()}[/]"
         behind_text = f"[yellow]{pr.commits_behind}[/]" if pr.commits_behind > 0 else "[green]0[/]"
@@ -2018,7 +2176,7 @@ def _display_pr_overview_table(all_prs: list[PRData]) -> None:
 
         # Workflow status
         if pr.checks_state == "NOT_RUN":
-            workflows_text = "[bright_cyan]Needs approval[/]"
+            workflows_text = "[yellow]Needs run[/]"
         elif pr.checks_state == "PENDING":
             workflows_text = "[yellow]Running[/]"
         else:
@@ -2032,17 +2190,34 @@ def _display_pr_overview_table(all_prs: list[PRData]) -> None:
         else:
             overall = "[green]OK[/]"
 
+        # Triage status column
+        if _READY_FOR_REVIEW_LABEL in pr.labels:
+            triage_status = "[green]Ready for review[/]"
+        elif pr.number in commented or pr.is_draft:
+            triage_status = "[yellow]Waiting for Author[/]"
+        elif pr.number in responded:
+            triage_status = "[bright_cyan]Responded[/]"
+        else:
+            triage_status = "[blue]-[/]"
+
         pr_table.add_row(
             _pr_link(pr),
+            triage_status,
+            overall,
             pr.title[:50],
             pr.author_login,
-            overall,
             behind_text,
             conflicts_text,
             ci_status,
             workflows_text,
         )
     get_console().print(pr_table)
+    get_console().print(
+        f"  Triage: [green]Ready for review[/] = ready for maintainer review  "
+        f"[yellow]Waiting for Author[/] = triaged, no response  "
+        f"[bright_cyan]Responded[/] = author replied  "
+        f"[blue]-[/] = not yet triaged"
+    )
     if collab_count:
         get_console().print(
             f"  [dim]({collab_count} collaborator/member {'PRs' if collab_count != 1 else 'PR'} not shown)[/]"
@@ -2092,7 +2267,11 @@ def _filter_candidate_prs(
                 get_console().print(
                     f"  [dim]Skipping PR {_pr_link(pr)} — already has '{_READY_FOR_REVIEW_LABEL}' label[/]"
                 )
-        elif checks_state != "any" and pr.checks_state.lower() != checks_state:
+        elif (
+            checks_state != "any"
+            and pr.checks_state not in ("NOT_RUN",)
+            and pr.checks_state.lower() != checks_state
+        ):
             total_skipped_checks_state += 1
             if verbose:
                 get_console().print(
@@ -2195,13 +2374,27 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
         f"need workflow approval — review and approve workflow runs"
         f"{' (LLM assessments running in background)' if ctx.llm_future_to_pr else ''}:[/]\n"
     )
+
     for pr in pending_approval:
+        if ctx.stats.quit_early:
+            return
         ctx.collect_llm_progress()
 
         author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
         pending_runs = _find_pending_workflow_runs(ctx.token, ctx.github_repository, pr.head_sha)
 
-        _display_workflow_approval_panel(pr, author_profile, pending_runs)
+        # Fetch check status counts for display and running-checks detection
+        check_counts: dict[str, int] = {}
+        if pr.head_sha:
+            check_counts = _fetch_check_status_counts(ctx.token, ctx.github_repository, pr.head_sha)
+            if _has_running_checks(check_counts):
+                get_console().print(
+                    f"  [dim]Skipping PR {_pr_link(pr)} — checks still running "
+                    f"({_format_check_status_counts(check_counts)})[/]"
+                )
+                continue
+
+        _display_workflow_approval_panel(pr, author_profile, pending_runs, check_counts)
 
         # If author exceeds the close threshold, suggest closing instead of approving
         author_count = ctx.author_flagged_count.get(pr.author_login, 0)
@@ -2244,14 +2437,173 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
             continue
 
         if not pending_runs:
+            # No pending workflow runs — try to rerun completed workflows first.
+            # If no workflows exist at all, fall back to rebase (or close/reopen).
             get_console().print(
-                f"  [dim]No pending workflow runs found for PR {_pr_link(pr)}. "
-                f"Workflows may need to be triggered manually.[/]"
+                f"  [info]No pending workflow runs for PR {_pr_link(pr)}. "
+                f"Attempting to rerun completed workflows...[/]"
             )
+            default_action = TriageAction.RERUN
+            get_console().print("  [bold]No pending runs — suggesting rerun checks[/]")
+
+            action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=default_action,
+                forced_answer=ctx.answer_triage,
+                exclude={TriageAction.DRAFT} if pr.is_draft else None,
+                pr_url=pr.url,
+            )
+            if action == TriageAction.QUIT:
+                get_console().print("[warning]Quitting.[/]")
+                ctx.stats.quit_early = True
+                return
+            if action == TriageAction.SKIP:
+                get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                continue
+
+            if action == TriageAction.RERUN:
+                # Try to find and rerun any completed workflow runs for this SHA
+                rerun_count = 0
+                if pr.head_sha:
+                    completed_runs = _find_workflow_runs_by_status(
+                        ctx.token, ctx.github_repository, pr.head_sha, "completed"
+                    )
+                    if completed_runs:
+                        for run in completed_runs:
+                            if _rerun_workflow_run(ctx.token, ctx.github_repository, run):
+                                get_console().print(
+                                    f"  [success]Rerun triggered for: {run.get('name', run['id'])}[/]"
+                                )
+                                rerun_count += 1
+
+                if rerun_count:
+                    get_console().print(
+                        f"  [success]Rerun triggered for {rerun_count} workflow "
+                        f"{'runs' if rerun_count != 1 else 'run'} on PR {_pr_link(pr)}.[/]"
+                    )
+                    ctx.stats.total_rerun += 1
+                else:
+                    # No workflows to rerun — need rebase or close/reopen to trigger CI
+                    get_console().print(
+                        f"  [warning]No workflow runs found to rerun for PR {_pr_link(pr)}.[/]"
+                    )
+                    if pr.mergeable == "CONFLICTING":
+                        get_console().print("  [warning]PR has merge conflicts — suggesting close/reopen.[/]")
+                        rebase_comment = (
+                            f"@{pr.author_login} This PR has no workflow runs and has "
+                            f"**merge conflicts**.\n\n"
+                            "Please close this PR, resolve the conflicts by rebasing onto "
+                            f"the latest `{pr.base_ref}` branch, and reopen.\n\n"
+                            "If you need help rebasing, see our "
+                            "[contributor guide](https://github.com/apache/airflow/blob/main/"
+                            "contributing-docs/05_pull_requests.rst)."
+                        )
+                    else:
+                        get_console().print("  [info]Suggesting rebase to trigger CI workflows.[/]")
+                        rebase_comment = f"@{pr.author_login} This PR has no workflow runs."
+                        if pr.commits_behind > 0:
+                            rebase_comment += (
+                                f" The PR is **{pr.commits_behind} "
+                                f"commit{'s' if pr.commits_behind != 1 else ''} "
+                                f"behind `{pr.base_ref}`**."
+                            )
+                        rebase_comment += (
+                            "\n\nPlease **rebase** your branch onto the latest base branch "
+                            "and push again so that CI workflows can run.\n\n"
+                            "If you need help rebasing, see our "
+                            "[contributor guide](https://github.com/apache/airflow/blob/main/"
+                            "contributing-docs/05_pull_requests.rst)."
+                        )
+                    get_console().print(
+                        Panel(rebase_comment, title="Proposed rebase comment", border_style="yellow")
+                    )
+                    fallback_action = TriageAction.DRAFT if not pr.is_draft else TriageAction.COMMENT
+                    fallback = prompt_triage_action(
+                        f"Rerun failed — action for PR {_pr_link(pr)}?",
+                        default=fallback_action,
+                        forced_answer=ctx.answer_triage,
+                        exclude={TriageAction.DRAFT} if pr.is_draft else None,
+                        pr_url=pr.url,
+                    )
+                    if fallback == TriageAction.QUIT:
+                        get_console().print("[warning]Quitting.[/]")
+                        ctx.stats.quit_early = True
+                        return
+                    if fallback == TriageAction.SKIP:
+                        get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+                    elif fallback == TriageAction.CLOSE:
+                        close_comment = _build_close_comment(pr.author_login, [], pr.number, 0)
+                        _execute_triage_action(
+                            ctx, pr, TriageAction.CLOSE, draft_comment="", close_comment=close_comment
+                        )
+                    elif fallback == TriageAction.DRAFT:
+                        draft_comment = rebase_comment + (
+                            "\n\nConverting this PR to **draft** until it is rebased."
+                        )
+                        _execute_triage_action(
+                            ctx, pr, TriageAction.DRAFT, draft_comment=draft_comment, close_comment=""
+                        )
+                    elif fallback == TriageAction.COMMENT:
+                        _execute_triage_action(
+                            ctx,
+                            pr,
+                            TriageAction.COMMENT,
+                            draft_comment="",
+                            close_comment="",
+                            comment_only_text=rebase_comment,
+                        )
+            elif action == TriageAction.CLOSE:
+                close_comment = _build_close_comment(pr.author_login, [], pr.number, 0)
+                _execute_triage_action(
+                    ctx, pr, TriageAction.CLOSE, draft_comment="", close_comment=close_comment
+                )
+            elif action == TriageAction.DRAFT:
+                rebase_comment = f"@{pr.author_login} This PR has no workflow runs."
+                if pr.commits_behind > 0:
+                    rebase_comment += (
+                        f" The PR is **{pr.commits_behind} "
+                        f"commit{'s' if pr.commits_behind != 1 else ''} "
+                        f"behind `{pr.base_ref}`**."
+                    )
+                rebase_comment += (
+                    "\n\nPlease **rebase** your branch onto the latest base branch "
+                    "and push again so that CI workflows can run.\n\n"
+                    "If you need help rebasing, see our "
+                    "[contributor guide](https://github.com/apache/airflow/blob/main/"
+                    "contributing-docs/05_pull_requests.rst).\n\n"
+                    "Converting this PR to **draft** until it is rebased."
+                )
+                _execute_triage_action(
+                    ctx, pr, TriageAction.DRAFT, draft_comment=rebase_comment, close_comment=""
+                )
+            elif action == TriageAction.COMMENT:
+                rebase_comment = f"@{pr.author_login} This PR has no workflow runs."
+                if pr.commits_behind > 0:
+                    rebase_comment += (
+                        f" The PR is **{pr.commits_behind} "
+                        f"commit{'s' if pr.commits_behind != 1 else ''} "
+                        f"behind `{pr.base_ref}`**."
+                    )
+                rebase_comment += (
+                    "\n\nPlease **rebase** your branch onto the latest base branch "
+                    "and push again so that CI workflows can run.\n\n"
+                    "If you need help rebasing, see our "
+                    "[contributor guide](https://github.com/apache/airflow/blob/main/"
+                    "contributing-docs/05_pull_requests.rst)."
+                )
+                _execute_triage_action(
+                    ctx,
+                    pr,
+                    TriageAction.COMMENT,
+                    draft_comment="",
+                    close_comment="",
+                    comment_only_text=rebase_comment,
+                )
             continue
 
         answer = user_confirm(
             f"Review diff for PR {_pr_link(pr)} before approving workflows?",
+            default_answer=Answer.YES,
             forced_answer=ctx.answer_triage,
         )
         if answer == Answer.QUIT:
@@ -2262,6 +2614,7 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
             get_console().print(f"  [info]Skipping workflow approval for PR {_pr_link(pr)}.[/]")
             continue
 
+        has_sensitive_changes = False
         get_console().print(f"  Fetching diff for PR {_pr_link(pr)}...")
         diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, pr.number)
         if diff_text:
@@ -2278,6 +2631,7 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
             # Warn about changes to sensitive directories (.github/, scripts/)
             sensitive_files = _detect_sensitive_file_changes(diff_text)
             if sensitive_files:
+                has_sensitive_changes = True
                 get_console().print()
                 get_console().print(
                     "[bold red]WARNING: This PR contains changes to sensitive files "
@@ -2292,9 +2646,11 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 f"Review manually at: {pr.url}/files[/]"
             )
 
+        approve_default = Answer.NO if has_sensitive_changes else Answer.YES
         answer = user_confirm(
             f"No suspicious changes found in PR {_pr_link(pr)}? "
             f"Approve {len(pending_runs)} workflow {'runs' if len(pending_runs) != 1 else 'run'}?",
+            default_answer=approve_default,
             forced_answer=ctx.answer_triage,
         )
         if answer == Answer.QUIT:
@@ -2721,6 +3077,8 @@ def _display_triage_summary(
     total_skipped_collaborator: int,
     total_skipped_bot: int,
     total_skipped_accepted: int,
+    triaged_waiting_count: int = 0,
+    triaged_responded_count: int = 0,
 ) -> None:
     """Print the final triage summary table."""
     total_flagged = total_deterministic_flags + total_llm_flagged
@@ -2749,6 +3107,9 @@ def _display_triage_summary(
         summary_table.add_row("Ready-for-review skipped", str(total_skipped_accepted))
     summary_table.add_row("PRs skipped (filtered)", str(total_skipped))
     summary_table.add_row("Already triaged (skipped)", str(len(already_triaged)))
+    if already_triaged:
+        summary_table.add_row("  Commented (no response)", str(triaged_waiting_count))
+        summary_table.add_row("  Triaged (author responded)", str(triaged_responded_count))
     summary_table.add_row("PRs assessed", str(len(candidate_prs)))
     summary_table.add_row("Flagged by CI/conflicts/comments", str(total_deterministic_flags))
     summary_table.add_row("Flagged by LLM", str(total_llm_flagged))
@@ -3285,9 +3646,30 @@ def auto_triage(
         else:
             get_console().print(f"  [dim]All {resolved} resolved.[/]")
 
-    # Display overview and filter candidates
-    _display_pr_overview_table(all_prs)
+    # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks (no real CI).
+    # These need to be reclassified as NOT_RUN so they get routed to workflow approval.
+    non_collab_success = [
+        pr
+        for pr in all_prs
+        if pr.checks_state == "SUCCESS"
+        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+        and not _is_bot_account(pr.author_login)
+    ]
+    if non_collab_success:
+        get_console().print(
+            f"[info]Verifying CI status for {len(non_collab_success)} "
+            f"{'PRs' if len(non_collab_success) != 1 else 'PR'} "
+            f"showing SUCCESS (checking for real test checks)...[/]"
+        )
+        _fetch_check_details_batch(token, github_repository, non_collab_success)
+        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
+        if reclassified:
+            get_console().print(
+                f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                f"reclassified to NOT_RUN (only bot/labeler checks, no real CI).[/]"
+            )
 
+    # Filter candidates first
     candidate_prs, accepted_prs, total_skipped_collaborator, total_skipped_bot, total_skipped_accepted = (
         _filter_candidate_prs(
             all_prs,
@@ -3303,7 +3685,12 @@ def auto_triage(
     get_console().print(
         "[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]"
     )
-    already_triaged_nums = _find_already_triaged_prs(token, github_repository, candidate_prs, viewer_login)
+    triaged_classification = _classify_already_triaged_prs(
+        token, github_repository, candidate_prs, viewer_login
+    )
+    already_triaged_nums = triaged_classification["waiting"] | triaged_classification["responded"]
+    triaged_waiting_count = len(triaged_classification["waiting"])
+    triaged_responded_count = len(triaged_classification["responded"])
     already_triaged: list[PRData] = []
     if already_triaged_nums:
         already_triaged = [pr for pr in candidate_prs if pr.number in already_triaged_nums]
@@ -3311,10 +3698,18 @@ def auto_triage(
         get_console().print(
             f"[info]Skipped {len(already_triaged)} already-triaged "
             f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
-            f"(triage comment posted, no new commits since).[/]"
+            f"({triaged_waiting_count} commented, "
+            f"{triaged_responded_count} author responded).[/]"
         )
     else:
         get_console().print("  [dim]None found.[/]")
+
+    # Display overview table (after triaged detection so we can mark actionable PRs)
+    _display_pr_overview_table(
+        all_prs,
+        triaged_waiting_nums=triaged_classification["waiting"],
+        triaged_responded_nums=triaged_classification["responded"],
+    )
 
     t_phase1_end = time.monotonic()
 
@@ -3485,7 +3880,6 @@ def auto_triage(
 
     # Build shared triage context and stats
     pr_actions: dict[int, str] = {}  # PR number -> action taken by user
-    from collections import Counter
 
     author_flagged_count: dict[str, int] = dict(
         Counter(pr.author_login for pr in candidate_prs if pr.number in assessments)
@@ -3577,7 +3971,27 @@ def auto_triage(
         if unknown_count:
             _resolve_unknown_mergeable(token, github_repository, all_prs)
 
-        _display_pr_overview_table(all_prs)
+        # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks
+        batch_non_collab_success = [
+            pr
+            for pr in all_prs
+            if pr.checks_state == "SUCCESS"
+            and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+            and not _is_bot_account(pr.author_login)
+        ]
+        if batch_non_collab_success:
+            get_console().print(
+                f"[info]Verifying CI status for {len(batch_non_collab_success)} "
+                f"{'PRs' if len(batch_non_collab_success) != 1 else 'PR'} "
+                f"showing SUCCESS...[/]"
+            )
+            _fetch_check_details_batch(token, github_repository, batch_non_collab_success)
+            reclassified = sum(1 for pr in batch_non_collab_success if pr.checks_state == "NOT_RUN")
+            if reclassified:
+                get_console().print(
+                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                    f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
+                )
 
         (
             candidate_prs,
@@ -3597,12 +4011,22 @@ def auto_triage(
 
         if not candidate_prs:
             get_console().print("[info]No candidates in this batch.[/]")
+            _display_pr_overview_table(all_prs)
             continue
 
         # Check already-triaged
-        batch_triaged_nums = _find_already_triaged_prs(token, github_repository, candidate_prs, viewer_login)
+        batch_triaged_cls = _classify_already_triaged_prs(
+            token, github_repository, candidate_prs, viewer_login
+        )
+        batch_triaged_nums = batch_triaged_cls["waiting"] | batch_triaged_cls["responded"]
         if batch_triaged_nums:
             candidate_prs = [pr for pr in candidate_prs if pr.number not in batch_triaged_nums]
+
+        _display_pr_overview_table(
+            all_prs,
+            triaged_waiting_nums=batch_triaged_cls["waiting"],
+            triaged_responded_nums=batch_triaged_cls["responded"],
+        )
 
         if not candidate_prs:
             get_console().print("[info]All PRs in this batch already triaged.[/]")
@@ -3737,6 +4161,8 @@ def auto_triage(
         total_skipped_collaborator=total_skipped_collaborator,
         total_skipped_bot=total_skipped_bot,
         total_skipped_accepted=total_skipped_accepted,
+        triaged_waiting_count=triaged_waiting_count,
+        triaged_responded_count=triaged_responded_count,
     )
 
     # Timing summary
