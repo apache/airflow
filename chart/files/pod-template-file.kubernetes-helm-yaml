@@ -233,7 +233,7 @@ spec:
   {{- if $schedulerName }}
   schedulerName: {{ $schedulerName }}
   {{- end }}
-  terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+  terminationGracePeriodSeconds: {{ .Values.workers.kubernetes.terminationGracePeriodSeconds | default .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
