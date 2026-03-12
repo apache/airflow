@@ -33,9 +33,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import Column, String, inspect, select
+from sqlalchemy import Column, String, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
 
 from airflow import settings
@@ -73,6 +72,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -746,23 +746,16 @@ class DBDagBag:
         return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
-                return dag_version
+                return dag_version.id
 
-        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info = inspect(dag_run)
-        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
-            # Relationship is already loaded, safe to access
-            return dag_run.created_dag_version
-
-        # Relationship not loaded, fetch it explicitly from current session
-        return session.get(DagVersion, dag_run.created_dag_version_id)
+        return dag_run.created_dag_version_id
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
-        if version := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self._get_dag(version_id=version.id, session=session)
+        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self._get_dag(version_id=version_id, session=session)
         return None
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
