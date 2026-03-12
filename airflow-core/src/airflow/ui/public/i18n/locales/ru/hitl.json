@@ -1,0 +1,40 @@
+{
+  "filters": {
+    "body": "Тело",
+    "createdAt": "Создано",
+    "response": {
+      "all": "Все",
+      "pending": "В ожидании",
+      "received": "Просмотрено"
+    }
+  },
+  "requiredAction_one": "Необходимое действие",
+  "requiredAction_many": "Необходимые действия",
+  "requiredAction_other": "Необходимые действия",
+  "requiredActionCount_one": "Необходимое действие ({{count}})",
+  "requiredActionCount_many": "Необходимые действия ({{count}})",
+  "requiredActionCount_other": "Необходимые действия ({{count}})",
+  "requiredActionState": "Состояние необходимого действия",
+  "response": {
+    "created": "Ответ создан ",
+    "error": "Ошибка ответа",
+    "optionsDescription": "Выберите ваши опции для этого экземпляра задачи",
+    "optionsLabel": "Опции",
+    "received": "Ответ получен ",
+    "respond": "Ответить",
+    "responded_by_user_name": "Ответил (Имя пользователя)",
+    "success": "Ответ {{taskId}} успешен",
+    "title": "Экземпляр человеческой задачи - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Одобрение получено",
+    "approvalRequired": "Необходимо одобрение",
+    "choiceReceived": "Выбор получен",
+    "choiceRequired": "Необходим выбор",
+    "noResponseReceived": "Ответ не получен",
+    "rejectionReceived": "Отказ получен",
+    "responseReceived": "Ответ получен",
+    "responseRequired": "Необходим ответ"
+  },
+  "subject": "Тема"
+}

@@ -1,0 +1,175 @@
+{
+  "backfill": {
+    "affected_one": "Будет запущен 1 процесс.",
+    "affected_many": "Будет запущено {{count}} процесса.",
+    "affected_other": "Будет запущено {{count}} процессов.",
+    "affectedNone": "Нет процессов, соответствующих выбранным критериям.",
+    "allRuns": "Все процессы",
+    "backwards": "Запуск назад",
+    "dateRange": "Диапазон дат",
+    "errorStartDateBeforeEndDate": "Дата начала должна быть раньше даты окончания",
+    "maxRuns": "Максимум активных запусков",
+    "missingAndErroredRuns": "Отсутствующие и ошибочные запуски",
+    "missingRuns": "Отсутствующие запуски",
+    "permissionDenied": "Не удалось выполнить пробный запуск: У пользователя нет разрешения на создание заполнения.",
+    "reprocessBehavior": "Поведение повторной обработки",
+    "run": "Запуск заполнения",
+    "selectDescription": "Запуск этого Дага для диапазона дат",
+    "selectLabel": "Заполнение",
+    "title": "Запуск заполнения",
+    "toaster": {
+      "success": {
+        "description": "Запуск выполнения заполнения успешно инициирован.",
+        "title": "Заполнение сгенерировано"
+      }
+    },
+    "tooltip": "Заполнение требует расписания",
+    "unpause": "Снять паузу с {{dag_display_name}} при запуске",
+    "validation": {
+      "datesRequired": "Необходимо указать как дату начала, так и дату окончания.",
+      "startBeforeEnd": "Дата начала должна быть меньше или равной дате окончания."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Заполнение в процессе",
+    "cancel": "Отменить заполнение",
+    "pause": "Приостановить заполнение",
+    "unpause": "Снять паузу с заполнения"
+  },
+  "clipboard": {
+    "copy": "Копировать"
+  },
+  "close": "Закрыть",
+  "configForm": {
+    "advancedOptions": "Расширенные параметры",
+    "configJson": "Конфигурация JSON",
+    "invalidJson": "Некорректный формат JSON: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 ошибка",
+    "errorAndWarning": "1 ошибка и {{warningText}}",
+    "warning_one": "1 предупреждение",
+    "warning_other": "{{count}} предупреждений",
+    "error_many": "{{count}} ошибки",
+    "warning_many": "{{count}} предупреждения"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Некорректный формат даты.",
+      "invalidTimeFormat": "Некорректный формат времени.",
+      "startBeforeEnd": "Начальная дата/время должно быть раньше конечной даты/времени"
+    }
+  },
+  "durationChart": {
+    "duration": "Продолжительность (секунды)",
+    "lastDagRun_one": "Последний запуск Дага",
+    "lastDagRun_other": "Последние {{count}} запусков Дага",
+    "lastDagRun_many": "Последние {{count}} запуска Дага",
+    "lastTaskInstance_one": "Последний экземпляр задачи",
+    "lastTaskInstance_many": "Последние {{count}} экземпляра задачи",
+    "lastTaskInstance_other": "Последние {{count}} экземпляров задачи",
+    "queuedDuration": "Длительность в очереди",
+    "runAfter": "Запустить после",
+    "runDuration": "Длительность запуска"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} файлов"
+  },
+  "flexibleForm": {
+    "placeholder": "Выбрать значение",
+    "placeholderArray": "Введите каждую строку с новой строки",
+    "placeholderExamples": "Начните вводить, чтобы увидеть варианты",
+    "placeholderMulti": "Выберите одно или несколько значений",
+    "validationErrorArrayNotArray": "Значение должно быть массивом.",
+    "validationErrorArrayNotNumbers": "Все элементы в массиве должны быть числами.",
+    "validationErrorArrayNotObject": "Все элементы в массиве должны быть объектами.",
+    "validationErrorRequired": "Это поле обязательно"
+  },
+  "graph": {
+    "directionDown": "Сверху вниз",
+    "directionLeft": "Справа налево",
+    "directionRight": "Слева направо",
+    "directionUp": "Снизу вверх",
+    "downloadImage": "Скачать изображение графа",
+    "downloadImageError": "Не удалось скачать изображение графа.",
+    "downloadImageErrorTitle": "Ошибка загрузки",
+    "otherDagRuns": "+Другие запуски Дага",
+    "taskCount_one": "{{count}} задача",
+    "taskCount_many": "{{count}} задачи",
+    "taskCount_other": "{{count}} задач",
+    "taskGroup": "Группа задач"
+  },
+  "limitedList": "+{{count}} ещё",
+  "limitedList.allItems": "Все {{count}} элементы:",
+  "limitedList.allTags_one": "Все теги (1)",
+  "limitedList.allTags_many": "Все теги ({{count}})",
+  "limitedList.allTags_other": "Все теги ({{count}})",
+  "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Даги",
+  "limitedList.clickToOpenFull": "Нажмите \"+{{count}} ещё\", чтобы открыть полный вид",
+  "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
+  "limitedList.showingItems_one": "Показан 1 элемент",
+  "limitedList.showingItems_many": "Показано {{count}} элемента",
+  "limitedList.showingItems_other": "Показано {{count}} элементов",
+  "logs": {
+    "file": "Файл",
+    "location": "строка {{line}} в {{name}}"
+  },
+  "reparseDag": "Повторный разбор Дага",
+  "sortedAscending": "сортировано по возрастанию",
+  "sortedDescending": "сортировано по убыванию",
+  "sortedUnsorted": "несортировано",
+  "taskTries": "Попытки задачи",
+  "taskTryPlaceholder": "Попытка задачи",
+  "team": {
+    "selector": {
+      "helperText": "Необязательно. Ограничьте использование конкретной команде.",
+      "label": "Команда",
+      "placeHolder": "Выберите команду"
+    }
+  },
+  "toggleCardView": "Показать карточный вид",
+  "toggleTableView": "Показать табличный вид",
+  "triggerDag": {
+    "button": "Запустить",
+    "dataInterval": "Временной интервал",
+    "dataIntervalAuto": "Предполагается из логической даты и расписания",
+    "dataIntervalManual": "Указать вручную",
+    "intervalEnd": "Конец",
+    "intervalStart": "Начало",
+    "loading": "Загрузка информации о Даге...",
+    "loadingFailed": "Не удалось загрузить информацию о Даге. Пожалуйста, попробуйте снова.",
+    "manualRunDenied": "Ручные запуски не разрешены для этого Дага",
+    "runIdHelp": "Необязательно - будет сгенерирован, если не предоставлен",
+    "selectDescription": "Запустить один процесс этого Дага",
+    "selectLabel": "Единичный запуск",
+    "title": "Запуск Дага",
+    "toaster": {
+      "error": {
+        "title": "Не удалось запустить Даг"
+      },
+      "success": {
+        "description": "Запуск Дага успешно инициирован.",
+        "title": "Запуск Дага инициирован"
+      }
+    },
+    "triggerAgainWithConfig": "Запустить снова с этой конфигурацией",
+    "unpause": "Снять паузу с {{dagDisplayName}} при запуске"
+  },
+  "trimText": {
+    "details": "Детали",
+    "empty": "Пусто",
+    "noContent": "Нет доступного контента."
+  },
+  "versionDetails": {
+    "bundleLink": "Ссылка на пакет",
+    "bundleName": "Название пакета",
+    "bundleVersion": "Версия пакета",
+    "createdAt": "Создано в",
+    "versionId": "ID версии"
+  },
+  "versionSelect": {
+    "allVersions": "Все версии",
+    "dagVersion": "Версия Дага",
+    "versionCode": "v{{versionCode}}"
+  }
+}

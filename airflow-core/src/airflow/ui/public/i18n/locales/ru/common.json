@@ -1,0 +1,369 @@
+{
+  "admin": {
+    "Config": "Конфигурация",
+    "Connections": "Соединения",
+    "Plugins": "Плагины",
+    "Pools": "Пулы",
+    "Providers": "Поставщики",
+    "Variables": "Переменные"
+  },
+  "allOperators": "Все операторы",
+  "appearance": {
+    "appearance": "Внешний вид",
+    "darkMode": "Темный режим",
+    "lightMode": "Светлый режим",
+    "systemMode": "Следовать системным настройкам"
+  },
+  "asset_one": "Актив",
+  "asset_many": "Актива",
+  "asset_other": "Активы",
+  "assetEvent_one": "Событие актива",
+  "assetEvent_many": "Событие активов",
+  "assetEvent_other": "События активов",
+  "backfill_one": "Заполнение",
+  "backfill_many": "Заполнения",
+  "backfill_other": "Заполнения",
+  "browse": {
+    "auditLog": "Журнал аудита",
+    "jobs": "Задания",
+    "requiredActions": "Необходимые действия",
+    "xcoms": "XComs"
+  },
+  "collapseAllExtra": "Свернуть все дополнительные JSON",
+  "collapseDetailsPanel": "Свернуть панель деталей",
+  "createdAssetEvent_one": "Создано событие актива",
+  "createdAssetEvent_many": "Созданы события активов",
+  "createdAssetEvent_other": "Созданы события активов",
+  "dag_one": "Даг",
+  "dag_many": "Дага",
+  "dag_other": "Даги",
+  "dagDetails": {
+    "catchup": "Сбор данных",
+    "dagRunTimeout": "Тайм-аут запуска Дага",
+    "defaultArgs": "Аргументы по умолчанию",
+    "description": "Описание",
+    "documentation": "Документация Дага",
+    "fileLocation": "Место хранения файла",
+    "hasTaskConcurrencyLimits": "Имеет ограничения на параллельные задачи",
+    "lastExpired": "Последний истекший",
+    "lastParseDuration": "Продолжительность последнего разбора",
+    "lastParsed": "Последний разобранный",
+    "latestDagVersion": "Последняя версия Дага",
+    "latestRun": "Последний запуск",
+    "maxActiveRuns": "Максимум активных запусков",
+    "maxActiveTasks": "Максимум активных задач",
+    "maxConsecutiveFailedDagRuns": "Максимум последовательных неудачных запусков Дага",
+    "nextRun": "Следующий запуск",
+    "owner": "Владелец",
+    "params": "Параметры",
+    "schedule": "Расписание",
+    "tags": "Теги"
+  },
+  "dagId": "ID Дага",
+  "dagRun": {
+    "conf": "Конфигурация",
+    "dagVersions": "Версии Дага",
+    "dataIntervalEnd": "Конец временного интервала",
+    "dataIntervalStart": "Начало временного интервала",
+    "lastSchedulingDecision": "Последнее решение о расписании",
+    "mappedPartitionKey": "Ключ распределенной части",
+    "partitionKey": "Ключ части",
+    "queuedAt": "В очереди в",
+    "runAfter": "Запустить после",
+    "runType": "Тип запуска",
+    "sourceAssetEvent": "Источник события актива",
+    "triggeredBy": "Запущено",
+    "triggeringUser": "Запускающий пользователь"
+  },
+  "dagRun_one": "Запуск Дага",
+  "dagRun_many": "Запуска Дага",
+  "dagRun_other": "Запусков Дага",
+  "dagRunId": "ID запуска Дага",
+  "dagWarnings": "Предупреждения/ошибки Дага",
+  "defaultToGraphView": "По умолчанию отображать график",
+  "defaultToGridView": "По умолчанию отображать в сетке",
+  "delete": "Удалить",
+  "diff": "Разница",
+  "diffCompareWith": "Сравнить с",
+  "diffExit": "Выйти из разницы",
+  "diffSelectVersionToCompare": "Выбрать версию для сравнения",
+  "direction": "Направление",
+  "docs": {
+    "documentation": "Документация",
+    "githubRepo": "GitHub Репозиторий",
+    "restApiReference": "REST API Справочник"
+  },
+  "download": {
+    "download": "Скачать",
+    "hotkey": "d",
+    "tooltip": "Нажмите {{hotkey}}, чтобы скачать журналы"
+  },
+  "duration": "Длительность",
+  "edit": "Редактировать",
+  "endDate": "Дата окончания",
+  "error": {
+    "back": "Назад",
+    "defaultMessage": "Произошла неожиданная ошибка",
+    "home": "Главная",
+    "invalidUrl": "Страница не найдена. Пожалуйста, проверьте URL и попробуйте снова.",
+    "notFound": "Страница не найдена",
+    "title": "Ошибка"
+  },
+  "expand": {
+    "collapse": "Свернуть",
+    "expand": "Развернуть",
+    "hotkey": "e",
+    "tooltip": "Нажмите {{hotkey}}, чтобы переключить развертывание"
+  },
+  "expandAllExtra": "Развернуть все дополнительные JSON",
+  "expression": {
+    "all": "Все",
+    "and": "И",
+    "any": "Любой",
+    "or": "ИЛИ"
+  },
+  "filter": "Фильтр",
+  "filters": {
+    "durationFrom": "Продолжительность с",
+    "durationTo": "Продолжительность до",
+    "endTime": "Время окончания",
+    "logicalDateFrom": "Логическая дата с",
+    "logicalDateTo": "Логическая дата до",
+    "runAfterFrom": "Запустить после с",
+    "runAfterTo": "Запустить после до",
+    "selectDateRange": "Выбрать диапазон дат",
+    "startTime": "Время начала"
+  },
+  "generateToken": "Сгенерировать токен",
+  "logicalDate": "Логическая дата",
+  "logout": "Выйти",
+  "logoutConfirmation": "Вы собираетесь выйти из приложения.",
+  "mapIndex": "Индекс карты",
+  "modal": {
+    "add": "Добавить",
+    "cancel": "Отменить",
+    "confirm": "Подтвердить",
+    "delete": {
+      "button": "Удалить",
+      "confirmation": "Вы уверены, что хотите удалить {{resourceName}}? Это действие нельзя будет отменить."
+    },
+    "save": "Сохранить"
+  },
+  "nav": {
+    "admin": "Администратор",
+    "assets": "Активы",
+    "browse": "Просмотр",
+    "dags": "Даги",
+    "docs": "Документы",
+    "home": "Главная",
+    "legacyFabViews": "Устаревшие виды",
+    "plugins": "Плагины",
+    "security": "Безопасность"
+  },
+  "noItemsFound": "Не найдено {{modelName}}",
+  "note": {
+    "add": "Добавить заметку",
+    "dagRun": "Заметка запуска Дага",
+    "label": "Заметка",
+    "placeholder": "Добавьте заметку...",
+    "taskInstance": "Заметка экземпляра задачи"
+  },
+  "partitionedDagRun_one": "Разделенный запуск Дага",
+  "partitionedDagRun_many": "Разделенных запусков Дага",
+  "partitionedDagRun_other": "Разделенных запусков Дага",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Полученные события актива"
+  },
+  "pendingDagRun_one": "{{count}} Даг ожидает запуска",
+  "pendingDagRun_many": "{{count}} Дага ожидают запуска",
+  "pendingDagRun_other": "{{count}} Дагов ожидают запуска",
+  "reset": "Сбросить",
+  "runId": "ID запуска",
+  "runTypes": {
+    "asset_triggered": "Запущено активом",
+    "backfill": "Заполнение",
+    "manual": "Вручную",
+    "scheduled": "Запланировано"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "вниз",
+      "top": "вверх"
+    },
+    "tooltip": "Нажмите {{hotkey}}, чтобы прокрутить {{direction}}"
+  },
+  "security": {
+    "actions": "Действия",
+    "permissions": "Разрешения",
+    "resources": "Ресурсы",
+    "roles": "Роли",
+    "users": "Пользователи"
+  },
+  "selectLanguage": "Выбор языка",
+  "showDetailsPanel": "Показать панель деталей",
+  "signedInAs": "Вошли как",
+  "source": {
+    "hide": "Скрыть источник",
+    "hotkey": "s",
+    "show": "Показать источник"
+  },
+  "sourceAssetEvent_one": "Событие источника актива",
+  "sourceAssetEvent_many": "События источника актива",
+  "sourceAssetEvent_other": "Событий источника актива",
+  "startDate": "Дата начала",
+  "state": "Состояние",
+  "states": {
+    "deferred": "Отложен",
+    "failed": "Не удался",
+    "no_status": "Нет статуса",
+    "none": "Нет статуса",
+    "open": "Открыт",
+    "planned": "Запланирован",
+    "queued": "В очереди",
+    "removed": "Удален",
+    "restarting": "Перезапуск",
+    "running": "Запущен",
+    "scheduled": "Запланирован",
+    "skipped": "Пропущен",
+    "success": "Успех",
+    "up_for_reschedule": "Готов к переназначению",
+    "up_for_retry": "Готов к повтору",
+    "upstream_failed": "Неудача на upstream"
+  },
+  "table": {
+    "completedAt": "Завершен в",
+    "createdAt": "Создан в",
+    "filterByTag": "Фильтровать Даги по тегу",
+    "filterColumns": "Фильтровать столбцы таблицы",
+    "filterReset_one": "Сбросить фильтр",
+    "filterReset_many": "Сбросить фильтры",
+    "filterReset_other": "Сбросить фильтры",
+    "from": "От",
+    "maxActiveRuns": "Максимум активных запусков",
+    "noTagsFound": "Теги не найдены",
+    "tagMode": {
+      "all": "Все",
+      "any": "Любой"
+    },
+    "tagPlaceholder": "Фильтр по тегу",
+    "to": "До"
+  },
+  "task": {
+    "documentation": "Документация задачи",
+    "lastInstance": "Последний экземпляр",
+    "operator": "Оператор",
+    "triggerRule": "Правило запуска"
+  },
+  "task_one": "Задача",
+  "task_many": "Задачи",
+  "task_other": "Задач",
+  "taskGroup": "Группа задач",
+  "taskId": "ID задачи",
+  "taskInstance": {
+    "dagVersion": "Версия Дага",
+    "executor": "Исполнитель",
+    "executorConfig": "Конфигурация исполнителя",
+    "hostname": "Имя хоста",
+    "maxTries": "Максимум попыток",
+    "pid": "PID",
+    "pool": "Пул",
+    "poolSlots": "Слоты пула",
+    "priorityWeight": "Приоритетный вес",
+    "queue": "Очередь",
+    "queuedWhen": "В очереди в",
+    "scheduledWhen": "Запланировано в",
+    "triggerer": {
+      "assigned": "Назначенный триггер",
+      "class": "Класс триггера",
+      "createdAt": "Время создания триггера",
+      "id": "ID триггера",
+      "latestHeartbeat": "Последний heartbeat триггера",
+      "title": "Информация о триггере"
+    },
+    "unixname": "Unix имя"
+  },
+  "taskInstance_one": "Экземпляр задачи",
+  "taskInstance_many": "Экземпляра задачи",
+  "taskInstance_other": "Экземпляров задачи",
+  "timeRange": {
+    "last12Hours": "Последние 12 часов",
+    "last24Hours": "Последние 24 часа",
+    "lastHour": "Последний час",
+    "pastWeek": "Прошлая неделя"
+  },
+  "timestamp": {
+    "hide": "Скрыть временные метки",
+    "hotkey": "t",
+    "show": "Показать временные метки"
+  },
+  "timezone": "Часовой пояс",
+  "timezoneModal": {
+    "current-timezone": "Текущее время в",
+    "placeholder": "Выбрать часовой пояс",
+    "title": "Выбрать часовой пояс",
+    "utc": "UTC (Координированное всемирное время)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Ошибка пакетного удаления {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
+        "title": "Запрос на пакетное удаление {{resourceName}} отправлен"
+      }
+    },
+    "create": {
+      "error": "Ошибка создания {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} успешно создан.",
+        "title": "Запрос на создание {{resourceName}} отправлен"
+      }
+    },
+    "delete": {
+      "error": "Ошибка удаления {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} успешно удален.",
+        "title": "Запрос на удаление {{resourceName}} отправлен"
+      }
+    },
+    "forbidden": {
+      "description": "У вас нет разрешения на выполнение этого действия.",
+      "title": "Доступ запрещен"
+    },
+    "import": {
+      "error": "Ошибка импорта {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно импортированы.",
+        "title": "Запрос на импорт {{resourceName}} отправлен"
+      }
+    },
+    "update": {
+      "error": "Ошибка обновления {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} успешно обновлен.",
+        "title": "Запрос на обновление {{resourceName}} отправлен"
+      }
+    }
+  },
+  "tokenGeneration": {
+    "apiToken": "API токен",
+    "cliToken": "CLI токен",
+    "errorDescription": "Произошла ошибка при генерации токена. Пожалуйста, попробуйте снова.",
+    "errorTitle": "Ошибка генерации токена",
+    "generate": "Сгенерировать",
+    "selectType": "Выберите тип токена для генерации.",
+    "title": "Генерация токена",
+    "tokenExpiresIn": "Этот токен истекает через {{duration}}.",
+    "tokenGenerated": "Ваш токен был сгенерирован.",
+    "tokenShownOnce": "Этот токен будет показан только один раз. Скопируйте его сейчас."
+  },
+  "total": "Итого {{state}}",
+  "triggered": "Запущено",
+  "tryNumber": "Номер попытки",
+  "user": "Пользователь",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Нажмите {{hotkey}}, чтобы свернуть/развернуть",
+    "unwrap": "Развернуть",
+    "wrap": "Свернуть"
+  }
+}

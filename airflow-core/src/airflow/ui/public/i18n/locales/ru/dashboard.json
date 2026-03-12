@@ -1,0 +1,48 @@
+{
+  "favorite": {
+    "favoriteDags_one": "Первый {{count}} избранный Даг",
+    "favoriteDags_many": "Первые {{count}} избранных Дага",
+    "favoriteDags_other": "Первые {{count}} избранных Дагов",
+    "noDagRuns": "Для этого дага еще нет запусков.",
+    "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с Дагом в списке, чтобы добавить его в избранное."
+  },
+  "group": "Группа",
+  "health": {
+    "dagProcessor": "Процессор Дага",
+    "health": "Здоровье",
+    "healthy": "Здоровый",
+    "lastHeartbeat": "Последний hearbeat-сигнал",
+    "metaDatabase": "Метабаза данных",
+    "scheduler": "Планировщик",
+    "status": "Статус",
+    "triggerer": "Триггер",
+    "unhealthy": "Нездоровый"
+  },
+  "history": "История",
+  "importErrors": {
+    "dagImportError_one": "Ошибка импорта Дагов",
+    "dagImportError_many": "Ошибки импорта Дагов",
+    "dagImportError_other": "Ошибки импорта Дагов",
+    "searchByFile": "Поиск по файлу",
+    "timestamp": "Временная метка"
+  },
+  "managePools": "Управление пулами",
+  "noAssetEvents": "Нет найденных событий активов.",
+  "poolSlots": "Слоты пула",
+  "sortBy": {
+    "newestFirst": "Сначала новые",
+    "oldestFirst": "Сначала старые",
+    "placeholder": "Сортировать по"
+  },
+  "source": "Источник",
+  "stats": {
+    "activeDags": "Активные Даги",
+    "failedDags": "Неудавшиеся Даги",
+    "queuedDags": "Даги в очереди",
+    "requiredActions": "Необходимые действия",
+    "runningDags": "Запущенные Даги",
+    "stats": "Статистика"
+  },
+  "uri": "Uri",
+  "welcome": "Добро пожаловать"
+}

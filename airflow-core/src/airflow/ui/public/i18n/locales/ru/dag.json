@@ -1,0 +1,195 @@
+{
+  "allRuns": "Все Запуски",
+  "blockingDeps": {
+    "dependency": "Зависимость",
+    "reason": "Причина",
+    "title": "Зависимости, которые блокируют Запуск задачи"
+  },
+  "calendar": {
+    "daily": "Ежедневно",
+    "hourly": "Каждый час",
+    "legend": {
+      "less": "Меньше",
+      "mixed": "Смешанные",
+      "more": "Больше"
+    },
+    "navigation": {
+      "nextMonth": "Следующий месяц",
+      "nextYear": "Следующий год",
+      "previousMonth": "Предыдущий месяц",
+      "previousYear": "Предыдущий год"
+    },
+    "noData": "Нет доступных данных",
+    "noFailedRuns": "Нет неудачных запусков",
+    "noRuns": "Нет запусков",
+    "totalRuns": "Всего запусков",
+    "week": "Неделя {{weekNumber}}",
+    "weekdays": {
+      "friday": "Пт",
+      "monday": "Пн",
+      "saturday": "Сб",
+      "sunday": "Вс",
+      "thursday": "Чт",
+      "tuesday": "Вт",
+      "wednesday": "Ср"
+    }
+  },
+  "code": {
+    "bundleUrl": "URL пакета",
+    "noCode": "Код не найден",
+    "parseDuration": "Длительность разбора:",
+    "parsedAt": "Разобрано в:"
+  },
+  "extraLinks": "Дополнительные ссылки",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Сбросить до последнего",
+      "toggleGroup": "Переключить группу"
+    },
+    "runTypeLegend": "Легенда типа запуска"
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Расширенные настройки",
+      "dagDocs": "Документация Дага"
+    }
+  },
+  "logs": {
+    "allLevels": "Все уровни логов",
+    "allSources": "Все источники",
+    "critical": "КРИТИЧЕСКИЙ",
+    "debug": "ОТЛАДКА",
+    "error": "ОШИБКА",
+    "fullscreen": {
+      "button": "На весь экран",
+      "tooltip": "Нажмите {{hotkey}} для полного экрана"
+    },
+    "info": "ИНФОРМАЦИЯ",
+    "noTryNumber": "Нет номера попытки",
+    "settings": "Настройки логов",
+    "viewInExternal": "Просмотреть логи в {{name}} (попытка {{attempt}})",
+    "warning": "ПРЕДУПРЕЖДЕНИЕ"
+  },
+  "navigation": {
+    "navigation": "Навигация: Shift+{{arrow}}",
+    "toggleGroup": "Переключить группу: Пробел"
+  },
+  "notFound": {
+    "back": "Назад",
+    "backToDags": "Назад к Дагам",
+    "message": "Даг \"{{dagId}}\" не существует.",
+    "title": "Даг не найден"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Неудачный запуск",
+      "failedRun_many": "Неудачные запуски",
+      "failedRun_other": "Неудачные запуски",
+      "failedTask_one": "Неудачная задача",
+      "failedTask_many": "Неудачные задачи",
+      "failedTask_other": "Неудачные задачи",
+      "failedTaskInstance_one": "Неудачный экземпляр задачи",
+      "failedTaskInstance_many": "Неудачные экземпляры задач",
+      "failedTaskInstance_other": "Неудачные экземпляры задач"
+    },
+    "charts": {
+      "assetEvent_one": "Созданное событие актива",
+      "assetEvent_many": "Созданные события актива",
+      "assetEvent_other": "Созданные события актива"
+    },
+    "failedLogs": {
+      "hideLogs": "Скрыть логи",
+      "showLogs": "Показать логи",
+      "title": "Недавние логи неудачных задач",
+      "viewFullLogs": "Просмотреть полные логи"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Опции",
+      "showGantt": "Показать Гантт",
+      "showGraphShortcut": "Показать граф (нажмите g)",
+      "showGridShortcut": "Показать сетку (нажмите g)"
+    },
+    "dagRuns": {
+      "label": "Количество запусков Дага"
+    },
+    "dependencies": {
+      "label": "Зависимости",
+      "options": {
+        "allDagDependencies": "Все зависимости Дага",
+        "externalConditions": "Внешние условия",
+        "onlyTasks": "Только задачи"
+      },
+      "placeholder": "Зависимости"
+    },
+    "graphDirection": {
+      "label": "Направление графа"
+    },
+    "showVersionIndicator": {
+      "label": "Показать индикатор версии",
+      "options": {
+        "hideAll": "Скрыть все",
+        "showAll": "Показать все",
+        "showBundleVersion": "Показать версию пакета",
+        "showDagVersion": "Показать версию Дага"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Активный фильтр",
+      "clearFilter": "Очистить фильтр",
+      "clickTask": "Нажмите на задачу, чтобы выбрать ее в качестве корня фильтра",
+      "depth": "Глубина",
+      "direction": "Направление",
+      "label": "Фильтр",
+      "mode": "Режим",
+      "modeTooltip": "Статический режим сохраняет текущее представление при навигации к другим задачам, в то время как режим Траверса автоматически обновляет активный фильтр до нажатой задачи для более легкой навигации по Дагу.",
+      "modes": {
+        "static": "Статический",
+        "traverse": "Траверс"
+      },
+      "options": {
+        "both": "Как вверх, так и вниз по потоку",
+        "downstream": "Вниз по потоку",
+        "upstream": "Вверх по потоку"
+      },
+      "selectedTask": "Выбранная задача"
+    }
+  },
+  "paramsFailed": "Не удалось загрузить параметры",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Не удалось разобрать запрос Дага. Возможно, остаются незавершенные запросы на разбор.",
+        "title": "Не удалось повторно разобрать Даг"
+      },
+      "success": {
+        "description": "Даг должен вскоре быть повторно разобран.",
+        "title": "Запрос на повторный разбор успешно отправлен"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "События активов",
+    "auditLog": "Аудиторский журнал",
+    "backfills": "Заполнение",
+    "calendar": "Календарь",
+    "code": "Код",
+    "details": "Детали",
+    "logs": "Логи",
+    "mappedTaskInstances_one": "Экземпляр задачи [{{count}}]",
+    "mappedTaskInstances_many": "Экземпляры задач [{{count}}]",
+    "mappedTaskInstances_other": "Экземпляры задач [{{count}}]",
+    "overview": "Обзор",
+    "renderedTemplates": "Отрендеренные шаблоны",
+    "requiredActions": "Необходимые действия",
+    "runs": "Запуски",
+    "taskInstances": "Экземпляры задач",
+    "tasks": "Задачи",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Свернуть все группы задач",
+    "expandAll": "Развернуть все группы задач"
+  }
+}

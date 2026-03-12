@@ -1,0 +1,38 @@
+{
+  "additional_data": "Дополнительные данные",
+  "asset_one": "Актив",
+  "asset_many": "Активы",
+  "asset_other": "Активы",
+  "consumingDags": "Потребляющие Даги",
+  "consumingTasks": "Потребляющие задачи",
+  "createEvent": {
+    "button": "Создать событие",
+    "manual": {
+      "description": "Вручную создать событие актива",
+      "extra": "Дополнительные события актива",
+      "label": "Ручное"
+    },
+    "materialize": {
+      "description": "Запустить Даг выше по цепочке этого актива",
+      "descriptionWithDag": "Запустить Даг выше по цепочке этого актива: {{dagName}}",
+      "label": "Материализовать",
+      "unpauseDag": "Снять паузу с {{dagName}} при запуске"
+    },
+    "success": {
+      "manualDescription": "Создание события актива вручную прошло успешно.",
+      "manualTitle": "Событие актива создано",
+      "materializeDescription": "Верхний Даг {{dagId}} был успешно запущен.",
+      "materializeTitle": "Материализация актива"
+    },
+    "title": "Создать событие актива для {{name}}"
+  },
+  "extra": "Дополнительно",
+  "group": "Группа",
+  "lastAssetEvent": "Последнее событие актива",
+  "name": "Имя",
+  "producingTasks": "Производящие задачи",
+  "scheduledDags": "Запланированные Даги",
+  "scheduling": "Расписание",
+  "searchPlaceholder": "Поиск активов",
+  "taskDependencies": "Зависимости задач"
+}
