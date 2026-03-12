@@ -53,11 +53,17 @@ test.describe("Verify Required Action page", () => {
     if (isTableVisible) {
       await expect(browsePage.actionsTable).toBeVisible();
 
-      const dagIdHeader = page.locator('th:has-text("Dag ID")');
-      const taskIdHeader = page.locator('th:has-text("Task ID")');
-      const dagRunIdHeader = page.locator('th:has-text("Dag Run ID")');
-      const responseCreatedHeader = page.locator('th:has-text("Response created at")');
-      const responseReceivedHeader = page.locator('th:has-text("Response received at")');
+      const dagIdHeader = page.getByRole("columnheader", { exact: true, name: "Dag ID" });
+      const taskIdHeader = page.getByRole("columnheader", { exact: true, name: "Task ID" });
+      const dagRunIdHeader = page.getByRole("columnheader", { exact: true, name: "Dag Run ID" });
+      const responseCreatedHeader = page.getByRole("columnheader", {
+        exact: true,
+        name: "Response created at",
+      });
+      const responseReceivedHeader = page.getByRole("columnheader", {
+        exact: true,
+        name: "Response received at",
+      });
 
       await expect(dagIdHeader).toBeVisible();
       await expect(taskIdHeader).toBeVisible();

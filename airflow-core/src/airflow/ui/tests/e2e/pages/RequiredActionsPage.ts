@@ -38,14 +38,10 @@ export class RequiredActionsPage extends BasePage {
   }
 
   public async getActionsTableRowCount(): Promise<number> {
-    const rows = this.page.locator("table tbody tr");
+    const rows = this.actionsTable.locator("tbody").getByRole("row");
     const isTableVisible = await this.actionsTable.isVisible();
 
-    if (!isTableVisible) {
-      return 0;
-    }
-
-    return rows.count();
+    return isTableVisible ? rows.count() : 0;
   }
 
   public async isEmptyStateDisplayed(): Promise<boolean> {
@@ -77,7 +73,6 @@ export class RequiredActionsPage extends BasePage {
 
     await button.click();
     await responsePromise;
-    await this.page.waitForTimeout(10_000);
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
@@ -96,7 +91,7 @@ export class RequiredActionsPage extends BasePage {
     await requiredActionLink.click();
 
     const buttonName = approve ? "Approve" : "Reject";
-    const actionButton = this.page.locator(`[data-testid="hitl-option-${buttonName}"]`);
+    const actionButton = this.page.getByTestId(`hitl-option-${buttonName}`);
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
 
@@ -121,7 +116,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const branchButton = this.page.locator('[data-testid="hitl-option-task_1"]');
+    const branchButton = this.page.getByTestId("hitl-option-task_1");
 
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
@@ -186,7 +181,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const optionButton = this.page.locator('[data-testid="hitl-option-option 1"]');
+    const optionButton = this.page.getByTestId("hitl-option-option 1");
 
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
