@@ -97,6 +97,7 @@ _DQ_COMMON_KWARGS = dict(
     table_names=["orders"],
     prompt_version="v1",
     prompts=_DQ_PROMPTS,
+    collect_unexpected=True,
 )
 
 
@@ -107,9 +108,9 @@ def example_llm_dq_with_approval():
     Generate a DQ plan, let a human review it, then execute the checks.
 
      Workflow:
-     ``preview_dq_plan`` runs with ``dry_run=True`` to generate (and cache) the SQL
-     plan via the LLM, but does **not** execute it. It returns the serialised plan
-     dict as XCom so the approver can review the generated SQL.
+    ``preview_dq_plan`` runs with ``dry_run=True`` to generate (and cache) the SQL
+    plan via the LLM, but does **not** execute it. It returns a markdown preview
+    via XCom so the approver can review the generated SQL.
      ``approve_dq_plan`` pauses the DAG and shows the generated SQL to the user.
      Selecting "Approve" proceeds to execution; selecting "Reject" skips it.
      ``run_dq_checks`` executes the cached plan against the database and validates
@@ -132,8 +133,8 @@ def example_llm_dq_with_approval():
         body=(
             "The LLM generated the following SQL plan for the data-quality checks.\n"
             "Please review it and approve or reject.\n\n"
-            "Plan:\n"
-            "{{ ti.xcom_pull(task_ids='preview_dq_plan') | tojson(indent=2) }}"
+            "Plan:\n\n"
+            "{{ ti.xcom_pull(task_ids='preview_dq_plan') }}"
         ),
     )
 

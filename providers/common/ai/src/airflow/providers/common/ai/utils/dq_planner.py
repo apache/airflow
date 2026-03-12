@@ -41,7 +41,7 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.utils.db_schema import build_schema_context, resolve_dialect
-from airflow.providers.common.ai.utils.dq_models import DQCheckGroup, DQPlan
+from airflow.providers.common.ai.utils.dq_models import DQCheckGroup, DQPlan, UnexpectedResult
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -54,30 +54,57 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_MAX_CHECKS_PER_GROUP = 5
+
 _PLANNING_SYSTEM_PROMPT = """\
 You are a data-quality SQL expert.
 
 Given a set of named data-quality checks and a database schema, produce a \
-DQPlan that minimises the number of SQL queries executed.
+DQPlan that minimises the number of SQL queries while keeping each group \
+focused and manageable.
 
-PRIMARY RULE — combine everything on the same table into ONE SELECT:
-  All checks that query the same table MUST be merged into a single SELECT
-  statement. Each check becomes one output column in that statement.
+GROUPING STRATEGY (multi-dimensional):
+  Group checks by **(target_table, check_category)**.  Checks on the same table
+  that belong to different categories MUST be in separate groups.
 
-  CORRECT (one query for two checks on the same table):
+  Allowed check_category values (assign one per check based on its description):
+    - null_check      — null / missing value counts or percentages
+    - uniqueness      — duplicate detection, cardinality checks
+    - validity        — regex / format / pattern matching on string columns
+    - numeric_range   — range, bounds, or statistical checks on numeric columns
+    - row_count       — total row counts or existence checks
+    - string_format   — length, encoding, whitespace, or character-set checks
+
+  MAX {max_checks_per_group} CHECKS PER GROUP:
+    If a (table, category) pair has more than {max_checks_per_group} checks,
+    split them into sub-groups of at most {max_checks_per_group}.
+
+  GROUP-ID NAMING:
+    Use the pattern "{{table}}_{{category}}_{{part}}".
+    Examples: customers_null_check_1, orders_validity_1, orders_validity_2
+
+  RATIONALE:
+    Keeping string-column checks (validity, string_format) apart from
+    numeric-column checks (numeric_range, null_check on numbers) produces
+    simpler SQL and makes failures easier to diagnose.
+
+  CORRECT (two groups for same table, different categories):
+    Group customers_null_check_1:
+      SELECT
+        (COUNT(CASE WHEN email IS NULL THEN 1 END) * 100.0 / COUNT(*)) AS null_email_pct,
+        (COUNT(CASE WHEN name IS NULL THEN 1 END) * 100.0 / COUNT(*)) AS null_name_pct
+      FROM customers
+
+    Group customers_validity_1:
+      SELECT
+        COUNT(CASE WHEN phone NOT LIKE '+___-___-____' THEN 1 END) AS invalid_phone_fmt
+      FROM customers
+
+  WRONG (mixing null-check and regex-validity in one group):
     SELECT
-      (COUNT(*) FILTER (WHERE email IS NULL) * 100.0 / COUNT(*)) AS null_email_pct,
-      COUNT(*) FILTER (WHERE bathrooms < 0)                      AS invalid_bathrooms
+      (COUNT(CASE WHEN email IS NULL THEN 1 END) * 100.0 / COUNT(*)) AS null_email_pct,
+      COUNT(CASE WHEN phone NOT LIKE '+___-___-____' THEN 1 END) AS invalid_phone_fmt
     FROM customers
-
-  WRONG (two separate queries for the same table):
-    SELECT COUNT(*) FILTER (WHERE email IS NULL) AS null_email_count FROM customers
-    SELECT COUNT(*) FILTER (WHERE bathrooms < 0) AS invalid_bathrooms FROM customers
-
-GROUPING STRATEGY:
-  Assign a group_id that describes the table being queried (e.g. "sales_data_checks").
-  Only split into multiple groups when the checks genuinely require different tables
-  or subqueries that cannot be expressed as columns of a single SELECT.
 
 OUTPUT RULES:
   1. Each output column must be aliased to exactly the metric_key of its check.
@@ -87,7 +114,57 @@ OUTPUT RULES:
   4. Generates only SELECT queries — no INSERT, UPDATE, DELETE, DROP, or DDL.
   5. Use {dialect} syntax.
   6. Each check must appear in exactly ONE group.
-  7. Return a valid DQPlan object. No extra commentary.
+  7. Each check must have a check_category from the allowed list above.
+  8. Return a valid DQPlan object. No extra commentary.
+"""
+
+_DATAFUSION_SYNTAX_SECTION = """\
+
+DATAFUSION SQL SYNTAX RULES:
+  The target engine is Apache DataFusion.  Observe these syntax differences
+  from standard PostgreSQL / ANSI SQL:
+
+  1. NO "FILTER (WHERE ...)" clause.  Use CASE expressions instead:
+       WRONG:  COUNT(*) FILTER (WHERE email IS NULL)
+       RIGHT:  COUNT(CASE WHEN email IS NULL THEN 1 END)
+
+  2. Regex matching uses the tilde operator:
+       column ~ 'pattern'    (match)
+       column !~ 'pattern'   (no match)
+     Do NOT use SIMILAR TO or POSIX-style ~* (case-insensitive).
+
+  3. CAST syntax — prefer CAST(expr AS type) over :: shorthand.
+
+  4. String functions: Use CHAR_LENGTH (not LEN), SUBSTR (not SUBSTRING with FROM/FOR).
+
+  5. Integer division: DataFusion performs integer division for INT/INT.
+     Use CAST(expr AS DOUBLE) to force floating-point division.
+
+  6. Boolean literals: Use TRUE / FALSE (not 1 / 0).
+
+  7. LIMIT is supported.  OFFSET is supported.  FETCH FIRST is NOT supported.
+
+  8. NULL handling: COALESCE, NULLIF, IFNULL are all supported.
+     NVL and ISNULL are NOT supported.
+"""
+
+_UNEXPECTED_QUERY_PROMPT_SECTION = """\
+
+UNEXPECTED VALUE COLLECTION:
+  For checks whose check_category is "validity" or "string_format", also
+  generate an unexpected_query field on the DQCheck.  This query must:
+    - SELECT the primary key column(s) and the column(s) being validated
+    - WHERE the row violates the check condition (the negation of the check)
+    - LIMIT {sample_size}
+    - Use {dialect} syntax
+    - Be a standalone SELECT (not a subquery of the group query)
+
+  For all other categories (null_check, uniqueness, numeric_range, row_count),
+  set unexpected_query to null — these are aggregate checks where individual
+  violating rows are not meaningful.
+
+  Example for a phone-format validity check:
+    unexpected_query: "SELECT id, phone FROM customers WHERE phone !~ '^\\d{{4}}-\\d{{4}}-\\d{{4}}$' LIMIT 100"
 """
 
 
@@ -113,21 +190,29 @@ class SQLDQPlanner:
         datasource_config: DataSourceConfig | None = None,
         system_prompt: str = "",
         agent_params: dict[str, Any] | None = None,
+        collect_unexpected: bool = False,
+        unexpected_sample_size: int = 100,
     ) -> None:
         self._llm_hook = llm_hook
         self._db_hook = db_hook
         self._datasource_config = datasource_config
         self._dialect = resolve_dialect(db_hook, dialect)
+        # Track whether the execution target is DataFusion so the prompt can
+        # include DataFusion-specific syntax rules.  The dialect stays None
+        # (generic SQL) for sqlglot validation — sqlglot has no DataFusion dialect.
+        self._is_datafusion = db_hook is None and datasource_config is not None
+        # When targeting DataFusion, use PostgreSQL dialect for sqlglot validation
+        # because DataFusion shares regex operators (~, !~) that the generic SQL
+        # parser does not recognise.
+        self._validation_dialect: str | None = "postgres" if self._is_datafusion else self._dialect
         self._max_sql_retries = max_sql_retries
         self._extra_system_prompt = system_prompt
         self._agent_params: dict[str, Any] = agent_params or {}
+        self._collect_unexpected = collect_unexpected
+        self._unexpected_sample_size = unexpected_sample_size
         # Populated by generate_plan; used by _retry_fix_group to continue the conversation.
         self._plan_agent: Agent[None, DQPlan] | None = None
         self._plan_all_messages: list[ModelMessage] | None = None
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def build_schema_context(
         self,
@@ -161,8 +246,18 @@ class SQLDQPlanner:
         :raises ValueError: If the LLM's plan does not cover every prompt key
             exactly once.
         """
-        dialect_label = self._dialect or "SQL"
-        system_prompt = _PLANNING_SYSTEM_PROMPT.format(dialect=dialect_label)
+        dialect_label = self._dialect or ("DataFusion-compatible SQL" if self._is_datafusion else "SQL")
+        system_prompt = _PLANNING_SYSTEM_PROMPT.format(
+            dialect=dialect_label, max_checks_per_group=_MAX_CHECKS_PER_GROUP
+        )
+
+        if self._is_datafusion:
+            system_prompt += _DATAFUSION_SYNTAX_SECTION
+
+        if self._collect_unexpected:
+            system_prompt += _UNEXPECTED_QUERY_PROMPT_SECTION.format(
+                dialect=dialect_label, sample_size=self._unexpected_sample_size
+            )
 
         if schema_context:
             system_prompt += f"\nAvailable schema:\n{schema_context}\n"
@@ -188,6 +283,7 @@ class SQLDQPlanner:
         plan: DQPlan = result.output
 
         self._validate_plan_coverage(plan, prompts)
+        self._validate_group_sizes(plan)
         return plan
 
     def execute_plan(self, plan: DQPlan) -> dict[str, Any]:
@@ -233,10 +329,6 @@ class SQLDQPlanner:
                 results[check.check_name] = row[check.metric_key]
 
         return results
-
-    # ------------------------------------------------------------------
-    # Private helpers — execution
-    # ------------------------------------------------------------------
 
     def _build_datafusion_engine(self) -> DataFusionEngine:
         """
@@ -311,7 +403,7 @@ class SQLDQPlanner:
             _validate_sql(
                 group.query,
                 allowed_types=DEFAULT_ALLOWED_TYPES,
-                dialect=self._dialect,
+                dialect=self._validation_dialect,
             )
             return group
         except SQLSafetyError as exc:
@@ -328,7 +420,7 @@ class SQLDQPlanner:
         if self._plan_agent is None or self._plan_all_messages is None:
             raise initial_error
 
-        dialect_label = self._dialect or "SQL"
+        dialect_label = self._dialect or ("DataFusion-compatible SQL" if self._is_datafusion else "SQL")
         last_error: SQLSafetyError = initial_error
         current_group = group
 
@@ -345,6 +437,7 @@ class SQLDQPlanner:
                 group=current_group,
                 last_error=last_error,
                 dialect_label=dialect_label,
+                is_datafusion=self._is_datafusion,
             )
 
             result = self._plan_agent.run_sync(
@@ -370,7 +463,7 @@ class SQLDQPlanner:
                 _validate_sql(
                     fixed_group.query,
                     allowed_types=DEFAULT_ALLOWED_TYPES,
-                    dialect=self._dialect,
+                    dialect=self._validation_dialect,
                 )
                 log.info(
                     "SQL for group %r corrected successfully on attempt %d.",
@@ -388,19 +481,33 @@ class SQLDQPlanner:
         )
 
     @staticmethod
-    def _build_fix_prompt(*, group: DQCheckGroup, last_error: SQLSafetyError, dialect_label: str) -> str:
+    def _build_fix_prompt(
+        *,
+        group: DQCheckGroup,
+        last_error: SQLSafetyError,
+        dialect_label: str,
+        is_datafusion: bool = False,
+    ) -> str:
         """Build the retry prompt used to ask the LLM for a corrected query."""
-        return (
+        prompt = (
             f'The SQL query for group "{group.group_id}" failed safety validation.\n\n'
             f"Failing query:\n{group.query}\n\n"
             f"Validation error: {last_error}\n\n"
             f"Rules reminder:\n"
             f"- Generate only SELECT queries (no INSERT, UPDATE, DELETE, DROP, or DDL).\n"
             f"- Use {dialect_label} syntax.\n"
-            f"- Keep the same check_name and metric_key values for every check in this group.\n\n"
-            f"Please return a corrected DQPlan with a valid SELECT-only query for group "
-            f'"{group.group_id}".'
+            f"- Keep the same check_name and metric_key values for every check in this group.\n"
         )
+        if is_datafusion:
+            prompt += (
+                "- DataFusion does NOT support FILTER (WHERE ...). "
+                "Use COUNT(CASE WHEN ... THEN 1 END) instead.\n"
+                "- Use CAST(expr AS DOUBLE) for floating-point division.\n"
+            )
+        prompt += (
+            f'\nPlease return a corrected DQPlan with a valid SELECT-only query for group "{group.group_id}".'
+        )
+        return prompt
 
     @staticmethod
     def _extract_group_by_id(*, corrected_plan: DQPlan, target_group_id: str) -> DQCheckGroup | None:
@@ -412,13 +519,114 @@ class SQLDQPlanner:
         """Format the prompts dict as a numbered list for the LLM."""
         lines = [
             "Generate a DQPlan for the following data-quality checks.\n",
-            "IMPORTANT: All checks that query the same table MUST be combined into a "
-            "single SELECT with one output column per check.\n",
+            "IMPORTANT: Group checks by (table, check_category). Max "
+            f"{_MAX_CHECKS_PER_GROUP} checks per group — split into sub-groups if needed.\n",
             "Checks:",
         ]
         for check_name, description in prompts.items():
             lines.append(f'  - check_name="{check_name}": {description}')
         return "\n".join(lines)
+
+    def execute_unexpected_queries(
+        self, plan: DQPlan, failed_check_names: set[str]
+    ) -> dict[str, UnexpectedResult]:
+        """
+        Execute unexpected-value queries for failed checks that have one.
+
+        Only checks whose ``check_name`` is in *failed_check_names* **and** whose
+        ``unexpected_query`` is not ``None`` are executed.  Each query is
+        safety-validated before execution; if validation fails the check is
+        skipped with a warning rather than failing the entire run.
+
+        :param plan: Plan produced by :meth:`generate_plan`.
+        :param failed_check_names: Set of check names that failed validation.
+        :returns: ``{check_name: UnexpectedResult}`` for each successfully executed query.
+        """
+        if self._db_hook is None and self._datasource_config is None:
+            log.warning("Cannot collect unexpected values — no db_hook or datasource_config.")
+            return {}
+
+        datafusion_engine: DataFusionEngine | None = None
+        if self._db_hook is None:
+            datafusion_engine = self._build_datafusion_engine()
+
+        results: dict[str, UnexpectedResult] = {}
+
+        for group in plan.groups:
+            for check in group.checks:
+                if check.check_name not in failed_check_names:
+                    continue
+                if not check.unexpected_query:
+                    continue
+
+                try:
+                    _validate_sql(
+                        check.unexpected_query,
+                        allowed_types=DEFAULT_ALLOWED_TYPES,
+                        dialect=self._validation_dialect,
+                    )
+                except SQLSafetyError:
+                    log.warning(
+                        "Unexpected query for check %r failed safety validation — skipping.",
+                        check.check_name,
+                    )
+                    continue
+
+                try:
+                    rows = self._execute_unexpected_query(check.unexpected_query, datafusion_engine)
+                except Exception:
+                    log.exception("Unexpected query execution failed for check %r.", check.check_name)
+                    continue
+
+                results[check.check_name] = UnexpectedResult(
+                    check_name=check.check_name,
+                    unexpected_records=rows,
+                    sample_size=self._unexpected_sample_size,
+                )
+
+        return results
+
+    def _execute_unexpected_query(
+        self,
+        query: str,
+        datafusion_engine: DataFusionEngine | None,
+    ) -> list[str]:
+        """Execute a single unexpected-value query and return violating values as strings."""
+        if datafusion_engine is not None:
+            col_lists: dict[str, list[Any]] = datafusion_engine.execute_query(query)
+            if not col_lists:
+                return []
+            num_rows = max(len(v) for v in col_lists.values()) if col_lists else 0
+            return [
+                ", ".join(str(vals[i]) if i < len(vals) else "" for col, vals in col_lists.items())
+                for i in range(num_rows)
+            ]
+
+        rows = self._db_hook.get_records(query)  # type: ignore[union-attr]
+        if not rows:
+            return []
+        if isinstance(rows[0], dict):
+            return [", ".join(str(v) for v in row.values()) for row in rows]
+        return [", ".join(str(v) for v in row) for row in rows]
+
+    @staticmethod
+    def _validate_group_sizes(plan: DQPlan) -> None:
+        """
+        Log a warning for any group that exceeds :data:`_MAX_CHECKS_PER_GROUP`.
+
+        This is a safety net — the system prompt already instructs the LLM to
+        split large groups.  A warning (rather than a hard failure) avoids
+        breaking plans that are otherwise correct but slightly over the limit.
+        """
+        for group in plan.groups:
+            if len(group.checks) > _MAX_CHECKS_PER_GROUP:
+                log.warning(
+                    "Group %r has %d checks (max recommended: %d). "
+                    "Consider splitting into smaller groups for better diagnostics.",
+                    group.group_id,
+                    len(group.checks),
+                    _MAX_CHECKS_PER_GROUP,
+                )
 
     @staticmethod
     def _validate_plan_coverage(plan: DQPlan, prompts: dict[str, str]) -> None:

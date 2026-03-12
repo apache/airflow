@@ -39,6 +39,12 @@ _PROMPTS = {
 }
 
 
+def _make_context() -> dict:
+    """Return a minimal Airflow context with a mock TaskInstance."""
+    mock_ti = MagicMock()
+    return {"ti": mock_ti}
+
+
 def _make_plan() -> DQPlan:
     return DQPlan(
         groups=[
@@ -142,7 +148,7 @@ class TestLLMDataQualityOperatorCache:
         mock_planner.execute_plan.return_value = {"null_emails": 0, "dup_ids": 0}
 
         op = _make_operator()
-        op.execute(context={})
+        op.execute(context=_make_context())
 
         mock_planner.generate_plan.assert_called_once_with(_PROMPTS, "")
         mock_variable.set.assert_called_once_with(ANY, plan.model_dump_json())
@@ -158,7 +164,7 @@ class TestLLMDataQualityOperatorCache:
         mock_planner.execute_plan.return_value = {"null_emails": 0, "dup_ids": 0}
 
         op = _make_operator()
-        op.execute(context={})
+        op.execute(context=_make_context())
 
         mock_planner.generate_plan.assert_not_called()
         mock_variable.set.assert_not_called()
@@ -182,7 +188,7 @@ class TestLLMDataQualityOperatorExecute:
             mock_planner.execute_plan.return_value = results_map
 
             op = _make_operator(validators=validators or {})
-            return op.execute(context={})
+            return op.execute(context=_make_context())
 
     def test_happy_path_all_checks_pass(self):
         plan = _make_plan()
@@ -255,6 +261,37 @@ class TestLLMDataQualityOperatorExecute:
             )
         assert "null_emails" in str(exc_info.value)
 
+    def test_failure_pushes_results_to_xcom_before_raising(self):
+        """When checks fail, results are pushed to XCom before the exception is raised."""
+        plan = _make_plan()
+        with (
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
+            ) as mock_planner_cls,
+            patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True),
+        ):
+            mock_var.get.return_value = None
+            mock_planner = mock_planner_cls.return_value
+            mock_planner.build_schema_context.return_value = ""
+            mock_planner.generate_plan.return_value = plan
+            mock_planner.execute_plan.return_value = {"null_emails": 100, "dup_ids": 0}
+
+            op = _make_operator(validators={"null_emails": lambda v: v == 0})
+            ctx = _make_context()
+
+            with pytest.raises(AirflowException):
+                op.execute(context=ctx)
+
+            ctx["ti"].xcom_push.assert_called_once()
+            call_kwargs = ctx["ti"].xcom_push.call_args
+            assert call_kwargs.kwargs["key"] == "return_value"
+            pushed = call_kwargs.kwargs["value"]
+            assert pushed["passed"] is False
+            assert any(r["check_name"] == "null_emails" and not r["passed"] for r in pushed["results"])
+
     @patch("airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True)
     @patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True)
@@ -268,7 +305,7 @@ class TestLLMDataQualityOperatorExecute:
         mock_planner.generate_plan.return_value = plan
 
         op = _make_operator(dry_run=True)
-        result = op.execute(context={})
+        result = op.execute(context=_make_context())
 
         mock_planner.execute_plan.assert_not_called()
         assert isinstance(result, str)
@@ -288,7 +325,7 @@ class TestLLMDataQualityOperatorExecute:
         mock_planner.generate_plan.return_value = plan
 
         op = _make_operator(dry_run=True)
-        op.execute(context={})
+        op.execute(context=_make_context())
 
         mock_variable.set.assert_called_once()
 
@@ -313,7 +350,7 @@ class TestLLMDataQualityOperatorSystemPromptAndAgentParams:
             mock_planner.generate_plan.return_value = plan
             mock_planner.execute_plan.return_value = {k: 0 for k in plan.check_names}
 
-            op.execute(context={})
+            op.execute(context=_make_context())
             return mock_planner_cls.call_args.kwargs
 
     def test_system_prompt_forwarded_to_planner(self):
@@ -351,8 +388,129 @@ class TestLLMDataQualityOperatorDbHook:
     def test_raises_value_error_for_non_dbapi_hook(self, mock_planner_cls, mock_variable, mock_get_db_hook):
         op = _make_operator(db_conn_id="bad_conn")
         with pytest.raises(ValueError, match="DbApiHook"):
-            op.execute(context={})
+            op.execute(context=_make_context())
 
     def test_none_db_conn_id_returns_none_hook(self):
         op = _make_operator(db_conn_id=None)
         assert op._resolve_db_hook() is None
+
+
+class TestLLMDataQualityOperatorCollectUnexpected:
+    """Tests for collect_unexpected and unexpected_sample_size parameters."""
+
+    def test_collect_unexpected_in_template_fields(self):
+        op = _make_operator()
+        assert "collect_unexpected" in op.template_fields
+        assert "unexpected_sample_size" in op.template_fields
+
+    def test_collect_unexpected_defaults_false(self):
+        op = _make_operator()
+        assert op.collect_unexpected is False
+        assert op.unexpected_sample_size == 100
+
+    def test_collect_unexpected_forwarded_to_planner(self):
+        plan = _make_plan()
+
+        with (
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
+            ) as mock_planner_cls,
+            patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True),
+        ):
+            mock_var.get.return_value = None
+            mock_planner = mock_planner_cls.return_value
+            mock_planner.build_schema_context.return_value = ""
+            mock_planner.generate_plan.return_value = plan
+            mock_planner.execute_plan.return_value = {"null_emails": 0, "dup_ids": 0}
+
+            op = _make_operator(collect_unexpected=True, unexpected_sample_size=50)
+            op.execute(context=_make_context())
+
+            planner_kwargs = mock_planner_cls.call_args.kwargs
+            assert planner_kwargs["collect_unexpected"] is True
+            assert planner_kwargs["unexpected_sample_size"] == 50
+
+    def test_unexpected_results_in_output_when_check_fails(self):
+        from airflow.providers.common.ai.utils.dq_models import UnexpectedResult
+
+        plan = _make_plan()
+
+        with (
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
+            ) as mock_planner_cls,
+            patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True),
+        ):
+            mock_var.get.return_value = None
+            mock_planner = mock_planner_cls.return_value
+            mock_planner.build_schema_context.return_value = ""
+            mock_planner.generate_plan.return_value = plan
+            mock_planner.execute_plan.return_value = {"null_emails": 100, "dup_ids": 0}
+            mock_planner.execute_unexpected_queries.return_value = {
+                "null_emails": UnexpectedResult(
+                    check_name="null_emails",
+                    unexpected_records=["1, None"],
+                    sample_size=100,
+                )
+            }
+
+            op = _make_operator(
+                collect_unexpected=True,
+                validators={"null_emails": lambda v: v == 0},
+            )
+            ctx = _make_context()
+            with pytest.raises(AirflowException, match="null_emails"):
+                op.execute(context=ctx)
+
+            # execute_unexpected_queries must have been called with the failed check name
+            mock_planner.execute_unexpected_queries.assert_called_once()
+            call_args = mock_planner.execute_unexpected_queries.call_args
+            assert "null_emails" in call_args.args[1]  # failed_check_names
+
+    def test_collect_unexpected_false_skips_unexpected_queries(self):
+        """When collect_unexpected=False, execute_unexpected_queries is never called."""
+        plan = _make_plan()
+
+        with (
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.Variable", autospec=True
+            ) as mock_var,
+            patch(
+                "airflow.providers.common.ai.operators.llm_data_quality.SQLDQPlanner", autospec=True
+            ) as mock_planner_cls,
+            patch("airflow.providers.common.ai.operators.llm_data_quality.get_db_hook", autospec=True),
+        ):
+            mock_var.get.return_value = None
+            mock_planner = mock_planner_cls.return_value
+            mock_planner.build_schema_context.return_value = ""
+            mock_planner.generate_plan.return_value = plan
+            mock_planner.execute_plan.return_value = {"null_emails": 100, "dup_ids": 0}
+
+            op = _make_operator(
+                collect_unexpected=False,
+                validators={"null_emails": lambda v: v == 0},
+            )
+            with pytest.raises(AirflowException):
+                op.execute(context=_make_context())
+
+            mock_planner.execute_unexpected_queries.assert_not_called()
+
+
+class TestComputePlanHashCollectUnexpected:
+    """collect_unexpected changes the plan hash to avoid cache collisions."""
+
+    def test_different_collect_unexpected_yields_different_hash(self):
+        h1 = _compute_plan_hash(_PROMPTS, None, collect_unexpected=False)
+        h2 = _compute_plan_hash(_PROMPTS, None, collect_unexpected=True)
+        assert h1 != h2
+
+    def test_same_collect_unexpected_yields_same_hash(self):
+        h1 = _compute_plan_hash(_PROMPTS, None, collect_unexpected=True)
+        h2 = _compute_plan_hash(_PROMPTS, None, collect_unexpected=True)
+        assert h1 == h2

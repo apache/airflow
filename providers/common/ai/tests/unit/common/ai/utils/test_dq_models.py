@@ -16,7 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.ai.utils.dq_models import DQCheck, DQCheckGroup, DQCheckResult, DQPlan, DQReport
+from airflow.providers.common.ai.utils.dq_models import (
+    DQCheck,
+    DQCheckGroup,
+    DQCheckResult,
+    DQPlan,
+    DQReport,
+    UnexpectedResult,
+)
 
 
 def _build_plan() -> DQPlan:
@@ -126,3 +133,68 @@ class TestDQReport:
 
         assert report.passed is False
         assert "validator returned False" in report.failure_summary
+
+
+class TestDQCheckCategory:
+    def test_check_category_defaults_to_empty_string(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g")
+        assert check.check_category == ""
+
+    def test_check_category_set_explicitly(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g", check_category="validity")
+        assert check.check_category == "validity"
+
+    def test_unexpected_query_defaults_to_none(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g")
+        assert check.unexpected_query is None
+
+    def test_unexpected_query_set_explicitly(self):
+        query = "SELECT id, phone FROM customers WHERE phone !~ '^\\d{4}' LIMIT 100"
+        check = DQCheck(check_name="c", metric_key="m", group_id="g", unexpected_query=query)
+        assert check.unexpected_query == query
+
+
+class TestDQCheckResultWithUnexpected:
+    def test_unexpected_defaults_to_none(self):
+        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=True)
+        assert r.unexpected is None
+
+    def test_unexpected_attached(self):
+        ur = UnexpectedResult(check_name="c", unexpected_records=["val1"], sample_size=100)
+        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=False, unexpected=ur)
+        assert r.unexpected is ur
+        assert r.unexpected.unexpected_records == ["val1"]
+
+
+class TestDQReportUnexpectedSummary:
+    def test_failure_summary_includes_unexpected_count(self):
+        ur = UnexpectedResult(
+            check_name="phone_fmt",
+            unexpected_records=[str(i) for i in range(3)],
+            sample_size=100,
+        )
+        results = [
+            DQCheckResult(
+                check_name="phone_fmt",
+                metric_key="invalid_phone_count",
+                value=3,
+                passed=False,
+                failure_reason="too many invalid phones",
+                unexpected=ur,
+            )
+        ]
+        report = DQReport.build(results)
+        assert "3 unexpected row(s) sampled" in report.failure_summary
+
+    def test_failure_summary_no_unexpected_when_none(self):
+        results = [
+            DQCheckResult(
+                check_name="null_emails",
+                metric_key="null_email_count",
+                value=1,
+                passed=False,
+                failure_reason="nulls found",
+            )
+        ]
+        report = DQReport.build(results)
+        assert "unexpected row(s) sampled" not in report.failure_summary

@@ -37,7 +37,17 @@ class DQCheck(BaseModel):
     :param metric_key: Column alias used in the generated SQL (e.g. ``null_email_count``).
         The operator reads ``row[metric_key]`` from the query result.
     :param group_id: Logical bucket for grouping checks into a single SQL query
-        (e.g. ``numeric_aggregate``, ``null_check``, ``uniqueness``, ``text``).
+        (e.g. ``customers_null_check_1``, ``orders_validity_1``).
+    :param check_category: Semantic category assigned by the LLM based on the check
+        description.  Used to sub-group checks within a table so that checks of
+        different natures (e.g. null-checks vs. regex validity) land in separate
+        SQL queries.  Allowed values: ``null_check``, ``uniqueness``, ``validity``,
+        ``numeric_range``, ``row_count``, ``string_format``.
+    :param unexpected_query: Optional SELECT query that returns the top N rows
+        violating the check condition.  Populated by the LLM only for
+        validity / regex / format checks when ``collect_unexpected`` is enabled.
+        Pure aggregate checks (null percentage, row count, duplicates) leave
+        this as ``None``.
     """
 
     check_name: str = Field(description="Matches the key supplied by the user in prompts.")
@@ -45,7 +55,23 @@ class DQCheck(BaseModel):
         description="Column alias used in the generated SQL (e.g. null_email_count). The operator reads row[metric_key] from the query result."
     )
     group_id: str = Field(
-        description="Logical bucket for grouping checks into a single SQL query (e.g. numeric_aggregate, null_check, uniqueness, text)."
+        description="Logical bucket for grouping checks into a single SQL query (e.g. customers_null_check_1, orders_validity_1)."
+    )
+    check_category: str = Field(
+        default="",
+        description=(
+            "Semantic category of this check. One of: null_check, uniqueness, validity, "
+            "numeric_range, row_count, string_format. Used to sub-group checks within a table "
+            "so that checks of different natures land in separate SQL queries."
+        ),
+    )
+    unexpected_query: str | None = Field(
+        default=None,
+        description=(
+            "Optional SELECT query that returns the top N rows violating this check. "
+            "Populated only for validity/regex/format checks when unexpected collection "
+            "is enabled. Pure aggregate checks leave this as null."
+        ),
     )
 
 
@@ -94,6 +120,24 @@ class DQPlan(BaseModel):
 
 
 @dataclass
+class UnexpectedResult:
+    """
+    Sample of rows that violate a data-quality check.
+
+    Populated only when ``collect_unexpected=True`` and the check has an
+    ``unexpected_query`` that returned results.
+
+    :param check_name: Corresponds to the user prompt key.
+    :param unexpected_records: Flat list of violating values as strings.
+    :param sample_size: Maximum number of rows requested (LIMIT value).
+    """
+
+    check_name: str
+    unexpected_records: list[str]
+    sample_size: int
+
+
+@dataclass
 class DQCheckResult:
     """
     Result of executing and validating a single :class:`DQCheck`.
@@ -104,6 +148,8 @@ class DQCheckResult:
     :param passed: ``True`` if every applicable validator approved the value.
     :param failure_reason: Human-readable description of why validation failed,
         or ``None`` when ``passed`` is ``True``.
+    :param unexpected: Sample of violating rows when unexpected collection is
+        enabled, or ``None``.
     """
 
     check_name: str
@@ -111,6 +157,7 @@ class DQCheckResult:
     value: Any
     passed: bool
     failure_reason: str | None = None
+    unexpected: UnexpectedResult | None = None
 
 
 @dataclass
@@ -138,5 +185,8 @@ class DQReport:
         lines = [f"Data quality checks failed ({len(failed)}/{len(results)}):"]
         for r in failed:
             reason = r.failure_reason or "validator returned False"
-            lines.append(f"  - {r.check_name} (metric: {r.metric_key}, value: {r.value!r}): {reason}")
+            line = f"  - {r.check_name} (metric: {r.metric_key}, value: {r.value!r}): {reason}"
+            if r.unexpected and r.unexpected.unexpected_records:
+                line += f" [{len(r.unexpected.unexpected_records)} unexpected row(s) sampled]"
+            lines.append(line)
         return cls(results=results, passed=False, failure_summary="\n".join(lines))

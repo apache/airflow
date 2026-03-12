@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.db_schema import get_db_hook
-from airflow.providers.common.ai.utils.dq_models import DQCheckResult, DQPlan, DQReport
+from airflow.providers.common.ai.utils.dq_models import DQCheckResult, DQPlan, DQReport, UnexpectedResult
 from airflow.providers.common.ai.utils.dq_planner import SQLDQPlanner
 from airflow.providers.common.compat.sdk import AirflowException, Variable
 
@@ -87,6 +87,12 @@ class LLMDataQualityOperator(LLMOperator):
     :param prompt_version: Optional version tag included in the plan cache key.
         Bump this to invalidate cached plans when prompts change semantically
         without changing their text.
+    :param collect_unexpected: When ``True``, the LLM generates an
+        ``unexpected_query`` for validity / string-format checks.
+        If any of those checks fail, the unexpected query is executed and
+        the resulting sample rows are included in the report.
+    :param unexpected_sample_size: Maximum number of violating rows to return
+        per failed check.  Default ``100``.
     """
 
     template_fields: Sequence[str] = (
@@ -96,6 +102,8 @@ class LLMDataQualityOperator(LLMOperator):
         "table_names",
         "schema_context",
         "prompt_version",
+        "collect_unexpected",
+        "unexpected_sample_size",
     )
 
     def __init__(
@@ -110,6 +118,8 @@ class LLMDataQualityOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         prompt_version: str | None = None,
         dry_run: bool = False,
+        collect_unexpected: bool = False,
+        unexpected_sample_size: int = 100,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
@@ -125,9 +135,11 @@ class LLMDataQualityOperator(LLMOperator):
         self.datasource_config = datasource_config
         self.prompt_version = prompt_version
         self.dq_dry_run = dry_run
+        self.collect_unexpected = collect_unexpected
+        self.unexpected_sample_size = unexpected_sample_size
         self._plan_hash: str | None = None
         if isinstance(self.prompts, dict):
-            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version)
+            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version, self.collect_unexpected)
 
         self._validate_validator_keys()
 
@@ -147,6 +159,8 @@ class LLMDataQualityOperator(LLMOperator):
             datasource_config=self.datasource_config,
             system_prompt=self.system_prompt,
             agent_params=self.agent_params,
+            collect_unexpected=self.collect_unexpected,
+            unexpected_sample_size=self.unexpected_sample_size,
         )
 
         schema_ctx = planner.build_schema_context(
@@ -174,13 +188,17 @@ class LLMDataQualityOperator(LLMOperator):
 
         results_map = planner.execute_plan(plan)
         check_results = self._validate_results(results_map, plan)
+
+        # Phase 2 — collect unexpected rows for failed validity/format checks.
+        if self.collect_unexpected:
+            failed_names = {r.check_name for r in check_results if not r.passed}
+            if failed_names:
+                unexpected_map = planner.execute_unexpected_queries(plan, failed_names)
+                self._attach_unexpected(check_results, unexpected_map)
+
         report = DQReport.build(check_results)
 
-        if not report.passed:
-            raise AirflowException(report.failure_summary)
-
-        self.log.info("All %d data-quality check(s) passed.", len(report.results))
-        return {
+        output: dict[str, Any] = {
             "passed": report.passed,
             "results": [
                 {
@@ -189,10 +207,27 @@ class LLMDataQualityOperator(LLMOperator):
                     "value": r.value,
                     "passed": r.passed,
                     "failure_reason": r.failure_reason,
+                    **(
+                        {
+                            "unexpected_records": r.unexpected.unexpected_records,
+                            "unexpected_sample_size": r.unexpected.sample_size,
+                        }
+                        if r.unexpected
+                        else {}
+                    ),
                 }
                 for r in report.results
             ],
         }
+
+        if not report.passed:
+            # Push results to XCom before failing so downstream tasks
+            # (e.g. with trigger_rule=all_done) can still inspect them.
+            context["ti"].xcom_push(key="return_value", value=output)
+            raise AirflowException(report.failure_summary)
+
+        self.log.info("All %d data-quality check(s) passed.", len(report.results))
+        return output
 
     def _build_dry_run_markdown(self, plan: DQPlan) -> str:
         """Build a markdown summary of grouped SQL checks for dry-run XCom output."""
@@ -231,7 +266,7 @@ class LLMDataQualityOperator(LLMOperator):
         if self._plan_hash is None:
             if not isinstance(self.prompts, dict):
                 raise TypeError("prompts must be a dict[str, str] before generating a DQ plan.")
-            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version)
+            self._plan_hash = _compute_plan_hash(self.prompts, self.prompt_version, self.collect_unexpected)
 
         plan_hash = self._plan_hash
         variable_key = f"{_PLAN_VARIABLE_PREFIX}{plan_hash}"
@@ -288,6 +323,17 @@ class LLMDataQualityOperator(LLMOperator):
 
         return check_results
 
+    @staticmethod
+    def _attach_unexpected(
+        check_results: list[DQCheckResult],
+        unexpected_map: dict[str, UnexpectedResult],
+    ) -> None:
+        """Attach :class:`UnexpectedResult` objects to their corresponding check results."""
+        for result in check_results:
+            unexpected = unexpected_map.get(result.check_name)
+            if unexpected is not None:
+                result.unexpected = unexpected
+
     def _validate_validator_keys(self) -> None:
         """
         Raise :class:`ValueError` if any validator key is absent from *prompts*.
@@ -313,14 +359,22 @@ class LLMDataQualityOperator(LLMOperator):
         return get_db_hook(self.db_conn_id)
 
 
-def _compute_plan_hash(prompts: dict[str, str], prompt_version: str | None) -> str:
+def _compute_plan_hash(
+    prompts: dict[str, str],
+    prompt_version: str | None,
+    collect_unexpected: bool = False,
+) -> str:
     """
-    Return a short, stable hash of *prompts* and *prompt_version*.
+    Return a short, stable hash of *prompts*, *prompt_version* and *collect_unexpected*.
 
     Sorted serialisation ensures the hash is order-independent.
     The result is prefixed with the version tag so cache keys are human-readable.
+    ``collect_unexpected`` is included because enabling it changes the generated
+    plan (unexpected_query fields are populated).
     """
     payload = json.dumps(sorted(prompts.items()), sort_keys=True)
+    if collect_unexpected:
+        payload += ":unexpected=1"
     digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
     version_tag = prompt_version or "default"
     key = f"{version_tag}_{digest}"

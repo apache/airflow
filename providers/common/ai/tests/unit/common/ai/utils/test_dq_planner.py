@@ -667,3 +667,224 @@ class TestSQLDQPlannerSQLRetry:
 
         assert results["x"] == 1
         assert mock_agent.run_sync.call_count == 2
+
+
+class TestSQLDQPlannerGroupSizes:
+    """Tests for _validate_group_sizes — warns but does not fail for oversize groups."""
+
+    def test_no_warning_when_groups_within_limit(self, caplog):
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT 1 AS a, 2 AS b FROM t",
+                    checks=[DQCheck(check_name=f"c{i}", metric_key=f"m{i}", group_id="g") for i in range(5)],
+                )
+            ]
+        )
+        with caplog.at_level("WARNING"):
+            SQLDQPlanner._validate_group_sizes(plan)
+        assert "checks (max recommended" not in caplog.text
+
+    def test_warns_when_group_exceeds_limit(self, caplog):
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="big_group",
+                    query="SELECT 1 FROM t",
+                    checks=[
+                        DQCheck(check_name=f"c{i}", metric_key=f"m{i}", group_id="big_group")
+                        for i in range(8)
+                    ],
+                )
+            ]
+        )
+        with caplog.at_level("WARNING"):
+            SQLDQPlanner._validate_group_sizes(plan)
+        assert "big_group" in caplog.text
+        assert "8 checks" in caplog.text
+
+
+class TestSQLDQPlannerCollectUnexpected:
+    """Tests for the unexpected-value collection feature."""
+
+    def test_collect_unexpected_adds_prompt_section(self):
+        """When collect_unexpected=True, the system prompt includes UNEXPECTED VALUE COLLECTION."""
+        prompts = {"phone_fmt": "check phone format"}
+        plan = _make_plan("phone_fmt")
+        mock_hook = _make_llm_hook(plan)
+
+        planner = SQLDQPlanner(
+            llm_hook=mock_hook, db_hook=None, collect_unexpected=True, unexpected_sample_size=50
+        )
+        planner.generate_plan(prompts, schema_context="")
+
+        call_kwargs = mock_hook.create_agent.call_args
+        instructions = call_kwargs.kwargs["instructions"]
+        assert "UNEXPECTED VALUE COLLECTION" in instructions
+        assert "LIMIT 50" in instructions
+
+    def test_collect_unexpected_false_no_prompt_section(self):
+        """When collect_unexpected=False (default), the prompt does NOT include unexpected section."""
+        prompts = {"row_count": "count rows"}
+        plan = _make_plan("row_count")
+        mock_hook = _make_llm_hook(plan)
+
+        planner = SQLDQPlanner(llm_hook=mock_hook, db_hook=None, collect_unexpected=False)
+        planner.generate_plan(prompts, schema_context="")
+
+        call_kwargs = mock_hook.create_agent.call_args
+        instructions = call_kwargs.kwargs["instructions"]
+        assert "UNEXPECTED VALUE COLLECTION" not in instructions
+
+    def test_execute_unexpected_queries_returns_results_for_failed_checks(self):
+        """Unexpected queries are executed and results returned for failed checks."""
+        mock_db_hook = MagicMock()
+        mock_db_hook.get_records.return_value = [
+            {"id": 1, "phone": "bad-fmt"},
+            {"id": 2, "phone": "also-bad"},
+        ]
+
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="customers_validity_1",
+                    query="SELECT COUNT(*) AS invalid_phone_count FROM customers",
+                    checks=[
+                        DQCheck(
+                            check_name="phone_fmt",
+                            metric_key="invalid_phone_count",
+                            group_id="customers_validity_1",
+                            check_category="validity",
+                            unexpected_query="SELECT id, phone FROM customers WHERE phone IS NULL LIMIT 100",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook),
+            db_hook=mock_db_hook,
+            collect_unexpected=True,
+        )
+        results = planner.execute_unexpected_queries(plan, failed_check_names={"phone_fmt"})
+
+        assert "phone_fmt" in results
+        assert len(results["phone_fmt"].unexpected_records) == 2
+        assert results["phone_fmt"].unexpected_records[0] == "1, bad-fmt"
+
+    def test_execute_unexpected_queries_skips_checks_without_unexpected_query(self):
+        """Checks without unexpected_query are silently skipped."""
+        mock_db_hook = MagicMock()
+
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT COUNT(*) AS null_count FROM t",
+                    checks=[
+                        DQCheck(
+                            check_name="null_emails",
+                            metric_key="null_count",
+                            group_id="g",
+                            check_category="null_check",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook),
+            db_hook=mock_db_hook,
+            collect_unexpected=True,
+        )
+        results = planner.execute_unexpected_queries(plan, failed_check_names={"null_emails"})
+
+        assert results == {}
+        mock_db_hook.get_records.assert_not_called()
+
+    def test_execute_unexpected_queries_skips_non_failed_checks(self):
+        """Only checks in failed_check_names are executed."""
+        mock_db_hook = MagicMock()
+
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT 1 AS m FROM t",
+                    checks=[
+                        DQCheck(
+                            check_name="passing_check",
+                            metric_key="m",
+                            group_id="g",
+                            check_category="validity",
+                            unexpected_query="SELECT id FROM t LIMIT 100",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook),
+            db_hook=mock_db_hook,
+            collect_unexpected=True,
+        )
+        results = planner.execute_unexpected_queries(plan, failed_check_names=set())
+
+        assert results == {}
+        mock_db_hook.get_records.assert_not_called()
+
+    def test_execute_unexpected_queries_skips_unsafe_unexpected_query(self, caplog):
+        """Unsafe unexpected queries are skipped with a warning, not re-raised."""
+        mock_db_hook = MagicMock()
+
+        plan = DQPlan(
+            groups=[
+                DQCheckGroup(
+                    group_id="g",
+                    query="SELECT 1 AS m FROM t",
+                    checks=[
+                        DQCheck(
+                            check_name="bad_uq",
+                            metric_key="m",
+                            group_id="g",
+                            check_category="validity",
+                            unexpected_query="DROP TABLE customers",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        planner = SQLDQPlanner(
+            llm_hook=MagicMock(spec=PydanticAIHook),
+            db_hook=mock_db_hook,
+            collect_unexpected=True,
+        )
+        with caplog.at_level("WARNING"):
+            results = planner.execute_unexpected_queries(plan, failed_check_names={"bad_uq"})
+
+        assert results == {}
+        assert "failed safety validation" in caplog.text
+        mock_db_hook.get_records.assert_not_called()
+
+    def test_grouping_prompt_includes_category_and_max_checks(self):
+        """System prompt contains category list and max-checks-per-group rule."""
+        prompts = {"c1": "check"}
+        plan = _make_plan("c1")
+        mock_hook = _make_llm_hook(plan)
+
+        planner = SQLDQPlanner(llm_hook=mock_hook, db_hook=None)
+        planner.generate_plan(prompts, schema_context="")
+
+        instructions = mock_hook.create_agent.call_args.kwargs["instructions"]
+        assert "null_check" in instructions
+        assert "uniqueness" in instructions
+        assert "validity" in instructions
+        assert "numeric_range" in instructions
+        assert "string_format" in instructions
+        assert "MAX 5 CHECKS PER GROUP" in instructions
+        assert "check_category" in instructions
