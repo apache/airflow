@@ -15,13 +15,13 @@
     "systemMode": "Следовать системным настройкам"
   },
   "asset_one": "Актив",
-  "asset_many": "Актива",
+  "asset_few": "Актива",
   "asset_other": "Активы",
   "assetEvent_one": "Событие актива",
-  "assetEvent_many": "Событие активов",
+  "assetEvent_few": "Событие активов",
   "assetEvent_other": "События активов",
   "backfill_one": "Заполнение",
-  "backfill_many": "Заполнения",
+  "backfill_few": "Заполнения",
   "backfill_other": "Заполнения",
   "browse": {
     "auditLog": "Журнал аудита",
@@ -32,10 +32,10 @@
   "collapseAllExtra": "Свернуть все дополнительные JSON",
   "collapseDetailsPanel": "Свернуть панель деталей",
   "createdAssetEvent_one": "Создано событие актива",
-  "createdAssetEvent_many": "Созданы события активов",
+  "createdAssetEvent_few": "Созданы события активов",
   "createdAssetEvent_other": "Созданы события активов",
   "dag_one": "Даг",
-  "dag_many": "Дага",
+  "dag_few": "Дага",
   "dag_other": "Даги",
   "dagDetails": {
     "catchup": "Сбор данных",
@@ -76,7 +76,7 @@
     "triggeringUser": "Запускающий пользователь"
   },
   "dagRun_one": "Запуск Дага",
-  "dagRun_many": "Запуска Дага",
+  "dagRun_few": "Запуска Дага",
   "dagRun_other": "Запусков Дага",
   "dagRunId": "ID запуска Дага",
   "dagWarnings": "Предупреждения/ошибки Дага",
@@ -169,13 +169,13 @@
     "taskInstance": "Заметка экземпляра задачи"
   },
   "partitionedDagRun_one": "Разделенный запуск Дага",
-  "partitionedDagRun_many": "Разделенных запусков Дага",
+  "partitionedDagRun_few": "Разделенных запусков Дага",
   "partitionedDagRun_other": "Разделенных запусков Дага",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
   "pendingDagRun_one": "{{count}} Даг ожидает запуска",
-  "pendingDagRun_many": "{{count}} Дага ожидают запуска",
+  "pendingDagRun_few": "{{count}} Дага ожидают запуска",
   "pendingDagRun_other": "{{count}} Дагов ожидают запуска",
   "reset": "Сбросить",
   "runId": "ID запуска",
@@ -208,7 +208,7 @@
     "show": "Показать источник"
   },
   "sourceAssetEvent_one": "Событие источника актива",
-  "sourceAssetEvent_many": "События источника актива",
+  "sourceAssetEvent_few": "События источника актива",
   "sourceAssetEvent_other": "Событий источника актива",
   "startDate": "Дата начала",
   "state": "Состояние",
@@ -236,7 +236,7 @@
     "filterByTag": "Фильтровать Даги по тегу",
     "filterColumns": "Фильтровать столбцы таблицы",
     "filterReset_one": "Сбросить фильтр",
-    "filterReset_many": "Сбросить фильтры",
+    "filterReset_few": "Сбросить фильтры",
     "filterReset_other": "Сбросить фильтры",
     "from": "От",
     "maxActiveRuns": "Максимум активных запусков",
@@ -255,7 +255,7 @@
     "triggerRule": "Правило запуска"
   },
   "task_one": "Задача",
-  "task_many": "Задачи",
+  "task_few": "Задачи",
   "task_other": "Задач",
   "taskGroup": "Группа задач",
   "taskId": "ID задачи",
@@ -283,7 +283,7 @@
     "unixname": "Unix имя"
   },
   "taskInstance_one": "Экземпляр задачи",
-  "taskInstance_many": "Экземпляра задачи",
+  "taskInstance_few": "Экземпляра задачи",
   "taskInstance_other": "Экземпляров задачи",
   "timeRange": {
     "last12Hours": "Последние 12 часов",

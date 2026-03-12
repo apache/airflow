@@ -9,10 +9,10 @@
     }
   },
   "requiredAction_one": "Необходимое действие",
-  "requiredAction_many": "Необходимые действия",
+  "requiredAction_few": "Необходимые действия",
   "requiredAction_other": "Необходимые действия",
   "requiredActionCount_one": "Необходимое действие ({{count}})",
-  "requiredActionCount_many": "Необходимые действия ({{count}})",
+  "requiredActionCount_few": "Необходимые действия ({{count}})",
   "requiredActionCount_other": "Необходимые действия ({{count}})",
   "requiredActionState": "Состояние необходимого действия",
   "response": {

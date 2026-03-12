@@ -83,18 +83,18 @@
   "overview": {
     "buttons": {
       "failedRun_one": "Неудачный запуск",
-      "failedRun_many": "Неудачные запуски",
+      "failedRun_few": "Неудачные запуски",
       "failedRun_other": "Неудачные запуски",
       "failedTask_one": "Неудачная задача",
-      "failedTask_many": "Неудачные задачи",
+      "failedTask_few": "Неудачные задачи",
       "failedTask_other": "Неудачные задачи",
       "failedTaskInstance_one": "Неудачный экземпляр задачи",
-      "failedTaskInstance_many": "Неудачные экземпляры задач",
+      "failedTaskInstance_few": "Неудачные экземпляры задач",
       "failedTaskInstance_other": "Неудачные экземпляры задач"
     },
     "charts": {
       "assetEvent_one": "Созданное событие актива",
-      "assetEvent_many": "Созданные события актива",
+      "assetEvent_few": "Созданные события актива",
       "assetEvent_other": "Созданные события актива"
     },
     "failedLogs": {
@@ -178,7 +178,7 @@
     "details": "Детали",
     "logs": "Логи",
     "mappedTaskInstances_one": "Экземпляр задачи [{{count}}]",
-    "mappedTaskInstances_many": "Экземпляры задач [{{count}}]",
+    "mappedTaskInstances_few": "Экземпляры задач [{{count}}]",
     "mappedTaskInstances_other": "Экземпляры задач [{{count}}]",
     "overview": "Обзор",
     "renderedTemplates": "Отрендеренные шаблоны",

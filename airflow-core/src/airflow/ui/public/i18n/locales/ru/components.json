@@ -1,6 +1,6 @@
 {
   "backfill": {
-    "affected_many": "Будет запущено {{count}} процесса.",
+    "affected_few": "Будет запущено {{count}} процесса.",
     "affected_one": "Будет запущен 1 процесс.",
     "affected_other": "Будет запущено {{count}} процессов.",
     "affectedNone": "Нет процессов, соответствующих выбранным критериям.",
@@ -46,10 +46,10 @@
     "invalidJson": "Некорректный формат JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "{{count}} ошибки",
+    "error_few": "{{count}} ошибки",
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
-    "warning_many": "{{count}} предупреждения",
+    "warning_few": "{{count}} предупреждения",
     "warning_one": "1 предупреждение",
     "warning_other": "{{count}} предупреждений"
   },
@@ -62,10 +62,10 @@
   },
   "durationChart": {
     "duration": "Продолжительность (секунды)",
-    "lastDagRun_many": "Последние {{count}} запуска Дага",
+    "lastDagRun_few": "Последние {{count}} запуска Дага",
     "lastDagRun_one": "Последний запуск Дага",
     "lastDagRun_other": "Последние {{count}} запусков Дага",
-    "lastTaskInstance_many": "Последние {{count}} экземпляра задачи",
+    "lastTaskInstance_few": "Последние {{count}} экземпляра задачи",
     "lastTaskInstance_one": "Последний экземпляр задачи",
     "lastTaskInstance_other": "Последние {{count}} экземпляров задачи",
     "queuedDuration": "Длительность в очереди",
@@ -73,7 +73,7 @@
     "runDuration": "Длительность запуска"
   },
   "fileUpload": {
-    "files_many": "{{count}} файла",
+    "files_few": "{{count}} файла",
     "files_one": "{{count}} файл",
     "files_other": "{{count}} файлов"
   },
@@ -96,20 +96,20 @@
     "downloadImageError": "Не удалось скачать изображение графа.",
     "downloadImageErrorTitle": "Ошибка загрузки",
     "otherDagRuns": "+Другие запуски Дага",
-    "taskCount_many": "{{count}} задачи",
+    "taskCount_few": "{{count}} задачи",
     "taskCount_one": "{{count}} задача",
     "taskCount_other": "{{count}} задач",
     "taskGroup": "Группа задач"
   },
   "limitedList": "+{{count}} ещё",
   "limitedList.allItems": "Все {{count}} элементы:",
-  "limitedList.allTags_many": "Все теги ({{count}})",
+  "limitedList.allTags_few": "Все теги ({{count}})",
   "limitedList.allTags_one": "Все теги (1)",
   "limitedList.allTags_other": "Все теги ({{count}})",
   "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Даги",
   "limitedList.clickToOpenFull": "Нажмите \"+{{count}} ещё\", чтобы открыть полный вид",
   "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
-  "limitedList.showingItems_many": "Показано {{count}} элемента",
+  "limitedList.showingItems_few": "Показано {{count}} элемента",
   "limitedList.showingItems_one": "Показан 1 элемент",
   "limitedList.showingItems_other": "Показано {{count}} элементов",
   "logs": {
