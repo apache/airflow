@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-11T19:06:50.014745
+# This constraints file was automatically generated on 2026-03-12T08:12:47.189756
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -125,7 +125,7 @@ beartype==0.21.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.0
-black==26.3.0
+black==26.3.1
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.41.5
@@ -201,7 +201,7 @@ fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.25.1
+filelock==3.25.2
 flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
@@ -358,7 +358,7 @@ limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.82.1
 lockfile==0.12.2
-looker_sdk==26.2.0
+looker_sdk==26.4.0
 lxml==6.0.2
 lz4==4.4.5
 markdown-it-py==4.0.0
@@ -453,7 +453,7 @@ pexpect==4.9.0
 pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
-pinotdb==9.0.0
+pinotdb==9.1.0
 pipdeptree==2.31.0
 platformdirs==4.9.4
 pluggy==1.6.0
