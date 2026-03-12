@@ -21,7 +21,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -1083,7 +1083,7 @@ class TestDatabricksSubmitRunOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
     def test_databricks_submit_run_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
-        """Asserts that a task is not deferred when its failed"""
+        """Asserts that terminal failures before deferral fail the task immediately."""
         run = {
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
@@ -1092,7 +1092,8 @@ class TestDatabricksSubmitRunOperator:
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
-        op.execute(None)
+        with pytest.raises(AirflowException, match="Job run failed with terminal state"):
+            op.execute(None)
 
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
@@ -1635,6 +1636,40 @@ class TestDatabricksRunNowOperator:
         db_mock.get_run.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_cancel_previous_runs_without_job_id_raises(self, db_mock_class):
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            json=run,
+            cancel_previous_runs=True,
+        )
+
+        db_mock = db_mock_class.return_value
+
+        with pytest.raises(
+            ValueError,
+            match="cancel_previous_runs=True requires either job_id or job_name",
+        ):
+            op.execute(None)
+
+        assert db_mock_class.mock_calls == [
+            call(
+                DEFAULT_CONN_ID,
+                retry_limit=op.databricks_retry_limit,
+                retry_delay=op.databricks_retry_delay,
+                retry_args=None,
+                caller="DatabricksRunNowOperator",
+            )
+        ]
+        assert db_mock.cancel_all_runs.mock_calls == []
+        assert db_mock.run_now.mock_calls == []
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
         Test the execute function in case where the run is successful.
@@ -1857,14 +1892,15 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
     def test_databricks_run_now_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
-        """Asserts that a task is not deferred when its failed"""
+        """Asserts that terminal failures before deferral fail the task immediately."""
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
-        op.execute(None)
+        with pytest.raises(AirflowException, match="Job run failed with terminal state"):
+            op.execute(None)
         expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,

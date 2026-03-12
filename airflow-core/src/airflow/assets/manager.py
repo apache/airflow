@@ -348,10 +348,7 @@ class AssetManager(LoggingMixin):
         if not dags_to_queue:
             return None
 
-        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
-        #  https://github.com/apache/airflow/issues/58445
-        partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
-
+        partition_dags = [x for x in dags_to_queue if x.timetable_partitioned is True]
         cls._queue_partitioned_dags(
             asset_id=asset_id,
             partition_dags=partition_dags,
@@ -361,7 +358,6 @@ class AssetManager(LoggingMixin):
         )
 
         non_partitioned_dags = dags_to_queue.difference(partition_dags)  # don't double process
-
         if not non_partitioned_dags:
             return None
 
@@ -388,9 +384,8 @@ class AssetManager(LoggingMixin):
     ) -> None:
         if partition_dags and not partition_key:
             # TODO: AIP-76 how to best ensure users can see this? Probably add Log record.
-            #  https://github.com/apache/airflow/issues/59060
             log.warning(
-                "Listening dags are partition-aware but run has no partition key",
+                "Listening Dags are partition-aware but run has no partition key",
                 listening_dags=[x.dag_id for x in partition_dags],
                 asset_id=asset_id,
                 run_id=event.source_run_id,

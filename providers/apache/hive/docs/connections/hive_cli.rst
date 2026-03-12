@@ -77,6 +77,12 @@ High Availability (optional)
     Specify as ``True`` if you want to connect to a Hive installation running in high
     availability mode. Specify host accordingly.
 
+Ssl (optional)
+    Specify as ``True`` to enable SSL for your high availability connection.
+
+Zoo Keeper Namespace (optional)
+    Zoo keeper namespace for high availability.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

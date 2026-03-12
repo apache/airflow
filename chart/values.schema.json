@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.7",
+            "default": "3.1.8",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
-            "default": "3.1.7",
+            "default": "3.1.8",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -768,7 +768,7 @@
             }
         },
         "airflowPodAnnotations": {
-            "description": "Extra annotations to apply to all Airflow pods.",
+            "description": "Extra annotations to apply to all Airflow pods (templated).",
             "type": "object",
             "default": {},
             "x-docsSection": "Kubernetes",
@@ -2264,7 +2264,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead).",
                     "type": "object",
                     "default": {},
                     "examples": [
@@ -2282,7 +2282,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file. Use ``workers.celery.terminationGracePeriodSeconds`` and/or ``workers.kubernetes.terminationGracePeriodSeconds`` to separate value between Celery workers and pod-template-file",
                     "type": "integer",
                     "default": 600
                 },
@@ -2410,7 +2410,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3257,6 +3257,32 @@
                                     }
                                 }
                             }
+                        },
+                        "resources": {
+                            "description": "Resource configuration for Airflow Celery workers.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -3512,6 +3538,32 @@
                                     }
                                 }
                             }
+                        },
+                        "resources": {
+                            "description": "Resource configuration for pods created with pod-template-file.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 }
@@ -3899,7 +3951,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the scheduler pods.",
+                    "description": "Annotations to add to the scheduler pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -4467,7 +4519,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the triggerer pods.",
+                    "description": "Annotations to add to the triggerer pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5079,7 +5131,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the dag processor pods.",
+                    "description": "Annotations to add to the dag processor pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5388,7 +5440,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the create user job pod.",
+                    "description": "Annotations to add to the create user job pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5737,7 +5789,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the migrate database job pod.",
+                    "description": "Annotations to add to the migrate database job pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -6143,8 +6195,11 @@
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow API server replicas should run. This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled",
-                    "type": "integer",
+                    "description": "How many Airflow API server replicas should run. Omitted from the Deployment, when HPA is enabled.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": 1
                 },
                 "revisionHistoryLimit": {
@@ -6632,7 +6687,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the API server pods.",
+                    "description": "Annotations to add to the API server pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -7459,7 +7514,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the webserver pods.",
+                    "description": "Annotations to add to the webserver pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8000,7 +8055,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the Flower pods.",
+                    "description": "Annotations to add to the Flower pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8419,7 +8474,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the StatsD pods.",
+                    "description": "Annotations to add to the StatsD pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -8623,7 +8678,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Add annotations for the PgBouncer Pod.",
+                    "description": "Add annotations for the PgBouncer Pod (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -9462,7 +9517,7 @@
                     "default": 0
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the redis pods.",
+                    "description": "Annotations to add to the redis pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -9838,7 +9893,7 @@
                     "default": null
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to cleanup pods.",
+                    "description": "Annotations to add to cleanup pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -10191,7 +10246,7 @@
                     "default": null
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to database cleanup pods.",
+                    "description": "Annotations to add to database cleanup pods (templated).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -10649,13 +10704,82 @@
                                 }
                             ]
                         },
+                        "httpPort": {
+                            "description": "Git-Sync liveness service http bind port.",
+                            "type": "integer",
+                            "default": 1234
+                        },
+                        "recommendedProbeSetting": {
+                            "description": "Setting this to true, will remove readiness probe usage and configure liveness probe to use a dedicated Git-Sync liveness service.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "startupProbe": {
+                            "description": "Startup probe configuration for git sync container.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable GitSync Kubernetes Startup Probe.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before startup probe is initiated.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 10
+                                }
+                            }
+                        },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                            "additionalProperties": true,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable GitSync Kubernetes Liveness Probe.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before startup probe is initiated.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 10
+                                }
+                            }
                         },
                         "readinessProbe": {
-                            "description": "Readiness probe configuration for git sync container.",
+                            "description": "Readiness probe configuration for git sync container. As Git-Sync is not service-type object, the usage of the section was removed. Section itself will be removed in future release as to not break setups during upgrades.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
@@ -14070,9 +14194,14 @@
                     ]
                 },
                 "retentionDays": {
-                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
                     "type": "integer",
                     "default": 15
+                },
+                "retentionMinutes": {
+                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar. Total retention time is retentionDays + retentionMinutes.",
+                    "type": "integer",
+                    "default": 0
                 },
                 "frequencyMinutes": {
                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",

@@ -47,7 +47,9 @@ metadata:
   annotations: {{- toYaml .Values.apiServer.annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.apiServer.hpa.enabled }}
   replicas: {{ .Values.apiServer.replicas }}
+  {{- end }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
@@ -91,10 +93,10 @@ spec:
         checksum/jwt-secret: {{ include (print $.Template.BasePath "/secrets/jwt-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.apiServer.podAnnotations }}
-          {{- toYaml .Values.apiServer.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.apiServer.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.apiServer.hostAliases }}

@@ -161,6 +161,10 @@ class TestEdgeWorker:
                 },
                 "https://other-endpoint",
             ),
+            (
+                {("core", "execution_api_server_url"): "https://direct-execution-endpoint"},
+                "https://direct-execution-endpoint",
+            ),
         ],
     )
     def test_execution_api_server_url(
@@ -173,11 +177,16 @@ class TestEdgeWorker:
             url = _execution_api_server_url()
             assert url == expected_url
 
+    @patch(
+        "airflow.providers.edge3.cli.worker._execution_api_server_url",
+        return_value="https://mock-execution-api",
+    )
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch(
         self,
         mock_supervise,
+        mock_execution_api_url,
         worker_with_job: EdgeWorker,
     ):
         edge_job = worker_with_job.jobs.pop().edge_job
@@ -187,11 +196,16 @@ class TestEdgeWorker:
         assert result == 0
         q.put.assert_not_called()
 
+    @patch(
+        "airflow.providers.edge3.cli.worker._execution_api_server_url",
+        return_value="https://mock-execution-api",
+    )
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch_fail(
         self,
         mock_supervise,
+        mock_execution_api_url,
         worker_with_job: EdgeWorker,
     ):
         mock_supervise.side_effect = Exception("Supervise failed")
