@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1772064316
+source-date-epoch: 1773070569
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.7.0
   - 4.6.5
   - 4.6.4
   - 4.6.3
@@ -112,6 +113,17 @@ triggers:
 connection-types:
   - hook-class-name: airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook
     connection-type: dbt_cloud
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+      relabeling:
+        login: Account ID
+        password: API Token
+        host: Tenant
+      placeholders:
+        host: "Defaults to 'cloud.getdbt.com'."
+        extra: Optional JSON-formatted extra.
 
 extra-links:
   - airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperatorLink

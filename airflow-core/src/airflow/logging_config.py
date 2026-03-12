@@ -120,6 +120,7 @@ def configure_logging():
             namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
             stdlib_config=logging_config,
             log_format=log_fmt,
+            log_timestamp_format=conf.get("logging", "log_timestamp_format", fallback="iso"),
             callsite_parameters=callsite_params,
             colors=colors,
         )

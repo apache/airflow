@@ -84,7 +84,7 @@ class TestPluginsManager:
 
             plugins_manager.ensure_plugins_loaded()
 
-        assert caplog.record_tuples == []
+        assert [r for r in caplog.record_tuples if not r[0].startswith("opentelemetry.")] == []
 
     def test_loads_filesystem_plugins(self, caplog):
         from airflow import plugins_manager
@@ -104,7 +104,7 @@ class TestPluginsManager:
         else:
             pytest.fail("Wasn't able to find a registered `AirflowTestOnLoadPlugin`")
 
-        assert caplog.record_tuples == []
+        assert [r for r in caplog.record_tuples if not r[0].startswith("opentelemetry.")] == []
 
     def test_loads_filesystem_plugins_exception(self, caplog, tmp_path):
         from airflow import plugins_manager
@@ -396,4 +396,4 @@ class TestPluginsManager:
         # Mock/skip loading from plugin dir
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
-        assert len(plugins) == 5
+        assert len(plugins) == 6

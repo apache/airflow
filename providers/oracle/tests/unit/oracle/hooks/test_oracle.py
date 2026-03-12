@@ -142,6 +142,36 @@ class TestOracleHookConn:
         assert kwargs["expire_time"] == 10
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_as_service_name(self, mock_connect):
+        """When service_name and sid are not in extras, conn.schema should be used as service_name."""
+        self.connection.schema = "MY_SERVICE"
+        self.connection.extra = json.dumps({})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="MY_SERVICE")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_service_name_set(self, mock_connect):
+        """Explicit service_name in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"service_name": "EXPLICIT_SVC"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="EXPLICIT_SVC")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_sid_set(self, mock_connect):
+        """Explicit sid in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"sid": "MY_SID"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, "MY_SID")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({"service_name": "service_name"})

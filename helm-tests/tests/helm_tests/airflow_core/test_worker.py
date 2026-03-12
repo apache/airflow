@@ -821,41 +821,31 @@ class TestWorker:
 
         assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_worker_resources_are_configurable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "resources": {
-                        "limits": {"cpu": "200m", "memory": "128Mi"},
-                        "requests": {"cpu": "300m", "memory": "169Mi"},
-                    }
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}},
+            {"celery": {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}}},
+            {
+                "resources": {"limits": {"cpu": "100m", "memory": "128Mi"}},
+                "celery": {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}},
             },
+        ],
+    )
+    def test_worker_resources_are_configurable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         # main container
-        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
-        assert jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0]) == "200m"
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
-        )
-        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "300m"
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {
+            "requests": {"cpu": "300m", "memory": "169Mi"}
+        }
 
         # initContainer wait-for-airflow-configurations
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.limits.memory", docs[0])
-            == "128Mi"
-        )
-        assert jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]) == "200m"
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.requests.memory", docs[0])
-            == "169Mi"
-        )
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]) == "300m"
-        )
+        assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {
+            "requests": {"cpu": "300m", "memory": "169Mi"}
+        }
 
     def test_worker_resources_are_not_added_by_default(self):
         docs = render_chart(

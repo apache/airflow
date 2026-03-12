@@ -70,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.10.8"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.9"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -316,7 +316,7 @@ jobs:
         run: >
           prek
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
+          --stage manual
           update-chart-dependencies
         if: always()
       # For UV we are not failing the upgrade installers check if it is updated because
@@ -326,7 +326,7 @@ jobs:
         run: >
           prek
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual upgrade-important-versions || true
+          --stage manual upgrade-important-versions || true
         if: always()
         env:
           UPGRADE_FLIT: "false"
@@ -346,7 +346,7 @@ jobs:
         run: |
           if ! prek \
             --all-files --show-diff-on-failure --color always --verbose \
-            --hook-stage manual upgrade-important-versions; then
+            --stage manual upgrade-important-versions; then
               echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
               echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
               exit 1

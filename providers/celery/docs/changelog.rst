@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Celery tasks are registered at worker startup (main) (#63110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.17.0
 ......
 

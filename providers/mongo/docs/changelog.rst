@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Migrate mongo connection UI metadata to YAML (#62444)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 5.3.2
 .....
 
