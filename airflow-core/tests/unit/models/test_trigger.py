@@ -40,7 +40,6 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
-    StartTriggerArgs,
     TaskFailedEvent,
     TaskSkippedEvent,
     TaskSuccessEvent,
@@ -920,67 +919,3 @@ def test_kwargs_not_encrypted():
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
-
-
-def test_start_from_trigger_is_false_when_no_task_instance():
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-
-    assert not trigger.start_from_trigger
-
-
-def test_start_from_trigger_is_false_when_task_instance_without_templated_fields(
-    create_task_instance,
-):
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger.task_instance = create_task_instance(task_id="task_id", run_id="run_id")
-
-    assert not trigger.start_from_trigger
-
-
-def test_start_from_trigger_is_false_when_task_instance_with_templated_fields_but_no_start_trigger_args(
-    create_task_instance,
-):
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    task = EmptyOperator(task_id="task_id")
-    task.template_fields = ["param1", "param2"]
-    trigger.task_instance = create_task_instance(task=task, run_id="run_id")
-
-    assert not trigger.start_from_trigger
-
-
-def test_start_from_trigger_is_true_when_task_instance_without_templated_fields_and_start_trigger_args(
-    create_task_instance,
-):
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger.task_instance = create_task_instance(
-        task_id="task_id",
-        run_id="run_id",
-        start_from_trigger=True,
-        start_trigger_args=StartTriggerArgs(
-            trigger_cls="airflow.triggers.testing.SuccessTrigger",
-            next_method="next_method",
-            trigger_kwargs={"param1": "value1", "param2": "value2"},
-        ),
-    )
-
-    assert not trigger.start_from_trigger
-
-
-def test_start_from_trigger_is_true_when_task_instance_with_templated_fields_and_start_trigger_args(
-    create_task_instance,
-):
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    task = EmptyOperator(task_id="task_id")
-    task.template_fields = ["param1", "param2"]
-    trigger.task_instance = create_task_instance(
-        task=task,
-        run_id="run_id",
-        start_from_trigger=True,
-        start_trigger_args=StartTriggerArgs(
-            trigger_cls="airflow.triggers.testing.SuccessTrigger",
-            next_method="next_method",
-            trigger_kwargs={"param1": "value1", "param2": "value2"},
-        ),
-    )
-
-    assert trigger.start_from_trigger
