@@ -128,6 +128,7 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "generateToken": "Generate Token",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -312,6 +313,10 @@
         "title": "Delete {{resourceName}} Request Submitted"
       }
     },
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    },
     "import": {
       "error": "Import {{resourceName}} Request Failed",
       "success": {
@@ -326,6 +331,18 @@
         "title": "Update {{resourceName}} Request Submitted"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API Token",
+    "cliToken": "CLI Token",
+    "errorDescription": "An error occurred while generating the token. Please try again.",
+    "errorTitle": "Token Generation Failed",
+    "generate": "Generate",
+    "selectType": "Select the type of token to generate.",
+    "title": "Generate Token",
+    "tokenExpiresIn": "This token expires in {{duration}}.",
+    "tokenGenerated": "Your token has been generated.",
+    "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "Total {{state}}",
   "triggered": "Triggered",

@@ -104,6 +104,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
@@ -387,6 +388,7 @@ class ShellParams:
 
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH)
         self.add_docker_in_docker(compose_file_list)
+        self.add_git_worktree_mount(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH)
         if os.environ.get("CI", "false") == "true":
@@ -533,6 +535,26 @@ class ShellParams:
             # Docker engine works fine because "/var/run/docker.sock" is mounted at the VM and there
             # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH)
+
+    def add_git_worktree_mount(self, compose_file_list: list[Path]):
+        main_git_directory = get_main_git_dir_for_worktree()
+        if main_git_directory:
+            get_console().print(
+                f"[info]Detected git worktree. Mounting main git directory: {main_git_directory}[/]"
+            )
+            generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml"
+            generated_compose_file.write_text(
+                f"""---
+services:
+  airflow:
+    volumes:
+      - type: bind
+        source: "{main_git_directory}"
+        target: "{main_git_directory}"
+        read_only: true
+"""
+            )
+            compose_file_list.append(generated_compose_file)
 
     @cached_property
     def rootless_docker(self) -> bool:

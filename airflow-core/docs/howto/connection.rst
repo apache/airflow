@@ -283,22 +283,16 @@ Custom connection types
 
 Airflow allows the definition of custom connection types -- including modifications of the add/edit form
 for the connections. Custom connection types are defined in community maintained providers, but you can
-can also add a custom provider that adds custom connection types. See :doc:`apache-airflow-providers:index`
+also add a custom provider that adds custom connection types. See :doc:`apache-airflow-providers:index`
 for description on how to add custom providers.
 
-The custom connection types are defined via Hooks delivered by the providers. The Hooks can implement
-methods defined in the protocol class :class:`~airflow.hooks.base_hook.DiscoverableHook`. Note that your
-custom Hook should not derive from this class, this class is an example to document expectations
-regarding about class fields and methods that your Hook might define. Another good example is
-:py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
-
-By implementing those methods in your hooks and exposing them via ``connection-types`` array (and
-deprecated ``hook-class-names``) in the provider meta-data, you can customize Airflow by:
+By exposing connection types via the ``connection-types`` array in your ``provider.yaml``, you can
+customize Airflow by:
 
 * Adding custom connection types
 * Adding automated Hook creation from the connection type
-* Adding custom form widget to display and edit custom "extra" parameters in your connection URL
-* Hiding fields that are not used for your connection
+* Adding custom form fields to display and edit custom "extra" parameters in your connection URL
+* Hiding standard fields that are not used for your connection
 * Adding placeholders showing examples of how fields should be formatted
 
 You can read more about details how to add custom providers in the :doc:`apache-airflow-providers:index`
@@ -306,11 +300,81 @@ You can read more about details how to add custom providers in the :doc:`apache-
 Custom connection fields
 ------------------------
 
-It is possible to add custom form fields in the connection add / edit views in the Airflow webserver.
-Custom fields are stored in the ``Connection.extra`` field as JSON.  To add a custom field, implement
-method :meth:`~BaseHook.get_connection_form_widgets`.  This method should return a dictionary. The keys
-should be the string name of the field as it should be stored in the ``extra`` dict.  The values should
-be inheritors of :class:`wtforms.fields.core.Field`.
+.. note:: Preferred approach: define connection UI metadata in ``provider.yaml``
+
+    From Airflow 3.2, the preferred way to define custom connection fields and field behaviour is
+    declaratively in ``provider.yaml``. This approach does not require importing
+    ``flask_appbuilder`` or ``wtforms`` at runtime.
+
+    The Python hook methods ``get_connection_form_widgets()`` and ``get_ui_field_behaviour()``
+    continue to work as a fallback and **will only be removed after a deprecation notice and
+    migration window**. Custom providers written with the older approach will remain working.
+    However, new providers should use the YAML approach described below.
+
+Defining connection UI metadata in ``provider.yaml``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Connection form metadata is defined declaratively under ``connection-types`` in your provider's
+``provider.yaml`` file. There are two sections:
+
+**conn-fields** — custom fields stored in ``Connection.extra``:
+
+.. code-block:: yaml
+
+    connection-types:
+      - hook-class-name: airflow.providers.myservice.hooks.myservice.MyServiceHook
+        connection-type: myservice
+        conn-fields:
+          workspace:
+            label: Workspace
+            schema:
+              type:
+                - string
+                - 'null'
+          project:
+            label: Project ID
+            schema:
+              type:
+                - string
+                - 'null'
+
+**ui-field-behaviour** — customizations to standard connection fields (hiding, relabeling, placeholders):
+
+.. code-block:: yaml
+
+    connection-types:
+      - hook-class-name: airflow.providers.myservice.hooks.myservice.MyServiceHook
+        connection-type: myservice
+        ui-field-behaviour:
+          hidden-fields:
+            - port
+            - host
+            - login
+            - schema
+          relabeling:
+            password: API Token
+          placeholders:
+            password: your-api-token
+            workspace: My workspace gid
+            project: My project gid
+
+Field schema types follow `JSON Schema <https://json-schema.org/>`_ conventions.
+
+For a full reference of supported ``conn-fields`` schema options, see
+`Use Params to Provide a Trigger UI Form <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/params.html#use-params-to-provide-a-trigger-ui-form>`_.
+
+Defining connection UI metadata in Python (legacy)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    The Python method approach below continues to work and will not be removed without a
+    deprecation notice. However, new providers should use the YAML approach described above.
+
+It is possible to add custom form fields in the connection add / edit views by implementing
+:meth:`~BaseHook.get_connection_form_widgets` on your Hook class. The keys should be the string
+name of the field as it should be stored in the ``extra`` dict. The values should be inheritors
+of :class:`wtforms.fields.core.Field`.
 
 Here's an example:
 
@@ -333,8 +397,8 @@ Here's an example:
     Prior to Airflow 2.3, if you wanted a custom field in the UI, you had to prefix it with ``extra__<conn type>__``,
     and this is how its value would be stored in the ``extra`` dict.  From 2.3 onward, you no longer need to do this.
 
-Method :meth:`~BaseHook.get_ui_field_behaviour` lets you customize behavior of both .  For example you can
-hide or relabel a field (e.g. if it's unused or re-purposed) and you can add placeholder text.
+Method :meth:`~BaseHook.get_ui_field_behaviour` lets you customize behavior of standard fields. For example
+you can hide or relabel a field (e.g. if it's unused or re-purposed) and you can add placeholder text.
 
 An example:
 
@@ -355,11 +419,12 @@ An example:
 
 .. note::
 
-    If you want to add a form placeholder for an ``extra`` field whose name conflicts with a standard connection attribute (i.e. login, password, host, scheme, port, extra) then
-    you must prefix it with ``extra__<conn type>__``.  E.g. ``extra__myservice__password``.
+    If you want to add a form placeholder for an ``extra`` field whose name conflicts with a standard
+    connection attribute (i.e. login, password, host, scheme, port, extra) then you must prefix it
+    with ``extra__<conn type>__``.  E.g. ``extra__myservice__password``.
 
-Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
-and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.
+Take a look at providers for examples of what you can do, for example
+:py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
 
 .. note:: Deprecated ``hook-class-names``
 

@@ -34,7 +34,7 @@ def example_mcp_toolset():
     AgentOperator(
         task_id="mcp_agent",
         prompt="What tools are available? Run the hello tool.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a helpful assistant with access to MCP tools.",
         toolsets=[
             MCPToolset(mcp_conn_id="my_mcp_server"),
@@ -59,7 +59,7 @@ def example_mcp_multiple_servers():
     AgentOperator(
         task_id="multi_mcp_agent",
         prompt="Get the weather in London and run a Python calculation: 2**10",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You have access to weather and code execution tools.",
         toolsets=[
             MCPToolset(mcp_conn_id="weather_mcp", tool_prefix="weather"),
@@ -84,7 +84,7 @@ example_mcp_multiple_servers()
 #   AgentOperator(
 #       task_id="direct_mcp",
 #       prompt="What tools are available?",
-#       llm_conn_id="pydantic_ai_default",
+#       llm_conn_id="pydanticai_default",
 #       toolsets=[
 #           MCPServerStreamableHTTP("http://localhost:3001/mcp"),
 #           MCPServerStdio("uvx", args=["mcp-run-python"]),
