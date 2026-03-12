@@ -32,6 +32,29 @@ class TestAPIServerHPA:
         )
         assert docs == []
 
+    def test_replicas_omitted_when_null(self):
+        """When apiServer.replicas is null the Deployment must not contain spec.replicas."""
+        docs = render_chart(
+            values={
+                "apiServer": {
+                    "replicas": None,
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert jmespath.search("spec.replicas", docs[0]) is None
+
+    def test_replicas_present_when_set(self):
+        """When apiServer.replicas is a number the Deployment must contain spec.replicas."""
+        docs = render_chart(
+            values={
+                "apiServer": {"replicas": 3},
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert jmespath.search("spec.replicas", docs[0]) == 3
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

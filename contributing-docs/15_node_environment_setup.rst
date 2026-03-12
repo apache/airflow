@@ -107,8 +107,6 @@ Project Structure
 - ``/src/theme.ts`` the theme for the UI, update this to change the colors, fonts, etc.
 - ``/src/queryClient.ts`` the query client for the UI, update this to change the default options for the API requests
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
-
 
 React, JSX and Chakra
 ---------------------

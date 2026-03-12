@@ -59,7 +59,7 @@ test.describe("DAG Runs Tab", () => {
     await dagRunsTabPage.navigateToDag(testDagId);
     await dagRunsTabPage.clickRunsTab();
 
-    await expect(dagRunsTabPage.page).toHaveURL(/\/dags\/.*\/runs/);
+    await expect(dagRunsTabPage.page).toHaveURL(/.*\/dags\/[^/]+\/runs/);
   });
 
   test("verify run details display correctly", async () => {
