@@ -229,8 +229,8 @@ class TestLLMDQDecoratedOperator:
             op.execute(context={"task_instance": MagicMock()})
             assert "1000" in op.prompts["row_count"]
 
-    def test_dry_run_returns_plan_dict(self):
-        """dry_run=True returns the serialised plan dict without executing checks."""
+    def test_dry_run_returns_markdown_preview(self):
+        """dry_run=True returns a markdown preview without executing checks."""
         plan = _make_plan()
         result = _run_op(lambda: _PROMPTS, plan, {}, dry_run=True)
-        assert "groups" in result
+        assert "# LLM Data Quality Dry Run" in result

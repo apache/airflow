@@ -106,15 +106,15 @@ def example_llm_dq_with_approval():
     """
     Generate a DQ plan, let a human review it, then execute the checks.
 
-    Workflow:
-    1. ``preview_dq_plan`` — Runs with ``dry_run=True``. Generates (and caches) the
-       SQL plan via the LLM, but does **not** execute it.  Returns the serialised plan
-       dict as XCom so the approver can read the generated SQL.
-    2. ``approve_dq_plan`` — Pauses the DAG and shows the generated SQL to the user.
-       Selecting "Approve" proceeds to execution; selecting "Reject" skips it.
-    3. ``run_dq_checks``  — Executes the cached plan against the database and validates
-       each metric.  Because the plan was already cached by ``preview_dq_plan``, the LLM
-       is **not** called a second time.
+     Workflow:
+     ``preview_dq_plan`` runs with ``dry_run=True`` to generate (and cache) the SQL
+     plan via the LLM, but does **not** execute it. It returns the serialised plan
+     dict as XCom so the approver can review the generated SQL.
+     ``approve_dq_plan`` pauses the DAG and shows the generated SQL to the user.
+     Selecting "Approve" proceeds to execution; selecting "Reject" skips it.
+     ``run_dq_checks`` executes the cached plan against the database and validates
+     each metric. Because the plan was already cached by ``preview_dq_plan``, the
+     LLM is **not** called a second time.
 
     Connections required:
     - ``pydanticai_default``: Pydantic AI connection (any supported LLM provider).
