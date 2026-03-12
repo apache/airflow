@@ -173,6 +173,10 @@ def init_middlewares(app: FastAPI) -> None:
 
         app.add_middleware(SimpleAllAdminMiddleware)
 
+    from airflow.api_fastapi.core_api.middlewares import add_middleware
+
+    add_middleware(app)
+
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
     # the full end-to-end duration including compression time.
     # See https://github.com/apache/airflow/issues/60165
