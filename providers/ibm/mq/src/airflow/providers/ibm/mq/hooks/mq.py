@@ -90,18 +90,34 @@ class IBMMQHook(BaseHook):
                 with suppress(Exception):
                     conn.disconnect()
 
-    @classmethod
-    def _process_message(cls, message):
+    def _process_message(self, message: bytes) -> str:
+        """
+        Process a raw MQ message.
+
+        If the message contains an RFH2 header, the header is unpacked and the
+        payload following the header is returned. If unpacking fails, the raw
+        message is returned decoded as UTF-8.
+
+        :param message: Raw message received from IBM MQ.
+        :return: Decoded message payload.
+        """
         import ibmmq
 
         try:
             rfh2 = ibmmq.RFH2()
             rfh2.unpack(message)
+
             payload_offset = rfh2.get_length()
             payload = message[payload_offset:]
-            return payload.decode("utf-8", errors="ignore")
-        except Exception:
-            return message
+
+            decoded = payload.decode("utf-8", errors="ignore")
+            self.log.info("Message received from MQ (RFH2 decoded): %s", decoded)
+            return decoded
+        except ibmmq.PYIFError as error:  # RFH2 header not present or unpack failed
+            self.log.warning(
+                "Failed to unpack RFH2 header (%s). Returning raw message payload: %s", error, message
+            )
+            return message.decode("utf-8", errors="ignore")
 
     async def consume(self, queue_name: str, poll_interval: float = 5) -> str | None:
         """
@@ -152,6 +168,7 @@ class IBMMQHook(BaseHook):
 
                         except ibmmq.MQMIError as e:
                             if e.reason == ibmmq.CMQC.MQRC_NO_MSG_AVAILABLE:
+                                self.log.debug("No message available...")
                                 await asyncio.sleep(poll_interval)
                                 continue
                             if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
