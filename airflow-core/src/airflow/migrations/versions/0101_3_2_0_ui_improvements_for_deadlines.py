@@ -37,6 +37,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
+import structlog
 import uuid6
 from alembic import context, op
 
@@ -45,6 +46,9 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = structlog.get_logger(__name__)
+
 
 if TYPE_CHECKING:
     from typing import Any
@@ -285,7 +289,7 @@ def validate_written_data(
     ).fetchone()
 
     if not validation_result:
-        print(f"ERROR: Failed to read back deadline_alert for DeadlineAlert {deadline_alert_id}")
+        log.error("Failed to read back deadline_alert", deadline_alert_id=deadline_alert_id)
         return False
 
     checks = [
@@ -296,7 +300,7 @@ def validate_written_data(
 
     for name, actual, expected in checks:
         if actual != expected:
-            print(f"ERROR: Written {name} does not match expected! Written: {actual}, Expected: {expected}")
+            log.error("Written value does not match expected", field=name, actual=actual, expected=expected)
             return False
 
     return True
@@ -304,11 +308,9 @@ def validate_written_data(
 
 def report_errors(errors: ErrorDict, operation: str = "migration") -> None:
     if errors:
-        print(f"{len(errors)} Dags encountered errors: ")
-        for dag_id, error in errors.items():
-            print(f"  {dag_id}: {'; '.join(error)}")
+        log.warning("Dags encountered errors", operation=operation, count=len(errors), errors=dict(errors))
     else:
-        print(f"No Dags encountered errors during {operation}.")
+        log.info("No Dags encountered errors", operation=operation)
 
 
 def hash_dag(dag_data):
@@ -355,14 +357,10 @@ def _sort_serialized_dag_dict(serialized_dag: Any):
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
     if context.is_offline_mode():
-        print(
-            """
-            ------------
-            --  WARNING: Unable to migrate DeadlineAlert data while in offline mode!
-            --  The deadline_alert table will remain empty in offline mode.
-            --  Run the migration in online mode to populate the deadline_alert table.
-            ------------
-            """
+        log.warning(
+            "Unable to migrate DeadlineAlert data while in offline mode -- "
+            "the deadline_alert table will remain empty. "
+            "Run the migration in online mode to populate the deadline_alert table."
         )
         return
 
@@ -383,8 +381,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     ).scalar()
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
-    print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
-    print(f"Starting migration of {total_dags} Dags in {total_batches} batches.\n")
+    log.info("Starting migration", batch_size=BATCH_SIZE, total_dags=total_dags, total_batches=total_batches)
 
     while True:
         batch_num += 1
@@ -424,7 +421,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
         if not batch_results:
             break
 
-        print(f"Processing batch {batch_num}...")
+        log.info("Processing batch", batch_num=batch_num, total_batches=total_batches)
 
         for serialized_dag_id, dag_id, data, data_compressed, created_at in batch_results:
             processed_dags.append(dag_id)
@@ -555,13 +552,15 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                 dags_with_errors[dag_id].append(f"Could not process serialized Dag: {e}")
                 savepoint.rollback()
 
-        print(f"Batch {batch_num} of {total_batches} complete.")
+        log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
-    print(
-        f"\nProcessed {len(processed_dags)} serialized_dag records ({len(set(processed_dags))} "
-        f"unique Dags), {len(dags_with_deadlines)} had DeadlineAlerts."
+    log.info(
+        "Migration complete",
+        processed_records=len(processed_dags),
+        unique_dags=len(set(processed_dags)),
+        dags_with_deadlines=len(dags_with_deadlines),
+        migrated_alerts=migrated_alerts_count,
     )
-    print(f"Migrated {migrated_alerts_count} DeadlineAlert configurations.")
     report_errors(dags_with_errors, "migration")
 
 
@@ -570,14 +569,10 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     from alembic import context
 
     if context.is_offline_mode():
-        print(
-            """
-            ------------
-            --  WARNING: Unable to restore DeadlineAlert data while in offline mode!
-            --  The downgrade will skip data restoration in offline mode.
-            --  Run the migration in online mode to restore the deadline_alert data.
-            ------------
-            """
+        log.warning(
+            "Unable to restore DeadlineAlert data while in offline mode -- "
+            "the downgrade will skip data restoration. "
+            "Run the migration in online mode to restore the deadline_alert data."
         )
         return
 
@@ -603,8 +598,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
 
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
-    print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
-    print(f"Starting downgrade of {total_dags} Dags with DeadlineAlerts in {total_batches} batches.\n")
+    log.info("Starting downgrade", batch_size=BATCH_SIZE, total_dags=total_dags, total_batches=total_batches)
 
     while True:
         batch_num += 1
@@ -643,7 +637,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
         batch_results = list(result)
         if not batch_results:
             break
-        print(f"Processing batch {batch_num}...")
+        log.info("Processing batch", batch_num=batch_num, total_batches=total_batches)
 
         for serialized_dag_id, dag_id, data, data_compressed in batch_results:
             processed_dags.append(dag_id)
@@ -660,7 +654,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                     continue
 
                 if not all(isinstance(uuid_val, str) for uuid_val in deadline_uuids):
-                    print(f"WARNING: Dag {dag_id} has non-string deadline values, skipping")
+                    log.warning("Dag has non-string deadline values, skipping", dag_id=dag_id)
                     continue
 
                 dags_with_deadlines.add(dag_id)
@@ -704,11 +698,13 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                 dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
                 savepoint.rollback()
 
-        print(f"Batch {batch_num} of {total_batches} complete.")
+        log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
-    print(
-        f"\nProcessed {len(processed_dags)} serialized_dag records ({len(set(processed_dags))} "
-        f"unique Dags), {len(dags_with_deadlines)} had DeadlineAlerts."
+    log.info(
+        "Downgrade complete",
+        processed_records=len(processed_dags),
+        unique_dags=len(set(processed_dags)),
+        dags_with_deadlines=len(dags_with_deadlines),
+        restored_alerts=restored_alerts_count,
     )
-    print(f"Restored {restored_alerts_count} DeadlineAlert configurations to original format.")
     report_errors(dags_with_errors, "downgrade")

@@ -65,12 +65,19 @@ function check_db_backend {
 
         if [[ ${START_AIRFLOW=} == "true" ]]; then
             echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none${COLOR_RESET}"
-            echo "${COLOR_RED}Supported values are: [postgres,mysql,sqlite]${COLOR_RESET}"
+            echo "${COLOR_RED}Supported values are: [postgres,mysql,sqlite,custom]${COLOR_RESET}"
             echo "${COLOR_RED}Please specify one using '--backend'${COLOR_RESET}"
             exit 1
         fi
+    elif [[ ${BACKEND} == "custom" ]]; then
+        echo "${COLOR_YELLOW}WARNING: Using custom database backend. Only officially supported backends are tested.${COLOR_RESET}"
+
+        if [[ -z ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=} ]]; then
+            echo "${COLOR_RED}ERROR: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN must be set when using --backend=custom${COLOR_RESET}"
+            exit 1
+        fi
     else
-        echo "${COLOR_RED}ERROR: Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: Unknown backend. Supported values: [postgres,mysql,sqlite,custom]. Current value: [${BACKEND}]${COLOR_RESET}"
         exit 1
     fi
 }
