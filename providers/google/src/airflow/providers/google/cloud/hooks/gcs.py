@@ -776,7 +776,7 @@ class GCSHook(GoogleBaseHook):
         """
         if delimiter and delimiter != "/":
             warnings.warn(
-                "Usage of 'delimiter' param is deprecated, please use 'match_glob' instead",
+                "Usage of 'delimiter' param is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

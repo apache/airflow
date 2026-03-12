@@ -114,7 +114,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
 
         if should_delete_pod is not None:
             warnings.warn(
-                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
+                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -294,7 +294,7 @@ class GKEJobTrigger(BaseTrigger):
     @property
     def pod_name(self):
         warnings.warn(
-            "`pod_name` parameter is deprecated, please use `pod_names`",
+            "`pod_name` parameter is deprecated, please use `pod_names`. Planned removal date: October 5, 2026.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
