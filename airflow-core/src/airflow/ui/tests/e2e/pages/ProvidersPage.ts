@@ -39,47 +39,12 @@ export class ProvidersPage extends BasePage {
     return this.rows.count();
   }
 
-  public async getRowDetails(index: number) {
-    const row = this.rows.nth(index);
-    const cells = row.locator("td");
-
-    const pkg = await cells.nth(0).locator("a").textContent();
-    const ver = await cells.nth(1).textContent();
-    const desc = await cells.nth(2).textContent();
-
-    return {
-      description: (desc ?? "").trim(),
-      packageName: (pkg ?? "").trim(),
-      version: (ver ?? "").trim(),
-    };
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/providers");
   }
 
   public async waitForLoad(): Promise<void> {
     await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
-    // Wait for actual data links to appear (not skeleton loaders)
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        // Check for actual links in tbody (real data, not skeleton)
-        const links = table.querySelectorAll("tbody tr td a");
-
-        return links.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await this.rows.first().locator("td a").waitFor({ state: "visible", timeout: 30_000 });
   }
 }
