@@ -1747,19 +1747,28 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check that
-    `task_runner.SUPERVISOR_COMMS` is not None to determine if the code is running in a Task SDK
-    execution context. This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) check for the presence
+    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
+    This override ensures those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
-    old = task_runner.SUPERVISOR_COMMS
-    task_runner.SUPERVISOR_COMMS = temp_comms
+    sentinel = object()
+    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+
+    if temp_comms is not None:
+        task_runner.SUPERVISOR_COMMS = temp_comms
+    elif old is not sentinel:
+        delattr(task_runner, "SUPERVISOR_COMMS")
 
     try:
         yield
     finally:
-        task_runner.SUPERVISOR_COMMS = old
+        if old is sentinel:
+            if hasattr(task_runner, "SUPERVISOR_COMMS"):
+                delattr(task_runner, "SUPERVISOR_COMMS")
+        else:
+            task_runner.SUPERVISOR_COMMS = old
 
 
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
@@ -1939,7 +1948,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     try:
         from airflow.sdk.execution_time import task_runner
 
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
             # Client context: task runner with SUPERVISOR_COMMS
             return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
     except (ImportError, AttributeError):

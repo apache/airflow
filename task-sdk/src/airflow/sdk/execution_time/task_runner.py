@@ -820,7 +820,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor] = None  # type: ignore[assignment]
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
 # State machine!
@@ -1887,8 +1887,9 @@ def reinit_supervisor_comms() -> None:
     """
     import socket
 
-    global SUPERVISOR_COMMS
-    if SUPERVISOR_COMMS is None:
+    if "SUPERVISOR_COMMS" not in globals():
+        global SUPERVISOR_COMMS
+
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
         SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))

@@ -2676,9 +2676,12 @@ class TestSetSupervisorComms:
 
     @pytest.fixture(autouse=True)
     def cleanup_supervisor_comms(self):
-        task_runner.SUPERVISOR_COMMS = None  # type: ignore[assignment]
+        # Ensure clean state before/after test
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
+            delattr(task_runner, "SUPERVISOR_COMMS")
         yield
-        task_runner.SUPERVISOR_COMMS = None  # type: ignore[assignment]
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
+            delattr(task_runner, "SUPERVISOR_COMMS")
 
     def test_set_supervisor_comms_overrides_and_restores(self):
         task_runner.SUPERVISOR_COMMS = self.DummyComms()
@@ -2690,20 +2693,20 @@ class TestSetSupervisorComms:
         assert task_runner.SUPERVISOR_COMMS is original
 
     def test_set_supervisor_comms_sets_temporarily_when_not_set(self):
-        assert task_runner.SUPERVISOR_COMMS is None
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
         replacement = self.DummyComms()
 
         with set_supervisor_comms(replacement):
             assert task_runner.SUPERVISOR_COMMS is replacement
-        assert task_runner.SUPERVISOR_COMMS is None
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
     def test_set_supervisor_comms_unsets_temporarily_when_not_set(self):
-        assert task_runner.SUPERVISOR_COMMS is None
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
         with set_supervisor_comms(None):
-            assert task_runner.SUPERVISOR_COMMS is None
+            assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
-        assert task_runner.SUPERVISOR_COMMS is None
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
 
 class TestInProcessTestSupervisor:
