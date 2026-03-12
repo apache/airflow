@@ -295,6 +295,45 @@ class TestLambdaInvokeFunctionOperator:
         with pytest.raises(ValueError, match=LAMBDA_FUNC_NO_EXECUTION):
             operator.execute(None)
 
+    @mock.patch.object(LambdaHook, "invoke_lambda")
+    @mock.patch.object(LambdaHook, "conn")
+    def test_invoke_lambda_deserialize_payload(self, mock_conn, mock_invoke):
+        operator = LambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+            payload='{}',
+            deserialize_payload=True,
+        )
+        returned_payload = Mock()
+        returned_payload.read().decode.return_value = '{"bucket": "my-bucket", "prefix": "data/"}'
+        mock_invoke.return_value = {
+            "ResponseMetadata": "",
+            "StatusCode": 200,
+            "Payload": returned_payload,
+        }
+        value = operator.execute(None)
+        assert value == {"bucket": "my-bucket", "prefix": "data/"}
+        assert isinstance(value, dict)
+
+    @mock.patch.object(LambdaHook, "invoke_lambda")
+    @mock.patch.object(LambdaHook, "conn")
+    def test_invoke_lambda_deserialize_payload_default_false(self, mock_conn, mock_invoke):
+        operator = LambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+            payload='{}',
+        )
+        returned_payload = Mock()
+        returned_payload.read().decode.return_value = '{"bucket": "my-bucket"}'
+        mock_invoke.return_value = {
+            "ResponseMetadata": "",
+            "StatusCode": 200,
+            "Payload": returned_payload,
+        }
+        value = operator.execute(None)
+        assert value == '{"bucket": "my-bucket"}'
+        assert isinstance(value, str)
+
     def test_template_fields(self):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",

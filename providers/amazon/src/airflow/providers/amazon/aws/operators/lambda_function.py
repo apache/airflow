@@ -174,6 +174,10 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
     :param invocation_type: AWS Lambda invocation type (RequestResponse, Event, DryRun)
     :param client_context: Data about the invoking client to pass to the function in the context object
     :param payload: JSON provided as input to the Lambda function
+    :param deserialize_payload: If True, the response payload will be deserialized from JSON
+        before being pushed to XCom. This allows downstream tasks to access individual keys
+        via bracket notation (e.g., ``ti.xcom_pull(task_ids='...')['key']``).
+        When False (default), the payload is returned as a string for backward compatibility.
     :param aws_conn_id: The AWS connection ID to use
     """
 
@@ -196,6 +200,7 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         invocation_type: str | None = None,
         client_context: str | None = None,
         payload: bytes | str | None = None,
+        deserialize_payload: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -206,6 +211,7 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
+        self.deserialize_payload = deserialize_payload
 
     def execute(self, context: Context):
         """
@@ -248,4 +254,6 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
                 {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
             )
         self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
+        if self.deserialize_payload:
+            payload = json.loads(payload)
         return payload
