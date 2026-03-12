@@ -31,19 +31,7 @@ The ``partition_key`` is also exposed on ``dag_run.partition_key`` inside task c
 can be supplied when triggering a DAG run manually via the REST API
 (``POST /dags/{dag_id}/dagRuns``).
 
-* Types of change
-
-  * [ ] Dag changes
-  * [ ] Config changes
-  * [ ] API changes
-  * [ ] CLI changes
-  * [x] Behaviour changes
-  * [ ] Plugin changes
-  * [ ] Dependency changes
-  * [x] Code interface changes
-
 * Migration rules needed
 
-  * No migration needed — asset partitioning is an opt-in feature. Existing DAGs and assets
-    are unaffected unless you explicitly adopt ``CronPartitionTimetable`` or
-    ``PartitionedAssetTimetable``.
+  * No migration needed — asset partitioning is a new feature. Existing DAGs and assets
+    are unaffected
