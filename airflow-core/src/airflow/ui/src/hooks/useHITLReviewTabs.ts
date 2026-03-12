@@ -17,12 +17,10 @@
  * under the License.
  */
 import { useQuery } from "@tanstack/react-query";
+import axios, { type AxiosError } from "axios";
 
-type TabItem = {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-};
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import type { TabItem } from "src/hooks/useRequiredActionTabs";
 
 const HITL_REVIEW_PLUGIN_TAB = "plugin/hitl-review";
 
@@ -34,34 +32,6 @@ export type UseHITLReviewTabsOptions = {
 
 export const filterHITLReviewTabs = (tabs: Array<TabItem>, hasHitlData: boolean): Array<TabItem> =>
   tabs.filter((tab) => tab.value !== HITL_REVIEW_PLUGIN_TAB || hasHitlData);
-
-const getBasePath = () => {
-  const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
-  const baseUrl = new URL(baseHref, globalThis.location.origin);
-
-  return new URL(baseUrl).pathname.replace(/\/$/u, "");
-};
-
-const buildHITLReviewSessionUrl = ({
-  dagId,
-  dagRunId,
-  mapIndex,
-  taskId,
-}: {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-}) => {
-  const searchParams = new URLSearchParams({
-    dag_id: dagId,
-    map_index: mapIndex.toString(),
-    run_id: dagRunId,
-    task_id: taskId,
-  });
-
-  return `${getBasePath()}/hitl-review/sessions/find?${searchParams.toString()}`;
-};
 
 export const useHITLReviewTabs = (
   {
@@ -77,22 +47,38 @@ export const useHITLReviewTabs = (
   options: UseHITLReviewTabsOptions = {},
 ) => {
   const { enabled = true, mapIndex = -1, refetchInterval } = options;
+  const hasHitlTab = tabs.some((tab) => tab.value === HITL_REVIEW_PLUGIN_TAB);
 
   const { data: hasHITLReviewSession = false, isLoading: isLoadingHITLReviewSession } = useQuery({
-    enabled,
-    queryFn: async () => {
-      const response = await fetch(buildHITLReviewSessionUrl({ dagId, dagRunId, mapIndex, taskId }));
+    enabled: enabled && hasHitlTab,
+    queryFn: () =>
+      axios
+        .get(`${OpenAPI.BASE}/hitl-review/sessions/find`, {
+          params: {
+            dag_id: dagId,
+            map_index: mapIndex,
+            run_id: dagRunId,
+            task_id: taskId,
+          },
+        })
+        .then(() => true)
+        .catch((error: unknown) => {
+          if (!axios.isAxiosError(error)) {
+            return Promise.reject(error);
+          }
 
-      if (response.ok) {
-        return true;
-      }
+          const status = error.response?.status;
 
-      if (response.status === 404) {
-        return false;
-      }
+          if (status === 404) {
+            return false;
+          }
 
-      throw new Error("Failed to fetch HITL review session");
-    },
+          if (status !== undefined) {
+            (error as { status?: number } & AxiosError).status = status;
+          }
+
+          return Promise.reject(error);
+        }),
     queryKey: ["hitl-review-session", dagId, dagRunId, taskId, mapIndex],
     refetchInterval,
   });

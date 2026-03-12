@@ -105,7 +105,6 @@ export const TaskInstance = () => {
     refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 
-  // HITL review tab
   const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
     enabled: !isNaN(parsedMapIndex),
     mapIndex: parsedMapIndex,
