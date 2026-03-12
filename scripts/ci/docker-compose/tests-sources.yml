@@ -129,6 +129,7 @@ services:
       - ../../../providers/sqlite/tests:/opt/airflow/providers/sqlite/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
+      - ../../../providers/stripe/tests:/opt/airflow/providers/stripe/tests
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests

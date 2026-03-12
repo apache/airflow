@@ -117,6 +117,7 @@ body:
         - sqlite
         - ssh
         - standard
+        - stripe
         - tableau
         - telegram
         - teradata
