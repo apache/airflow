@@ -24,6 +24,63 @@ from chart_utils.helm_template_generator import render_chart
 class TestSCCActivation:
     """Tests SCCs."""
 
+    def test_zero_subjects_when_all_disabled_airflow_2(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "multiNamespaceMode": False,
+                "executor": "LocalExecutor",
+                "data": {"brokerUrlSecretName": "test"},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "dagProcessor": {"enabled": False},
+                "webserver": {"enabled": False},
+                "scheduler": {"enabled": False},
+                "statsd": {"enabled": False},
+                "triggerer": {"enabled": False},
+                "redis": {"enabled": False},
+                "migrateDatabaseJob": {"enabled": False},
+                "createUserJob": {"enabled": False},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects", docs[0]) is None
+
+    def test_zero_subjects_when_all_disabled(self):
+        docs = render_chart(
+            values={
+                "multiNamespaceMode": False,
+                "executor": "LocalExecutor",
+                "data": {"brokerUrlSecretName": "test"},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "dagProcessor": {"enabled": False},
+                "apiServer": {"enabled": False},
+                "scheduler": {"enabled": False},
+                "statsd": {"enabled": False},
+                "triggerer": {"enabled": False},
+                "redis": {"enabled": False},
+                "migrateDatabaseJob": {"enabled": False},
+                "createUserJob": {"enabled": False},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects", docs[0]) is None
+
     @pytest.mark.parametrize(
         ("rbac_enabled", "scc_enabled", "created"),
         [
