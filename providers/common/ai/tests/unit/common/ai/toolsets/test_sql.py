@@ -229,6 +229,76 @@ class TestSQLToolsetQuery:
         with pytest.raises(RuntimeError, match="hook error"):
             asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
 
+    def test_sqlalchemy_programming_error_with_psycopg2_undefined_column_orig_raises_model_retry_for_postgres(
+        self,
+    ):
+        from psycopg2 import errors as psycopg2_errors
+        from sqlalchemy.exc import ProgrammingError
+
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.conn_type = "postgres"
+        ts._hook.get_records.side_effect = ProgrammingError(
+            statement="SELECT id, missing FROM users",
+            params=None,
+            orig=psycopg2_errors.UndefinedColumn('column "missing" does not exist'),
+        )
+
+        with (
+            patch(
+                "airflow.providers.common.ai.toolsets.sql._POSTGRES_RETRYABLE_EXCEPTIONS",
+                (psycopg2_errors.UndefinedColumn,),
+            ),
+            patch(
+                "airflow.providers.common.ai.toolsets.sql._SQLALCHEMY_RETRYABLE_EXCEPTIONS",
+                (ProgrammingError,),
+            ),
+            pytest.raises(ModelRetry),
+        ):
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT id, missing FROM users"},
+                    ctx=MagicMock(),
+                    tool=MagicMock(),
+                )
+            )
+
+    def test_sqlalchemy_programming_error_with_psycopg2_insufficient_privilege_orig_is_not_retried_for_postgres(
+        self,
+    ):
+        from psycopg2 import errors as psycopg2_errors
+        from sqlalchemy.exc import ProgrammingError
+
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.conn_type = "postgres"
+        ts._hook.get_records.side_effect = ProgrammingError(
+            statement="SELECT id FROM users",
+            params=None,
+            orig=psycopg2_errors.InsufficientPrivilege("permission denied for table users"),
+        )
+
+        with (
+            patch(
+                "airflow.providers.common.ai.toolsets.sql._POSTGRES_RETRYABLE_EXCEPTIONS",
+                (psycopg2_errors.UndefinedColumn, psycopg2_errors.UndefinedTable),
+            ),
+            patch(
+                "airflow.providers.common.ai.toolsets.sql._SQLALCHEMY_RETRYABLE_EXCEPTIONS",
+                (ProgrammingError,),
+            ),
+            pytest.raises(ProgrammingError),
+        ):
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT id FROM users"},
+                    ctx=MagicMock(),
+                    tool=MagicMock(),
+                )
+            )
+
 
 class TestSQLToolsetCheckQuery:
     def test_valid_select(self):

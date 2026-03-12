@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -259,18 +260,19 @@ class SQLToolset(AbstractToolset[Any]):
 
     @staticmethod
     def _is_retryable_query_error(hook: DbApiHook, error: Exception) -> bool:
-        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
-            return True
+        check_error = getattr(error, "orig", error)
         conn_type = getattr(hook, "conn_type", None)
         if conn_type == "postgres":
-            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(error, _POSTGRES_RETRYABLE_EXCEPTIONS)
+            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(
+                check_error, _POSTGRES_RETRYABLE_EXCEPTIONS
+            )
         if conn_type == "sqlite":
-            with suppress(ImportError):
-                import sqlite3
-
-                if isinstance(error, sqlite3.OperationalError):
-                    message = str(error).lower()
-                    return "no such column" in message or "no such table" in message
+            if isinstance(check_error, sqlite3.OperationalError):
+                message = str(check_error).lower()
+                return "no such column" in message or "no such table" in message
+            return False
+        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
+            return True
         # TODO: Add support for other databases.
         return False
 
