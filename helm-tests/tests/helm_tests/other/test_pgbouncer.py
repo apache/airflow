@@ -859,9 +859,22 @@ class TestPgBouncerServiceAccount:
 class TestPgbouncerNetworkPolicy:
     """Tests PgBouncer Network Policy."""
 
-    def test_should_create_pgbouncer_network_policy(self):
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "LocalExecutor,CeleryExecutor,KubernetesExecutor",
+            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
+        ],
+    )
+    def test_should_create_pgbouncer_network_policy(self, executor):
         docs = render_chart(
-            values={"pgbouncer": {"enabled": True}, "networkPolicies": {"enabled": True}},
+            values={
+                "executor": executor,
+                "pgbouncer": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+            },
             show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
         )
 
@@ -869,20 +882,29 @@ class TestPgbouncerNetworkPolicy:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer-policy"
 
     @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "LocalExecutor,CeleryExecutor,KubernetesExecutor",
+            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize(
         "values",
         [
-            {"executor": "CeleryExecutor", "workers": {"keda": {"enabled": True}}},
+            {"workers": {"keda": {"enabled": True}}},
             {"triggerer": {"keda": {"enabled": True}}},
             {
-                "executor": "CeleryExecutor",
                 "workers": {"keda": {"enabled": True}},
                 "triggerer": {"keda": {"enabled": True}},
             },
         ],
     )
-    def test_pod_selectors_with_keda_without_namespace_labels(self, values):
+    def test_pod_selectors_with_keda_without_namespace_labels(self, executor, values):
         docs = render_chart(
             values={
+                "executor": executor,
                 "pgbouncer": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 **values,
@@ -895,22 +917,28 @@ class TestPgbouncerNetworkPolicy:
         ]
 
     @pytest.mark.parametrize(
-        "conf",
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "LocalExecutor,CeleryExecutor,KubernetesExecutor",
+            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "values",
         [
             # test with workers.keda/workers.celery.keda enabled with namespace labels
             {
-                "executor": "CeleryExecutor",
                 "workers": {
                     "keda": {"namespaceLabels": {"app": "airflow"}},
                     "celery": {"keda": {"enabled": True}},
                 },
             },
             {
-                "executor": "CeleryExecutor",
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
             },
             {
-                "executor": "CeleryExecutor",
                 "workers": {
                     "keda": {"namespaceLabels": {"airflow": "app"}},
                     "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
@@ -920,42 +948,38 @@ class TestPgbouncerNetworkPolicy:
             {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled with namespace labels
             {
-                "executor": "CeleryExecutor",
                 "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
                 "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
             },
             {
-                "executor": "CeleryExecutor",
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
             },
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled workers
             # with namespace labels and triggerer without namespace labels
             {
-                "executor": "CeleryExecutor",
                 "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
                 "triggerer": {"keda": {"enabled": True}},
             },
             {
-                "executor": "CeleryExecutor",
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True}},
             },
             # test with workers.celery.keda and triggerer.keda both enabled workers without namespace labels
             # and triggerer with namespace labels
             {
-                "executor": "CeleryExecutor",
                 "workers": {"celery": {"keda": {"enabled": True}}},
                 "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
             },
         ],
     )
-    def test_pod_selectors_with_namespace_labels(self, conf):
+    def test_pod_selectors_with_namespace_labels(self, executor, values):
         docs = render_chart(
             values={
+                "executor": executor,
                 "pgbouncer": {"enabled": True},
                 "networkPolicies": {"enabled": True},
-                **conf,
+                **values,
             },
             show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
         )
