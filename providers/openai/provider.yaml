@@ -63,14 +63,14 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-openai/operators/openai.rst
     tags:
-  - ai
-  - openai
-  - machine-learning
-  - generative-ai
-  - llm
-  - text-generation
-  - embeddings
-  - ai-inference
+      - ai
+      - openai
+      - machine-learning
+      - generative-ai
+      - llm
+      - text-generation
+      - embeddings
+      - ai-inference
 
 hooks:
   - integration-name: OpenAI
