@@ -46,7 +46,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
@@ -5925,7 +5925,8 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
     RUN_ID = "TEST_DAG_RUN_ID"
     GROUP_ID = "section_1"
-    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances/{GROUP_ID}"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}"
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_patch_task_group_success(self, mock_set_ti_state, test_client, session):
@@ -6055,7 +6056,9 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         """Test that query count doesn't scale linearly with task group size - single bulk query."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
-        # Get TIs for section_1 (3 tasks)
+        url_section_1 = f"{self.BASE_URL}/section_1"
+        url_section_2 = f"{self.BASE_URL}/section_2"
+
         tis_section_1 = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.DAG_ID,
@@ -6063,21 +6066,7 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
             )
         ).all()
-        mock_set_ti_state.return_value = tis_section_1[:1]
 
-        # Test with section_1 (3 tasks)
-        # Queries may include: DAG version, serialized DAG, TIs, and related relationships
-        # The key metric is that this count stays constant regardless of task group size
-        with assert_queries_count(9):
-            response = test_client.patch(
-                self.ENDPOINT_URL,
-                json={"new_state": "success"},
-            )
-        assert response.status_code == 200
-        query_count_section_1 = mock_set_ti_state.call_count
-        mock_set_ti_state.reset_mock()
-
-        # Get TIs for section_2 (4 tasks: section_2.task_1 + 3 tasks in inner_section_2)
         tis_section_2 = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.DAG_ID,
@@ -6092,73 +6081,36 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 ),
             )
         ).all()
-        mock_set_ti_state.return_value = tis_section_2[:1]
 
-        # Test with section_2 (4 tasks) - query count should remain constant at 9
-        # This confirms we're using a bulk query, not N individual queries
-        url_section_2 = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
-        with assert_queries_count(9):
-            response = test_client.patch(
-                url_section_2,
-                json={"new_state": "success"},
-            )
-        assert response.status_code == 200
-        query_count_section_2 = mock_set_ti_state.call_count
-
-        # The number of state-setting calls scales with tasks, but DB queries don't
-        assert query_count_section_1 == 3  # 3 tasks in section_1
-        assert query_count_section_2 == 4  # 4 tasks in section_2
-
-        # Test with all tasks from both section_1 and section_2 (7 tasks total)
+        # Warm-up call to populate caches (DAG deserialization, etc.)
+        mock_set_ti_state.return_value = tis_section_1[:1]
+        test_client.patch(url_section_1, json={"new_state": "success"})
         mock_set_ti_state.reset_mock()
 
-        # Get all TIs from both section_1 (3 tasks) and section_2 (4 tasks) = 7 tasks total
-        all_section_tis = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == self.DAG_ID,
-                TaskInstance.run_id == self.RUN_ID,
-                TaskInstance.task_id.in_(
-                    [
-                        "section_1.task_1",
-                        "section_1.task_2",
-                        "section_1.task_3",
-                        "section_2.task_1",
-                        "section_2.inner_section_2.task_2",
-                        "section_2.inner_section_2.task_3",
-                        "section_2.inner_section_2.task_4",
-                    ]
-                ),
-            )
-        ).all()
-        assert len(all_section_tis) == 7  # Verify we have 7 tasks
+        # --- section_1 (3 tasks) ---
+        mock_set_ti_state.return_value = tis_section_1[:1]
 
-        # Mock to return one TI per call to simulate processing all 7 tasks
-        mock_set_ti_state.return_value = all_section_tis[:1]
-
-        # Patch section_1 first - this will process 3 tasks but query count should be 9
-        with assert_queries_count(9):
-            response = test_client.patch(
-                self.ENDPOINT_URL,  # section_1
-                json={"new_state": "success"},
-            )
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
         assert response.status_code == 200
         assert mock_set_ti_state.call_count == 3
-
-        # Now patch section_2 - this will process 4 more tasks, still 9 queries
         mock_set_ti_state.reset_mock()
-        mock_set_ti_state.return_value = all_section_tis[:1]
 
-        url_section_2_final = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
-        with assert_queries_count(9):
-            response = test_client.patch(
-                url_section_2_final,
-                json={"new_state": "success"},
-            )
+        # --- section_2 (4 tasks including nested inner_section_2) ---
+        mock_set_ti_state.return_value = tis_section_2[:1]
+
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
         assert response.status_code == 200
         assert mock_set_ti_state.call_count == 4
 
-        # Verify: processed 7 tasks total (3 + 4) across both operations, each with only 9 queries
-        # This demonstrates query count doesn't scale with task count
+        # Query count should be identical regardless of task group size (3 vs 4 tasks)
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        assert count_section_1 == count_section_2, (
+            f"Query counts should be equal across differently-sized task groups: "
+            f"section_1={count_section_1}, section_2={count_section_2}"
+        )
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_includes_upstream_downstream_parameters(self, mock_set_ti_state, test_client, session):
@@ -6198,7 +6150,8 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
     RUN_ID = "TEST_DAG_RUN_ID"
     GROUP_ID = "section_1"
-    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances/{GROUP_ID}/dry_run"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}/dry_run"
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_dry_run_returns_affected_tis_without_committing(self, mock_set_ti_state, test_client, session):
@@ -6229,7 +6182,9 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
         """Test that dry_run query count doesn't scale with task group size - uses bulk query."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
 
-        # Get TIs for section_1 (3 tasks)
+        url_section_1 = f"{self.BASE_URL}/section_1/dry_run"
+        url_section_2 = f"{self.BASE_URL}/section_2/dry_run"
+
         tis_section_1 = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.DAG_ID,
@@ -6237,19 +6192,7 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
                 TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
             )
         ).all()
-        mock_set_ti_state.return_value = tis_section_1[:1]
 
-        # Test with section_1 (3 tasks) - dry_run should use same bulk query optimization
-        with assert_queries_count(9):
-            response = test_client.patch(
-                self.ENDPOINT_URL,
-                json={"new_state": "success"},
-            )
-        assert response.status_code == 200
-        assert mock_set_ti_state.call_count == 3
-        mock_set_ti_state.reset_mock()
-
-        # Get TIs for section_2 (4 tasks)
         tis_section_2 = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.DAG_ID,
@@ -6264,17 +6207,36 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
                 ),
             )
         ).all()
+
+        # Warm-up call to populate caches (DAG deserialization, etc.)
+        mock_set_ti_state.return_value = tis_section_1[:1]
+        test_client.patch(url_section_1, json={"new_state": "success"})
+        mock_set_ti_state.reset_mock()
+
+        # --- section_1 (3 tasks) ---
+        mock_set_ti_state.return_value = tis_section_1[:1]
+
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
+        assert response.status_code == 200
+        assert mock_set_ti_state.call_count == 3
+        mock_set_ti_state.reset_mock()
+
+        # --- section_2 (4 tasks including nested inner_section_2) ---
         mock_set_ti_state.return_value = tis_section_2[:1]
 
-        # Test with section_2 (4 tasks) - query count should remain constant at 9
-        url_section_2 = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2/dry_run"
-        with assert_queries_count(9):
-            response = test_client.patch(
-                url_section_2,
-                json={"new_state": "success"},
-            )
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
         assert response.status_code == 200
         assert mock_set_ti_state.call_count == 4
+
+        # Query count should be identical regardless of task group size (3 vs 4 tasks)
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        assert count_section_1 == count_section_2, (
+            f"Query counts should be equal across differently-sized task groups: "
+            f"section_1={count_section_1}, section_2={count_section_2}"
+        )
 
     def test_dry_run_task_group_not_found(self, test_client, session):
         """Test that requesting a non-existent task group returns 404."""
