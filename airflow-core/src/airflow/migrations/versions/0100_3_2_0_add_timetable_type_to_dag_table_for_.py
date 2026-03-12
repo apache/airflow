@@ -51,12 +51,8 @@ def upgrade():
 
 def downgrade():
     """Unapply add timetable_type to dag table for filtering."""
-    conn = op.get_bind()
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+    from airflow.migrations.utils import disable_sqlite_fkeys
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("timetable_type")
-
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("timetable_type")

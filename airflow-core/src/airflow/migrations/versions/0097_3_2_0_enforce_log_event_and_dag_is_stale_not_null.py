@@ -51,15 +51,11 @@ def upgrade():
 
 def downgrade():
     """Allow the columns to accept NULL again for older state reversions."""
-    conn = op.get_bind()
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+    from airflow.migrations.utils import disable_sqlite_fkeys
 
-    with op.batch_alter_table("log") as batch_op:
-        batch_op.alter_column("event", existing_type=sa.String(60), nullable=True)
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("log") as batch_op:
+            batch_op.alter_column("event", existing_type=sa.String(60), nullable=True)
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_stale", existing_type=sa.Boolean, nullable=True)
-
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("is_stale", existing_type=sa.Boolean, nullable=True)

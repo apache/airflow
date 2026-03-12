@@ -80,18 +80,14 @@ def upgrade():
 
 def downgrade():
     """Unapply Update ORM for asset partitioning."""
-    conn = op.get_bind()
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+    from airflow.migrations.utils import disable_sqlite_fkeys
 
-    with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.drop_column("partition_key")
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag_run", schema=None) as batch_op:
+            batch_op.drop_column("partition_key")
 
-    with op.batch_alter_table("asset_event", schema=None) as batch_op:
-        batch_op.drop_column("partition_key")
+        with op.batch_alter_table("asset_event", schema=None) as batch_op:
+            batch_op.drop_column("partition_key")
 
-    op.drop_table("partitioned_asset_key_log")
-    op.drop_table("asset_partition_dag_run")
-
-    if conn.dialect.name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        op.drop_table("partitioned_asset_key_log")
+        op.drop_table("asset_partition_dag_run")
