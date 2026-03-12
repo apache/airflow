@@ -1116,22 +1116,17 @@ class TestGetGridDataEndpoint:
         task_ids = sorted([node["id"] for node in nodes])
         assert task_ids == expected_task_ids, description
 
-    # ------------------------------------------------------------------ helpers
-
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:
         """Parse NDJSON streaming response into a list of dicts."""
         return [json.loads(line) for line in response.text.splitlines() if line.strip()]
-
-    # ------------------------------------------------------------------ tests
 
     def test_grid_ti_summaries_stream_returns_all_runs(self, session, test_client):
         """Streaming endpoint returns one NDJSON line per requested run_id."""
         session.commit()
 
         run_ids = ["run_1", "run_2"]
-        query = "&".join(f"run_ids={r}" for r in run_ids)
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?{query}")
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": run_ids})
         assert response.status_code == 200
         assert "ndjson" in response.headers.get("content-type", "")
 
@@ -1148,7 +1143,7 @@ class TestGetGridDataEndpoint:
         """Streaming endpoint silently skips run_ids that have no task instances."""
         session.commit()
 
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids=run_1&run_ids=nonexistent_run")
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1", "nonexistent_run"]})
         assert response.status_code == 200
         summaries = self._parse_ndjson(response)
         assert len(summaries) == 1
@@ -1167,10 +1162,9 @@ class TestGetGridDataEndpoint:
         session.commit()
 
         run_ids = ["run_1", "run_2"]
-        query = "&".join(f"run_ids={r}" for r in run_ids)
         # 2 auth queries + 1 serdag query shared across both runs
         # + 1 TI query per run = 5 total (not 1 serdag per run which would be 6+).
         with assert_queries_count(5):
-            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?{query}")
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": run_ids})
         assert response.status_code == 200
         assert len(self._parse_ndjson(response)) == len(run_ids)

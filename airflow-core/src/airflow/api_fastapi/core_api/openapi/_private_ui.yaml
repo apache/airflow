@@ -2401,26 +2401,6 @@ components:
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.
-    GridTISummaries:
-      properties:
-        run_id:
-          type: string
-          title: Run Id
-        dag_id:
-          type: string
-          title: Dag Id
-        task_instances:
-          items:
-            $ref: '#/components/schemas/LightGridTaskInstanceSummary'
-          type: array
-          title: Task Instances
-      type: object
-      required:
-      - run_id
-      - dag_id
-      - task_instances
-      title: GridTISummaries
-      description: DAG Run model for the Grid UI.
     HITLDetail:
       properties:
         options:
@@ -2620,52 +2600,6 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
-    LightGridTaskInstanceSummary:
-      properties:
-        task_id:
-          type: string
-          title: Task Id
-        task_display_name:
-          type: string
-          title: Task Display Name
-        state:
-          anyOf:
-          - $ref: '#/components/schemas/TaskInstanceState'
-          - type: 'null'
-        child_states:
-          anyOf:
-          - additionalProperties:
-              type: integer
-            type: object
-          - type: 'null'
-          title: Child States
-        min_start_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Min Start Date
-        max_end_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Max End Date
-        dag_version_number:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Dag Version Number
-      type: object
-      required:
-      - task_id
-      - task_display_name
-      - state
-      - child_states
-      - min_start_date
-      - max_end_date
-      title: LightGridTaskInstanceSummary
-      description: Task Instance Summary model for the Grid UI.
     MenuItem:
       type: string
       enum:

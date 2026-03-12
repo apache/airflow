@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
@@ -339,9 +339,8 @@ def get_grid_runs(
     return grid_runs
 
 
-
 def _build_ti_summaries(
-    dag_id: str, run_id: str, task_instances: list, session, serdag: SerializedDagModel | None = None
+    dag_id: str, run_id: str, task_instances: Sequence, session, serdag: SerializedDagModel | None = None
 ) -> dict:
     ti_details: dict = collections.defaultdict(list)
     for ti in task_instances:
@@ -388,6 +387,7 @@ def _build_ti_summaries(
             }
 
     nodes = list(get_node_summaries())
+    # If a group id and a task id collide, prefer the group record
     group_ids = {n.get("task_id") for n in nodes if n.get("type") == "group"}
     filtered = [n for n in nodes if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
     return {"run_id": run_id, "dag_id": dag_id, "task_instances": filtered}
@@ -428,7 +428,8 @@ def get_grid_ti_summaries_stream(
     session: SessionDep,
     run_ids: Annotated[list[str], Query()] = [],
 ) -> StreamingResponse:
-    """Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
+    """
+    Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
 
     Each line is a serialized ``GridTISummaries`` object emitted as soon as that
     run's task instances have been processed, so the client can render columns

@@ -53,7 +53,7 @@ export const useGridTiSummariesStream = ({
 
   // Stream (or re-stream) whenever the run list or refresh tick changes.
   useEffect(() => {
-    if (!dagId || runIds.length === 0) return;
+    if (!dagId || runIds.length === 0) {return;}
 
     const abortController = new AbortController();
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -63,12 +63,12 @@ export const useGridTiSummariesStream = ({
       // Keep stale data visible while the new stream loads — columns update in
       // place as fresh lines arrive rather than flashing blank.
       try {
-        const queryString = runIds.map((id) => `run_ids=${encodeURIComponent(id)}`).join("&");
-        const response = await fetch(`${OpenAPI.BASE}/ui/grid/ti_summaries/${dagId}?${queryString}`, {
+        const params = new URLSearchParams(runIds.map((id) => ["run_ids", id]));
+        const response = await fetch(`${OpenAPI.BASE}/ui/grid/ti_summaries/${dagId}?${params}`, {
           signal: abortController.signal,
         });
 
-        if (!response.ok || !response.body) return;
+        if (!response.ok || !response.body) {return;}
 
         reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -77,11 +77,12 @@ export const useGridTiSummariesStream = ({
         while (true) {
           const { done, value } = await reader.read();
 
-          if (done) break;
+          if (done) {break;}
           buffer += decoder.decode(value, { stream: true });
 
           // Each complete line is one serialised GridTISummaries object.
           const lines = buffer.split("\n");
+
           buffer = lines.pop() ?? "";
 
           for (const line of lines) {
@@ -112,7 +113,7 @@ export const useGridTiSummariesStream = ({
 
   // Trigger a re-stream periodically while active runs are in flight.
   useEffect(() => {
-    if (!hasActiveRuns || typeof baseRefetchInterval !== "number") return;
+    if (!hasActiveRuns || typeof baseRefetchInterval !== "number") {return;}
 
     const timer = setInterval(() => {
       setRefreshTick((t) => t + 1);

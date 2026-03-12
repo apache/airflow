@@ -41,5 +41,3 @@ class GridTISummaries(BaseModel):
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
-
-
