@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -89,7 +89,6 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
-from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -198,11 +197,10 @@ def get_mapped_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
-    query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
-        .join(TI.dag_run)
-        .options(*eager_load_TI_and_TIH_for_validation())
+    query = eager_load_TI_and_TIH_for_validation(
+        select(TI).where(
+            TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0
+        )
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -327,17 +325,15 @@ def get_task_instance_tries(
     """Get list of task instances history."""
 
     def _query(orm_object: Base) -> Select:
-        query = (
-            select(orm_object)
-            .where(
+        query = eager_load_TI_and_TIH_for_validation(
+            select(orm_object).where(
                 orm_object.dag_id == dag_id,
                 orm_object.run_id == dag_run_id,
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
-            )
-            .options(*eager_load_TI_and_TIH_for_validation(orm_object))
-            .options(joinedload(orm_object.hitl_detail))
-        )
+            ),
+            orm_model=orm_object,
+        ).options(joinedload(orm_object.hitl_detail))
         return query
 
     # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
@@ -481,16 +477,7 @@ def get_task_instances(
     and DAG runs.
     """
     dag_run = None
-    query = (
-        select(TI)
-        .join(TI.dag_run)
-        .outerjoin(TI.dag_version)
-        .options(
-            contains_eager(TI.dag_run).joinedload(DagRun.dag_model),
-            contains_eager(TI.dag_version).joinedload(DagVersion.bundle),
-            joinedload(TI.task_instance_note),
-        )
-    )
+    query = eager_load_TI_and_TIH_for_validation(select(TI))
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(
@@ -627,9 +614,7 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
-    )
+    query = eager_load_TI_and_TIH_for_validation(select(TI))
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -654,8 +639,6 @@ def get_task_instances_batch(
     )
     task_instance_select = task_instance_select.options(
         joinedload(TI.rendered_task_instance_fields),
-        joinedload(TI.task_instance_note),
-        joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
     task_instances = session.scalars(task_instance_select)
