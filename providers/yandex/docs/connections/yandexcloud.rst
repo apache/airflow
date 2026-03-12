@@ -16,7 +16,6 @@
     under the License.
 
 .. _howto/connection:yandexcloud:
-.. _yandex_cloud_connection:
 
 Yandex.Cloud Connection
 =======================

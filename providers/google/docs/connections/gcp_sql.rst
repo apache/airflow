@@ -16,7 +16,6 @@
     under the License.
 
 .. _howto/connection:gcpcloudsql:
-.. _howto/connection:gcpcloudsqldb:
 
 Google Cloud SQL Connection
 ===========================
