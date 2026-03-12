@@ -221,17 +221,15 @@ class TriggerDagRunOperator(BaseOperator):
             else:
                 # If no logical_date is provided we will set utcnow()
                 parsed_logical_date = timezone.utcnow()
-        elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
-            parsed_logical_date = self.logical_date  # type: ignore
-        elif isinstance(self.logical_date, str):
-            parsed_logical_date = timezone.parse(self.logical_date)
+        else:
+            logical_date = cast("str | datetime.datetime | None", self.logical_date)
+            parsed_logical_date = _parse_datetime_param(logical_date)
 
         if self.run_after is NOTSET:
             parsed_run_after = parsed_logical_date
-        elif self.run_after is None or isinstance(self.run_after, datetime.datetime):
-            parsed_run_after = self.run_after  # type: ignore
-        elif isinstance(self.run_after, str):
-            parsed_run_after = timezone.parse(self.run_after)
+        else:
+            run_after = cast("str | datetime.datetime | None", self.run_after)
+            parsed_run_after = _parse_datetime_param(run_after)
 
         try:
             if self.conf and isinstance(self.conf, str):
@@ -479,3 +477,10 @@ def _validate_datetime_param(name: str, value):
     raise TypeError(
         f"Expected str, datetime.datetime, or None for parameter '{name}'. Got {type(value).__name__}"
     )
+
+
+def _parse_datetime_param(value: str | datetime.datetime | None):
+    if value is None or isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, str):
+        return timezone.parse(value)
