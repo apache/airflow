@@ -446,8 +446,12 @@ class SerializedDagModel(Base):
         if len(existing_deadline_uuids) != len(new_deadline_data):
             return None
 
-        # After 3.1→3.2 migration, entries may be UUID strings or legacy dicts (e.g. encoded alert).
-        # Only string UUIDs can be reused; dicts cannot be resolved to a single UUID here.
+        # Guard against data shape changes introduced in the 3.1→3.2 migration.
+        # Deadline UUIDs were previously stored as plain strings but may appear as dicts
+        # in migrated databases. We handle three cases:
+        #   - str  → parse directly as UUID
+        #   - dict with "uuid" or "id" key → extract and parse the UUID string
+        #   - any other dict (e.g. a legacy encoded alert) → cannot reuse, return None
         existing_deadline_uuids_as_uuid = []
         for uid in existing_deadline_uuids:
             if isinstance(uid, str):
