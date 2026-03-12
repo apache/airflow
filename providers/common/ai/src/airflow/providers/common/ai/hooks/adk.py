@@ -22,15 +22,19 @@ import asyncio
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from google.adk.agents import Agent as ADKAgent, BaseAgent, LoopAgent, ParallelAgent, SequentialAgent
-from google.adk.memory import InMemoryMemoryService
-from google.adk.models.google_llm import Gemini
-from google.adk.runners import Runner as ADKRunner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types as genai_types
 from pydantic import BaseModel, PrivateAttr
 
 from airflow.providers.common.ai.hooks.base import BaseAIHook
+
+try:
+    from google.adk.agents import Agent as ADKAgent, BaseAgent, LoopAgent, ParallelAgent, SequentialAgent
+    from google.adk.memory import InMemoryMemoryService
+    from google.adk.models.google_llm import Gemini
+    from google.adk.runners import Runner as ADKRunner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai import types as genai_types
+except ImportError:
+    Gemini = BaseModel  # type: ignore[assignment, misc]
 
 if TYPE_CHECKING:
     from google.adk.sessions import BaseSessionService
@@ -42,7 +46,7 @@ AgentType = Literal["llm", "sequential", "parallel", "loop"]
 
 def _agent_cls_for(agent_type: AgentType) -> type[BaseAgent]:
     """Resolve agent class at call-time so monkeypatching/mocking works."""
-    mapping: dict[str, type[BaseAgent]] = {
+    mapping: dict[str, type] = {
         "llm": ADKAgent,
         "sequential": SequentialAgent,
         "parallel": ParallelAgent,
@@ -54,7 +58,7 @@ def _agent_cls_for(agent_type: AgentType) -> type[BaseAgent]:
     return cls
 
 
-class _GeminiWithApiKey(Gemini):
+class _GeminiWithApiKey(Gemini):  # type: ignore[misc]
     """
     Gemini variant that injects *api_key* at the Client level.
 
@@ -160,20 +164,20 @@ class AdkHook(BaseAIHook):
         :return: The resolved model identifier string.
         """
         if self._configured:
-            return self.model_id
+            return self.model_id  # type: ignore[return-value]
 
         if self.llm_conn_id:
             try:
                 conn = self.get_connection(self.llm_conn_id)
+            except Exception:
+                self.log.warning("Could not retrieve connection %r, using model_id.", self.llm_conn_id)
+            else:
                 api_key = conn.password
                 if api_key:
                     self._api_key = api_key
                 model_name = self.model_id or conn.extra_dejson.get("model", "")
                 if model_name:
                     self.model_id = model_name
-            except Exception:
-                # Connection not found — fall back to env-based auth
-                pass
 
         if not self.model_id:
             raise ValueError(

@@ -19,6 +19,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+pytest.importorskip("google.adk")
+
 from google.adk.agents import BaseAgent, LoopAgent, ParallelAgent, SequentialAgent
 from google.genai import types as genai_types
 from pydantic import BaseModel
@@ -376,8 +379,7 @@ class TestAdkHookCreateAgentComposite:
 class TestAdkHookRunAgent:
     @patch("airflow.providers.common.ai.hooks.adk.ADKRunner", autospec=True)
     @patch("airflow.providers.common.ai.hooks.adk.InMemorySessionService", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.adk.genai_types")
-    def test_run_agent_returns_final_text(self, mock_genai_types, mock_session_service_cls, mock_runner_cls):
+    def test_run_agent_returns_final_text(self, mock_session_service_cls, mock_runner_cls):
         """run_agent collects final response text from the event stream."""
         mock_session = MagicMock()
         mock_session.id = "session-123"
@@ -403,10 +405,7 @@ class TestAdkHookRunAgent:
 
     @patch("airflow.providers.common.ai.hooks.adk.ADKRunner", autospec=True)
     @patch("airflow.providers.common.ai.hooks.adk.InMemorySessionService", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.adk.genai_types")
-    def test_run_agent_skips_non_final_events(
-        self, mock_genai_types, mock_session_service_cls, mock_runner_cls
-    ):
+    def test_run_agent_skips_non_final_events(self, mock_session_service_cls, mock_runner_cls):
         """Non-final events are ignored; only final response text is collected."""
         mock_session = MagicMock()
         mock_session.id = "session-456"
@@ -435,8 +434,7 @@ class TestAdkHookRunAgent:
         assert result == "Done."
 
     @patch("airflow.providers.common.ai.hooks.adk.ADKRunner", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.adk.genai_types")
-    def test_run_agent_with_custom_session_service(self, mock_genai_types, mock_runner_cls):
+    def test_run_agent_with_custom_session_service(self, mock_runner_cls):
         """When a session_service is provided, it is used instead of InMemorySessionService."""
         mock_session = MagicMock()
         mock_session.id = "db-session-1"
