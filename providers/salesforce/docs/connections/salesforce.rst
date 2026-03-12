@@ -16,7 +16,6 @@
     under the License.
 
 .. _howto/connection:salesforce:
-.. _howto/connection:SalesforceHook:
 
 Salesforce Connection
 =====================

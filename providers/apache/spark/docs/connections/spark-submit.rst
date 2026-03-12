@@ -18,7 +18,6 @@
 
 
 .. _howto/connection:spark:
-.. _howto/connection:spark-submit:
 
 Apache Spark Submit Connection
 ==============================

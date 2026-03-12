@@ -18,7 +18,6 @@
 
 
 .. _howto/connection:discord:
-.. _howto/connection:http:
 
 Discord Webhook Connection
 ==========================

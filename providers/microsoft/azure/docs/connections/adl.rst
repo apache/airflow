@@ -18,7 +18,6 @@
 
 
 .. _howto/connection:azure_data_lake:
-.. _howto/connection:adl:
 
 Microsoft Azure Data Lake Connection
 ====================================
