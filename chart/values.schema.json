@@ -2282,7 +2282,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file. Use ``workers.celery.terminationGracePeriodSeconds`` and/or ``workers.kubernetes.terminationGracePeriodSeconds`` to separate value between Celery workers and pod-template-file",
                     "type": "integer",
                     "default": 600
                 },
@@ -3275,6 +3275,14 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -3548,6 +3556,14 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 }
