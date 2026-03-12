@@ -114,24 +114,12 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
         type: "error",
       });
     },
-    onSuccess: async (response) => {
-      queryClient.setQueryData(
-        [
-          useXcomServiceGetXcomEntryKey,
-          {
-            dagId,
-            dagRunId: runId,
-            deserialize: true,
-            mapIndex,
-            stringify: false,
-            taskId,
-            xcomKey,
-          },
-        ],
-        response,
-      );
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: [useXcomServiceGetXcomEntriesKey],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntryKey],
       });
       onClose();
       toaster.create({
