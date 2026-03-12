@@ -668,14 +668,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         )
 
         if serialized_dag_model:
-            return workloads.RunTrigger(
-                id=trigger.id,
-                classpath=trigger.classpath,
-                encrypted_kwargs=trigger.encrypted_kwargs,
-                ti=ser_ti,
-                timeout_after=trigger.task_instance.trigger_timeout,
-                dag_data=serialized_dag_model.data,
-            )
+            task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+
+            # When a TaskInstance of a Trigger contains a task with start_from_trigger enabled,
+            # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
+            # will allow us to build a context on which we will render the templated fields.
+            if task.start_from_trigger:
+                return workloads.RunTrigger(
+                    id=trigger.id,
+                    classpath=trigger.classpath,
+                    encrypted_kwargs=trigger.encrypted_kwargs,
+                    ti=ser_ti,
+                    timeout_after=trigger.task_instance.trigger_timeout,
+                    dag_data=serialized_dag_model.data,
+                )
         return workloads.RunTrigger(
             id=trigger.id,
             classpath=trigger.classpath,
