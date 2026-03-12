@@ -1361,6 +1361,10 @@ AIRFLOW_COMMAND="${1:-}"
 AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
 if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
     AIRFLOW_COMMAND_TO_RUN="${2:-}"
+elif [[ "${AIRFLOW_COMMAND}" =~ ^(bash|sh)$ ]] \
+    && [[ "${2:-}" == "-c" ]] \
+    && [[ "${3:-}" =~ (^|[[:space:]])(exec[[:space:]]+)?airflow[[:space:]]+(scheduler|dag-processor|triggerer|api-server)([[:space:]]|$) ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${BASH_REMATCH[3]}"
 fi
 
 set -euo pipefail
