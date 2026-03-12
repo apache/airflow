@@ -409,6 +409,15 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Field to order by. Prefix with '-' for descending.
+          default: id
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
       - name: offset
         in: query
         required: false
@@ -434,6 +443,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PermissionCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '401':
           content:
             application/json:

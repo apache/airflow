@@ -384,7 +384,7 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
         assert out.total_entries == 1
         assert len(out.permissions) == 1
@@ -402,7 +402,7 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert out.total_entries == 0
         assert out.permissions == []
 
@@ -426,7 +426,7 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
         assert out.total_entries == 2
         assert len(out.permissions) == 2
@@ -436,3 +436,43 @@ class TestRolesService:
         assert out.permissions[1] == ActionResource(
             action=Action(name="can_edit"), resource=Resource(name="DAG")
         )
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
+    def test_get_permissions_ordering_happy_path(self, build_ordering, get_fab_auth_manager):
+        perm_obj = types.SimpleNamespace(
+            action=types.SimpleNamespace(name="can_read"),
+            resource=types.SimpleNamespace(name="DAG"),
+        )
+        session = MagicMock()
+        session.scalars.side_effect = [
+            types.SimpleNamespace(one=lambda: 1),
+            types.SimpleNamespace(all=lambda: [perm_obj]),
+        ]
+        fab_auth_manager = MagicMock()
+        fab_auth_manager.security_manager = MagicMock(session=session)
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        build_ordering.return_value = column("id").desc()
+
+        out = FABAuthManagerRoles.get_permissions(order_by="-id", limit=10, offset=0)
+
+        assert out.total_entries == 1
+        assert len(out.permissions) == 1
+
+        build_ordering.assert_called_once()
+        args, kwargs = build_ordering.call_args
+        assert args[0] == "-id"
+        assert set(kwargs["allowed"].keys()) == {"id", "action_id", "resource_id"}
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
+    def test_get_permissions_invalid_order_by_bubbles_400(self, build_ordering, get_fab_auth_manager):
+        session = MagicMock()
+        fab_auth_manager = MagicMock()
+        fab_auth_manager.security_manager = MagicMock(session=session)
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        build_ordering.side_effect = HTTPException(status_code=400, detail="disallowed")
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.get_permissions(order_by="nope", limit=10, offset=0)
+        assert ex.value.status_code == 400
