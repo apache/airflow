@@ -45,31 +45,18 @@ test.describe("Verify Required Action page", () => {
 
     await browsePage.navigateToRequiredActionsPage();
 
-    const isTableVisible = await browsePage.isTableDisplayed();
-    const isEmptyStateVisible = await browsePage.isEmptyStateDisplayed();
+    await expect(browsePage.actionsTable.or(browsePage.emptyStateMessage)).toBeVisible();
 
-    expect(isTableVisible || isEmptyStateVisible).toBe(true);
-
-    if (isTableVisible) {
-      await expect(browsePage.actionsTable).toBeVisible();
-
-      const dagIdHeader = page.getByRole("columnheader", { exact: true, name: "Dag ID" });
-      const taskIdHeader = page.getByRole("columnheader", { exact: true, name: "Task ID" });
-      const dagRunIdHeader = page.getByRole("columnheader", { exact: true, name: "Dag Run ID" });
-      const responseCreatedHeader = page.getByRole("columnheader", {
-        exact: true,
-        name: "Response created at",
-      });
-      const responseReceivedHeader = page.getByRole("columnheader", {
-        exact: true,
-        name: "Response received at",
-      });
-
-      await expect(dagIdHeader).toBeVisible();
-      await expect(taskIdHeader).toBeVisible();
-      await expect(dagRunIdHeader).toBeVisible();
-      await expect(responseCreatedHeader).toBeVisible();
-      await expect(responseReceivedHeader).toBeVisible();
+    if (await browsePage.actionsTable.isVisible()) {
+      await expect(page.getByRole("columnheader", { exact: true, name: "Dag ID" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { exact: true, name: "Task ID" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { exact: true, name: "Dag Run ID" })).toBeVisible();
+      await expect(
+        page.getByRole("columnheader", { exact: true, name: "Response created at" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("columnheader", { exact: true, name: "Response received at" }),
+      ).toBeVisible();
     } else {
       await expect(browsePage.emptyStateMessage).toBeVisible();
     }
