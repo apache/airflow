@@ -9,7 +9,6 @@
     }
   },
   "requiredAction_one": "Необходимое действие",
-  "requiredAction_few": "Необходимые действия",
   "requiredAction_other": "Необходимые действия",
   "requiredActionCount_one": "Необходимое действие ({{count}})",
   "requiredActionCount_few": "Необходимые действия ({{count}})",

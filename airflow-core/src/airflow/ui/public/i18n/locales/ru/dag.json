@@ -83,18 +83,14 @@
   "overview": {
     "buttons": {
       "failedRun_one": "Неудачный запуск",
-      "failedRun_few": "Неудачные запуски",
       "failedRun_other": "Неудачные запуски",
       "failedTask_one": "Неудачная задача",
-      "failedTask_few": "Неудачные задачи",
       "failedTask_other": "Неудачные задачи",
       "failedTaskInstance_one": "Неудачный экземпляр задачи",
-      "failedTaskInstance_few": "Неудачные экземпляры задач",
       "failedTaskInstance_other": "Неудачные экземпляры задач"
     },
     "charts": {
       "assetEvent_one": "Созданное событие актива",
-      "assetEvent_few": "Созданные события актива",
       "assetEvent_other": "Созданные события актива"
     },
     "failedLogs": {

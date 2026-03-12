@@ -1,8 +1,7 @@
 {
   "additional_data": "Дополнительные данные",
   "asset_one": "Актив",
-  "asset_few": "Активы",
-  "asset_other": "Активы",
+  "asset_many": "Активы",
   "consumingDags": "Потребляющие Даги",
   "consumingTasks": "Потребляющие задачи",
   "createEvent": {

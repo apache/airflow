@@ -21,14 +21,12 @@
       "port": "Порт"
     },
     "connection_one": "Соединение",
-    "connection_few": "Соединения",
     "connection_other": "Соединений",
     "delete": {
       "deleteConnection_one": "Удалить 1 соединение",
       "deleteConnection_few": "Удалить {{count}} соединения",
       "deleteConnection_other": "Удалить {{count}} соединений",
       "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение:",
-      "firstConfirmMessage_few": "Вы собираетесь удалить следующие соединения:",
       "firstConfirmMessage_other": "Вы собираетесь удалить следующие соединения:",
       "title": "Удалить соединение"
     },
@@ -106,7 +104,6 @@
       "source": "Источник"
     },
     "importError_one": "Ошибка импорта плагина",
-    "importError_few": "Ошибка импорта плагинов",
     "importError_other": "Ошибки импорта плагинов",
     "searchPlaceholder": "Поиск по файлу"
   },
@@ -128,7 +125,6 @@
     },
     "noPoolsFound": "Пулы не найдены",
     "pool_one": "Пул",
-    "pool_few": "Пула",
     "pool_other": "Пулы",
     "searchPlaceholder": "Поиск пулов",
     "sort": {
@@ -150,10 +146,8 @@
     },
     "delete": {
       "deleteVariable_one": "Удалить 1 переменную",
-      "deleteVariable_few": "Удалить {{count}} переменных",
       "deleteVariable_other": "Удалить {{count}} переменных",
       "firstConfirmMessage_one": "Вы собираетесь удалить следующую переменную:",
-      "firstConfirmMessage_few": "Вы собираетесь удалить следующие переменные:",
       "firstConfirmMessage_other": "Вы собираетесь удалить следующие переменные:",
       "title": "Удалить переменную",
       "tooltip": "Удалить выбранные переменные"
@@ -190,7 +184,6 @@
     "noRowsMessage": "Переменные не найдены",
     "searchPlaceholder": "Поиск ключей",
     "variable_one": "Переменная",
-    "variable_few": "Переменные",
     "variable_other": "Переменные"
   }
 }

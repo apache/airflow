@@ -46,7 +46,6 @@
     "invalidJson": "Некорректный формат JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_few": "{{count}} ошибки",
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
     "warning_few": "{{count}} предупреждения",

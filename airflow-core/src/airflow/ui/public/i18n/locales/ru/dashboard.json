@@ -21,7 +21,6 @@
   "history": "История",
   "importErrors": {
     "dagImportError_one": "Ошибка импорта Дагов",
-    "dagImportError_few": "Ошибки импорта Дагов",
     "dagImportError_other": "Ошибки импорта Дагов",
     "searchByFile": "Поиск по файлу",
     "timestamp": "Временная метка"
