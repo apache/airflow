@@ -17,6 +17,10 @@
 # under the License.
 # Might be empty
 AIRFLOW_COMMAND="${1:-}"
+AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${2:-}"
+fi
 
 set -euo pipefail
 
@@ -283,7 +287,8 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]] \
+    && [[ ${AIRFLOW_COMMAND_TO_RUN} =~ ^(scheduler|dag-processor|triggerer|api-server)$ ]]; then
     wait_for_airflow_db
 fi
 
@@ -316,8 +321,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
 fi
 
 
-# The `bash` and `python` commands should also verify the basic connections
-# So they are run after the DB check
+# Handle direct `bash` and `python` passthrough commands.
 exec_to_bash_or_python_command_if_specified "${@}"
 
 # Remove "airflow" if it is specified as airflow command
