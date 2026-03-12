@@ -97,6 +97,8 @@ Write commit messages focused on user impact, not implementation details.
 Add a newsfragment for user-visible changes:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
 
+- NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
+
 ### Creating Pull Requests
 
 **Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
