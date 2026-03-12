@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,35 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "rich>=13.6.0",
-# ]
-# ///
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from datetime import timedelta
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_prek_utils import (
-    initialize_breeze_prek,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
+from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 
-initialize_breeze_prek(__name__, __file__)
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_prepare_er_diagram.py"],
-    backend="postgres",
-    project_name="prek",
-    skip_environment_initialization=False,
-    warn_image_upgrade_needed=True,
-    extra_env={
-        "DB_RESET": "true",
-    },
-)
+def test_await_message_sensor_passes_timeout(mocker):
+    """Regression test for #62097: user-provided timeout must be passed to defer()."""
+    sensor = AwaitMessageSensor(
+        task_id="test",
+        topics=["test"],
+        apply_function="builtins.print",
+        timeout=timedelta(seconds=30),
+    )
 
-validate_cmd_result(cmd_result)
+    defer_mock = mocker.patch.object(sensor, "defer")
+
+    sensor.execute({})
+
+    defer_mock.assert_called_once()
+    assert defer_mock.call_args.kwargs["timeout"] == timedelta(seconds=30)

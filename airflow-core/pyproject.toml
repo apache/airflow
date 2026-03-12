@@ -237,6 +237,8 @@ exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
     "src/airflow/ui/openapi.merged.json",
+    "src/airflow/_shared/AGENTS.md",
+    "src/airflow/_shared/README.md",
 ]
 
 [tool.hatch.build.targets.sdist.force-include]
@@ -273,6 +275,8 @@ exclude = [
     # Only dist/ (declared as artifacts) is needed
     "src/airflow/ui/**",
     "src/airflow/api_fastapi/auth/managers/simple/ui/**",
+    "src/airflow/_shared/AGENTS.md",
+    "src/airflow/_shared/README.md",
 ]
 
 [dependency-groups]
