@@ -291,6 +291,9 @@ labelPRBasedOnFilePath:
   provider:standard:
     - providers/standard/**
 
+  provider:stripe:
+    - providers/stripe/**
+
   provider:tableau:
     - providers/tableau/**
 

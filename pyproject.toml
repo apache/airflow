@@ -368,6 +368,9 @@ apache-airflow = "airflow.__main__:main"
 "standard" = [
     "apache-airflow-providers-standard>=0.0.1"
 ]
+"stripe" = [
+    "apache-airflow-providers-stripe>=1.0.0" # Set from local provider pyproject.toml
+]
 "tableau" = [
     "apache-airflow-providers-tableau>=5.0.0"
 ]
@@ -491,6 +494,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-sqlite>=3.9.1",
     "apache-airflow-providers-ssh>=3.14.0",
     "apache-airflow-providers-standard>=0.0.1",
+    "apache-airflow-providers-stripe>=1.0.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-tableau>=5.0.0",
     "apache-airflow-providers-telegram>=4.7.0",
     "apache-airflow-providers-teradata>=2.6.1",
@@ -1238,6 +1242,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/ssh/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/standard/src",
     "$MYPY_CONFIG_FILE_DIR/providers/standard/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/stripe/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/stripe/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/tableau/src",
     "$MYPY_CONFIG_FILE_DIR/providers/tableau/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/telegram/src",
@@ -1783,6 +1789,7 @@ apache-airflow-providers-snowflake = { workspace = true }
 apache-airflow-providers-sqlite = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-stripe = { workspace = true }
 apache-airflow-providers-tableau = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-teradata = { workspace = true }
@@ -1920,6 +1927,7 @@ members = [
     "providers/sqlite",
     "providers/ssh",
     "providers/standard",
+    "providers/stripe",
     "providers/tableau",
     "providers/telegram",
     "providers/teradata",
