@@ -72,7 +72,7 @@ class KubernetesJob(NamedTuple):
     """Job definition for Kubernetes execution (task or callback)."""
 
     key: WorkloadKey
-    command: Sequence[str]
+    command: Sequence[Any]
     kube_executor_config: Any
     pod_template_file: str | None
 
