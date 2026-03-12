@@ -422,9 +422,7 @@ def _process_check_contexts(contexts: list[dict], total_count: int) -> tuple[str
     return summary, failed, has_test_checks
 
 
-def _fetch_check_status_counts(
-    token: str, github_repository: str, head_sha: str
-) -> dict[str, int]:
+def _fetch_check_status_counts(token: str, github_repository: str, head_sha: str) -> dict[str, int]:
     """Fetch counts of checks by status for a commit. Returns a dict like {"SUCCESS": 5, "FAILURE": 2, ...}.
 
     Also includes an "IN_PROGRESS" key for checks still running.
@@ -491,10 +489,20 @@ def _format_check_status_counts(counts: dict[str, int]) -> str:
     parts = []
     # Show in a consistent order: failures first, then in-progress, then success, then others
     order = [
-        "FAILURE", "TIMED_OUT", "ERROR", "STARTUP_FAILURE", "ACTION_REQUIRED",
-        "IN_PROGRESS", "QUEUED", "PENDING",
-        "SUCCESS", "EXPECTED",
-        "CANCELLED", "SKIPPED", "NEUTRAL", "STALE",
+        "FAILURE",
+        "TIMED_OUT",
+        "ERROR",
+        "STARTUP_FAILURE",
+        "ACTION_REQUIRED",
+        "IN_PROGRESS",
+        "QUEUED",
+        "PENDING",
+        "SUCCESS",
+        "EXPECTED",
+        "CANCELLED",
+        "SKIPPED",
+        "NEUTRAL",
+        "STALE",
     ]
     shown = set()
     for status in order:
@@ -839,10 +847,7 @@ def _classify_already_triaged_prs(
             for comment in comments:
                 comment_author = (comment.get("author") or {}).get("login", "")
                 comment_date = comment.get("createdAt", "")
-                if (
-                    comment_author == pr.author_login
-                    and comment_date > triage_comment_date
-                ):
+                if comment_author == pr.author_login and comment_date > triage_comment_date:
                     author_responded = True
                     break
 
@@ -2213,10 +2218,10 @@ def _display_pr_overview_table(
         )
     get_console().print(pr_table)
     get_console().print(
-        f"  Triage: [green]Ready for review[/] = ready for maintainer review  "
-        f"[yellow]Waiting for Author[/] = triaged, no response  "
-        f"[bright_cyan]Responded[/] = author replied  "
-        f"[blue]-[/] = not yet triaged"
+        "  Triage: [green]Ready for review[/] = ready for maintainer review  "
+        "[yellow]Waiting for Author[/] = triaged, no response  "
+        "[bright_cyan]Responded[/] = author replied  "
+        "[blue]-[/] = not yet triaged"
     )
     if collab_count:
         get_console().print(
