@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
-from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -53,29 +51,6 @@ class _ActiveLoggingConfig:
         cls.remote_task_log = remote_task_log
         cls.default_remote_conn_id = default_remote_conn_id
         cls.logging_config_loaded = True
-
-
-class _WarningsInterceptor:
-    """A class to hold the reference to the original warnings.showwarning function."""
-
-    _original_showwarning: Callable | None = None
-
-    @staticmethod
-    def register(new_callable: Callable) -> None:
-        if _WarningsInterceptor._original_showwarning is None:
-            _WarningsInterceptor._original_showwarning = warnings.showwarning
-        warnings.showwarning = new_callable
-
-    @staticmethod
-    def reset() -> None:
-        if _WarningsInterceptor._original_showwarning is not None:
-            warnings.showwarning = _WarningsInterceptor._original_showwarning
-            _WarningsInterceptor._original_showwarning = None
-
-    @staticmethod
-    def emit_warning(*args: Any) -> None:
-        if _WarningsInterceptor._original_showwarning is not None:
-            _WarningsInterceptor._original_showwarning(*args)
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
@@ -157,8 +132,6 @@ def configure_logging(
         extra_processors=extra_processors,
         callsite_parameters=callsite_params,
     )
-
-    _WarningsInterceptor.register(_showwarning)
 
 
 def logger_at_level(name: str, level: int) -> Logger:
@@ -298,37 +271,8 @@ def reset_logging():
 
     :meta private:
     """
-    from airflow.sdk._shared.logging.structlog import structlog_processors
+    from airflow.sdk._shared.logging.structlog import _WarningsInterceptor, structlog_processors
 
     _WarningsInterceptor.reset()
     structlog_processors.cache_clear()
     logging_processors.cache_clear()
-
-
-def _showwarning(
-    message: Warning | str,
-    category: type[Warning],
-    filename: str,
-    lineno: int,
-    file: TextIO | None = None,
-    line: str | None = None,
-) -> Any:
-    """
-    Redirects warnings to structlog so they appear in task logs etc.
-
-    Implementation of showwarnings which redirects to logging, which will first
-    check to see if the file parameter is None. If a file is specified, it will
-    delegate to the original warnings implementation of showwarning. Otherwise,
-    it will call warnings.formatwarning and will log the resulting string to a
-    warnings logger named "py.warnings" with level logging.WARNING.
-    """
-    if file is not None:
-        _WarningsInterceptor.emit_warning(message, category, filename, lineno, file, line)
-    else:
-        from airflow.sdk._shared.logging.structlog import reconfigure_logger
-
-        log = reconfigure_logger(
-            structlog.get_logger("py.warnings").bind(), structlog.processors.CallsiteParameterAdder
-        )
-
-        log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
