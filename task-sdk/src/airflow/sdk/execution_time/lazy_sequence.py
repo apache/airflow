@@ -183,13 +183,23 @@ class XComIterable(Sequence):
     def __len__(self) -> int:
         return self.length
 
-    def __getitem__(self, index: int):
+    @overload
+    def __getitem__(self, key: int) -> T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
+
+    def __getitem__(self, key: int | slice):
         """Allow direct indexing so this works like a sequence."""
-        if not (0 <= index < self.length):
-            raise IndexError(index)
+        if isinstance(key, slice):
+            start, stop, step = _coerce_slice(key)
+            return [self[i] for i in range(start, stop, step)]
+
+        if not (0 <= key < self.length):
+            raise IndexError(key)
 
         return XCom.get_one(
-            key=f"{self.task_id}_{index}",
+            key=f"{self.task_id}_{key}",
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
