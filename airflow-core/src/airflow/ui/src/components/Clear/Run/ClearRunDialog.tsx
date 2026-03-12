@@ -124,7 +124,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   value: "onlyFailed",
                 },
                 {
-                  disabled: false,
                   label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
