@@ -14,29 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Kerberos command."""
-
 from __future__ import annotations
 
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
-from airflow.security import kerberos as krb
-from airflow.security.kerberos import KerberosMode
-from airflow.utils import cli as cli_utils
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from datetime import timedelta
+
+from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 
 
-@cli_utils.action_cli
-@providers_configuration_loaded
-def kerberos(args):
-    """Start a kerberos ticket renewer."""
-    cli_utils.print_banner()
-
-    mode = KerberosMode.STANDARD
-    if args.one_time:
-        mode = KerberosMode.ONE_TIME
-
-    run_command_with_daemon_option(
-        args=args,
-        process_name="kerberos",
-        callback=lambda: krb.run(principal=args.principal, keytab=args.keytab, mode=mode),
+def test_await_message_sensor_passes_timeout(mocker):
+    """Regression test for #62097: user-provided timeout must be passed to defer()."""
+    sensor = AwaitMessageSensor(
+        task_id="test",
+        topics=["test"],
+        apply_function="builtins.print",
+        timeout=timedelta(seconds=30),
     )
+
+    defer_mock = mocker.patch.object(sensor, "defer")
+
+    sensor.execute({})
+
+    defer_mock.assert_called_once()
+    assert defer_mock.call_args.kwargs["timeout"] == timedelta(seconds=30)
