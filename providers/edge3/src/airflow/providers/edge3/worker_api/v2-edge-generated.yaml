@@ -912,6 +912,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /edge_worker/ui/worker/{worker_name}/concurrency:
+    patch:
+      tags:
+      - UI
+      summary: Set Worker Concurrency Limit
+      description: Set the concurrency limit for an edge worker.
+      operationId: set_worker_concurrency_limit
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcurrencyRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BundleInfo:
@@ -929,6 +964,18 @@ components:
       - name
       title: BundleInfo
       description: Schema for telling task which bundle to run with.
+    ConcurrencyRequest:
+      properties:
+        concurrency:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Concurrency
+          description: New concurrency limit for the worker.
+      type: object
+      required:
+      - concurrency
+      title: ConcurrencyRequest
+      description: Request body for worker concurrency update.
     EdgeJobFetched:
       properties:
         dag_id:
@@ -1005,7 +1052,7 @@ components:
           - type: 'null'
           title: Log Path
         ti:
-          $ref: '#/components/schemas/TaskInstance'
+          $ref: '#/components/schemas/TaskInstanceDTO'
         sentry_integration:
           type: string
           title: Sentry Integration
@@ -1151,7 +1198,7 @@ components:
       - log_chunk_data
       title: PushLogsBody
       description: Incremental new log content from worker.
-    TaskInstance:
+    TaskInstanceDTO:
       properties:
         id:
           type: string
@@ -1209,7 +1256,7 @@ components:
       - pool_slots
       - queue
       - priority_weight
-      title: TaskInstance
+      title: TaskInstanceDTO
       description: Schema for TaskInstance with minimal required fields needed for
         Executors and Task SDK.
     TaskInstanceState:
@@ -1413,6 +1460,13 @@ components:
           - type: 'null'
           title: Maintenance Comments
           description: Comments about the maintenance state of the worker.
+        concurrency:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Concurrency
+          description: Desired concurrency for the worker set by an administrator.
+            None means no remote override; the worker uses its startup value.
       type: object
       required:
       - state

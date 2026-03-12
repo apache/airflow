@@ -102,9 +102,7 @@ export const AssetEvent = ({
           </Text>
         </HStack>
       )}
-      {Object.keys(extra).length >= 1 ? (
-        <RenderedJsonField content={extra} jsonProps={{ collapsed: true }} />
-      ) : undefined}
+      {Object.keys(extra).length >= 1 ? <RenderedJsonField collapsed content={extra} /> : undefined}
     </Box>
   );
 };

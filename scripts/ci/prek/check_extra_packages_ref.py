@@ -19,7 +19,7 @@
 # /// script
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "hatchling==1.27.0",
+#   "hatchling==1.29.0",
 #   "rich>=13.6.0",
 #   "tabulate>=0.9.0",
 # ]

@@ -431,6 +431,102 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
     wi.print_all_ga_outputs()
 
 
+def _check_k8s_schema_published(version: str) -> bool:
+    """Check if K8s schemas for a given version are published on airflow.apache.org."""
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    url = f"https://airflow.apache.org/k8s-schemas/v{version}-standalone-strict/configmap-v1.json"
+    req = Request(url, method="HEAD")
+    try:
+        resp = urlopen(req, timeout=15)
+        return resp.status == 200
+    except (HTTPError, URLError):
+        return False
+
+
+def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_env: dict[str, str]) -> None:
+    """Sync K8s schemas to airflow-site directory if needed."""
+    from airflow_breeze.global_constants import ALLOWED_KUBERNETES_VERSIONS
+
+    versions = [v.lstrip("v") for v in ALLOWED_KUBERNETES_VERSIONS]
+    missing: list[str] = []
+    for version in versions:
+        if not _check_k8s_schema_published(version):
+            missing.append(version)
+
+    if not missing and not force:
+        get_console().print("[success]All K8s schema versions are already published. Skipping sync.[/]")
+        return
+
+    if missing:
+        get_console().print(
+            f"[warning]K8s schemas missing for versions: {', '.join(f'v{v}' for v in missing)}[/]"
+        )
+    else:
+        get_console().print("[info]Force sync requested.[/]")
+
+    if not airflow_site.is_dir():
+        get_console().print(
+            f"[error]airflow-site directory not found at {airflow_site}. "
+            "Use --airflow-site to specify the path to the airflow-site checkout.[/]"
+        )
+        return
+
+    # Verify this is the airflow-site repo by checking git remote
+    remote_result = run_command(
+        ["git", "-C", str(airflow_site), "remote", "-v"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if remote_result.returncode != 0 or "airflow-site" not in remote_result.stdout:
+        get_console().print(
+            f"[error]{airflow_site} does not appear to be a clone of the airflow-site repository.[/]"
+        )
+        return
+
+    static_dir = airflow_site / "landing-pages" / "site" / "static"
+    if not static_dir.is_dir():
+        get_console().print(
+            f"[error]Expected directory structure not found: {static_dir}\n"
+            "The airflow-site checkout should contain landing-pages/site/static/.[/]"
+        )
+        return
+
+    output_dir = static_dir / "k8s-schemas"
+
+    # Filter out versions already present in the local airflow-site checkout
+    versions_to_download = missing if (missing and not force) else versions
+    versions_to_download = [
+        v
+        for v in versions_to_download
+        if not (output_dir / f"v{v}-standalone-strict").is_dir()
+        or not any((output_dir / f"v{v}-standalone-strict").iterdir())
+    ]
+
+    if not versions_to_download:
+        get_console().print(
+            "[success]All required K8s schema versions already exist in airflow-site. Skipping download.[/]"
+        )
+        return
+
+    get_console().print(
+        f"[info]Downloading K8s schemas for versions "
+        f"{', '.join(f'v{v}' for v in versions_to_download)} to {output_dir}...[/]"
+    )
+    cmd = [
+        "uv",
+        "run",
+        str(AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "download_k8s_schemas.py"),
+        "--output-dir",
+        str(output_dir),
+        "--versions",
+        *versions_to_download,
+    ]
+    run_command(cmd, check=False, env=command_env)
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -453,10 +549,64 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
     help="Automatically switch to the base branch if not already on it (if not specified, will ask)",
     is_flag=True,
 )
+@click.option(
+    "--airflow-site",
+    default="../airflow-site",
+    show_default=True,
+    type=click.Path(file_okay=False, dir_okay=True, resolve_path=True, path_type=Path),
+    help="Path to airflow-site checkout for publishing K8s schemas",
+)
+@click.option(
+    "--force-k8s-schema-sync",
+    is_flag=True,
+    default=False,
+    help="Force syncing K8s schemas to airflow-site even if all versions appear published",
+)
+@click.option(
+    "--autoupdate/--no-autoupdate",
+    default=True,
+    show_default=True,
+    help="Run prek autoupdate to update hook revisions",
+)
+@click.option(
+    "--pin-versions/--no-pin-versions",
+    default=True,
+    show_default=True,
+    help="Run pin-versions to pin CI dependency versions",
+)
+@click.option(
+    "--update-chart-dependencies/--no-update-chart-dependencies",
+    default=True,
+    show_default=True,
+    help="Run update-chart-dependencies to update Helm chart dependencies",
+)
+@click.option(
+    "--upgrade-important-versions/--no-upgrade-important-versions",
+    default=True,
+    show_default=True,
+    help="Run upgrade-important-versions to bump key dependency versions",
+)
+@click.option(
+    "--k8s-schema-sync/--no-k8s-schema-sync",
+    default=True,
+    show_default=True,
+    help="Sync K8s JSON schemas to airflow-site",
+)
 @option_answer
 @option_verbose
 @option_dry_run
-def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | None):
+def upgrade(
+    target_branch: str,
+    create_pr: bool | None,
+    switch_to_base: bool | None,
+    airflow_site: Path,
+    force_k8s_schema_sync: bool,
+    autoupdate: bool,
+    pin_versions: bool,
+    update_chart_dependencies: bool,
+    upgrade_important_versions: bool,
+    k8s_schema_sync: bool,
+):
     # Validate target_branch pattern
     target_branch_pattern = re.compile(r"^(main|v\d+-\d+-test)$")
     if not target_branch_pattern.match(target_branch):
@@ -634,16 +784,37 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
         )
 
     # Define all upgrade commands to run (all run with check=False to continue on errors)
-    upgrade_commands = [
-        "prek autoupdate --cooldown-days 4 --freeze",
-        "prek --all-files --verbose --hook-stage manual pin-versions",
-        "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual update-chart-dependencies",
-        "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual upgrade-important-versions",
+    upgrade_commands: list[tuple[str, str]] = [
+        ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
+        ("pin-versions", "prek --all-files --verbose --stage manual pin-versions"),
+        (
+            "update-chart-dependencies",
+            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
+        ),
+        (
+            "upgrade-important-versions",
+            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
+        ),
     ]
+    step_enabled = {
+        "autoupdate": autoupdate,
+        "pin-versions": pin_versions,
+        "update-chart-dependencies": update_chart_dependencies,
+        "upgrade-important-versions": upgrade_important_versions,
+    }
 
-    # Execute all upgrade commands with the environment containing GitHub token
-    for command in upgrade_commands:
-        run_command(command.split(), check=False, env=command_env)
+    # Execute enabled upgrade commands with the environment containing GitHub token
+    for step_name, command in upgrade_commands:
+        if step_enabled[step_name]:
+            run_command(command.split(), check=False, env=command_env)
+        else:
+            get_console().print(f"[info]Skipping {step_name} (disabled).[/]")
+
+    # Sync K8s schemas to airflow-site
+    if k8s_schema_sync:
+        _sync_k8s_schemas_to_airflow_site(airflow_site, force_k8s_schema_sync, command_env)
+    else:
+        get_console().print("[info]Skipping K8s schema sync (disabled).[/]")
 
     res = run_command(["git", "diff", "--exit-code"], check=False)
     if res.returncode == 0:

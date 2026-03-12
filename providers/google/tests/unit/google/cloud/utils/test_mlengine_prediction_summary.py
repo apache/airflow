@@ -24,6 +24,10 @@ from unittest import mock
 import dill
 import pytest
 
+# TODO: Remove below skip once beam provider changed to ready state
+pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
+
+
 if sys.version_info < (3, 12):
     from airflow.providers.google.cloud.utils import mlengine_prediction_summary
 else:

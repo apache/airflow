@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -35,14 +36,22 @@ class TestKerberos:
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert k8s_objects_to_consider_str.count("kerberos") == 1
 
-    def test_kerberos_envs_available_in_worker_with_persistence(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}, "celery": {"persistence": {"enabled": True}}},
+            {"celery": {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}}},
+            {
+                "kerberosSidecar": {"enabled": True},
+                "celery": {"kerberosSidecar": {"enabled": False}, "persistence": {"enabled": True}},
+            },
+        ],
+    )
+    def test_kerberos_envs_available_in_worker_with_persistence(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "kerberosSidecar": {"enabled": True},
-                    "celery": {"persistence": {"enabled": True}},
-                },
+                "workers": workers_values,
                 "kerberos": {
                     "enabled": True,
                     "configPath": "/etc/krb5.conf",
@@ -60,35 +69,46 @@ class TestKerberos:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
-    def test_kerberos_sidecar_resources(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "resources": {"requests": {"cpu": "200m", "memory": "200Mi"}},
+                }
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "resources": {"requests": {"cpu": "200m", "memory": "200Mi"}},
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {"resources": {"limits": {"cpu": "20m", "memory": "20Mi"}}},
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "resources": {"requests": {"cpu": "200m", "memory": "200Mi"}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_sidecar_resources(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "kerberosSidecar": {
-                        "enabled": True,
-                        "resources": {
-                            "requests": {
-                                "cpu": "200m",
-                                "memory": "200Mi",
-                            },
-                            "limits": {
-                                "cpu": "201m",
-                                "memory": "201Mi",
-                            },
-                        },
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].resources.requests.cpu", docs[0]) == "200m"
-        assert (
-            jmespath.search("spec.template.spec.containers[2].resources.requests.memory", docs[0]) == "200Mi"
-        )
-        assert jmespath.search("spec.template.spec.containers[2].resources.limits.cpu", docs[0]) == "201m"
-        assert jmespath.search("spec.template.spec.containers[2].resources.limits.memory", docs[0]) == "201Mi"
+        assert jmespath.search("spec.template.spec.containers[2].resources", docs[0]) == {
+            "requests": {"cpu": "200m", "memory": "200Mi"}
+        }
 
     def test_keberos_sidecar_resources_are_not_added_by_default(self):
         docs = render_chart(

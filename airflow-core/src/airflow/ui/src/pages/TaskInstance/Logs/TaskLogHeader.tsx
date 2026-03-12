@@ -192,7 +192,7 @@ export const TaskLogHeader = ({
             <Select.Trigger clearable>
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
-            <Select.Content>
+            <Select.Content zIndex={zIndex}>
               {sourceOptionList.items.map((option) => (
                 <Select.Item item={option} key={option.label}>
                   {option.label}

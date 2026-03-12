@@ -29,7 +29,7 @@ from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from unit.fab.auth_manager.test_utils import (
     create_user,
     delete_role,
     delete_user,
@@ -69,9 +69,6 @@ def delete_roles(app):
 
 @pytest.fixture
 def app():
-    from airflow.api_fastapi.app import purge_cached_app
-
-    purge_cached_app()
     with conf_vars(
         {
             (

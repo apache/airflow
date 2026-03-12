@@ -76,3 +76,41 @@ class TestGetMeResponse:
         response = unauthenticated_test_client.get("/auth/me")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
+
+
+class TestGenerateToken:
+    def test_generate_api_token(self, test_client):
+        """Test generating an API token returns correct response shape."""
+        response = test_client.post("/auth/token", json={"token_type": "api"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "api"
+        assert data["expires_in_seconds"] == 86400  # default jwt_expiration_time
+
+    def test_generate_cli_token(self, test_client):
+        """Test generating a CLI token uses jwt_cli_expiration_time config."""
+        response = test_client.post("/auth/token", json={"token_type": "cli"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "cli"
+        # cli expiration comes from jwt_cli_expiration_time config
+        assert isinstance(data["expires_in_seconds"], int)
+        assert data["expires_in_seconds"] > 0
+
+    def test_default_token_type_is_api(self, test_client):
+        """Test that the default token type is API when not specified."""
+        response = test_client.post("/auth/token", json={})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["token_type"] == "api"
+
+    def test_unauthenticated_request(self, unauthenticated_test_client):
+        """Test that unauthenticated requests are rejected."""
+        response = unauthenticated_test_client.post("/auth/token", json={"token_type": "api"})
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Not authenticated"}

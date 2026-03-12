@@ -48,9 +48,7 @@ ACCEPTED_NON_INIT_DIRS = [
     "non_python_src",
 ]
 
-IGNORE_DIR_PATTERNS = [
-    "airflow/providers/edge3/plugins",
-]
+IGNORE_DIR_PATTERNS = ["airflow/providers/edge3/plugins", "airflow/providers/common/ai/plugins"]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)'
 

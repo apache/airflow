@@ -29,6 +29,30 @@
 Changelog
 ---------
 
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``spark-pipelines operator (#61681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: resolve connection master URL construction for various protocols in SparkSubmitHook (#61528)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate apache/spark connection UI metadata to YAML (#62381)``
+
 5.5.0
 .....
 

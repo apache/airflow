@@ -72,6 +72,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   );
 
   const hasSchedule = dag?.timetable_summary !== null;
+  const isPartitioned = dag ? dag.timetable_partitioned : false;
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -134,6 +135,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   dagDisplayName={dagDisplayName}
                   dagId={dagId}
                   hasSchedule={hasSchedule}
+                  isPartitioned={isPartitioned}
                   isPaused={isPaused}
                   onClose={onClose}
                   open={open}

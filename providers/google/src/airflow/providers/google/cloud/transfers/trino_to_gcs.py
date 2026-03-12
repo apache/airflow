@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -51,7 +52,7 @@ class _TrinoToGCSTrinoCursorAdapter:
         self.initialized: bool = False
 
     @property
-    def description(self) -> list[tuple]:
+    def description(self) -> Sequence[tuple[Any, ...]]:
         """
         This read-only attribute is a sequence of 7-item sequences.
 

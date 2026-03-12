@@ -105,6 +105,10 @@ from tests_common.test_utils.mock_operators import (
     GithubLink,
     MockOperator,
 )
+from tests_common.test_utils.providers import (
+    IGNORE_MODULE_IMPORT_ERRORS,
+    get_suspended_providers_folders,
+)
 from tests_common.test_utils.timetables import (
     CustomSerializationTimetable,
     cron_timetable,
@@ -426,8 +430,8 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         (AIRFLOW_REPO_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
     )
     for provider, provider_info in all_providers.items():
+        provider_path = provider.replace(".", "/")
         if python_version in provider_info.get("excluded-python-versions"):
-            provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
     current_python_version = sys.version_info[:2]
     if current_python_version >= (3, 13):
@@ -457,9 +461,12 @@ def collect_dags(dag_folder=None):
             patterns = dag_folder
         else:
             patterns = [dag_folder]
+    suspended_providers_path = get_suspended_providers_folders()
+
     excluded_patterns = [
         f"{AIRFLOW_REPO_ROOT_PATH}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()
-    ]
+    ] + suspended_providers_path
+
     with mock.patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout", return_value=60):
         for pattern in patterns:
             for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
@@ -553,6 +560,11 @@ class TestStringifiedDAGs:
             # This "looks" like a problem, but is just a quirk of the parse-all-dags-in-one-process we do
             # in this test
             if "AirflowDagDuplicatedIdException: Ignoring DAG example_sagemaker" not in error
+            # Ignore module import errors for any suspended provider paths used in example dags
+            if any(
+                f"{ignore_module_import_error}" not in error
+                for ignore_module_import_error in IGNORE_MODULE_IMPORT_ERRORS
+            )
         }
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too

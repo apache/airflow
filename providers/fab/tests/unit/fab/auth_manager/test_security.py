@@ -52,7 +52,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from unit.fab.auth_manager.test_utils import (
     create_user,
     create_user_scope,
     delete_role,
@@ -211,9 +211,6 @@ def clear_db_before_test():
 
 @pytest.fixture(scope="module")
 def app():
-    from airflow.api_fastapi.app import purge_cached_app
-
-    purge_cached_app()
     with conf_vars(
         {
             (

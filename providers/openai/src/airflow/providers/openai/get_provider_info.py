@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "OpenAI",
                 "external-doc-url": "https://platform.openai.com/docs/introduction",
+                "logo": "/docs/integration-logos/OpenAI.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-openai/operators/openai.rst"],
                 "tags": ["software"],
             }
@@ -47,6 +48,11 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.openai.hooks.openai.OpenAIHook",
                 "connection-type": "openai",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {},
+                },
             }
         ],
     }

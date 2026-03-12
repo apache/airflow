@@ -22,7 +22,9 @@ Breeze can be used to test new release candidates of distributions - both Airflo
 configure the CI image of Breeze to install and start Airflow for both Airflow and providers, whether they
 are built from sources or downloaded from PyPI as release candidates.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Prerequisites
 -------------

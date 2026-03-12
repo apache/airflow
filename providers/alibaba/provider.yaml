@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1769460342
+source-date-epoch: 1773070020
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.3.5
   - 3.3.4
   - 3.3.3
   - 3.3.2
@@ -127,8 +128,59 @@ connection-types:
     connection-type: adb_spark
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.base_alibaba.AlibabaBaseHook
     connection-type: alibaba_cloud
+    conn-fields:
+      access_key_id:
+        label: Access Key ID
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      access_key_secret:
+        label: Access Key Secret
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.maxcompute.MaxComputeHook
     connection-type: maxcompute
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - login
+        - password
+        - port
+        - extra
+      relabeling: {}
+    conn-fields:
+      access_key_id:
+        label: Access Key ID
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      access_key_secret:
+        label: Access Key Secret
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      project:
+        label: Project
+        schema:
+          type:
+            - string
+            - 'null'
+      endpoint:
+        label: Endpoint
+        schema:
+          type:
+            - string
+            - 'null'
 
 logging:
   - airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler

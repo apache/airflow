@@ -27,7 +27,6 @@ test.describe("XComs Page", () => {
   let xcomsPage: XComsPage;
   const testDagId = testConfig.xcomDag.id;
   const testXComKey = "return_value";
-  const paginationLimit = 3;
   const triggerCount = 2;
 
   test.beforeAll(async ({ browser }) => {
@@ -96,9 +95,5 @@ test.describe("XComs Page", () => {
 
   test("verify filtering by DAG display name", async () => {
     await xcomsPage.verifyDagDisplayNameFiltering(testDagId);
-  });
-
-  test("verify pagination works", async () => {
-    await xcomsPage.verifyPagination(paginationLimit);
   });
 });

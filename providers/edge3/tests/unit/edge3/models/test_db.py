@@ -44,7 +44,7 @@ class TestEdgeDBManager:
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         run_db_manager = RunDBManager()
-        assert run_db_manager._managers == [EdgeDBManager]
+        assert EdgeDBManager in run_db_manager._managers
 
     @conf_vars(
         {
@@ -168,11 +168,13 @@ class TestEdgeDBManager:
         __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
         "get_current_revision",
     )
-    def test_initdb_new_db(self, mock_get_rev, mock_create, mock_upgrade, session):
+    @mock.patch("airflow.providers.edge3.models.db.inspect")
+    def test_initdb_new_db(self, mock_inspect, mock_get_rev, mock_create, mock_upgrade, session):
         """Test that initdb calls create_db_from_orm for new databases."""
         from airflow.providers.edge3.models.db import EdgeDBManager
 
         mock_get_rev.return_value = None
+        mock_inspect.return_value.get_table_names.return_value = []  # no tables exist
 
         manager = EdgeDBManager(session)
         manager.initdb()
@@ -205,11 +207,80 @@ class TestEdgeDBManager:
         mock_create.assert_not_called()
 
     def test_revision_heads_map_populated(self):
-        """Test that _REVISION_HEADS_MAP is populated with the initial migration."""
+        """Test that _REVISION_HEADS_MAP is populated with all known migrations."""
         from airflow.providers.edge3.models.db import _REVISION_HEADS_MAP
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
+        assert "3.2.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.2.0"] == "b3c4d5e6f7a8"
+
+    def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
+        """Test that initdb runs incremental migrations when tables exist but alembic version table does not."""
+        from sqlalchemy import inspect, text
+
+        from airflow import settings
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        manager = EdgeDBManager(session)
+
+        # Simulate pre-alembic state: tables exist but no version table and no concurrency column
+        with settings.engine.begin() as conn:
+            inspector = inspect(conn)
+            if inspector.has_table("alembic_version_edge3"):
+                conn.execute(text("DELETE FROM alembic_version_edge3"))
+            if "concurrency" in {col["name"] for col in inspector.get_columns("edge_worker")}:
+                from alembic.migration import MigrationContext
+                from alembic.operations import Operations
+
+                mc = MigrationContext.configure(conn, opts={"render_as_batch": True})
+                ops = Operations(mc)
+                ops.drop_column("edge_worker", "concurrency")
+
+        # initdb() should detect tables exist, stamp to base, then upgrade
+        manager.initdb()
+
+        with settings.engine.connect() as conn:
+            version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
+            columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
+
+        assert version == "b3c4d5e6f7a8"
+        assert "concurrency" in columns
+
+    def test_migration_adds_concurrency_column(self, session):
+        """Test that upgrading from 3.0.0 actually adds the concurrency column."""
+        from alembic import command
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+        from sqlalchemy import inspect
+
+        from airflow import settings
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        manager = EdgeDBManager(session)
+        config = manager.get_alembic_config()
+
+        # DDL must be committed before alembic opens its own connection — use engine.begin()
+        # so the DROP is visible to the fresh connection that upgradedb() creates internally.
+        with settings.engine.begin() as conn:
+            inspector = inspect(conn)
+            if "concurrency" in {col["name"] for col in inspector.get_columns("edge_worker")}:
+                mc = MigrationContext.configure(conn, opts={"render_as_batch": True})
+                ops = Operations(mc)
+                ops.drop_column("edge_worker", "concurrency")
+
+        # Stamp to old revision (pre-concurrency) using alembic's own connection
+        command.stamp(config, "9d34dfc2de06")
+
+        # Run the upgrade — migration 0002 should detect the missing column and add it
+        manager.upgradedb()
+
+        # Verify with a fresh connection (upgradedb also uses its own connection)
+        with settings.engine.connect() as conn:
+            inspector = inspect(conn)
+            columns = {col["name"] for col in inspector.get_columns("edge_worker")}
+
+        assert "concurrency" in columns, "Migration 0002 should have added the concurrency column"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""
@@ -247,24 +318,30 @@ class TestCheckDbManagerConfig:
 
     pytestmark: list = []  # no db_test needed — purely config-based
 
-    def test_warns_when_not_configured(self):
-        """Warning is emitted when EdgeDBManager is absent from external_db_managers."""
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_warns_when_not_configured(self, mock_pm):
+        """Warning is emitted when EdgeDBManager is absent from external_db_managers and not discovered."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars({("database", "external_db_managers"): ""}):
             with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
                 check_db_manager_config()
 
-    def test_warns_when_other_manager_configured(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_warns_when_other_manager_configured(self, mock_pm):
         """Warning is emitted when a different manager is configured but not EdgeDBManager."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars({("database", "external_db_managers"): "some.other.DBManager"}):
             with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
                 check_db_manager_config()
 
-    def test_no_warn_when_configured(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_configured(self, mock_pm):
         """No warning when EdgeDBManager is properly configured."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars(
@@ -276,8 +353,10 @@ class TestCheckDbManagerConfig:
                 warnings.simplefilter("error")
                 check_db_manager_config()  # must not raise
 
-    def test_no_warn_when_configured_among_multiple(self):
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_configured_among_multiple(self, mock_pm):
         """No warning when EdgeDBManager appears alongside other managers."""
+        mock_pm.return_value.db_managers = []
         from airflow.providers.edge3.models.db import check_db_manager_config
 
         with conf_vars(
@@ -287,6 +366,17 @@ class TestCheckDbManagerConfig:
                 ),
             }
         ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                check_db_manager_config()  # must not raise
+
+    @mock.patch("airflow.providers_manager.ProvidersManager")
+    def test_no_warn_when_discovered(self, mock_pm):
+        """No warning when EdgeDBManager is auto-discovered via ProvidersManager."""
+        mock_pm.return_value.db_managers = ["airflow.providers.edge3.models.db.EdgeDBManager"]
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars({("database", "external_db_managers"): ""}):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
                 check_db_manager_config()  # must not raise

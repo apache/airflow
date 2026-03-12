@@ -112,7 +112,7 @@ class FABAuthManagerRoles:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Role with name {name!r} does not exist.",
             )
-        security_manager.delete_role(existing)
+        security_manager.delete_role(existing.name)
 
     @classmethod
     def get_role(cls, name: str) -> RoleResponse:

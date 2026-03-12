@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-teradata``
 
-Release: ``3.4.3``
+Release: ``3.5.0``
 
 
 `Teradata <https://www.teradata.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``teradata`` provider. All classes for this provi
 are in ``airflow.providers.teradata`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.4.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.5.0/>`_.
 
 Installation
 ------------
@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``teradatasqlalchemy``                      ``>=17.20.0.0``
 ``teradatasql``                             ``>=17.20.0.28``
 ==========================================  ==================
@@ -96,4 +96,4 @@ Extra                Dependencies
 ===================  ============================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.4.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.5.0/changelog.html>`_.

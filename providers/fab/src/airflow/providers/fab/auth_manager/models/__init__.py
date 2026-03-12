@@ -61,6 +61,7 @@ assoc_group_role = Table(
     UniqueConstraint("group_id", "role_id"),
     Index("idx_group_id", "group_id"),
     Index("idx_group_role_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_permission_role = Table(
@@ -87,6 +88,7 @@ assoc_permission_role = Table(
     UniqueConstraint("permission_view_id", "role_id"),
     Index("idx_permission_view_id", "permission_view_id"),
     Index("idx_role_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_user_role = Table(
@@ -101,6 +103,7 @@ assoc_user_role = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_user_group = Table(
@@ -115,6 +118,7 @@ assoc_user_group = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "group_id"),
+    extend_existing=True,
 )
 
 
@@ -122,6 +126,7 @@ class Action(Model):
     """Represents permission actions such as `can_read`."""
 
     __tablename__ = "ab_permission"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -138,6 +143,7 @@ class Resource(Model):
     """Represents permission object such as `User` or `Dag`."""
 
     __tablename__ = "ab_view_menu"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -163,6 +169,7 @@ class Role(Model):
     """Represents a user role to which permissions can be assigned."""
 
     __tablename__ = "ab_role"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -186,7 +193,7 @@ class Permission(Model):
     """Permission pair comprised of an Action + Resource combo."""
 
     __tablename__ = "ab_permission_view"
-    __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
+    __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"), {"extend_existing": True})
     id: Mapped[int] = mapped_column(
         Integer,
         Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
@@ -205,6 +212,7 @@ class Group(Model):
     """Represents an Airflow user group."""
 
     __tablename__ = "ab_group"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -229,6 +237,7 @@ class User(Model, BaseUser):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -343,6 +352,7 @@ class RegisterUser(Model):
     """Represents a user registration."""
 
     __tablename__ = "ab_register_user"
+    __table_args__ = {"extend_existing": True}
 
     id = mapped_column(
         Integer,

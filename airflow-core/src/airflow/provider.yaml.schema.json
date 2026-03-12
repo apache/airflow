@@ -89,6 +89,7 @@
                         "items": {
                             "type": "string",
                             "enum": [
+                                "ai",
                                 "alibaba",
                                 "apache",
                                 "aws",
@@ -535,6 +536,13 @@
         "executors": {
             "type": "array",
             "description": "Executor class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "db-managers": {
+            "type": "array",
+            "description": "DB manager class names",
             "items": {
                 "type": "string"
             }

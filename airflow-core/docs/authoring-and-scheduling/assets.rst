@@ -63,7 +63,7 @@ For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must pro
     # invalid asset:
     must_contain_bucket_name = Asset("s3://")
 
-Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
+Do not use the ``airflow`` scheme, which is reserved for Airflow's internals.
 
 Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
 

@@ -34,7 +34,8 @@ class AwaitMessageSensor(BaseSensorOperator):
     The behavior of the consumer for this trigger is as follows:
     - poll the Kafka topics for a message
     - if no message returned, sleep
-    - process the message with provided callable and commit the message offset
+    - process the message with provided callable
+    - if commit_offset is True (default), commit the message offset after processing
     - if callable returns any data, raise a TriggerEvent with the return data
     - else continue to next message
     - return event (as default xcom or specific xcom key)
@@ -53,6 +54,9 @@ class AwaitMessageSensor(BaseSensorOperator):
     :param poll_interval: How long the kafka consumer should sleep after reaching the end of the Kafka log,
         defaults to 5
     :param xcom_push_key: the name of a key to push the returned message to, defaults to None
+    :param commit_offset: Whether to commit the message offset after processing.
+        If False, the offset is not committed by the sensor, allowing downstream
+        tasks to commit it manually (e.g., after successful processing). Defaults to True.
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :param timeout: Time elapsed before the task times out and fails (in seconds)
     :param poke_interval: This parameter is inherited but not used in this deferrable implementation
@@ -70,18 +74,20 @@ class AwaitMessageSensor(BaseSensorOperator):
         "apply_function_args",
         "apply_function_kwargs",
         "kafka_config_id",
+        "commit_offset",
     )
 
     def __init__(
         self,
         topics: Sequence[str],
-        apply_function: str,
+        apply_function: str | None,
         kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,
         poll_interval: float = 5,
-        xcom_push_key=None,
+        xcom_push_key: str | None = None,
+        commit_offset: bool = True,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -94,6 +100,7 @@ class AwaitMessageSensor(BaseSensorOperator):
         self.poll_timeout = poll_timeout
         self.poll_interval = poll_interval
         self.xcom_push_key = xcom_push_key
+        self.commit_offset = commit_offset
 
     def execute(self, context) -> Any:
         self.defer(
@@ -105,6 +112,7 @@ class AwaitMessageSensor(BaseSensorOperator):
                 kafka_config_id=self.kafka_config_id,
                 poll_timeout=self.poll_timeout,
                 poll_interval=self.poll_interval,
+                commit_offset=self.commit_offset,
             ),
             method_name="execute_complete",
         )
@@ -163,7 +171,7 @@ class AwaitMessageTriggerFunctionSensor(BaseSensorOperator):
     def __init__(
         self,
         topics: Sequence[str],
-        apply_function: str,
+        apply_function: str | None,
         event_triggered_function: Callable,
         kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,

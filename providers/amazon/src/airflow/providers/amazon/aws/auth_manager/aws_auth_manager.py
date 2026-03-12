@@ -71,6 +71,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     """
 
     def init(self) -> None:
+        super().init()
         if not AIRFLOW_V_3_0_PLUS:
             raise AirflowOptionalProviderFeatureException(
                 "AWS auth manager is only compatible with Airflow versions >= 3.0.0"

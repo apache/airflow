@@ -260,15 +260,16 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.10.4"
+AIRFLOW_UV_VERSION = "0.10.9"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
-PREK_VERSION = "0.3.3"
-HATCH_VERSION = "1.16.3"
+PREK_VERSION = "0.3.5"
+HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
+# Pin on virtualenv is temporary for pypa/hatch#2193
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -885,11 +886,11 @@ def prepare_provider_documentation(
     suspended_packages = []
     removed_packages = []
     for provider_id in provider_distributions:
-        provider_metadata = basic_provider_checks(provider_id)
-        if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-            if not only_min_version_update:
-                get_console().print("-" * get_console().width)
         try:
+            provider_metadata = basic_provider_checks(provider_id)
+            if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+                if not only_min_version_update:
+                    get_console().print("-" * get_console().width)
             with_breaking_changes = False
             maybe_with_new_features = False
             with ci_group(
@@ -1128,6 +1129,11 @@ def prepare_provider_distributions(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    get_console().print("\n[info]Cleaning generated _api folders from docs directories")
+    for api_dir in AIRFLOW_ROOT_PATH.rglob("docs/_api"):
+        if api_dir.is_dir():
+            shutil.rmtree(api_dir, ignore_errors=True)
+            get_console().print(f"[info]Removed {api_dir}")
     distributions_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
         get_console().print(
@@ -2260,6 +2266,7 @@ def release_prod_images(
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
