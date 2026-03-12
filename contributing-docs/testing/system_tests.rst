@@ -25,7 +25,9 @@ external services. A system test tries to look as close to a regular Dag as poss
 System tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Purpose of System Tests
 -----------------------

@@ -171,6 +171,7 @@ github:
     - gyli
     - jroachgolf84
     - Dev-iL
+    - kacpermuda
 
 notifications:
   jobs: jobs@airflow.apache.org

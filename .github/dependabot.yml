@@ -81,15 +81,35 @@ updates:
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      chakra-ui:
+        patterns:
+          - "@chakra-ui/*"
+          - "@emotion/*"
+          - "framer-motion"
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+      typescript:
+        patterns:
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "@types/typescript"
       core-ui-package-updates:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      core-ui-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
@@ -102,15 +122,15 @@ updates:
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
-      core-ui-package-updates:
+      auth-ui-package-updates:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      auth-ui-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
@@ -123,7 +143,7 @@ updates:
     directories:
       - /dev/react-plugin-tools/react_plugin_template
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
       ui-plugin-template-package-updates:
         patterns:
@@ -131,12 +151,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      ui-plugin-template-major-version-updates:
-        patterns:
-          - "*"
-        applies-to: security-updates
-        update-types:
-          - "major"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     cooldown:
@@ -144,7 +161,7 @@ updates:
     directories:
       - /providers/edge3/src/airflow/providers/edge3/plugins/www
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
       edge-ui-package-updates:
         patterns:
@@ -168,15 +185,15 @@ updates:
     directories:
       - /registry
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
-      core-ui-package-updates:
+      registry-package-updates:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-      major-version-updates:
+      registry-major-version-updates:
         patterns:
           - "*"
         applies-to: security-updates
@@ -211,10 +228,10 @@ updates:
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v3-1-test
     groups:
-      core-ui-package-updates:
+      3-1-core-ui-package-updates:
         patterns:
           - "*"
         update-types:
@@ -230,10 +247,10 @@ updates:
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v3-1-test
     groups:
-      core-ui-package-updates:
+      3-1-auth-ui-package-updates:
         patterns:
           - "*"
         update-types:
@@ -253,7 +270,7 @@ updates:
       - /docker_tests
       - /
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v2-11-test
     groups:
       pip-dependency-updates:
@@ -266,12 +283,15 @@ updates:
     directories:
       - /airflow/www/
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v2-11-test
     groups:
-      core-ui-package-updates:
+      legacy-ui-package-updates:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "uv"
     cooldown:

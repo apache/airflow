@@ -100,6 +100,7 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_base.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_exceptions.py",
+            "providers/common/ai/tests/unit/common/ai/test_exceptions.py",
             "providers/common/compat/tests/unit/common/compat/lineage/test_entities.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_operators.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_triggers.py",

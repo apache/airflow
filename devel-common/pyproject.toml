@@ -76,7 +76,6 @@ dependencies = [
 ]
 "docs" = [
     "astroid>=4",
-    "checksumdir>=1.2.0",
     "rich-click>=1.9.7",
     "click>=8.3.0",
     "docutils>=0.21",
@@ -103,7 +102,9 @@ dependencies = [
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
-    "setuptools!=82.0.0",  # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+    # setuptools 82.0.0+ causes redoc to fail due to pkg_resources removal
+    # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
+    "setuptools<82.0.0",
 ]
 "docs-gen" = [
     "diagrams>=0.24.4",

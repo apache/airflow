@@ -165,9 +165,9 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
-          AGENTS\.md$|
-          CLAUDE\.md$|
-          SKILL\.md$|
+          ^.*/AGENTS\.md$|
+          ^.*/CLAUDE\.md$|
+          ^.*/SKILL\.md$|
           ^scripts/ci/license-templates/
       - id: insert-license
         name: Add short license for agentic Markdown files
@@ -181,9 +181,9 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
-          AGENTS\.md$|
-          CLAUDE\.md$|
-          SKILL\.md$
+          ^.*/AGENTS\.md$|
+          ^.*/CLAUDE\.md$|
+          ^.*/SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
@@ -337,7 +337,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 63c8f8312b7559622c0d82815639671ae42132ac  # frozen: v2.4.1
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
     hooks:
       - id: codespell
         name: Run codespell
@@ -363,7 +363,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f  # frozen: v1.22.0
+    rev: 7b62fec6c4f376218c44a74344d2153ee841da89  # frozen: v1.23.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -422,6 +422,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
+      - id: check-registry-types-json-sync
+        name: Check registry types.json in sync with types.py
+        entry: ./scripts/ci/prek/check_registry_types_json_sync.py
+        language: python
+        pass_filenames: false
+        files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -584,6 +590,7 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
+          ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/utils/db\.py$|
@@ -990,6 +997,13 @@ repos:
         language: python
         entry: ./scripts/ci/prek/check_template_fields.py
         files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
+        require_serial: true
+      - id: check-execution-api-versions
+        name: Check execution API datamodel changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_execution_api_versions.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

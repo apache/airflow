@@ -1,0 +1,1 @@
+Support Helm template expressions in ``podAnnotations`` and ``airflowPodAnnotations`` values.
