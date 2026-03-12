@@ -345,6 +345,17 @@ class DbApiHook(BaseHook):
             )
         return inspect(self.get_sqlalchemy_engine())
 
+    def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
+        """
+        Return column names and types for a table using SQLAlchemy Inspector.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: List of dicts with ``name`` and ``type`` keys.
+        """
+        columns = self.inspector.get_columns(table_name, schema=schema)
+        return [{"name": col["name"], "type": str(col["type"])} for col in columns]
+
     @cached_property
     def dialect_name(self) -> str:
         if make_url is not None:

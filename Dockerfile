@@ -51,7 +51,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.1.7"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.12"
+ARG AIRFLOW_PYTHON_VERSION="3.12.13"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.6
+ARG AIRFLOW_UV_VERSION=0.10.9
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -991,10 +991,28 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+    if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         "${flags[@]}" \
-        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
+        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
+        set +x
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+        echo
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" \
+                "${airflow_distributions[@]}"
+    fi
     set +x
     common::install_packaging_tools
     # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
@@ -1183,7 +1201,7 @@ function install_from_external_spec() {
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
         echo
-        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo "${COLOR_RED}The '${AIRFLOW_INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
@@ -1652,7 +1670,8 @@ COPY <<"EOF" /clean-logs.sh
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
 
@@ -1677,10 +1696,12 @@ fi
 retention_days="${RETENTION}"
 
 while true; do
-  echo "Trimming airflow logs to ${retention_days} days."
+  total_retention_minutes=$(( (RETENTION_DAYS * 1440) + RETENTION_MINUTES ))
+  echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
+
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${retention_days}" -name '*.log' -print0 | \
+    -type f -mmin +"${total_retention_minutes}" -name '*.log' -print0 | \
     xargs -0 rm -f || true
 
   if [[ "$MAX_SIZE_BYTES" -gt 0 && "$retention_days" -ge 0 ]]; then

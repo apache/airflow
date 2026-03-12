@@ -64,9 +64,22 @@ def _get_collaborator_logins(repo) -> set[str]:
     return collaborators
 
 
+def _issue_link(github_repository: str, number: int) -> str:
+    """Return a Rich-formatted clickable link for a GitHub issue."""
+    url = f"https://github.com/{github_repository}/issues/{number}"
+    return f"[link={url}]#{number}[/link]"
+
+
+def _user_link(login: str) -> str:
+    """Return a Rich-formatted clickable link for a GitHub user."""
+    url = f"https://github.com/{login}"
+    return f"[link={url}]@{login}[/link]"
+
+
 def _process_batch(
     batch: list[tuple],
     dry_run: bool,
+    github_repository: str,
 ) -> int:
     """Display a batch of proposed unassignments and handle confirmation.
 
@@ -81,9 +94,9 @@ def _process_batch(
     table.add_column("Non-collaborator assignees", style="red")
     for issue, non_collab_logins in batch:
         table.add_row(
-            str(issue.number),
+            _issue_link(github_repository, issue.number),
             issue.title[:80],
-            ", ".join(sorted(non_collab_logins)),
+            ", ".join(_user_link(login) for login in sorted(non_collab_logins)),
         )
     get_console().print(table)
 
@@ -101,9 +114,26 @@ def _process_batch(
 
     unassigned_count = 0
     for issue, non_collab_logins in batch:
+        issue_ref = _issue_link(github_repository, issue.number)
         for login in non_collab_logins:
-            get_console().print(f"  Removing [red]{login}[/] from issue #{issue.number}")
+            user_ref = _user_link(login)
+            get_console().print(f"  Removing [red]{user_ref}[/] from issue {issue_ref}")
             issue.remove_from_assignees(login)
+            comment = (
+                f"@{login} We are unassigning you from this issue as part of our "
+                f"updated [assignment policy]"
+                f"(https://github.com/apache/airflow/blob/main/"
+                f"contributing-docs/04_how_to_contribute.rst"
+                f"#contribute-code-changes).\n\n"
+                f"This is not meant to discourage your contribution — quite the opposite! "
+                f"You are still very welcome to work on this issue and submit a PR for it. "
+                f"Simply comment that you are working on it and open a PR when ready.\n\n"
+                f"We found that formal assignments were not working well, as they often "
+                f"prevented others from contributing when the assignee was not actively "
+                f"working on the issue."
+            )
+            get_console().print(f"  Commenting on issue {issue_ref} about {user_ref}")
+            issue.create_comment(comment)
             unassigned_count += 1
     return unassigned_count
 
@@ -118,6 +148,13 @@ def _process_batch(
     show_default=True,
     help="Number of flagged issues to accumulate before prompting.",
 )
+@click.option(
+    "--max-num",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum number of issues to flag for unassignment. 0 means no limit.",
+)
 @option_dry_run
 @option_verbose
 @option_answer
@@ -125,6 +162,7 @@ def unassign(
     github_token: str | None,
     github_repository: str,
     batch_size: int,
+    max_num: int,
 ):
     from github import Github
 
@@ -160,12 +198,15 @@ def unassign(
         batch.append((issue, non_collab))
         total_flagged += 1
 
+        if max_num and total_flagged >= max_num:
+            break
+
         if len(batch) >= batch_size:
-            total_unassigned += _process_batch(batch, dry_run)
+            total_unassigned += _process_batch(batch, dry_run, github_repository)
             batch = []
 
     # Process remaining batch
-    total_unassigned += _process_batch(batch, dry_run)
+    total_unassigned += _process_batch(batch, dry_run, github_repository)
 
     get_console().print()
     get_console().print("[success]Done![/]")

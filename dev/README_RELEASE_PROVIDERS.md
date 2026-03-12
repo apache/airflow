@@ -259,7 +259,12 @@ changelogs. If there are, you need to add them to PR and classify the changes ma
 * if needed adjust version of provider - in changelog and provider.yaml, in case the new
   change changes classification of the upgrade (patchlevel/minor/major)
 
-Commit the changes and merge the PR, be careful to do it quickly so that no new PRs are merged for
+Commit the changes and create the PR. You need to apply the following labels to the PR:
+
+* `skip common compat check`
+* `allow provider dependency bump`
+
+Once approved, merge it, be careful to do it quickly so that no new PRs are merged for
 providers in the meantime - if they are, you will miss them in the changelog.
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -1038,8 +1043,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 
@@ -1329,6 +1336,13 @@ Or if you just want to publish a few selected providers, you can run:
 
 There is also a manual way of running the workflows (see at the end of the document, this should normally
 not be needed unless there is some problem with workflow automation above)
+
+> [!NOTE]
+> The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
+> `publish-docs-to-s3.yml` workflow (it calls `registry-build.yml` as a post-publish job). The registry
+> extracts metadata from `provider.yaml` files and PyPI, so it picks up new/updated providers without
+> manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
+> workflow manually. See [`registry/README.md`](../registry/README.md) for details.
 
 ## Update providers metadata
 

@@ -121,6 +121,15 @@
     "graphDirection": {
       "label": "圖表方向"
     },
+    "showVersionIndicator": {
+      "label": "版本指示器",
+      "options": {
+        "hideAll": "隱藏全部",
+        "showAll": "顯示全部",
+        "showBundleVersion": "顯示套件包版本",
+        "showDagVersion": "顯示 Dag 版本"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "啟用過濾器",
       "clearFilter": "清除過濾器",

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
@@ -30,7 +32,7 @@ def example_llm_operator():
     LLMOperator(
         task_id="summarize",
         prompt="Summarize the key findings from the Q4 earnings report.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a financial analyst. Be concise.",
     )
 
@@ -50,7 +52,7 @@ def example_llm_operator_structured():
     LLMOperator(
         task_id="extract_entities",
         prompt="Extract all named entities from the article.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Extract named entities.",
         output_type=Entities,
     )
@@ -67,7 +69,7 @@ def example_llm_operator_agent_params():
     LLMOperator(
         task_id="creative_writing",
         prompt="Write a haiku about data pipelines.",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a creative writer.",
         agent_params={"model_settings": {"temperature": 0.9}, "retries": 3},
     )
@@ -81,7 +83,7 @@ example_llm_operator_agent_params()
 # [START howto_decorator_llm]
 @dag
 def example_llm_decorator():
-    @task.llm(llm_conn_id="pydantic_ai_default", system_prompt="Summarize concisely.")
+    @task.llm(llm_conn_id="pydanticai_default", system_prompt="Summarize concisely.")
     def summarize(text: str):
         return f"Summarize this article: {text}"
 
@@ -101,7 +103,7 @@ def example_llm_decorator_structured():
         locations: list[str]
 
     @task.llm(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="Extract named entities.",
         output_type=Entities,
     )
@@ -114,3 +116,23 @@ def example_llm_decorator_structured():
 # [END howto_decorator_llm_structured]
 
 example_llm_decorator_structured()
+
+
+# [START howto_operator_llm_approval]
+@dag
+def example_llm_operator_approval():
+
+    LLMOperator(
+        task_id="summarize_with_approval",
+        prompt="Summarize the quarterly financial report for stakeholders.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a financial analyst. Be concise and accurate.",
+        require_approval=True,
+        approval_timeout=timedelta(hours=24),
+        allow_modifications=True,
+    )
+
+
+# [END howto_operator_llm_approval]
+
+example_llm_operator_approval()

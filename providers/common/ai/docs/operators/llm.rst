@@ -106,6 +106,20 @@ to process a list of items in parallel:
     :start-after: [START howto_decorator_llm_pipeline]
     :end-before: [END howto_decorator_llm_pipeline]
 
+Human-in-the-Loop Approval
+--------------------------
+
+Set ``require_approval=True`` to pause the task after the LLM generates its
+output and wait for a human reviewer to approve or reject it via the Airflow
+HITL interface.  Optionally allow the reviewer to edit the output before
+approving with ``allow_modifications=True``, and set a deadline with
+``approval_timeout``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_approval]
+    :end-before: [END howto_operator_llm_approval]
+
 Parameters
 ----------
 
@@ -118,3 +132,17 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+- ``require_approval``: If ``True``, the task defers after generating output and waits
+  for human review.  Default ``False``.
+- ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
+  means wait indefinitely.  Default ``None``.
+- ``allow_modifications``: If ``True``, the reviewer can edit the output before
+  approving.  Default ``False``.
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. At DEBUG level, the LLM output is also logged
+(truncated to 500 characters). See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.

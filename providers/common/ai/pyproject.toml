@@ -20,8 +20,15 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.12.0"]
-build-backend = "flit_core.buildapi"
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
@@ -59,6 +66,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "apache-airflow-providers-common-compat>=1.14.1",
+    "apache-airflow-providers-standard>=1.12.1",
     "pydantic-ai-slim>=1.14.0",
 ]
 
@@ -69,8 +78,13 @@ dependencies = [
 "bedrock" = ["pydantic-ai-slim[bedrock]"]
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
+"mcp" = ["pydantic-ai-slim[mcp]"]
+"sql" = [
+    "apache-airflow-providers-common-sql",
+    "sqlglot>=26.0.0",
+]
+"common.sql" = [
+    "apache-airflow-providers-common-sql"
 ]
 
 [dependency-groups]
@@ -79,7 +93,12 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "sqlglot>=26.0.0",
+    "pydantic-ai-slim[mcp]",
+    "apache-airflow-providers-common-sql[datafusion]"
 ]
 
 # To build docs:
@@ -119,5 +138,41 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info"
 
-[tool.flit.module]
-name = "airflow.providers.common.ai"
+[project.entry-points."airflow.plugins"]
+hitl_review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
+
+[tool.hatch.version]
+path = "src/airflow/providers/common/ai/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "docs",
+    "src/airflow/providers/common/ai",
+    "tests",
+    "NOTICE"
+]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/common/ai/plugins/www/.pnpm-store",
+    "src/airflow/providers/common/ai/plugins/www/node_modules",
+]
+
+[tool.hatch.build.targets.custom]
+path = "./hatch_build.py"
+
+artifacts = [
+    "src/airflow/providers/common/ai/plugins/www/dist",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/airflow']
+artifacts = [
+    "src/airflow/providers/common/ai/plugins/www/dist",
+]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/common/ai/plugins/www/.pnpm-store",
+    "src/airflow/providers/common/ai/plugins/www/node_modules",
+]

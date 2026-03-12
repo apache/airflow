@@ -821,41 +821,31 @@ class TestWorker:
 
         assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_worker_resources_are_configurable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "resources": {
-                        "limits": {"cpu": "200m", "memory": "128Mi"},
-                        "requests": {"cpu": "300m", "memory": "169Mi"},
-                    }
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}},
+            {"celery": {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}}},
+            {
+                "resources": {"limits": {"cpu": "100m", "memory": "128Mi"}},
+                "celery": {"resources": {"requests": {"cpu": "300m", "memory": "169Mi"}}},
             },
+        ],
+    )
+    def test_worker_resources_are_configurable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         # main container
-        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
-        assert jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0]) == "200m"
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
-        )
-        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "300m"
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {
+            "requests": {"cpu": "300m", "memory": "169Mi"}
+        }
 
         # initContainer wait-for-airflow-configurations
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.limits.memory", docs[0])
-            == "128Mi"
-        )
-        assert jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]) == "200m"
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.requests.memory", docs[0])
-            == "169Mi"
-        )
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]) == "300m"
-        )
+        assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {
+            "requests": {"cpu": "300m", "memory": "169Mi"}
+        }
 
     def test_worker_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -886,11 +876,19 @@ class TestWorker:
         assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
-    def test_airflow_local_settings_kerberos_sidecar(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_airflow_local_settings_kerberos_sidecar(self, workers_values):
         docs = render_chart(
             values={
                 "airflowLocalSettings": "# Well hello!",
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -1739,7 +1737,7 @@ class TestWorkerKedaAutoScaler:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "keda": {"enabled": True},
+                    "celery": {"keda": {"enabled": True}},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -1754,7 +1752,7 @@ class TestWorkerKedaAutoScaler:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "keda": {"enabled": True},
+                    "celery": {"keda": {"enabled": True}},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -1763,56 +1761,110 @@ class TestWorkerKedaAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
-        ("query", "executor", "expected_query"),
+        ("executor", "expected_query"),
         [
-            # default query with CeleryExecutor
             (
-                None,
                 "CeleryExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued') AND queue IN ('default')",
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')",
             ),
-            # default query with CeleryKubernetesExecutor
             (
-                None,
                 "CeleryKubernetesExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
-            ),
-            # test custom static query
-            (
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance",
-                "CeleryKubernetesExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance",
-            ),
-            # test custom template query
-            (
-                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }})"
-                " FROM task_instance",
-                "CeleryKubernetesExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
             ),
         ],
     )
-    def test_should_use_keda_query(self, query, executor, expected_query):
+    def test_keda_query_default(self, executor, expected_query):
         docs = render_chart(
             values={
                 "executor": executor,
                 "workers": {
-                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                    "celery": {"keda": {"enabled": True}},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
+    @pytest.mark.parametrize(
+        ("workers_values", "executor"),
+        [
+            # workers - test custom static query
+            (
+                {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                    }
+                },
+                "CeleryKubernetesExecutor",
+            ),
+            # workers - test custom template query
+            (
+                {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                    }
+                },
+                "CeleryKubernetesExecutor",
+            ),
+            # workers.celery - test custom static query
+            (
+                {
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                        }
+                    }
+                },
+                "CeleryKubernetesExecutor",
+            ),
+            # workers.celery - test custom template query
+            (
+                {
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                        }
+                    }
+                },
+                "CeleryKubernetesExecutor",
+            ),
+            # workers - workers.celery overwrite
+            (
+                {
+                    "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                        }
+                    },
+                },
+                "CeleryKubernetesExecutor",
+            ),
+        ],
+    )
+    def test_keda_query_overwrite(self, workers_values, executor):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0])
+            == "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance"
+        )
+
     def test_mysql_db_backend_keda_worker(self):
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql"}},
-                "workers": {
-                    "keda": {"enabled": True},
-                },
+                "workers": {"celery": {"keda": {"enabled": True}}},
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
@@ -1826,12 +1878,19 @@ class TestWorkerKedaAutoScaler:
 class TestWorkerHPAAutoScaler:
     """Tests worker HPA auto scaler."""
 
-    def test_should_be_disabled_on_keda_enabled(self):
+    @pytest.mark.parametrize(
+        "workers_keda_values",
+        [
+            {"keda": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}},
+        ],
+    )
+    def test_should_be_disabled_on_keda_enabled(self, workers_keda_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "keda": {"enabled": True},
+                    **workers_keda_values,
                     "hpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },

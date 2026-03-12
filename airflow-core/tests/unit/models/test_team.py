@@ -25,6 +25,14 @@ class TestTeam:
     """Unit tests for Team model class methods."""
 
     @pytest.mark.db_test
+    def test_get_name_if_exists_returns_name(self, testing_team):
+        assert Team.get_name_if_exists("testing") == "testing"
+
+    @pytest.mark.db_test
+    def test_get_name_if_exists_returns_none(self):
+        assert Team.get_name_if_exists("nonexistent") is None
+
+    @pytest.mark.db_test
     def test_get_all_team_names_with_teams(self, testing_team):
         result = Team.get_all_team_names()
 

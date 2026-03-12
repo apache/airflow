@@ -70,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.10.6"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.9"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -87,7 +87,7 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           # Need to fetch all history for selective checks tests
           fetch-depth: 0
@@ -106,7 +106,7 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -115,7 +115,7 @@ jobs:
       - name: "Install SVN"
         run: sudo apt-get update && sudo apt-get install -y subversion
       - name: "Install Java (for Apache RAT)"
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v4.7.1
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -134,12 +134,12 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
@@ -155,16 +155,16 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
         with:
           version: 9
           run_install: false
       - name: "Setup node"
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
           node-version: 21
           cache: 'pnpm'
@@ -217,7 +217,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -238,7 +238,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -252,7 +252,7 @@ jobs:
           platform: ${{ inputs.platform }}
           save-cache: true
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -273,7 +273,7 @@ jobs:
     runs-on: ["windows-2025"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -290,7 +290,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -316,7 +316,7 @@ jobs:
         run: >
           prek
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
+          --stage manual
           update-chart-dependencies
         if: always()
       # For UV we are not failing the upgrade installers check if it is updated because
@@ -326,7 +326,7 @@ jobs:
         run: >
           prek
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual upgrade-important-versions || true
+          --stage manual upgrade-important-versions || true
         if: always()
         env:
           UPGRADE_FLIT: "false"
@@ -346,7 +346,7 @@ jobs:
         run: |
           if ! prek \
             --all-files --show-diff-on-failure --color always --verbose \
-            --hook-stage manual upgrade-important-versions; then
+            --stage manual upgrade-important-versions; then
               echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
               echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
               exit 1
@@ -376,7 +376,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -423,11 +423,11 @@ jobs:
       FORCE_COLOR: 1
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        run: pip install "uv==${UV_VERSION}"
         env:
           UV_VERSION: ${{ inputs.uv-version }}
       - name: "Set up Airflow home directory"

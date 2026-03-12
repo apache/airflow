@@ -921,8 +921,13 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["job_id"] = job_id
             del self.json["job_name"]
 
-        if self.cancel_previous_runs and self.json["job_id"] is not None:
-            hook.cancel_all_runs(self.json["job_id"])
+        if self.cancel_previous_runs:
+            if (job_id := self.json.get("job_id")) is None:
+                raise ValueError(
+                    "cancel_previous_runs=True requires either job_id or job_name to be provided."
+                )
+
+            hook.cancel_all_runs(job_id)
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
@@ -1324,7 +1329,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+        tasks = self._hook.get_run_tasks(self.databricks_run_id)
 
         # Because the task_key remains the same across multiple runs, and the Databricks API does not return
         # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we

@@ -283,6 +283,143 @@ Example configurations:
     # Invalid: Duplicate Executor within a Team
     executor = LocalExecutor;team_a=CeleryExecutor,CeleryExecutor;team_b=LocalExecutor
 
+Aliasing Executors Across Teams
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the same executor type is used at both the global and team level (e.g., ``LocalExecutor`` globally and
+``LocalExecutor`` for a team), if tasks wish to target the global executor they need a way to distinguish between the
+two instances. To accomplish this, you can assign **aliases** to core executors using the ``Alias:ExecutorName`` syntax:
+
+.. code-block:: ini
+
+    [core]
+    executor = global_celery_exec:CeleryExecutor;team1=team_celery_exec:CeleryExecutor
+
+With this configuration:
+
+- The global ``CeleryExecutor`` is available via the alias ``global_celery_exec``
+- The team_a ``CeleryExecutor`` is available via the alias ``team_celery_exec``
+- A task in ``team_a`` that sets ``executor="team_celery_exec"``, ``executor="CeleryExecutor"``, or ``executor="airflow.providers.celery.executors.celery_executor.CeleryExecutor"``
+  will run on the **team** executor
+- A task in ``team_a`` that sets ``executor="global_celery_exec"`` will run on the **global** executor
+
+.. code-block:: python
+
+    # Runs on the global CeleryExecutor via alias
+    BashOperator(
+        task_id="uses_global",
+        executor="global_celery_exec",
+        bash_command="echo 'running on global executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via alias
+    BashOperator(
+        task_id="use_team_alias",
+        executor="team_celery_exec",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via class name
+    BashOperator(
+        task_id="use_team_classname",
+        executor="CeleryExecutor",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Runs on team_a's CeleryExecutor via full module path
+    BashOperator(
+        task_id="use_team_module_path",
+        executor="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        bash_command="echo 'running on team executor'",
+    )
+
+    # Also runs on team_a's CeleryExecutor (implicit team default)
+    BashOperator(
+        task_id="use_default",
+        bash_command="echo 'running on default team executor'",
+    )
+
+Aliases work with all core executors (``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, etc) as
+well as custom executor module paths. For more information on aliases and multiple executor configuration,
+see :ref:`Using Multiple Executors Concurrently <using-multiple-executors-concurrently>`.
+
+Team-specific Executor Settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When multiple teams use the same executor type (e.g., both ``team_a`` and ``team_b`` using ``CeleryExecutor``),
+each team can provide its own configuration for that executor. This allows teams to point to different Celery
+brokers, use different Kubernetes namespaces, or customize any executor setting independently.
+
+Configuration Resolution Order
+"""""""""""""""""""""""""""""""
+
+When a team executor reads a configuration value (e.g., ``[celery] broker_url``), the system checks the
+following sources in order, returning the first value found:
+
+1. **Team-specific environment variable** — ``AIRFLOW__{TEAM}___{SECTION}__{KEY}``
+2. **Team-specific config file section** — ``[team_name=section]``
+3. **Default values** — built-in defaults or ``fallback`` values
+
+The following sources are **skipped** for team executors (they do not yet support team-based configuration):
+
+- **Command execution** (``{key}_cmd``)
+- **Secrets backend** (``{key}_secret``)
+
+.. note::
+
+    Team-specific configuration does **not** fall back to the global environment variable or global config file
+    settings. For example, if there is a global ``CeleryExecutor`` and a team ``CeleryExecutor`` in use, the global
+    ``CeleryExecutor`` may want to increase ``celery.worker_concurrency`` from the default of ``16`` to ``32`` by
+    overriding this configuration.  However, the team ``CeleryExecutor`` should not be forced to ``32``, it will
+    continue to use the default of ``16`` unless it is explicitly overridden with team-specific configuration.
+
+Via Environment Variables
+"""""""""""""""""""""""""
+
+Team-specific configuration can be provided using environment variables with the following format:
+
+.. code-block:: text
+
+    AIRFLOW__{TEAM}___{SECTION}__{KEY}
+
+Note the delimiters: double underscore before the team name (part of the ``AIRFLOW__`` prefix), **triple
+underscore** between the team name and section, and double underscore between section and key. The team name
+is uppercase.
+
+.. code-block:: bash
+
+    # team_a's Celery broker URL
+    export AIRFLOW__TEAM_A___CELERY__BROKER_URL="redis://team-a-redis:6379/0"
+
+    # team_b's Celery broker URL
+    export AIRFLOW__TEAM_B___CELERY__BROKER_URL="redis://team-b-redis:6379/0"
+
+    # team_b's Celery result backend
+    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql://team-b-db/celery_results"
+
+Via Config File
+"""""""""""""""
+
+Team-specific settings can also be placed in the ``airflow.cfg`` file using sections prefixed with the team
+name followed by an equals sign:
+
+.. code-block:: ini
+
+    # Global celery settings (used by the global executor, NOT as a fallback for teams)
+    [celery]
+    broker_url = redis://default-redis:6379/0
+    result_backend = db+postgresql://default-db/celery_results
+
+    # team_a overrides
+    [team_a=celery]
+    broker_url = redis://team-a-redis:6379/0
+    result_backend = db+postgresql://team-a-db/celery_results
+
+    # team_b overrides
+    [team_b=celery]
+    broker_url = redis://team-b-redis:6379/0
+    result_backend = db+postgresql://team-b-db/celery_results
+
 Dag Bundle to Team Association
 ------------------------------
 
@@ -370,6 +507,7 @@ Multi-Team mode is currently an experimental feature in preview. It is not yet f
 - Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
 - Some UI elements may not be fully team-aware
 - Full provider support for executors and secrets backends
+- Command and Secrets based lookup for team based configuration
 - Plugins
 
 Global Uniqueness of Identifiers

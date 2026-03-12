@@ -241,8 +241,8 @@ def get_latest_image_version(image: str) -> str:
     version_tags = []
     for tag in tags:
         tag_name = tag["name"]
-        # Skip tags like 'latest', 'stable', etc.
-        if tag_name in ["latest", "stable", "main", "master"]:
+        # Skip tags like 'latest', 'stable', '0', 'v0', etc.
+        if tag_name in ["latest", "stable", "main", "master", "0", "v0"]:
             continue
         try:
             # Try to parse as version to filter out non-version tags

@@ -106,7 +106,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.28.0
+    tag: v0.29.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -338,7 +338,7 @@ networkPolicies:
   enabled: false
 
 # Extra annotations to apply to all
-# Airflow pods
+# Airflow pods (templated)
 airflowPodAnnotations: {}
 
 # Extra annotations to apply to
@@ -703,14 +703,19 @@ workers:
   # to separate value between Celery workers and pod-template-file.
   containerLifecycleHooks: {}
 
-  # Worker pod disruption budget
+  # Airflow Celery workers pod disruption budget
+  # (deprecated, use `workers.celery.podDisruptionBudget` instead)
   podDisruptionBudget:
+    # (deprecated, use `workers.celery.podDisruptionBudget.enabled` instead)
     enabled: false
 
     # PDB configuration
+    # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
     config:
       # minAvailable and maxUnavailable are mutually exclusive
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
       maxUnavailable: 1
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
       # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
@@ -728,24 +733,33 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
+  # (deprecated, use `workers.celery.keda` instead)
   keda:
+    # (deprecated, use `workers.celery.keda.enabled` instead)
     enabled: false
+
+    # (deprecated, use `workers.celery.keda.namespaceLabels` instead)
     namespaceLabels: {}
 
     # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # (deprecated, use `workers.celery.keda.pollingInterval` instead)
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
+    # (deprecated, use `workers.celery.keda.cooldownPeriod` instead)
     cooldownPeriod: 30
 
     # Minimum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.maxReplicaCount` instead)
     maxReplicaCount: 10
 
     # Specify HPA related options
+    # (deprecated, use `workers.celery.keda.advanced` instead)
     advanced: {}
     # horizontalPodAutoscalerConfig:
     #   behavior:
@@ -757,6 +771,7 @@ workers:
     #           periodSeconds: 15
 
     # Query to use for KEDA autoscaling. Must return a single integer.
+    # (deprecated, use `workers.celery.keda.query` instead)
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
@@ -776,6 +791,7 @@ workers:
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
+    # (deprecated, use `workers.celery.keda.usePgbouncer` instead)
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
@@ -838,6 +854,8 @@ workers:
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar to separate
+  # value between Celery workers and pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
     enabled: false
@@ -880,6 +898,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -955,7 +974,7 @@ workers:
   # Annotations for the Airflow Celery worker resource
   annotations: {}
 
-  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
@@ -974,6 +993,12 @@ workers:
 
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
 
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
@@ -1110,6 +1135,53 @@ workers:
     # Container level Lifecycle Hooks definition for Airflow Celery workers
     containerLifecycleHooks: {}
 
+    # Airflow Celery workers pod disruption budget
+    podDisruptionBudget:
+      enabled: ~
+
+      # PDB configuration
+      config:
+        # minAvailable and maxUnavailable are mutually exclusive
+        maxUnavailable: ~
+        # minAvailable: ~
+
+    # Allow KEDA autoscaling for Airflow Celery workers
+    keda:
+      enabled: ~
+
+      namespaceLabels: {}
+
+      # How often KEDA polls the airflow DB to report new scale requests to the HPA
+      pollingInterval: ~
+
+      # How many seconds KEDA will wait before scaling to zero.
+      # Note that HPA has a separate cooldown period for scale-downs
+      cooldownPeriod: ~
+
+      # Minimum number of Airflow Celery workers created by keda
+      minReplicaCount: ~
+
+      # Maximum number of Airflow Celery workers created by keda
+      maxReplicaCount: ~
+
+      # Specify HPA related options
+      advanced: {}
+      # horizontalPodAutoscalerConfig:
+      #   behavior:
+      #     scaleDown:
+      #       stabilizationWindowSeconds: 300
+      #       policies:
+      #         - type: Percent
+      #           value: 100
+      #           periodSeconds: 15
+
+      # Query to use for KEDA autoscaling. Must return a single integer
+      query: ~
+
+      # Weather to use PGBouncer to connect to the database or not when it is enabled
+      # This configuration will be ignored if PGBouncer is not enabled
+      usePgbouncer: ~
+
     # Persistence volume configuration for Airflow Celery workers
     persistence:
       # Enable persistent volumes
@@ -1139,6 +1211,26 @@ workers:
       securityContexts:
         container: {}
 
+    # Kerberos sidecar configuration for Airflow Celery workers
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
     # Kerberos init container configuration for Airflow Celery workers
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
     kerberosInitContainer:
@@ -1161,6 +1253,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Resource configuration for Airflow Celery workers
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1173,6 +1274,26 @@ workers:
 
     # Container level Lifecycle Hooks definition for pods created with pod-template-file
     containerLifecycleHooks: {}
+
+    # Kerberos sidecar configuration for pods created with pod-template-file
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
@@ -1195,6 +1316,15 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
@@ -1352,6 +1482,7 @@ scheduler:
   # annotations for scheduler deployment
   annotations: {}
 
+  # Pod annotations for scheduler pods (templated)
   podAnnotations: {}
 
   # Labels specific to scheduler objects and pods
@@ -1366,6 +1497,12 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -1436,7 +1573,7 @@ createUserJob:
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
-  # Annotations on the create user job pod
+  # Annotations on the create user job pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
@@ -1531,7 +1668,7 @@ migrateDatabaseJob:
 
       airflow db migrate
 
-  # Annotations on the database migration pod
+  # Annotations on the database migration pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
@@ -1611,9 +1748,8 @@ migrateDatabaseJob:
 
 apiServer:
   enabled: true
-  # Number of Airflow API servers in the deployment
-  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
-  # as HPA will automatically manage the number of replicas based on the configured metrics.
+  # Number of Airflow API servers in the deployment.
+  # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1747,6 +1883,7 @@ apiServer:
   # annotations for Airflow API server deployment
   annotations: {}
 
+  # Pod annotations for API server pods (templated)
   podAnnotations: {}
 
   networkPolicy:
@@ -2031,6 +2168,7 @@ webserver:
   # annotations for webserver deployment
   annotations: {}
 
+  # Pod annotations for webserver pods (templated)
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -2194,6 +2332,7 @@ triggerer:
   # annotations for the triggerer deployment
   annotations: {}
 
+  # Pod annotations for triggerer pods (templated)
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -2208,6 +2347,12 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2427,6 +2572,7 @@ dagProcessor:
   # annotations for the dag processor deployment
   annotations: {}
 
+  # Pod annotations for dag processor pods (templated)
   podAnnotations: {}
 
   logGroomerSidecar:
@@ -2438,6 +2584,12 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2611,6 +2763,7 @@ flower:
   # annotations for the flower deployment
   annotations: {}
 
+  # Pod annotations for flower pods (templated)
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -2728,6 +2881,7 @@ statsd:
   # So, If you use it, ensure all mapping item contains in it.
   overrideMappings: []
 
+  # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
 
   # Labels specific to statsd objects and pods
@@ -2757,6 +2911,7 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  # Pod annotations for PgBouncer pods (templated)
   podAnnotations: {}
 
   # Add custom annotations to the pgbouncer certificates secret
@@ -3054,6 +3209,7 @@ redis:
   # Labels specific to redis objects and pods
   labels: {}
 
+  # Pod annotations for Redis pods (templated)
   podAnnotations: {}
 
 # Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
@@ -3152,6 +3308,7 @@ cleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to cleanup objects and pods
@@ -3241,6 +3398,7 @@ databaseCleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for database cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to database cleanup objects and pods
@@ -3500,8 +3658,35 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    # Git-Sync liveness service http bind port
+    httpPort: 1234
+
+    # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
+    # use a dedicated Git-Sync liveness service. In future, behaviour with value true will be
+    # default one and old one will be removed
+    recommendedProbeSetting: false
+
+    startupProbe:
+      enabled: true
+      timeoutSeconds: 1
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 10
+
+    # As Git-Sync is not service-type object, the usage of this section will be removed.
+    # By setting dags.gitSync.recommendedProbeSetting to true, you will enable future behaviour.
     readinessProbe: {}
+
+    # The behaviour of the livenessProbe will change with the next release of Helm Chart.
+    # To enable future behaviour set dags.gitSync.recommendedProbeSetting to true.
+    # New behaviour uses the recommended liveness configuration by using Git-Sync built-in
+    # liveness service
     livenessProbe: {}
+    #  enabled: true
+    #  timeoutSeconds: 1
+    #  initialDelaySeconds: 0
+    #  periodSeconds: 5
+    #  failureThreshold: 10
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:

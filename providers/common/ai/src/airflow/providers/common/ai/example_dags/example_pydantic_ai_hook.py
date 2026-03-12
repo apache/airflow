@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import dag, task
 def example_pydantic_ai_hook():
     @task
     def generate_summary(text: str) -> str:
-        hook = PydanticAIHook(llm_conn_id="pydantic_ai_default")
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
         agent = hook.create_agent(output_type=str, instructions="Summarize concisely.")
         result = agent.run_sync(text)
         return result.output
@@ -51,7 +51,7 @@ def example_pydantic_ai_structured_output():
             query: str
             explanation: str
 
-        hook = PydanticAIHook(llm_conn_id="pydantic_ai_default")
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
         agent = hook.create_agent(
             output_type=SQLResult,
             instructions="Generate a SQL query and explain it.",

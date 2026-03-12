@@ -32,7 +32,6 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from sqlalchemy import (
     and_,
@@ -58,7 +57,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as 
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
-    DagRunContext,
     EmailRequest,
     TaskCallbackRequest,
 )
@@ -85,7 +83,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.callback import Callback
+from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -95,28 +93,25 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import Trace
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     get_dialect_name,
     is_lock_not_available_error,
     prohibit_commit,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -130,7 +125,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.executors.workloads.types import SchedulerWorkload
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -165,6 +160,41 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
     )
+
+
+def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
+    """
+    Ensure a TaskInstance has a valid dag_version_id for Pydantic serialisation.
+
+    Legacy tasks migrated from Airflow 2 may have dag_version_id = None.
+    The Pydantic TaskInstance datamodel requires dag_version_id to be a strict
+    uuid.UUID, so we must backfill it before constructing TaskCallbackRequest
+    or EmailRequest.
+
+    Returns True if dag_version_id is present (or was successfully backfilled),
+    False if it could not be resolved (caller should skip the callback).
+    """
+    if ti.dag_version_id is not None:
+        return True
+
+    latest_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+    if latest_version is None:
+        log.warning(
+            "TaskInstance %s has no dag_version_id and no DagVersion could be found "
+            "for dag_id=%s. Skipping callback. "
+            "This can happen for tasks migrated from Airflow 2 with no subsequent DAG parse.",
+            ti,
+            ti.dag_id,
+        )
+        return False
+
+    ti.dag_version_id = latest_version.id
+    log.info(
+        "Backfilled dag_version_id for legacy TaskInstance %s from latest DagVersion %s.",
+        ti,
+        latest_version.id,
+    )
+    return True
 
 
 class ConcurrencyMap:
@@ -228,6 +258,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
+    :param only_idle: When True, only count runs where the scheduler was
+        idle (no tasks queued or finished). The count resets to zero whenever
+        a task is processed. Requires num_runs > 0.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
     :param log: override the default Logger
@@ -235,24 +268,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     job_type = "SchedulerJob"
 
-    # For a dagrun span
-    #   - key: dag_run.run_id | value: span
-    #   - dagrun keys will be prefixed with 'dr:'.
-    # For a ti span
-    #   - key: ti.id | value: span
-    #   - taskinstance keys will be prefixed with 'ti:'.
-    active_spans = ThreadSafeDict()
-
     def __init__(
         self,
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
+        only_idle: bool = conf.getboolean("scheduler", "only_idle", fallback=False),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: Logger | None = None,
         executors: list[BaseExecutor] | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
+        self.only_idle = only_idle
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
@@ -359,41 +386,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Return dict with all None values to ensure graceful degradation
             return {}
 
-    def _get_task_team_name(self, task_instance: TaskInstance, session: Session) -> str | None:
+    def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
-        Resolve team name for a task instance using the DAG > Bundle > Team relationship chain.
+        Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
 
-        TaskInstance > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Workload > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
 
-        :param task_instance: The TaskInstance to resolve team name for
+        :param workload: The Workload to resolve team name for
         :param session: Database session for queries
         :return: Team name if found or None
         """
         # Use the batch query function with a single DAG ID
-        dag_id_to_team_name = self._get_team_names_for_dag_ids([task_instance.dag_id], session)
-        team_name = dag_id_to_team_name.get(task_instance.dag_id)
+        if dag_id := workload.get_dag_id():
+            dag_id_to_team_name = self._get_team_names_for_dag_ids([dag_id], session)
+            team_name = dag_id_to_team_name.get(dag_id)
+        else:
+            team_name = None  # mypy didn't like the implicit defaulting to None
 
         if team_name:
             self.log.debug(
-                "Resolved team name '%s' for task %s (dag_id=%s)",
+                "Resolved team name '%s' for task or callback %s (dag_id=%s)",
                 team_name,
-                task_instance.task_id,
-                task_instance.dag_id,
+                workload,
+                dag_id,
             )
         else:
             self.log.debug(
-                "No team found for task %s (dag_id=%s) - DAG may not have bundle or team association",
-                task_instance.task_id,
-                task_instance.dag_id,
+                "No team found for task or callback %s (dag_id=%s) - DAG may not have bundle or team association",
+                workload,
+                dag_id,
             )
 
         return team_name
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        if self._is_tracing_enabled():
-            self._end_active_spans()
-
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -866,8 +893,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if executable_tis:
-            task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
-            self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
+            task_instance_str = "\n".join(
+                f"\t{x!r} (id={x.id}, try_number={x.try_number})" for x in executable_tis
+            )
+            self.log.info(
+                "Setting the following tasks to queued state (scheduler job_id=%s):\n%s",
+                self.job.id,
+                task_instance_str,
+            )
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
@@ -934,6 +967,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            self.log.debug(
+                "Queueing workload for TI: %s id=%s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                ti,
+                ti.id,
+                ti.try_number,
+                ti.state,
+                self.job.id,
+                executor,
+            )
             workload = workloads.ExecuteTask.make(
                 ti,
                 generator=executor.jwt_generator,
@@ -981,7 +1023,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         # Sort queued TIs to their respective executor
-        executor_to_queued_tis = self._executor_to_tis(queued_tis, session)
+        executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
                 "Trying to enqueue tasks: %s for executor: %s",
@@ -992,6 +1034,75 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
 
         return len(queued_tis)
+
+    def _enqueue_executor_callbacks(self, session: Session) -> None:
+        """
+        Enqueue ExecutorCallback workloads to executors.
+
+        Similar to _enqueue_task_instances, but for callbacks that need to run on executors.
+        Queries for QUEUED ExecutorCallback instances and routes them to the appropriate executor.
+
+        :param session: The database session
+        """
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
+        max_callbacks = conf.getint("core", "parallelism") - num_occupied_slots
+
+        if max_callbacks <= 0:
+            self.log.debug("No available slots for callbacks; all executors at capacity")
+            return
+
+        pending_callbacks = session.scalars(
+            select(ExecutorCallback)
+            .where(ExecutorCallback.type == CallbackType.EXECUTOR)
+            .where(ExecutorCallback.state == CallbackState.PENDING)
+            .order_by(ExecutorCallback.priority_weight.desc())
+            .limit(max_callbacks)
+        ).all()
+
+        if not pending_callbacks:
+            return
+
+        # Route callbacks to executors using the generalized routing method
+        executor_to_callbacks = self._executor_to_workloads(pending_callbacks, session)
+
+        # Enqueue callbacks for each executor
+        for executor, callbacks in executor_to_callbacks.items():
+            for callback in callbacks:
+                if not isinstance(callback, ExecutorCallback):
+                    # Can't happen since we queried ExecutorCallback, but satisfies mypy.
+                    continue
+
+                # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
+                #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
+                #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
+                if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
+                    self.log.error(
+                        "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
+                        "This indicates a bug in callback creation. Skipping callback.",
+                        callback.id,
+                    )
+                    continue
+
+                dag_run_id = callback.data["dag_run_id"]
+                dag_run = session.get(DagRun, dag_run_id)
+
+                if dag_run is None:
+                    self.log.warning(
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        dag_run_id,
+                        callback.id,
+                    )
+                    continue
+
+                workload = workloads.ExecuteCallback.make(
+                    callback=callback,
+                    dag_run=dag_run,
+                    generator=executor.jwt_generator,
+                )
+
+                executor.queue_workload(workload, session=session)
+                callback.state = CallbackState.QUEUED
+                session.add(callback)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1055,21 +1166,60 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
+        callback_keys_with_events: list[str] = []
 
-        # Report execution
-        for ti_key, (state, _) in event_buffer.items():
-            # We create map (dag_id, task_id, logical_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
+        # Report execution - handle both task and callback events
+        for key, (state, _) in event_buffer.items():
+            if isinstance(key, TaskInstanceKey):
+                existing_try = ti_primary_key_to_try_number_map.get(key.primary)
+                if existing_try is not None and existing_try != key.try_number:
+                    cls.logger().warning(
+                        "Multiple executor events for same TI with different try_numbers! "
+                        "primary_key=%s existing_try_number=%d new_try_number=%d new_state=%s. ",
+                        key.primary,
+                        existing_try,
+                        key.try_number,
+                        state,
+                    )
+                ti_primary_key_to_try_number_map[key.primary] = key.try_number
+                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+                if state in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.SUCCESS,
+                    TaskInstanceState.QUEUED,
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.RESTARTING,
+                ):
+                    tis_with_right_state.append(key)
+            else:
+                # Callback event (key is string UUID)
+                cls.logger().info("Received executor event with state %s for callback %s", state, key)
+                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                    callback_keys_with_events.append(key)
 
-            cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (
-                TaskInstanceState.FAILED,
-                TaskInstanceState.SUCCESS,
-                TaskInstanceState.QUEUED,
-                TaskInstanceState.RUNNING,
-                TaskInstanceState.RESTARTING,
-            ):
-                tis_with_right_state.append(ti_key)
+        # Handle callback state events
+        for callback_id in callback_keys_with_events:
+            state, info = event_buffer.pop(callback_id)
+            callback = session.get(Callback, callback_id)
+            if not callback:
+                # This should not normally happen - we just received an event for this callback.
+                # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
+                cls.logger().warning(
+                    "Callback %s not found in database (may have been cascade deleted)", callback_id
+                )
+                continue
+
+            if state == CallbackState.RUNNING:
+                callback.state = CallbackState.RUNNING
+                cls.logger().info("Callback %s is currently running", callback_id)
+            elif state == CallbackState.SUCCESS:
+                callback.state = CallbackState.SUCCESS
+                cls.logger().info("Callback %s completed successfully", callback_id)
+            elif state == CallbackState.FAILED:
+                callback.state = CallbackState.FAILED
+                callback.output = str(info) if info else "Execution failed"
+                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            session.add(callback)
 
         # Return if no finished tasks
         if not tis_with_right_state:
@@ -1095,6 +1245,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
+            if ti.try_number != try_number:
+                cls.logger().warning(
+                    "TI try_number mismatch: db_try_number=%d event_try_number=%d "
+                    "ti=%s ti_id=%s state=%s job_id=%s. "
+                    "Another scheduler may have already modified this TI.",
+                    ti.try_number,
+                    try_number,
+                    ti,
+                    ti.id,
+                    ti.state,
+                    job_id,
+                )
             state, info = event_buffer.pop(buffer_key)
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
@@ -1132,18 +1294,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id,
                 ti.pid,
             )
-
-            if (active_ti_span := cls.active_spans.get("ti:" + str(ti.id))) is not None:
-                cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
-                # End the span and remove it from the active_spans dict.
-                active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                cls.active_spans.delete("ti:" + str(ti.id))
-                ti.span_status = SpanStatus.ENDED
-            else:
-                if ti.span_status == SpanStatus.ACTIVE:
-                    # Another scheduler has started the span.
-                    # Update the SpanStatus to let the process know that it must end it.
-                    ti.span_status = SpanStatus.SHOULD_END
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -1201,10 +1351,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
+                    # Safely extract bundle info: prefer dag_version when available,
+                    # fall back to dag_model/dag_run for legacy tasks migrated from
+                    # Airflow 2 where dag_version may be None (AIP-66).
+                    _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    _bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
+                        bundle_name=_bundle_name,
+                        bundle_version=_bundle_version,
                         ti=ti,
                         msg=msg,
                         task_callback_type=(
@@ -1238,10 +1398,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Sending email request for task %s to DAG Processor",
                         ti,
                     )
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _email_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    _email_bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
                     email_request = EmailRequest(
                         filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
+                        bundle_name=_email_bundle_name,
+                        bundle_version=_email_bundle_version,
                         ti=ti,
                         msg=msg,
                         email_type="retry" if ti.is_eligible_to_retry() else "failure",
@@ -1259,39 +1430,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
-
-    @classmethod
-    def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes(
-            {
-                "airflow.category": "scheduler",
-                "airflow.task.id": ti.id,
-                "airflow.task.task_id": ti.task_id,
-                "airflow.task.dag_id": ti.dag_id,
-                "airflow.task.state": ti.state,
-                "airflow.task.error": state == TaskInstanceState.FAILED,
-                "airflow.task.start_date": str(ti.start_date),
-                "airflow.task.end_date": str(ti.end_date),
-                "airflow.task.duration": ti.duration,
-                "airflow.task.executor_config": str(ti.executor_config),
-                "airflow.task.logical_date": str(ti.logical_date),
-                "airflow.task.hostname": ti.hostname,
-                "airflow.task.log_url": ti.log_url,
-                "airflow.task.operator": str(ti.operator),
-                "airflow.task.try_number": ti.try_number,
-                "airflow.task.executor_state": state,
-                "airflow.task.pool": ti.pool,
-                "airflow.task.queue": ti.queue,
-                "airflow.task.priority_weight": ti.priority_weight,
-                "airflow.task.queued_dttm": str(ti.queued_dttm),
-                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-                "airflow.task.pid": ti.pid,
-            }
-        )
-        if span.is_recording():
-            span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
-            span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
-            span.add_event(name="airflow.task.ended", timestamp=datetime_to_nano(ti.end_date))
 
     def _execute(self) -> int | None:
         import os
@@ -1316,12 +1454,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor.start()
 
             # local import due to type_checking.
-            from airflow.executors.base_executor import BaseExecutor
-
-            # Pass a reference to the dictionary.
-            # Any changes made by a dag_run instance, will be reflected to the dictionary of this class.
-            DagRun.set_active_spans(active_spans=self.active_spans)
-            BaseExecutor.set_active_spans(active_spans=self.active_spans)
 
             stats_factory = stats_utils.get_stats_factory(Stats)
             Stats.initialize(factory=stats_factory)
@@ -1371,162 +1503,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
-
-    @provide_session
-    def _end_active_spans(self, session: Session = NEW_SESSION):
-        # No need to do a commit for every update. The annotation will commit all of them once at the end.
-        for prefixed_key, span in self.active_spans.get_all().items():
-            # Use partition to split on the first occurrence of ':'.
-            prefix, sep, key = prefixed_key.partition(":")
-
-            if prefix == "ti":
-                ti_result = session.get(TaskInstance, UUID(key))
-                if ti_result is None:
-                    continue
-                ti: TaskInstance = ti_result
-
-                if ti.state in State.finished:
-                    self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
-                    span.end(end_time=datetime_to_nano(ti.end_date))
-                    ti.span_status = SpanStatus.ENDED
-                else:
-                    span.end()
-                    ti.span_status = SpanStatus.NEEDS_CONTINUANCE
-            elif prefix == "dr":
-                dag_run: DagRun | None = session.scalars(
-                    select(DagRun).where(DagRun.id == int(key))
-                ).one_or_none()
-                if dag_run is None:
-                    continue
-                if dag_run.state in State.finished_dr_states:
-                    dag_run.set_dagrun_span_attrs(span=span)
-
-                    span.end(end_time=datetime_to_nano(dag_run.end_date))
-                    dag_run.span_status = SpanStatus.ENDED
-                else:
-                    span.end()
-                    dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
-                    initial_dag_run_context = Trace.extract(dag_run.context_carrier)
-                    with Trace.start_child_span(
-                        span_name="current_scheduler_exited", parent_context=initial_dag_run_context
-                    ) as s:
-                        s.set_attribute("trace_status", "needs continuance")
-            else:
-                self.log.error("Found key with unknown prefix: '%s'", prefixed_key)
-
-        # Even if there is a key with an unknown prefix, clear the dict.
-        # If this method has been called, the scheduler is exiting.
-        self.active_spans.clear()
-
-    def _end_spans_of_externally_ended_ops(self, session: Session):
-        # The scheduler that starts a dag_run or a task is also the one that starts the spans.
-        # Each scheduler should end the spans that it has started.
-        #
-        # Otel spans are implemented in a certain way so that the objects
-        # can't be shared between processes or get recreated.
-        # It is done so that the process that starts a span, is also the one that ends it.
-        #
-        # If another scheduler has finished processing a dag_run or a task and there is a reference
-        # on the active_spans dictionary, then the current scheduler started the span,
-        # and therefore must end it.
-        dag_runs_should_end: list[DagRun] = list(
-            session.scalars(select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END))
-        )
-        tis_should_end: list[TaskInstance] = list(
-            session.scalars(select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END))
-        )
-
-        for dag_run in dag_runs_should_end:
-            active_dagrun_span = self.active_spans.get("dr:" + str(dag_run.id))
-            if active_dagrun_span is not None:
-                if dag_run.state in State.finished_dr_states:
-                    dag_run.set_dagrun_span_attrs(span=active_dagrun_span)
-
-                    active_dagrun_span.end(end_time=datetime_to_nano(dag_run.end_date))
-                else:
-                    active_dagrun_span.end()
-                self.active_spans.delete("dr:" + str(dag_run.id))
-                dag_run.span_status = SpanStatus.ENDED
-
-        for ti in tis_should_end:
-            active_ti_span = self.active_spans.get(f"ti:{ti.id}")
-            if active_ti_span is not None:
-                if ti.state in State.finished:
-                    self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
-                    active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                else:
-                    active_ti_span.end()
-                self.active_spans.delete(f"ti:{ti.id}")
-                ti.span_status = SpanStatus.ENDED
-
-    def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
-        # There are two scenarios:
-        #   1. scheduler is unhealthy but managed to update span_status
-        #   2. scheduler is unhealthy and didn't manage to make any updates
-        # Check the span_status first, in case the 2nd db query can be avoided (scenario 1).
-
-        # If the dag_run is scheduled by a different scheduler, and it's still running and the span is active,
-        # then check the Job table to determine if the initial scheduler is still healthy.
-        if (
-            dag_run.scheduled_by_job_id != self.job.id
-            and dag_run.state in State.unfinished_dr_states
-            and dag_run.span_status == SpanStatus.ACTIVE
-        ):
-            initial_scheduler_id = dag_run.scheduled_by_job_id
-            job: Job | None = session.scalars(
-                select(Job).where(
-                    Job.id == initial_scheduler_id,
-                    Job.job_type == "SchedulerJob",
-                )
-            ).one_or_none()
-            if job is None:
-                return
-
-            if not job.is_alive():
-                # Start a new span for the dag_run.
-                dr_span = Trace.start_root_span(
-                    span_name=f"{dag_run.dag_id}_recreated",
-                    component="dag",
-                    start_time=dag_run.queued_at,
-                    start_as_current=False,
-                )
-                carrier = Trace.inject()
-                # Update the context_carrier and leave the SpanStatus as ACTIVE.
-                dag_run.context_carrier = carrier
-                self.active_spans.set("dr:" + str(dag_run.id), dr_span)
-
-                tis = dag_run.get_task_instances(session=session)
-
-                # At this point, any tis will have been adopted by the current scheduler,
-                # and ti.queued_by_job_id will point to the current id.
-                # Any tis that have been executed by the unhealthy scheduler, will need a new span
-                # so that it can be associated with the new dag_run span.
-                tis_needing_spans = [
-                    ti
-                    for ti in tis
-                    # If it has started and there is a reference on the active_spans dict,
-                    # then it was started by the current scheduler.
-                    if ti.start_date is not None and self.active_spans.get(f"ti:{ti.id}") is None
-                ]
-
-                dr_context = Trace.extract(dag_run.context_carrier)
-                for ti in tis_needing_spans:
-                    ti_span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}_recreated",
-                        parent_context=dr_context,
-                        start_time=ti.queued_dttm,
-                        start_as_current=False,
-                    )
-                    ti_carrier = Trace.inject()
-                    ti.context_carrier = ti_carrier
-
-                    if ti.state in State.finished:
-                        self.set_ti_span_attrs(span=ti_span, state=ti.state, ti=ti)
-                        ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                        ti.span_status = SpanStatus.ENDED
-                    else:
-                        ti.span_status = SpanStatus.ACTIVE
-                        self.active_spans.set(f"ti:{ti.id}", ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -1615,12 +1591,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
+        idle_count = 0
+
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
-                    if self._is_tracing_enabled():
-                        self._end_spans_of_externally_ended_ops(session)
-
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
                     # Don't keep any objects alive -- we've possibly just looked at 500+ ORM objects!
@@ -1657,6 +1632,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ):
                         deadline.handle_miss(session)
 
+                    # Route ExecutorCallback workloads to executors (similar to task routing)
+                    self._enqueue_executor_callbacks(session)
+
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
                     job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
@@ -1668,16 +1646,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
 
-            if not is_unit_test and not num_queued_tis and not num_finished_events:
+            idle_in_this_run = not num_queued_tis and not num_finished_events
+            if not is_unit_test and idle_in_this_run:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
                 time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
-            if loop_count >= self.num_runs > 0:
+            if idle_in_this_run:
+                idle_count += 1
+            else:
+                idle_count = 0
+
+            run_count = idle_count if self.only_idle else loop_count
+            if run_count >= self.num_runs > 0:
                 self.log.info(
-                    "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
+                    "Exiting scheduler loop as requested number of runs (%d) has been reached (%d idle, %d total)",
                     self.num_runs,
+                    idle_count,
                     loop_count,
                 )
                 break
@@ -1934,7 +1920,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_runs=active_runs_of_dags.get(dag_model.dag_id),
                 )
                 continue
-            if dag_model.next_dagrun is None:
+            if dag_model.next_dagrun is None and dag_model.timetable_partitioned is False:
                 self.log.error(
                     "dag_model.next_dagrun is None; expected datetime",
                     dag_id=dag_model.dag_id,
@@ -1978,12 +1964,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                if TYPE_CHECKING:
+                    assert next_info is not None
                 data_interval = next_info.data_interval
                 logical_date = next_info.logical_date
                 partition_key = next_info.partition_key
                 run_after = next_info.run_after
-                # todo: AIP-76 partition date is not passed to dag run
-                #  See https://github.com/apache/airflow/issues/61167.
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
@@ -2000,6 +1986,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     creating_job_id=self.job.id,
                     session=session,
                     partition_key=partition_key,
+                    partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
@@ -2144,16 +2131,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
-            span = Trace.get_current_span()
-            span.set_attributes(
-                {
-                    "state": str(DagRunState.RUNNING),
-                    "run_id": dag_run.run_id,
-                    "type": dag_run.run_type,
-                    "dag_id": dag_run.dag_id,
-                }
-            )
-
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
             if (
@@ -2170,18 +2147,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={},
                     extra_tags={"dag_id": dag.dag_id},
                 )
-                if span.is_recording():
-                    span.add_event(
-                        name="schedule_delay",
-                        attributes={"dag_id": dag.dag_id, "schedule_delay": str(schedule_delay)},
-                    )
 
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
-        span = Trace.get_current_span()
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2221,15 +2192,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                     )
                     continue
-            if span.is_recording():
-                span.add_event(
-                    name="dag_run",
-                    attributes={
-                        "run_id": dag_run.run_id,
-                        "dag_id": dag_run.dag_id,
-                        "conf": str(dag_run.conf),
-                    },
-                )
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
@@ -2279,7 +2241,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 select(TI)
                 .where(TI.dag_id == dag_run.dag_id)
                 .where(TI.run_id == dag_run.run_id)
-                .where(TI.state.in_(State.unfinished))
+                .where(TI.state.in_(State.unfinished) | (TI.state.is_(None)))
+            ).all()
+            last_unfinished_ti = max(
+                unfinished_task_instances,
+                key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
+                default=None,
             )
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
@@ -2307,18 +2274,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
                 return None
             dag_run = dag_run_reloaded
-            callback_to_execute = DagCallbackRequest(
-                filepath=dag_model.relative_fileloc or "",
-                dag_id=dag.dag_id,
-                run_id=dag_run.run_id,
-                bundle_name=dag_model.bundle_name,
-                bundle_version=dag_run.bundle_version,
-                context_from_server=DagRunContext(
-                    dag_run=dag_run,
-                    last_ti=dag_run.get_last_ti(dag=dag, session=session),
-                ),
-                is_failure_callback=True,
-                msg="timed_out",
+            callback_to_execute = dag_run.produce_dag_callback(
+                dag=dag,
+                success=False,
+                relevant_ti=last_unfinished_ti,
+                reason="timed_out",
+                execute=False,
             )
 
             dag_run.notify_dagrun_state_changed(msg="timed_out")
@@ -2342,17 +2303,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
             return callback
 
-        if (
-            self._is_tracing_enabled()
-            and dag_run.scheduled_by_job_id is not None
-            and dag_run.scheduled_by_job_id != self.job.id
-            and self.active_spans.get("dr:" + str(dag_run.id)) is None
-        ):
-            # If the dag_run has been previously scheduled by another job and there is no active span,
-            # then check if the job is still healthy.
-            # If it's not healthy, then recreate the spans.
-            self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
-
         dag_run.scheduled_by_job_id = self.job.id
 
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
@@ -2369,6 +2319,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # query to update all the TIs across all the logical dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
+        if schedulable_tis and self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug(
+                "Scheduling TIs for dag_run=%s/%s (scheduler job_id=%s): %s",
+                dag_run.dag_id,
+                dag_run.run_id,
+                self.job.id,
+                [
+                    f"{ti.task_id} (id={ti.id}, state={ti.state}, try_number={ti.try_number})"
+                    for ti in schedulable_tis
+                ],
+            )
         dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
@@ -2434,7 +2395,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduled) up to 2 times before failing the task.
         """
         tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
-        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued, session).items():
+        for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
                     executor.revoke_task(ti=ti)
@@ -2503,21 +2464,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.has_on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc,
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
-                        ti=ti,
-                        msg=msg,
-                        context_from_server=TIRunContext(
-                            dag_run=ti.dag_run,
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _stuck_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     )
-                    executor.send_callback(request)
+                    _stuck_bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    # Note: we cannot use `continue` here because this method is not
+                    # inside a loop.  If backfilling fails we simply skip the callback.
+                    if _ensure_ti_has_dag_version_id(ti, session, self.log):
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=_stuck_bundle_name,
+                            bundle_version=_stuck_bundle_version,
+                            ti=ti,
+                            msg=msg,
+                            context_from_server=TIRunContext(
+                                dag_run=ti.dag_run,
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
                 executor.fail(ti.key)
@@ -2725,7 +2698,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     to_reset: list[TaskInstance] = []
-                    exec_to_tis = self._executor_to_tis(tis_to_adopt_or_reset, session)
+                    exec_to_tis = self._executor_to_workloads(tis_to_adopt_or_reset, session)
                     for executor, tis in exec_to_tis.items():
                         to_reset.extend(executor.try_adopt_task_instances(tis))
 
@@ -2858,17 +2831,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
-            if not ti.dag_version:
-                # If old ti from Airflow 2 and dag_version is None, skip heartbeat timeout handling.
-                self.log.warning(
-                    "DAG Version not found for TaskInstance %s. Skipping heartbeat timeout handling.",
-                    ti,
-                )
+            # Safely extract bundle info with fallback for legacy tasks
+            # (dag_version may be None after Airflow 2 → 3 migration).
+            _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            _hb_bundle_version = (
+                ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+            )
+            # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+            if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=ti.dag_version.bundle_name,
-                bundle_version=ti.dag_run.bundle_version,
+                bundle_name=_hb_bundle_name,
+                bundle_version=_hb_bundle_version,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
                 context_from_server=TIRunContext(
@@ -3074,50 +3049,57 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _executor_to_tis(
+    def _executor_to_workloads(
         self,
-        tis: Iterable[TaskInstance],
+        workloads: Iterable[SchedulerWorkload],
         session,
         dag_id_to_team_name: dict[str, str | None] | None = None,
-    ) -> dict[BaseExecutor, list[TaskInstance]]:
-        """Organize TIs into lists per their respective executor."""
-        tis_iter: Iterable[TaskInstance]
+    ) -> dict[BaseExecutor, list[SchedulerWorkload]]:
+        """Organize workloads into lists per their respective executor."""
+        workloads_iter: Iterable[SchedulerWorkload]
         if conf.getboolean("core", "multi_team"):
             if dag_id_to_team_name is None:
-                if isinstance(tis, list):
-                    tis_list = tis
+                if isinstance(workloads, list):
+                    workloads_list = workloads
                 else:
-                    tis_list = list(tis)
-                if tis_list:
+                    workloads_list = list(workloads)
+                if workloads_list:
                     dag_id_to_team_name = self._get_team_names_for_dag_ids(
-                        {ti.dag_id for ti in tis_list}, session
+                        {
+                            dag_id
+                            for workload in workloads_list
+                            if (dag_id := workload.get_dag_id()) is not None
+                        },
+                        session,
                     )
                 else:
                     dag_id_to_team_name = {}
-                tis_iter = tis_list
+                workloads_iter = workloads_list
             else:
-                tis_iter = tis
+                workloads_iter = workloads
         else:
             dag_id_to_team_name = {}
-            tis_iter = tis
+            workloads_iter = workloads
 
-        _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
-        for ti in tis_iter:
-            if executor_obj := self._try_to_load_executor(
-                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
-            ):
-                _executor_to_tis[executor_obj].append(ti)
+        _executor_to_workloads: defaultdict[BaseExecutor, list[SchedulerWorkload]] = defaultdict(list)
+        for workload in workloads_iter:
+            _dag_id = workload.get_dag_id()
+            _team = dag_id_to_team_name.get(_dag_id, NOTSET) if _dag_id else NOTSET
+            if executor_obj := self._try_to_load_executor(workload, session, team_name=_team):
+                _executor_to_workloads[executor_obj].append(workload)
 
-        return _executor_to_tis
+        return _executor_to_workloads
 
-    def _try_to_load_executor(self, ti: TaskInstance, session, team_name=NOTSET) -> BaseExecutor | None:
+    def _try_to_load_executor(
+        self, workload: SchedulerWorkload, session, team_name=NOTSET
+    ) -> BaseExecutor | None:
         """
         Try to load the given executor.
 
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
 
-        :param ti: TaskInstance to load executor for
+        :param workload: SchedulerWorkload (TaskInstance or ExecutorCallback) to load executor for
         :param session: Database session for queries
         :param team_name: Optional pre-resolved team name. If NOTSET and multi-team is enabled,
                          will query the database to resolve team name. None indicates global team.
@@ -3126,17 +3108,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if conf.getboolean("core", "multi_team"):
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
-                team_name = self._get_task_team_name(ti, session)
+                team_name = self._get_workload_team_name(workload, session)
         else:
             team_name = None
-        # Firstly, check if there is no executor set on the TaskInstance, if not, we need to fetch the default
-        # (either globally or for the team)
-        if ti.executor is None:
+        # If there is no executor set on the workload fetch the default (either globally or for the team)
+        if workload.get_executor_name() is None:
             if not team_name:
-                # No team is specified, so just use the global default executor
+                # No team is specified, use the global default executor
                 executor = self.executor
             else:
-                # We do have a team, so we need to find the default executor for that team
+                # We do have a team, use the default executor for that team
                 for _executor in self.executors:
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
@@ -3146,22 +3127,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # No executor found for that team, fall back to global default
                     executor = self.executor
         else:
-            # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
+            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
             for _executor in self.executors:
-                if _executor.name and ti.executor in (_executor.name.alias, _executor.name.module_path):
+                if _executor.name and workload.get_executor_name() in (
+                    _executor.name.alias,
+                    _executor.name.module_path,
+                    _executor.name.module_path.split(".")[-1],
+                ):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor
+                        break
 
         if executor is not None:
-            self.log.debug("Found executor %s for task %s (team: %s)", executor.name, ti, team_name)
+            self.log.debug(
+                "Found executor %s for task or callback %s (team: %s)", executor.name, workload, team_name
+            )
         else:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
             # they request is available and if not, disallow the DAG to be scheduled.
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
-            self.log.warning("Executor, %s, was not found but a Task was configured to use it", ti.executor)
+            self.log.warning(
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                workload.get_executor_name(),
+            )
 
         return executor
 

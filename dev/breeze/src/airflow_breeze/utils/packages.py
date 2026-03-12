@@ -77,6 +77,7 @@ class PluginInfo(NamedTuple):
 
 class ProviderPackageDetails(NamedTuple):
     provider_id: str
+    provider_path: str
     provider_yaml_path: Path
     source_date_epoch: int
     full_package_name: str
@@ -419,7 +420,10 @@ def find_matching_long_package_names(
     removed_packages: list[str] = [
         f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
-    all_packages_including_removed: list[str] = available_doc_packages + removed_packages
+    not_ready_packages: list[str] = [
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_not_ready_provider_ids()
+    ]
+    all_packages_including_removed: list[str] = available_doc_packages + removed_packages + not_ready_packages
     invalid_filters = [
         f
         for f in processed_package_filters
@@ -570,6 +574,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     )
     return ProviderPackageDetails(
         provider_id=provider_id,
+        provider_path=provider_id.replace(".", "/"),
         provider_yaml_path=provider_yaml_path,
         source_date_epoch=provider_info["source-date-epoch"],
         full_package_name=f"airflow.providers.{provider_id}",
@@ -704,6 +709,7 @@ def get_provider_jinja_context(
 
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
+        "PROVIDER_PATH": provider_details.provider_path,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
         "PACKAGE_DIST_PREFIX": get_dist_package_name_prefix(provider_details.provider_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
