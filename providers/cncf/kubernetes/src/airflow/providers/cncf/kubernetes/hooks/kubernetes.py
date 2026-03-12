@@ -81,7 +81,25 @@ def _get_request_timeout(timeout_seconds: int | None) -> float:
 
 
 class _TimeoutK8sApiClient(client.ApiClient):
-    """Wrapper around kubernetes sync ApiClient to set default timeout."""
+    """
+    Wrapper around kubernetes sync ApiClient to set default timeout.
+
+    When *disable_verify_ssl* is True the TLS certificate check is turned off
+    on the *client_configuration* that is passed (or on a fresh default copy)
+    so that callers do not need to repeat this logic at every call-site.
+    """
+
+    def __init__(
+        self,
+        configuration: client.Configuration | None = None,
+        *,
+        disable_verify_ssl: bool = False,
+    ) -> None:
+        if disable_verify_ssl:
+            if configuration is None:
+                configuration = client.Configuration.get_default_copy()
+            configuration.verify_ssl = False
+        super().__init__(configuration=configuration)
 
     def call_api(self, *args, **kwargs):
         timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
@@ -295,8 +313,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
-            if self.client_configuration is None:
-                self.client_configuration = client.Configuration.get_default_copy()
         if disable_tcp_keepalive is not True:
             _enable_tcp_keepalive()
 
@@ -304,7 +320,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.log.debug("loading kube_config from: in_cluster configuration")
             self._is_in_cluster = True
             config.load_incluster_config()
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -314,10 +333,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            if disable_verify_ssl is True and self.client_configuration is not None:
-                self.client_configuration.verify_ssl = False
-                return _TimeoutK8sApiClient(configuration=self.client_configuration)
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
@@ -332,10 +351,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-            if disable_verify_ssl is True and self.client_configuration is not None:
-                self.client_configuration.verify_ssl = False
-                return _TimeoutK8sApiClient(configuration=self.client_configuration)
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
@@ -345,10 +364,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            if disable_verify_ssl is True and self.client_configuration is not None:
-                self.client_configuration.verify_ssl = False
-                return _TimeoutK8sApiClient(configuration=self.client_configuration)
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         return self._get_default_client(
             cluster_context=cluster_context, disable_verify_ssl=disable_verify_ssl
@@ -371,10 +390,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-        if disable_verify_ssl is True and self.client_configuration is not None:
-            self.client_configuration.verify_ssl = False
-            return _TimeoutK8sApiClient(configuration=self.client_configuration)
-        return _TimeoutK8sApiClient()
+        return _TimeoutK8sApiClient(
+            configuration=self.client_configuration,
+            disable_verify_ssl=disable_verify_ssl is True,
+        )
 
     @property
     def is_in_cluster(self) -> bool:
