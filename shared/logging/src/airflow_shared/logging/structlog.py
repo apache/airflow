@@ -545,7 +545,7 @@ def configure_logging(
                 "level": log_level.upper(),
                 "class": "logging.StreamHandler",
                 "formatter": "structlog",
-                "stream": output,
+                "stream": output if output is not None else sys.stdout,
             },
         }
     )
@@ -565,6 +565,79 @@ def configure_logging(
     }
 
     logging.config.dictConfig(config)
+
+    if json_output:
+        _install_excepthook()
+
+    _WarningsInterceptor.register(_showwarning)
+
+
+class _WarningsInterceptor:
+    """Holds a reference to the original ``warnings.showwarning`` so it can be restored."""
+
+    _original_showwarning: Callable | None = None
+
+    @staticmethod
+    def register(new_callable: Callable) -> None:
+        import warnings
+
+        if _WarningsInterceptor._original_showwarning is None:
+            _WarningsInterceptor._original_showwarning = warnings.showwarning
+        warnings.showwarning = new_callable
+
+    @staticmethod
+    def reset() -> None:
+        import warnings
+
+        if _WarningsInterceptor._original_showwarning is not None:
+            warnings.showwarning = _WarningsInterceptor._original_showwarning
+            _WarningsInterceptor._original_showwarning = None
+
+    @staticmethod
+    def emit_warning(*args: Any) -> None:
+        if _WarningsInterceptor._original_showwarning is not None:
+            _WarningsInterceptor._original_showwarning(*args)
+
+
+def _showwarning(
+    message: Warning | str,
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    file: TextIO | None = None,
+    line: str | None = None,
+) -> None:
+    """
+    Redirect Python warnings to structlog.
+
+    If ``file`` is not None the warning is forwarded to the original handler
+    (e.g. when warnings are written directly to a file handle). Otherwise the
+    warning is emitted as a structured log event on the ``py.warnings`` logger
+    so it flows through the same processor chain as all other log output.
+    """
+    if file is not None:
+        _WarningsInterceptor.emit_warning(message, category, filename, lineno, file, line)
+    else:
+        warning_log = reconfigure_logger(
+            structlog.get_logger("py.warnings").bind(),
+            structlog.processors.CallsiteParameterAdder,
+        )
+        warning_log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
+
+
+def _install_excepthook() -> None:
+    """Replace sys.excepthook so unhandled exceptions are emitted via structlog."""
+    _original = sys.excepthook
+
+    def _excepthook(exc_type: type, exc_value: BaseException, exc_tb) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):
+            _original(exc_type, exc_value, exc_tb)
+            return
+        structlog.get_logger("unhandled_exception").critical(
+            "Unhandled exception", exc_info=(exc_type, exc_value, exc_tb)
+        )
+
+    sys.excepthook = _excepthook
 
 
 def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: int):

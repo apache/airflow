@@ -832,6 +832,16 @@ logging:
       type: string
       example: ~
       default: "WARNING"
+    json_logs:
+      description: |
+        Enable JSON-structured logging for all output. When ``True``, every log line emitted by
+        the process is a single-line JSON object (including HTTP access logs from the API server).
+        Recommended for production / cloud-native deployments where logs are collected by a log
+        aggregator.
+      version_added: "3.2.0"
+      type: boolean
+      example: "True"
+      default: "False"
     uvicorn_logging_level:
       description: |
         Logging level for uvicorn (API server and serve-logs).
