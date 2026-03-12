@@ -240,6 +240,9 @@ Forking and cloning Project
 Configuring prek
 ----------------
 
+.. note::
+   Run the commands in this section in your **local terminal** (on your host machine), not inside a Breeze shell. Prek hooks run on your host to check and format code before you commit.
+
 Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
 tests are applied when you commit your code.
