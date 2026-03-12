@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 
 
@@ -25,7 +27,7 @@ def test_await_message_sensor_passes_timeout(mocker):
         task_id="test",
         topics=["test"],
         apply_function="builtins.print",
-        timeout=5,
+        timeout=timedelta(seconds=30),
     )
 
     defer_mock = mocker.patch.object(sensor, "defer")
@@ -33,4 +35,4 @@ def test_await_message_sensor_passes_timeout(mocker):
     sensor.execute({})
 
     defer_mock.assert_called_once()
-    assert defer_mock.call_args.kwargs["timeout"] == 5
+    assert defer_mock.call_args.kwargs["timeout"] == timedelta(seconds=30)
