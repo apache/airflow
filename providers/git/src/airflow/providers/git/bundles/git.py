@@ -288,8 +288,8 @@ class GitDagBundle(BaseDagBundle):
     def _fetch_bare_repo(self):
         refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
         cm = nullcontext()
-        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
-            cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        if self.hook and self.hook.env:
+            cm = self.bare_repo.git.custom_environment(**self.hook.env)
         with cm:
             self.bare_repo.remotes.origin.fetch(refspecs)
             self.bare_repo.close()
