@@ -42,20 +42,11 @@ test.describe("DAG Audit Log", () => {
     }
 
     await setupEventsPage.navigateToAuditLog(testDagId);
-    await page.waitForFunction(
-      (minCount) => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    await expect(async () => {
+      const count = await setupEventsPage.tableRows.count();
 
-        if (!table) {
-          return false;
-        }
-        const rows = table.querySelectorAll("tbody tr");
-
-        return rows.length >= minCount;
-      },
-      expectedEventCount,
-      { timeout: 60_000 },
-    );
+      expect(count).toBeGreaterThanOrEqual(expectedEventCount);
+    }).toPass({ timeout: 60_000 });
 
     await context.close();
   });
@@ -82,7 +73,7 @@ test.describe("DAG Audit Log", () => {
     await expect(eventsPage.ownerColumn).toBeVisible();
     await expect(eventsPage.extraColumn).toBeVisible();
 
-    const dagIdColumn = eventsPage.eventsTable.locator('th:has-text("DAG ID")');
+    const dagIdColumn = eventsPage.eventsTable.getByRole("columnheader").filter({ hasText: "DAG ID" });
 
     await expect(dagIdColumn).not.toBeVisible();
   });
