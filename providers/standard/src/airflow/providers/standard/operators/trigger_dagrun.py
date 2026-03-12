@@ -23,7 +23,7 @@ import json
 import time
 from collections.abc import Sequence
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -207,26 +207,10 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
+        logical_date = _validate_datetime_param("logical_date", logical_date)
+        run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
-        if logical_date is NOTSET:
-            self.logical_date = NOTSET
-        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
-            self.logical_date = logical_date
-        else:
-            raise TypeError(
-                f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
-            )
-
         self.run_after = run_after
-        if run_after is NOTSET:
-            self.run_after = NOTSET
-        elif run_after is None or isinstance(run_after, (str, datetime.datetime)):
-            self.run_after = run_after
-        else:
-            raise TypeError(
-                f"Expected str, datetime.datetime, or None for parameter 'run_after'. Got {type(run_after).__name__}"
-            )
-
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
             raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
 
@@ -485,3 +469,13 @@ class TriggerDagRunOperator(BaseOperator):
                 f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
                 f" or {self.allowed_states}"
             )
+
+
+def _validate_datetime_param(name: str, value):
+    if value is NOTSET:
+        return NOTSET
+    if value is None or isinstance(value, (str, datetime.datetime)):
+        return value
+    raise TypeError(
+        f"Expected str, datetime.datetime, or None for parameter '{name}'. Got {type(value).__name__}"
+    )
