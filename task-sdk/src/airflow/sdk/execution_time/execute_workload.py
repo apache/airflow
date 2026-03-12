@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Module for executing an Airflow task using the workload json provided by a input file.
+Module for executing an Airflow workload (task or callback) using the workload json provided by an input file.
 
 Usage:
     python execute_workload.py <input_file>
@@ -34,15 +34,13 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from airflow.executors.workloads import ExecuteTask
+    from airflow.executors import workloads
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(workload: ExecuteTask) -> None:
+def execute_workload(workload: workloads.All) -> None:
     from airflow.executors import workloads
-    from airflow.sdk.configuration import conf
-    from airflow.sdk.execution_time.supervisor import supervise
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
 
@@ -50,10 +48,19 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     configure_logging(output=sys.stdout.buffer, json_output=True)
 
-    if not isinstance(workload, workloads.ExecuteTask):
+    if isinstance(workload, workloads.ExecuteTask):
+        _execute_task(workload)
+    elif isinstance(workload, workloads.ExecuteCallback):
+        _execute_callback(workload)
+    else:
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
 
-    log.info("Executing workload", workload=workload)
+
+def _execute_task(workload: workloads.ExecuteTask) -> None:
+    from airflow.sdk.configuration import conf
+    from airflow.sdk.execution_time.supervisor import supervise
+
+    log.info("Executing task workload", workload=workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default
@@ -76,6 +83,16 @@ def execute_workload(workload: ExecuteTask) -> None:
         # kubeapi as pod logs.
         subprocess_logs_to_stdout=True,
     )
+
+
+def _execute_callback(workload: workloads.ExecuteCallback) -> None:
+    from airflow.executors.workloads.callback import execute_callback_workload
+
+    log.info("Executing callback workload", callback_id=workload.callback.id)
+
+    success, error = execute_callback_workload(workload.callback, log)
+    if not success:
+        raise RuntimeError(f"Callback execution failed: {error}")
 
 
 def main():

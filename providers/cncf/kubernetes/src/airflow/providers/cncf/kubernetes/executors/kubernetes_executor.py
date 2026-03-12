@@ -79,6 +79,7 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+    supports_callbacks: bool = True
     supports_multi_team: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
@@ -234,28 +235,38 @@ class KubernetesExecutor(BaseExecutor):
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
 
-        if not isinstance(workload, workloads.ExecuteTask):
+        if isinstance(workload, workloads.ExecuteTask):
+            self.queued_tasks[workload.ti.key] = workload
+        elif isinstance(workload, workloads.ExecuteCallback):
+            self.queued_callbacks[workload.callback.id] = workload
+        else:
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
-        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+        from airflow.utils.state import CallbackState
 
         # Airflow V3 version
         for w in workloads:
-            if not isinstance(w, ExecuteTask):
+            if isinstance(w, ExecuteTask):
+                # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
+                command = [w]
+                key = w.ti.key
+                queue = w.ti.queue
+                executor_config = w.ti.executor_config or {}
+
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.running.add(key)
+            elif isinstance(w, ExecuteCallback):
+                callback_key = w.callback.key
+                del self.queued_callbacks[callback_key]
+                # Put on task_queue for pod creation (no executor_config for callbacks)
+                self.task_queue.put(KubernetesJob(callback_key, [w], None, None))
+                self.event_buffer[callback_key] = (CallbackState.QUEUED, None)
+                self.running.add(callback_key)
+            else:
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
-
-            # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
-            command = [w]
-            key = w.ti.key
-            queue = w.ti.queue
-            executor_config = w.ti.executor_config or {}
-
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
 
     def sync(self) -> None:
         """Synchronize task state."""
@@ -372,11 +383,17 @@ class KubernetesExecutor(BaseExecutor):
         results: KubernetesResults,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Change state of the task based on KubernetesResults."""
+        """Change state of the workload based on KubernetesResults."""
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
         key = results.key
+
+        # Callback results have a string key (CallbackKey = str)
+        if isinstance(key, str):
+            self._change_callback_state(results)
+            return
+
         state = results.state
         pod_name = results.pod_name
         namespace = results.namespace
@@ -467,6 +484,50 @@ class KubernetesExecutor(BaseExecutor):
             state = TaskInstanceState(state) if state else None
 
         self.event_buffer[key] = state, termination_reason
+
+    def _change_callback_state(self, results: KubernetesResults) -> None:
+        """Change state of a callback based on KubernetesResults."""
+        from airflow.utils.state import CallbackState
+
+        if TYPE_CHECKING:
+            assert self.kube_scheduler
+
+        key = results.key
+        state = results.state
+        pod_name = results.pod_name
+        namespace = results.namespace
+
+        if state == ADOPTED:
+            self.running.discard(key)
+            return
+
+        if state == TaskInstanceState.FAILED:
+            self.log.warning("Callback %s failed in pod %s/%s", key, namespace, pod_name)
+
+        # Clean up pod
+        if self.kube_config.delete_worker_pods:
+            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
+                self.log.info(
+                    "Deleted pod for callback %s. Pod name: %s. Namespace: %s",
+                    key,
+                    pod_name,
+                    namespace,
+                )
+        else:
+            self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
+
+        if key not in self.running:
+            self.log.debug("Callback key not in running: %s", key)
+            return
+        self.running.discard(key)
+
+        # Map pod state to CallbackState
+        if state == TaskInstanceState.FAILED:
+            self.event_buffer[key] = CallbackState.FAILED, None
+        else:
+            # Pod succeeded (state is None for successful pods in K8s executor)
+            self.event_buffer[key] = CallbackState.SUCCESS, None
 
     def _get_pod_namespace(self, ti: TaskInstance):
         pod_override = ti.executor_config.get("pod_override")
