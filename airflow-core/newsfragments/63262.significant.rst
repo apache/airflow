@@ -1,8 +1,8 @@
 AIP-76: Asset Partitioning
 
-Airflow 3.2 introduces asset partitioning, allowing DAGs to produce and consume partitioned
-asset events identified by a ``partition_key`` (e.g. ``2026-03-10T09:00:00`` for an hourly
-partition, or ``us|2026-03-10T09:00:00`` for a composite key).
+Airflow 3.2 introduces asset partitioning (time-based), allowing DAGs to produce and consume
+partitioned asset events identified by a ``partition_key`` (e.g. ``2026-03-10T09:00:00`` for
+an hourly partition, or ``us|2026-03-10T09:00:00`` for a composite key).
 
 **New timetables** (``airflow.timetables.partitioned``):
 
@@ -24,14 +24,11 @@ partition, or ``us|2026-03-10T09:00:00`` for a composite key).
   unchanged, raising ``ValueError`` otherwise (e.g.
   ``AllowedKeyMapper(["us", "eu", "ap"])`` accepts ``"us"`` but rejects ``"cn"``).
 
-Mappers can be set globally on a ``PartitionedAssetTimetable`` or overridden per upstream
-asset via ``partition_mapper_config``.
+Mappers can be set globally on a ``PartitionedAssetTimetable`` or overridden per upstream asset via ``partition_mapper_config``.
 
-The ``partition_key`` is also exposed on ``dag_run.partition_key`` inside task context, and
-can be supplied when triggering a DAG run manually via the REST API
+The ``partition_key`` is also exposed on ``dag_run.partition_key`` inside task context, and can be supplied when triggering a DAG run manually via the REST API
 (``POST /dags/{dag_id}/dagRuns``).
 
 * Migration rules needed
 
-  * No migration needed — asset partitioning is a new feature. Existing DAGs and assets
-    are unaffected
+  * None — asset partitioning is a new feature. Existing DAGs and assets are unaffected
