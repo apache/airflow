@@ -372,7 +372,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         if not self._providers_configuration_loaded:
             from airflow.providers_manager import ProvidersManager
 
-            ProvidersManager()._initialize_providers_configuration()
+            ProvidersManager().initialize_providers_configuration()
 
     def _ensure_providers_config_unloaded(self) -> bool:
         """Ensure providers configurations are unloaded temporarily to load core configs. Returns True if providers get unloaded."""

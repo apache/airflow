@@ -222,9 +222,22 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
 
     @provider_info_cache("provider_configs")
     def initialize_provider_configs(self):
-        """Lazy initialization of provider configs."""
+        """
+        Lazy initialization of providers configuration information.
+
+        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
+        In some cases we might want to make sure that the configuration is initialized, but we do not want
+        to cache the initialization method - for example when we just want to write configuration with
+        providers, but it is used in the context where no providers are loaded yet we will eventually
+        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
+        method to be run in order to load the configuration for providers again.
+        """
         self.initialize_providers_list()
         self._discover_config()
+        # Now update conf with the new provider configuration from providers
+        from airflow.sdk.configuration import conf
+
+        conf.load_providers_configuration()
 
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
@@ -632,6 +645,11 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
         self._provider_configs.clear()
+
+        # clear provider config cache in conf as well
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
 
         self._initialized = False
         self._initialization_stack_trace = None

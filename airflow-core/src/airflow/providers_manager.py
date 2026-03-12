@@ -610,12 +610,8 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
-        """Lazy initialization of providers configuration information."""
-        self._initialize_providers_configuration()
-
-    def _initialize_providers_configuration(self):
         """
-        Initialize providers configuration information.
+        Lazy initialization of providers configuration information.
 
         Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
         In some cases we might want to make sure that the configuration is initialized, but we do not want
@@ -1491,6 +1487,12 @@ class ProvidersManager(LoggingMixin):
         self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
         self._provider_configs.clear()
+
+        # clear provider config cache in conf as well
+        from airflow.configuration import conf
+
+        conf.invalidate_cache()
+
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()

@@ -66,8 +66,7 @@ conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
 )
 # Invalidate cached properties that depend on deprecated_options, since they may have been
 # computed during airflow initialization before the entries above were added.
-for attr in ("sensitive_config_values", "inversed_deprecated_options"):
-    conf.__dict__.pop(attr, None)
+conf.invalidate_cache()
 
 
 @pytest.fixture(scope="module", autouse=True)

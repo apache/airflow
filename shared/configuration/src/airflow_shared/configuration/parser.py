@@ -35,7 +35,6 @@ from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
 from enum import Enum
-from functools import cached_property
 from json.decoder import JSONDecodeError
 from re import Pattern
 from typing import IO, TYPE_CHECKING, Any, TypeVar, overload
@@ -177,7 +176,7 @@ def create_provider_cfg_config_fallback_defaults(
     provider_config_fallback_defaults_cfg_path: str,
 ) -> ConfigParser:
     """
-    Create fallback defaults.
+    Create fallback defaults for configuration.
 
     This parser contains provider defaults for Airflow configuration, containing fallback default values
     that might be needed when provider classes are being imported - before provider's configuration
@@ -329,7 +328,7 @@ class AirflowConfigParser(ConfigParser):
             section, key, fallback=None, raw=raw, vars=vars_
         )
 
-    @cached_property
+    @functools.cached_property
     def _provider_metadata_config_fallback_default_values(self) -> ConfigParser:
         """Return Provider metadata config fallback default values."""
         base_configuration_description: dict[str, dict[str, Any]] = {}
@@ -427,6 +426,20 @@ class AirflowConfigParser(ConfigParser):
         )
         self._suppress_future_warnings = False
         self.upgraded_values: dict[tuple[str, str], str] = {}
+
+    def invalidate_cache(self) -> None:
+        """
+        Clear all ``functools.cached_property`` entries on this instance.
+
+        Call this after mutating class-level attributes (e.g. ``deprecated_options``)
+        so that derived cached properties are recomputed on next access.
+        """
+        for attr_name in (
+            name
+            for name in dir(type(self))
+            if isinstance(getattr(type(self), name, None), functools.cached_property)
+        ):
+            self.__dict__.pop(attr_name, None)
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -1197,11 +1210,9 @@ class AirflowConfigParser(ConfigParser):
                         UserWarning,
                     )
         self._default_values = self.create_default_config_parser_callable(self.configuration_description)
-        # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
-        # the cached values, and it will be refreshed on next access.
-        with contextlib.suppress(AttributeError):
-            # no problem if cache is not set yet
-            del self.sensitive_config_values
+        # Cached properties derived from configuration_description (e.g. sensitive_config_values) need
+        # to be recomputed now that provider config has been merged in.
+        self.invalidate_cache()
         self._providers_configuration_loaded = True
 
     @overload  # type: ignore[override]
