@@ -65,6 +65,22 @@ class BetterChoice(click.Choice):
         return f"[{choices_str}]"
 
 
+class HiddenChoiceWithCompletion(BetterChoice):
+    """
+    Like NotVerifiedBetterChoice, but hides the choices list from --help output.
+    Autocomplete still works in the shell, and any value is accepted (not just
+    the listed choices).
+    """
+
+    name = "TEXT"
+
+    def get_metavar(self, param, ctx=None) -> str:
+        return "TEXT"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        return value
+
+
 class NotVerifiedBetterChoice(BetterChoice):
     """
     This parameter allows to pass parameters that do not pass verification by choice. This is

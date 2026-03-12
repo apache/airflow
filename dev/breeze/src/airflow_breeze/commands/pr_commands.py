@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import sys
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
+from threading import Thread
 from typing import TYPE_CHECKING
 
 import click
@@ -37,7 +40,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, TriageAction, prompt_triage_action, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import HiddenChoiceWithCompletion, NotVerifiedBetterChoice
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -319,6 +322,69 @@ def _resolve_viewer_login(token: str) -> str:
     """Resolve the GitHub login of the authenticated user via the viewer query."""
     data = _graphql_request(token, _VIEWER_QUERY, {})
     return data["viewer"]["login"]
+
+
+def _get_collaborators_cache_path(github_repository: str) -> Path:
+    """Return the path to the local collaborators cache file."""
+    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+    safe_name = github_repository.replace("/", "_")
+    return Path(BUILD_CACHE_PATH) / f".collaborators_{safe_name}.json"
+
+
+def _fetch_collaborators_from_api(token: str, github_repository: str) -> list[str]:
+    """Fetch the list of collaborators from the GitHub REST API."""
+    import requests
+
+    collaborators: list[str] = []
+    page = 1
+    while True:
+        response = requests.get(
+            f"https://api.github.com/repos/{github_repository}/collaborators",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            params={"per_page": 100, "page": page},
+        )
+        if response.status_code != 200:
+            break
+        data = response.json()
+        if not data:
+            break
+        for user in data:
+            login = user.get("login")
+            if login:
+                collaborators.append(login)
+        page += 1
+    return sorted(collaborators)
+
+
+def _load_collaborators_cache(github_repository: str) -> list[str]:
+    """Load collaborators from local cache file. Returns empty list if no cache."""
+    cache_path = _get_collaborators_cache_path(github_repository)
+    if cache_path.exists():
+        try:
+            return json.loads(cache_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return []
+
+
+def _save_collaborators_cache(github_repository: str, collaborators: list[str]) -> None:
+    """Save collaborators list to local cache file."""
+    cache_path = _get_collaborators_cache_path(github_repository)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(collaborators))
+
+
+def _refresh_collaborators_cache_in_background(token: str, github_repository: str) -> None:
+    """Fetch collaborators from API and update the cache in a background thread."""
+
+    def _refresh():
+        collaborators = _fetch_collaborators_from_api(token, github_repository)
+        if collaborators:
+            _save_collaborators_cache(github_repository, collaborators)
+
+    thread = Thread(target=_refresh, daemon=True)
+    thread.start()
 
 
 def _graphql_request(token: str, query: str, variables: dict) -> dict:
@@ -1375,6 +1441,40 @@ def _load_what_to_do_next() -> str:
     )
 
 
+def _build_collaborator_comment(
+    pr_author: str,
+    violations: list,
+    commits_behind: int,
+    base_ref: str,
+    comment_only: bool = False,
+) -> str:
+    """Build a simplified comment for PRs authored by collaborators.
+
+    Collaborators know the project well — just state the issues directly without
+    instructions, links, or encouragement.
+    """
+    violation_lines = []
+    for v in violations:
+        line = f"- **{v.category}**: {v.explanation}"
+        if v.details:
+            line += f" {v.details}"
+        violation_lines.append(line)
+    violations_text = "\n".join(violation_lines)
+
+    rebase_note = ""
+    if commits_behind > 0:
+        rebase_note = (
+            f"\n\nBranch is {commits_behind} "
+            f"commit{'s' if commits_behind != 1 else ''} behind `{base_ref}` "
+            "-- some failures may be from the base branch."
+        )
+
+    if comment_only:
+        return f"@{pr_author} Issues found:\n{violations_text}{rebase_note}"
+
+    return f"@{pr_author} Converted to draft. Issues found:\n{violations_text}{rebase_note}"
+
+
 def _build_comment(
     pr_author: str,
     violations: list,
@@ -1382,12 +1482,19 @@ def _build_comment(
     commits_behind: int,
     base_ref: str,
     comment_only: bool = False,
+    is_collaborator: bool = False,
 ) -> str:
     """Build the comment to post on a flagged PR.
 
     When comment_only is True, the comment just lists findings without
     mentioning draft conversion.
+    When is_collaborator is True, produces a simplified comment without instructions.
     """
+    if is_collaborator:
+        return _build_collaborator_comment(
+            pr_author, violations, commits_behind, base_ref, comment_only=comment_only
+        )
+
     violation_lines = []
     for v in violations:
         icon = "x" if v.severity == "error" else "warning"
@@ -1431,8 +1538,24 @@ def _build_comment(
     )
 
 
-def _build_close_comment(pr_author: str, violations: list, pr_number: int, author_flagged_count: int) -> str:
+def _build_close_comment(
+    pr_author: str,
+    violations: list,
+    pr_number: int,
+    author_flagged_count: int,
+    is_collaborator: bool = False,
+) -> str:
     """Build the comment to post on a PR being closed due to quality issues."""
+    if is_collaborator:
+        violation_lines = []
+        for v in violations:
+            line = f"- **{v.category}**: {v.explanation}"
+            if v.details:
+                line += f" {v.details}"
+            violation_lines.append(line)
+        violations_text = "\n".join(violation_lines)
+        return f"@{pr_author} Closing due to quality issues:\n{violations_text}"
+
     violation_lines = []
     for v in violations:
         icon = "x" if v.severity == "error" else "warning"
@@ -2104,14 +2227,21 @@ def _prompt_and_execute_flagged_pr(
             action = TriageAction.SKIP
         else:
             violations = selected if selected is not None else assessment.violations
+            is_collab = pr.author_association in _COLLABORATOR_ASSOCIATIONS
             draft_comment = _build_comment(
-                pr.author_login, violations, pr.number, pr.commits_behind, pr.base_ref
+                pr.author_login,
+                violations,
+                pr.number,
+                pr.commits_behind,
+                pr.base_ref,
+                is_collaborator=is_collab,
             )
             close_comment = _build_close_comment(
                 pr.author_login,
                 violations,
                 pr.number,
                 ctx.author_flagged_count.get(pr.author_login, 0),
+                is_collaborator=is_collab,
             )
             comment_only_text = _build_comment(
                 pr.author_login,
@@ -2120,6 +2250,7 @@ def _prompt_and_execute_flagged_pr(
                 pr.commits_behind,
                 pr.base_ref,
                 comment_only=True,
+                is_collaborator=is_collab,
             )
             # Show the final comment that will be posted
             if action == TriageAction.CLOSE:
@@ -2409,7 +2540,13 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 f"{'PRs' if author_count != 1 else 'PR'} "
                 f"— suggesting close instead of workflow approval.[/]"
             )
-            close_comment = _build_close_comment(pr.author_login, [], pr.number, author_count)
+            close_comment = _build_close_comment(
+                pr.author_login,
+                [],
+                pr.number,
+                author_count,
+                is_collaborator=pr.author_association in _COLLABORATOR_ASSOCIATIONS,
+            )
             get_console().print(Panel(close_comment, title="Proposed close comment", border_style="red"))
 
             if ctx.dry_run:
@@ -2537,7 +2674,13 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                     if fallback == TriageAction.SKIP:
                         get_console().print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
                     elif fallback == TriageAction.CLOSE:
-                        close_comment = _build_close_comment(pr.author_login, [], pr.number, 0)
+                        close_comment = _build_close_comment(
+                            pr.author_login,
+                            [],
+                            pr.number,
+                            0,
+                            is_collaborator=pr.author_association in _COLLABORATOR_ASSOCIATIONS,
+                        )
                         _execute_triage_action(
                             ctx, pr, TriageAction.CLOSE, draft_comment="", close_comment=close_comment
                         )
@@ -2558,7 +2701,13 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                             comment_only_text=rebase_comment,
                         )
             elif action == TriageAction.CLOSE:
-                close_comment = _build_close_comment(pr.author_login, [], pr.number, 0)
+                close_comment = _build_close_comment(
+                    pr.author_login,
+                    [],
+                    pr.number,
+                    0,
+                    is_collaborator=pr.author_association in _COLLABORATOR_ASSOCIATIONS,
+                )
                 _execute_triage_action(
                     ctx, pr, TriageAction.CLOSE, draft_comment="", close_comment=close_comment
                 )
@@ -2774,7 +2923,13 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                     ctx, pr, TriageAction.DRAFT, draft_comment=rebase_comment, close_comment=""
                 )
             elif action == TriageAction.CLOSE:
-                close_comment = _build_close_comment(pr.author_login, [], pr.number, 0)
+                close_comment = _build_close_comment(
+                    pr.author_login,
+                    [],
+                    pr.number,
+                    0,
+                    is_collaborator=pr.author_association in _COLLABORATOR_ASSOCIATIONS,
+                )
                 _execute_triage_action(
                     ctx, pr, TriageAction.CLOSE, draft_comment="", close_comment=close_comment
                 )
@@ -3393,6 +3548,34 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     default=None,
     help="Triage a specific PR by number instead of searching.",
 )
+# --- Select people ---
+@click.option(
+    "--author",
+    "filter_user",
+    default=None,
+    help="Filter PRs to a specific author.",
+)
+@click.option(
+    "--include-collaborators",
+    is_flag=True,
+    default=False,
+    help="Include PRs from collaborators/members/owners (normally skipped).",
+)
+@click.option(
+    "--reviews-for-me",
+    "my_reviews",
+    is_flag=True,
+    default=False,
+    help="Only show PRs where review is requested for the authenticated user.",
+)
+@click.option(
+    "--reviews-for",
+    "reviewers",
+    type=HiddenChoiceWithCompletion(_load_collaborators_cache("apache/airflow")),
+    multiple=True,
+    default=(),
+    help="Only show PRs where review is requested for this user. Can be repeated.",
+)
 # --- Filter options ---
 @click.option(
     "--label",
@@ -3407,12 +3590,6 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     type=str,
     multiple=True,
     help="Exclude PRs with this label. Supports wildcards. Can be repeated.",
-)
-@click.option(
-    "--author",
-    "filter_user",
-    default=None,
-    help="Filter PRs to a specific author.",
 )
 @click.option(
     "--created-after",
@@ -3433,12 +3610,6 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     "--updated-before",
     default=None,
     help="Only PRs updated on or before this date (YYYY-MM-DD).",
-)
-@click.option(
-    "--include-collaborators",
-    is_flag=True,
-    default=False,
-    help="Include PRs from collaborators/members/owners (normally skipped).",
 )
 @click.option(
     "--include-drafts",
@@ -3465,13 +3636,6 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     default=0,
     show_default=True,
     help="Only assess PRs that are at least this many commits behind base branch.",
-)
-@click.option(
-    "--review-requested",
-    "review_requested",
-    is_flag=True,
-    default=False,
-    help="Only show PRs where review is requested for the authenticated user.",
 )
 # --- Pagination and sorting ---
 @click.option(
@@ -3539,7 +3703,8 @@ def auto_triage(
     pending_approval_only: bool,
     checks_state: str,
     min_commits_behind: int,
-    review_requested: bool,
+    my_reviews: bool,
+    reviewers: tuple[str, ...],
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
@@ -3575,12 +3740,28 @@ def auto_triage(
 
     dry_run = get_dry_run()
 
-    # Resolve the authenticated user login (used for --review-requested and triage comment detection)
+    # Validate --reviews-for-me and --reviews-for are mutually exclusive
+    if my_reviews and reviewers:
+        get_console().print("[error]--reviews-for-me and --reviews-for are mutually exclusive.[/]")
+        sys.exit(1)
+
+    # Resolve the authenticated user login (used for --reviews-for-me and triage comment detection)
     viewer_login = _resolve_viewer_login(token)
+
+    # Refresh collaborators cache in the background on every run
+    _refresh_collaborators_cache_in_background(token, github_repository)
+
+    # Resolve review-requested filter: --reviews-for-me uses authenticated user, --reviews-for uses specified users
     review_requested_user: str | None = None
-    if review_requested:
+    review_requested_users: list[str] = []
+    if my_reviews:
         review_requested_user = viewer_login
+        review_requested_users = [viewer_login]
         get_console().print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
+    elif reviewers:
+        review_requested_users = list(reviewers)
+        review_requested_user = reviewers[0]
+        get_console().print(f"[info]Filtering PRs with review requested for: {', '.join(reviewers)}[/]")
 
     # Phase 1: Fetch PRs via GraphQL
     from fnmatch import fnmatch
@@ -3599,6 +3780,32 @@ def auto_triage(
     if pr_number:
         get_console().print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
+    elif len(review_requested_users) > 1:
+        # Multiple reviewers: fetch PRs for each reviewer and merge (deduplicate)
+        get_console().print("[info]Fetching PRs via GraphQL for multiple reviewers...[/]")
+        seen_numbers: set[int] = set()
+        all_prs = []
+        for reviewer in review_requested_users:
+            batch_prs, _, _ = _fetch_prs_graphql(
+                token,
+                github_repository,
+                labels=exact_labels,
+                exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                review_requested=reviewer,
+            )
+            for pr in batch_prs:
+                if pr.number not in seen_numbers:
+                    seen_numbers.add(pr.number)
+                    all_prs.append(pr)
+        # Disable pagination for multi-reviewer queries
+        has_next_page = False
     else:
         get_console().print("[info]Fetching PRs via GraphQL...[/]")
         all_prs, has_next_page, next_cursor = _fetch_prs_graphql(
