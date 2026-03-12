@@ -15,7 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. _howto/connection:gcpcloudsql:
+.. _howto/connection:gcpcloudsqldb:
 
 Google Cloud SQL Connection
 ===========================

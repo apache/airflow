@@ -17,6 +17,7 @@
 
 
 
+.. _howto/connection:google_cloud_platform:
 .. _howto/connection:gcp:
 
 Google Cloud Connection
