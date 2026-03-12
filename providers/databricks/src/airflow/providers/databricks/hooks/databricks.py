@@ -35,6 +35,7 @@ from typing import Any
 from requests import exceptions as requests_exceptions
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "2.1/clusters/get")
@@ -534,6 +535,31 @@ class DatabricksHook(BaseDatabricksHook):
         state = response["state"]
         return RunState(**state)
 
+    def get_run_tasks(self, run_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieve list of tasks performed by the run.
+
+        :param run_id: id of the run
+        :return: A list of tasks
+        """
+        has_more = True
+        all_tasks = []
+        page_token = ""
+        json: dict[str, Any] = {"run_id": run_id}
+
+        while has_more:
+            if page_token:
+                json = {**json, "page_token": page_token}
+            response = self._do_api_call(GET_RUN_ENDPOINT, json)
+            tasks = response.get("tasks", [])
+            all_tasks += tasks
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+
+        return all_tasks
+
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
@@ -800,7 +826,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: The statement_id as a string.
         """
         response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
-        return response["statement_id"]
+        statement_id = response["statement_id"]
+        if (sql_statement := json.get("statement")) is not None:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql_statement,
+                sql_parameters=json.get("parameters"),
+                job_id=statement_id,
+                default_db=json.get("catalog"),
+                default_schema=json.get("schema"),
+            )
+        return statement_id
 
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """
@@ -852,3 +888,29 @@ class DatabricksHook(BaseDatabricksHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, _):
+        """Return Databricks-specific database info for OpenLineage namespace resolution."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=f"{self.host}{port}",
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "databricks"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return "default"

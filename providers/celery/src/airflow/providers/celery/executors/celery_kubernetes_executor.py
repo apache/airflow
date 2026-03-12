@@ -104,18 +104,18 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
 
-        return queued_tasks
+        return queued_tasks  # type: ignore[return-value]
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
         """Not implemented for hybrid executors."""
 
-    @property
+    @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from celery and kubernetes executor."""
-        return self.celery_executor.running.union(self.kubernetes_executor.running)
+        return self.celery_executor.running.union(self.kubernetes_executor.running)  # type: ignore[return-value, arg-type]
 
     @running.setter
     def running(self, value) -> None:
@@ -225,7 +225,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
+    def get_event_buffer(  # type: ignore[override]
         self, dag_ids: list[str] | None = None
     ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -237,7 +237,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         cleared_events_from_celery = self.celery_executor.get_event_buffer(dag_ids)
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
-        return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
+        return {**cleared_events_from_celery, **cleared_events_from_kubernetes}  # type: ignore[dict-item]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

@@ -128,3 +128,32 @@ class TestSCCActivation:
             assert jmespath.search("subjects[5].name", docs[0]) == "release-name-airflow-triggerer"
             assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
             assert len(docs[0]["subjects"]) == 7
+
+    def test_deprecated_default_user_disabled_excludes_create_user_subject(self):
+        """webserver.defaultUser.enabled=false should exclude the create-user-job service account."""
+        docs = render_chart(
+            values={
+                "multiNamespaceMode": False,
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "statsd": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": False,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                },
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert len(docs) == 1
+        subject_names = [s["name"] for s in docs[0]["subjects"]]
+        assert "release-name-airflow-create-user-job" not in subject_names

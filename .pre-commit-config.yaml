@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.3.2'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -30,16 +30,8 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
-  - repo: https://github.com/eclipse-csi/octopin
-    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
-    hooks:
-      - id: pin-versions
-        name: Pin versions of dependencies in CI workflows (manual)
-        stages: ['manual']
-        language: python
-        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
+    rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -55,7 +47,9 @@ repos:
           ^airflow-core/tests/system/README\.md$
         exclude:
             (?x)
-            .github/PULL_REQUEST_TEMPLATE\.md$
+            .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/instructions/|
+            .github/skills/
         args:
           - "--maxlevel"
           - "2"
@@ -67,7 +61,8 @@ repos:
         files: \.sql$
         exclude: |
           (?x)
-          ^\.github/
+          ^\.github/|
+          ^scripts/ci/license-templates/
         args:
           - --comment-style
           - "/*||*/"
@@ -76,7 +71,6 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -84,6 +78,11 @@ repos:
           - scripts/ci/license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
         files: \.rst$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
@@ -164,18 +163,54 @@ repos:
           - --fuzzy-match-generates-todo
         exclude:
           (?x)
-          .github/PULL_REQUEST_TEMPLATE\.md$
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          AGENTS\.md$|
+          CLAUDE\.md$|
+          SKILL\.md$|
+          ^scripts/ci/license-templates/
+      - id: insert-license
+        name: Add short license for agentic Markdown files
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --fuzzy-match-generates-todo
+        files:
+          (?x)
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          AGENTS\.md$|
+          CLAUDE\.md$|
+          SKILL\.md$
+        exclude:
+          (?x)
+          ^scripts/ci/license-templates/|
+          ^\.github/instructions/|
+          ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-        files: >
-          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
+        files: |
+          (?x)
+          \.cfg$|
+          \.conf$|
+          \.ini$|
+          \.ldif$|
+          \.properties$|
+          \.service$|
+          \.tf$|
+          Dockerfile.*$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          ^scripts/ci/license-templates/
   - repo: local
     hooks:
       - id: check-min-python-version
@@ -302,7 +337,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 63c8f8312b7559622c0d82815639671ae42132ac  # frozen: v2.4.1
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
     hooks:
       - id: codespell
         name: Run codespell
@@ -321,7 +356,8 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
+          ^\.github/skills/airflow-translations/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -386,6 +422,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
+      - id: check-registry-types-json-sync
+        name: Check registry types.json in sync with types.py
+        entry: ./scripts/ci/prek/check_registry_types_json_sync.py
+        language: python
+        pass_filenames: false
+        files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -394,7 +436,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.0']
+        additional_dependencies: ['ruff==0.15.5']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -548,6 +590,7 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
+          ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/utils/db\.py$|
@@ -570,18 +613,21 @@ repos:
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
-          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
           ^.*/provider_conf\.py$|
           ^providers/\.pre-commit-config\.yaml$|
           ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr\.py$|
           ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr\.py$|
+          ^providers/.*/get_provider_info\.py$|
+          ^providers/.*/provider\.yaml$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^providers/apache/hdfs/docs/connections\.rst$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
+          ^providers/apache/spark/docs/connections/spark-submit.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -611,6 +657,7 @@ repos:
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
           ^scripts/ci/prek/upgrade_important_versions.py$|
+          ^scripts/ci/prek/download_k8s_schemas\.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
@@ -719,6 +766,15 @@ repos:
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
+        pass_filenames: false
+      - id: sync-translation-namespaces
+        name: Sync translation namespace file list
+        entry: ./scripts/ci/prek/sync_translation_namespaces.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
+          ^\.github/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
@@ -897,6 +953,13 @@ repos:
           - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-k8s-schemas-published
+        name: Check K8s schemas are published on airflow.apache.org
+        entry: ./scripts/ci/prek/check_k8s_schemas_published.py
+        language: python
+        pass_filenames: false
+        files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev

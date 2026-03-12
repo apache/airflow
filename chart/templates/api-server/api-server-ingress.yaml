@@ -55,7 +55,7 @@ spec:
   {{- if .tls }}
   {{- if .tls.enabled }}
     - hosts:
-        - {{ .name | quote }}
+        - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
   {{- end }}
   {{- end }}
@@ -64,7 +64,9 @@ spec:
   {{- else if .Values.ingress.apiServer.tls.enabled }}
   tls:
     - hosts:
-        {{- .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) | toYaml | nindent 8 }}
+        {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+        - {{ tpl . $ | quote }}
+        {{- end }}
       secretName: {{ .Values.ingress.apiServer.tls.secretName }}
   {{- end }}
   rules:

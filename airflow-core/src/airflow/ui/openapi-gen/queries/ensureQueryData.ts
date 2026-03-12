@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -293,14 +293,17 @@ export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (queryClient: Qu
 * @param data.runType
 * @param data.state
 * @param data.dagVersion
+* @param data.bundleVersion
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
 * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.partitionKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns DAGRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, { confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, { bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+  bundleVersion?: string;
   confContains?: string;
   dagId: string;
   dagIdPattern?: string;
@@ -320,6 +323,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
   logicalDateLte?: string;
   offset?: number;
   orderBy?: string[];
+  partitionKeyPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -336,7 +340,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
   updatedAtGte?: string;
   updatedAtLt?: string;
   updatedAtLte?: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
@@ -1497,6 +1501,32 @@ export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClie
 */
 export const ensureUseAuthLinksServiceGetCurrentUserInfoData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetCurrentUserInfoKeyFn(), queryFn: () => AuthLinksService.getCurrentUserInfo() });
 /**
+* Get Partitioned Dag Runs
+* Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.hasCreatedDagRunId
+* @returns PartitionedDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUsePartitionedDagRunServiceGetPartitionedDagRunsData = (queryClient: QueryClient, { dagId, hasCreatedDagRunId }: {
+  dagId?: string;
+  hasCreatedDagRunId?: boolean;
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId }), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId }) });
+/**
+* Get Pending Partitioned Dag Run
+* Return full details for pending PartitionedDagRun.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.partitionKey
+* @returns PartitionedDagRunDetailResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUsePartitionedDagRunServiceGetPendingPartitionedDagRunData = (queryClient: QueryClient, { dagId, partitionKey }: {
+  dagId: string;
+  partitionKey: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) });
+/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.
@@ -1529,6 +1559,25 @@ export const ensureUseDashboardServiceHistoricalMetricsData = (queryClient: Quer
 * @throws ApiError
 */
 export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseDashboardServiceDagStatsKeyFn(), queryFn: () => DashboardService.dagStats() });
+/**
+* Get Dag Run Deadlines
+* Get all deadlines for a specific DAG run.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+* @returns DeadlineCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDeadlinesServiceGetDagRunDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) });
 /**
 * Structure Data
 * Get Structure Data.

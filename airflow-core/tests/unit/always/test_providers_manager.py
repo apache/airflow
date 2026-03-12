@@ -57,6 +57,23 @@ def test_cleanup_providers_manager(cleanup_providers_manager):
     assert len(ProvidersManager().providers) > 0
 
 
+@pytest.fixture
+def yaml_ui_metadata_counts(cleanup_providers_manager):
+    """Get counts of UI metadata defined in YAML (widgets, behaviours)."""
+    pm = ProvidersManager()
+    pm.initialize_providers_list()
+
+    widgets = 0
+    behaviours = 0
+    for provider in pm._provider_dict.values():
+        for conn_config in provider.data.get("connection-types", []):
+            widgets += len(conn_config.get("conn-fields", {}))
+            if conn_config.get("ui-field-behaviour"):
+                behaviours += 1
+
+    return widgets, behaviours
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestProviderManager:
     @pytest.fixture(autouse=True)
@@ -143,7 +160,8 @@ class TestProviderManager:
             ),
         )
 
-    def test_connection_form_widgets(self):
+    def test_connection_form_widgets(self, yaml_ui_metadata_counts):
+        yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         # Connection form widgets use flask_appbuilder widgets, so they're only available when it's installed
@@ -152,18 +170,20 @@ class TestProviderManager:
 
             assert len(connections_form_widgets) > 29
         except ImportError:
-            assert len(connections_form_widgets) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_form_widgets) == yaml_widgets
 
-    def test_field_behaviours(self):
+    def test_field_behaviours(self, yaml_ui_metadata_counts):
+        _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        # Field behaviours are often related to connection forms, only available when flask_appbuilder is installed
         try:
             import flask_appbuilder  # noqa: F401
 
             assert len(connections_with_field_behaviours) > 16
         except ImportError:
-            assert len(connections_with_field_behaviours) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_with_field_behaviours) == yaml_behaviours
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
@@ -237,6 +257,10 @@ class TestProviderManager:
 
 
 class TestWithoutCheckProviderManager:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, cleanup_providers_manager):
+        pass
+
     @patch("airflow.providers_manager.import_string")
     @patch("airflow.providers_manager._correctness_check")
     @patch("airflow.providers_manager.ProvidersManager._discover_auth_managers")
@@ -265,11 +289,149 @@ class TestWithoutCheckProviderManager:
         mock_importlib_import_string: MagicMock,
     ):
         providers_manager = ProvidersManager()
-        providers_manager.executor_without_check
-        result = providers_manager.auth_manager_without_check
+        result = providers_manager.executor_without_check
 
         mock_discover_executors.assert_called_once_with(check=False)
         mock_importlib_import_string.assert_not_called()
         mock_correctness_check.assert_not_called()
 
         assert providers_manager._executor_without_check_set == result
+
+
+class TestProvidersMetadataLoading:
+    @pytest.mark.parametrize(
+        ("field_name", "field_def", "expected_title", "expected_checks"),
+        [
+            pytest.param(
+                "api_url",
+                {
+                    "label": "API URL",
+                    "description": "The API endpoint URL",
+                    "schema": {
+                        "type": "string",
+                        "default": "https://api.example.com",
+                    },
+                },
+                "API URL",
+                lambda x: (
+                    x["description"] == "The API endpoint URL" and x["value"] == "https://api.example.com"
+                ),
+                id="string_field",
+            ),
+            pytest.param(
+                "timeout",
+                {
+                    "label": "Timeout",
+                    "description": "Connection timeout in seconds",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300,
+                        "default": 30,
+                    },
+                },
+                "Timeout",
+                lambda x: x["value"] == 30,
+                id="integer_field",
+            ),
+            pytest.param(
+                "use_ssl",
+                {
+                    "label": "Use SSL",
+                    "schema": {
+                        "type": "boolean",
+                        "default": True,
+                    },
+                },
+                "Use SSL",
+                lambda x: x["value"] is True,
+                id="boolean_field",
+            ),
+            pytest.param(
+                "api_key",
+                {
+                    "label": "API Key",
+                    "sensitive": True,
+                    "schema": {
+                        "type": "string",
+                        "format": "password",
+                    },
+                },
+                "API Key",
+                lambda x: x["schema"].get("format") == "password",
+                id="password_field",
+            ),
+            pytest.param(
+                "ssl_mode",
+                {
+                    "label": "SSL Mode",
+                    "description": "SSL connection mode",
+                    "schema": {
+                        "type": "string",
+                        "enum": ["disable", "prefer", "require", "verify-full"],
+                        "default": "prefer",
+                    },
+                },
+                "SSL Mode",
+                lambda x: (
+                    x["value"] == "prefer"
+                    and "enum" in x["schema"]
+                    and x["schema"]["enum"] == ["disable", "prefer", "require", "verify-full"]
+                ),
+                id="enum_field",
+            ),
+        ],
+    )
+    def test_to_api_format(self, field_name, field_def, expected_title, expected_checks):
+        """Test converting field definitions to API format."""
+        pm = ProvidersManager()
+        x = pm._to_api_format(field_name, field_def)
+
+        assert x is not None
+        assert isinstance(x, dict)
+        assert x["schema"]["title"] == expected_title
+        assert expected_checks(x)
+
+    def test_add_customized_fields(self):
+        """Test adding customized field behaviour from provider info."""
+        pm = ProvidersManager()
+        pm.initialize_providers_list()
+
+        behaviour = {
+            "hidden-fields": ["schema", "extra"],
+            "relabeling": {"login": "Email Address"},
+            "placeholders": {"host": "smtp.gmail.com", "port": "587"},
+        }
+
+        pm._add_customized_fields(
+            package_name="test-provider", connection_type="test_conn", behaviour=behaviour
+        )
+
+        assert "test_conn" in pm._field_behaviours
+        behaviour = pm._field_behaviours["test_conn"]
+        assert behaviour["hidden_fields"] == ["schema", "extra"]
+        assert behaviour["relabeling"] == {"login": "Email Address"}
+        assert behaviour["placeholders"]["host"] == "smtp.gmail.com"
+
+    def test_load_ui_for_http_provider(self):
+        """Test that HTTP provider ui metadata is loaded from provider info."""
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
+
+        assert "http" in pm._field_behaviours
+        behaviour = pm._field_behaviours["http"]
+
+        assert "hidden_fields" in behaviour
+        assert "relabeling" in behaviour
+        assert "placeholders" in behaviour
+
+    def test_ui_metadata_loading_without_hook_import(self):
+        """Test that UI metadata loads from provider info without importing hook classes."""
+        with patch("airflow.providers_manager.import_string") as mock_import:
+            pm = ProvidersManager()
+            pm.initialize_providers_hooks()
+
+            assert "http" in pm._field_behaviours
+
+            # assert that HttpHook was not imported during initialization, which means yaml path was taken
+            assert len([call for call in mock_import.call_args_list if "HttpHook" in str(call)]) == 0

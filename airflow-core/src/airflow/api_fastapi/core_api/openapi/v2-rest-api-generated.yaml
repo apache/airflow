@@ -503,6 +503,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -565,12 +571,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -720,12 +720,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -1017,6 +1011,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2285,6 +2285,14 @@ paths:
           items:
             type: integer
           title: Dag Version
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
@@ -2342,6 +2350,20 @@ paths:
             \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: partition_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Partition Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported."
@@ -6933,6 +6955,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -10180,6 +10208,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10226,6 +10257,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -10352,6 +10390,7 @@ components:
       - description
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10362,6 +10401,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - catchup
       - dag_run_timeout
@@ -10456,6 +10496,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10502,6 +10545,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -10528,6 +10578,7 @@ components:
       - description
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10538,6 +10589,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - file_token
       title: DAGResponse
@@ -11043,6 +11095,11 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -11054,8 +11111,9 @@ components:
       - state
       - data_interval_start
       - data_interval_end
+      - partition_key
       title: DagRunAssetReference
-      description: DAGRun serializer for asset responses.
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:
@@ -11092,6 +11150,7 @@ components:
       - scheduled
       - manual
       - asset_triggered
+      - asset_materialization
       title: DagRunType
       description: Class with DagRun types.
     DagScheduleAssetReference:
@@ -11260,12 +11319,27 @@ components:
     DryRunBackfillResponse:
       properties:
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        partition_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date
       type: object
       required:
       - logical_date
+      - partition_key
+      - partition_date
       title: DryRunBackfillResponse
       description: Backfill serializer for responses in dry-run mode.
     EventLogCollectionResponse:
@@ -11408,6 +11482,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
           title: Destination
           default: nav
       additionalProperties: true
@@ -12041,8 +12116,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -12091,7 +12167,8 @@ components:
         slots:
           anyOf:
           - type: integer
-            exclusiveMinimum: 0.0
+            minimum: -1.0
+            description: Number of slots. Use -1 for unlimited.
           - type: 'null'
           title: Slots
         description:
@@ -12121,8 +12198,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -12283,6 +12361,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
           - dashboard
           title: Destination
           default: nav

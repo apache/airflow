@@ -22,6 +22,7 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
@@ -159,6 +161,13 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
+  "partitionedDagRun_one": "Partitionierter Dag Lauf",
+  "partitionedDagRun_other": "Partitionierte Dag Läufe",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
+  },
+  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {

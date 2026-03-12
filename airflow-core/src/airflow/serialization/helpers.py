@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.settings import json
 
 if TYPE_CHECKING:
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
@@ -135,9 +135,9 @@ def find_registered_custom_partition_mapper(importable_string: str) -> type[Part
     """Find a user-defined custom partition mapper class registered via a plugin."""
     from airflow import plugins_manager
 
-    partition_mapper_cls = plugins_manager.get_partition_mapper_plugins()
+    partition_mapper_classes = plugins_manager.get_partition_mapper_plugins()
     with contextlib.suppress(KeyError):
-        return partition_mapper_cls[importable_string]
+        return partition_mapper_classes[importable_string]
     raise PartitionMapperNotFound(importable_string)
 
 
@@ -162,4 +162,4 @@ class PartitionMapperNotFound(ValueError):
 
 def is_core_partition_mapper_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core partition mapper class."""
-    return importable_string.startswith("airflow.partition_mapper.")
+    return importable_string.startswith("airflow.partition_mappers.")

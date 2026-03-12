@@ -25,6 +25,66 @@
 Changelog
 ---------
 
+0.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add method to retrieve teams from Keycloak as resources (#62715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check 'id_token' format before redirecting in Keycloak auth manager (#62813)``
+* ``Do not get 'logout_callback_url' from request in keycloak auth manager (#62795)``
+* ``Scope session token in cookie to base_url (#62771)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add Apache Airflow Provider Registry (#62261)``
+
+0.5.3
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak CLI: provision multi‑team resources for auth manager (AIP‑67) (#61256)``
+* ``Keycloak auth manager: enforce team‑scoped authorization (AIP‑67) (#61351)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HTTP 500 on /ui/teams endpoint when using Keycloak auth manager (#62471)``
+* ``Encode id_token to avoid special characters in it. (#62429)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix race condition in auth manager initialization (#62214)" (#62404)``
+   * ``Fix race condition in auth manager initialization (#62214)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+0.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Amend DAG-level RBAC by using claim_token per UMA spec (#61283)``
+* ``Fix double-slash URL generation in Keycloak (#61121) (#61305)``
+
+Misc
+~~~~
+
+* ``Deprecate 'is_authorized_backfill' in Keycloak auth manager (#61402)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Amend new Python Keycloak dependency changes (#61174)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.5.1
 .....
 

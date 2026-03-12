@@ -113,7 +113,7 @@ class AssetAliasCollectionResponse(BaseModel):
 
 
 class DagRunAssetReference(StrictBaseModel):
-    """DAGRun serializer for asset responses."""
+    """DagRun serializer for asset responses."""
 
     run_id: str
     dag_id: str
@@ -123,6 +123,7 @@ class DagRunAssetReference(StrictBaseModel):
     state: str
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    partition_key: str | None
 
 
 class AssetEventResponse(BaseModel):

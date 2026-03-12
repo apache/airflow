@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import multiprocessing
 import os
 import pathlib
 import re
@@ -270,6 +269,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
+        # Remove team_name from kwargs as the fallback defaults ConfigParser
+        # does not support team-aware lookups (it's a standard ConfigParser).
+        kwargs.pop("team_name", None)
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
 
     # A mapping of old default values that we want to change and warn the user
@@ -295,7 +297,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     enums_options = {
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
-        ("core", "mp_start_method"): multiprocessing.get_all_start_methods(),
         ("dag_processor", "file_parsing_sort_mode"): [
             "modified_time",
             "random_seeded_by_host",
@@ -490,6 +491,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         )
 
     def mask_secrets(self):
+        from airflow._shared.configuration.parser import _build_kwarg_env_prefix, _collect_kwarg_env_vars
         from airflow._shared.secrets_masker import mask_secret as mask_secret_core
         from airflow.sdk.log import mask_secret as mask_secret_sdk
 
@@ -506,6 +508,17 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 continue
             mask_secret_core(value)
             mask_secret_sdk(value)
+
+        # Mask per-key backend kwarg env vars (AIRFLOW__SECRETS__BACKEND_KWARG__* etc.).
+        # These are not in sensitive_config_values but may contain sensitive values.
+        for _section, _kwargs_key in [
+            ("secrets", "backend_kwargs"),
+            ("workers", "secrets_backend_kwargs"),
+        ]:
+            _prefix = _build_kwarg_env_prefix(_section, _kwargs_key)
+            for _value in _collect_kwarg_env_vars(_prefix).values():
+                mask_secret_core(_value)
+                mask_secret_sdk(_value)
 
     def load_test_config(self):
         """
@@ -872,11 +885,18 @@ def initialize_secrets_backends(
     custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
+        from airflow.models import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
     for class_name in default_backends:
+        from airflow.models import Connection
+
         secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append(backend)
 
     return backend_list
 

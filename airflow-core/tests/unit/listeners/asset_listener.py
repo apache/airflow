@@ -23,6 +23,7 @@ from airflow.listeners import hookimpl
 
 changed = []
 created = []
+emitted = []
 
 
 @hookimpl
@@ -31,10 +32,16 @@ def on_asset_changed(asset):
 
 
 @hookimpl
+def on_asset_event_emitted(asset_event):
+    emitted.append(copy.deepcopy(asset_event))
+
+
+@hookimpl
 def on_asset_created(asset):
     created.append(copy.deepcopy(asset))
 
 
 def clear():
-    global changed, created
-    changed, created = [], []
+    changed.clear()
+    created.clear()
+    emitted.clear()

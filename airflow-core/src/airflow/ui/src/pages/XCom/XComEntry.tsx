@@ -89,11 +89,7 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
   ) : (
     <HStack>
       {isObjectOrArray ? (
-        <RenderedJsonField
-          content={xcomValue as object}
-          enableClipboard={false}
-          jsonProps={{ collapsed: !open }}
-        />
+        <RenderedJsonField collapsed={!open} content={xcomValue as object} enableClipboard={false} />
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}

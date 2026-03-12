@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
@@ -30,6 +31,7 @@ from tests_common.test_utils.db import clear_db_revoked_tokens
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 AUTH_MANAGER_LOGOUT_URL = "http://some_logout_url"
+SUBPATH = "/team-a/"
 
 pytestmark = pytest.mark.db_test
 
@@ -59,10 +61,27 @@ class TestGetLogin(TestAuthEndpoint):
 
         assert response.status_code == 307
         assert (
-            response.headers["location"] == f"{AUTH_MANAGER_LOGIN_URL}?next={params.get('next')}"
+            response.headers["location"]
+            == f"{AUTH_MANAGER_LOGIN_URL}?{urlencode({'next': params.get('next')})}"
             if params.get("next")
             else AUTH_MANAGER_LOGIN_URL
         )
+
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_next_url_correctly_encoded(self, mock_is_safe_url, test_client):
+        """Test that special characters in the next URL are correctly url encoded."""
+        next_url = "http://localhost:8080/dags/my_dag/runs/manual__2026-03-02T12:45:13.113989+00:00/tasks/t"
+        response = test_client.get("/auth/login", follow_redirects=False, params={"next": next_url})
+
+        assert response.status_code == 307
+        location = response.headers["location"]
+        query_string = location.split("?", 1)[1]
+        # Literals that have special meaning in query strings must be url encoded.
+        assert "+" not in query_string
+        assert ":" not in query_string
+        assert "/" not in query_string
+        # Decoding the query string must recover the original URL unchanged.
+        assert parse_qs(query_string)["next"][0] == next_url
 
     @pytest.mark.parametrize(
         "params",
@@ -120,6 +139,18 @@ class TestLogout(TestAuthEndpoint):
         response = test_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
+
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.get_cookie_path", return_value=SUBPATH)
+    def test_logout_cookie_uses_subpath(self, mock_cookie_path, test_client):
+        """Cookies must use the subpath so they are scoped to the correct instance."""
+        test_client.app.state.auth_manager.get_url_logout.return_value = None
+
+        response = test_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        assert f"Path={SUBPATH}" in token_cookie
 
 
 class TestLogoutTokenRevocation:

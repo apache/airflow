@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "GIT (Git)",
                 "external-doc-url": "https://git-scm.com/",
+                "logo": "/docs/integration-logos/GIT.svg",
                 "tags": ["software"],
             }
         ],
@@ -38,6 +39,20 @@ def get_provider_info():
             {"integration-name": "GIT (Git)", "python-modules": ["airflow.providers.git.bundles.git"]}
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.git.hooks.git.GitHook", "connection-type": "git"}
+            {
+                "hook-class-name": "airflow.providers.git.hooks.git.GitHook",
+                "connection-type": "git",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {
+                        "login": "Username or Access Token name",
+                        "host": "Repository URL",
+                        "password": "Access Token (optional)",
+                    },
+                    "placeholders": {
+                        "extra": '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key"}'
+                    },
+                },
+            }
         ],
     }

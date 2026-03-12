@@ -28,6 +28,21 @@ Changelog
 ---------
 
 
+4.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch from surrogateescape to replace to handle utf-8 error (#62632)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
 4.5.2
 .....
 

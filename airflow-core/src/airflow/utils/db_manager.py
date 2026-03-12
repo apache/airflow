@@ -167,20 +167,29 @@ class RunDBManager(LoggingMixin):
 
     def __init__(self):
         from airflow.api_fastapi.app import create_auth_manager
+        from airflow.providers_manager import ProvidersManager
 
         super().__init__()
         self._managers: list[BaseDBManager] = []
+
+        # Start with auto-discovered DB managers from installed providers
+        managers: list[str] = list(ProvidersManager().db_managers)
+
+        # Add any explicitly configured managers not already discovered
         managers_config = conf.get("database", "external_db_managers", fallback=None)
-        if not managers_config:
-            managers = []
-        else:
-            managers = managers_config.split(",")
-        # Add DB manager specified by auth manager (if any)
+        if managers_config:
+            for m in managers_config.split(","):
+                if stripped := m.strip():
+                    if stripped not in managers:
+                        managers.append(stripped)
+
+        # Add DB manager declared by the configured auth manager (existing behavior, deduplicated)
         auth_manager_db_manager = create_auth_manager().get_db_manager()
         if auth_manager_db_manager and auth_manager_db_manager not in managers:
             managers.append(auth_manager_db_manager)
+
         for module in managers:
-            manager = import_string(module)
+            manager = import_string(module.strip())
             self._managers.append(manager)
 
     def validate(self):

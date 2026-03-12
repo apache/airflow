@@ -25,7 +25,9 @@ Airflow is split into core and providers. They are delivered as separate distrib
 * ``apache-airflow-task-sdk`` - task-sdk distribution that are imported by the providers
 * ``apache-airflow-providers-*`` - More than 90 providers to communicate with external services
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Where providers are kept in our repository
 ------------------------------------------
@@ -140,7 +142,7 @@ The ``tests_common`` module is installed automatically by uv in the uv workspace
 Developing community managed providers
 --------------------------------------
 
-While you can develop your own providers, Apache Airflow has 60+ providers that are managed by the community.
+While you can develop your own providers, Apache Airflow has 90+ providers that are managed by the community.
 They are part of the same repository as Apache Airflow (we use monorepo approach where different
 parts of the system are developed in the same repository but then they are packaged and released separately).
 All the community-managed providers are in ``providers`` folder and their code is placed as sub-directories of

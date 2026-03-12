@@ -32,6 +32,69 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.14.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add multi-team support for KubernetesExecutor (#61798)``
+* ``Executor Synchronous callback workload (#61153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixed an issue that caused a state mismatch (#63061)``
+
+Misc
+~~~~
+
+* ``Bump minimum cryptography to 44.0.3 and paramiko to 3.4.0 (#62723)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.13.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add Kubernetes Secrets Backend to cncf.kubernetes provider (#61527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EKSPodOperator credential refresh errors and improve error handling (#57585) (#58743)``
+* ``fix: pod_override existing init_containers (#62284)``
+* ``fix: Transient error state caused by rate limits from the container registry in 'KubernetesPodOperator' (#62215)``
+
+Misc
+~~~~
+
+* ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``(doc only) Update 'parallelism' parameter description for KubernetesJobOperator (#62468)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+10.12.4
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ModuleNotFoundError in kubernetes cleanup cronjob (#61673)``
+* ``Avoid KeyError when Kubernetes omits optional waiting status fields (#60805)``
+* ``Prevent duplicate Spark Kubernetes pods (#61110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clarify find_spark_job selection logic and intent (#61640)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
 10.12.3
 .......
 

@@ -40,7 +40,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
+from airflow.sdk.serde import CLASSNAME, DATA, MAX_RECURSION_DEPTH, VERSION, decode, deserialize, serialize
 from airflow.sdk.serde.serializers import builtin
 
 from tests_common.test_utils.config import conf_vars
@@ -680,3 +680,8 @@ class TestSerializers:
         deserialized = deserialize(serialized)
         assert isinstance(deserialized, uuid.UUID)
         assert uuid_value == deserialized
+
+    def test_serde_serialize_recursion_limit(self):
+        depth = MAX_RECURSION_DEPTH
+        with pytest.raises(RecursionError, match="maximum recursion depth reached for serialization"):
+            serialize(object(), depth=depth)

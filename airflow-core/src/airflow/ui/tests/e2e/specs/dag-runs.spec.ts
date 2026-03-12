@@ -139,8 +139,4 @@ test.describe("DAG Runs Page", () => {
     await dagRunsPage.navigate();
     await dagRunsPage.verifyDagIdFiltering(testDagId1);
   });
-
-  test("verify pagination with offset and limit", async () => {
-    await dagRunsPage.verifyPagination(3);
-  });
 });

@@ -26,6 +26,92 @@
 Changelog
 ---------
 
+9.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'SesEmailOperator' (#58312)``
+* ``Adding sftp_remote_host to S3 transfer Operators (#63147)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler not deleting local logs after streaming (#62985)``
+* ``Fix invalid RequestPayer usage in S3Hook.select_key() method (#63148)``
+* ``S3GetBucketTaggingOperator ignoring aws_conn_id parameter (#63137)``
+* ``Scope session token in cookie to base_url (#62771)``
+* ``S3DagBundle does not delete stale dag recursively (#63104)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+* ``Clarify to avoid bumping min version for sagemaker-studio (#62891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support custom KMS keys in S3CopyObjectOperator (#60597)``
+* ``Add best-effort cleanup to EmrCreateJobFlowOperator on post-creation failure (#61010)``
+* ``Add best-effort cleanup to EksCreateNodegroupOperator on post-create failure (#61145)``
+* ``Add best-effort cleanup to EcsRunTaskOperator on post-start failure (#61051)``
+* ``Restrict EC2 cleanup to waiter errors and guard behind flag. (#61272)``
+* ``Add cancel_on_kill support for EMR Serverless deferrable operator (#60440)``
+* ``Add delay in 'example_emr_eks' after updating execution role (#62415)``
+* ``AwsLambdaExecutor: Support multi-team configuration (#61321)``
+* ``Add SageMaker Unified Studio domain_id, project_id, domain_region as new parameters to SageMakerNotebookOperator (#62147)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Check teams defined in auth managers exist in DB when spinning up API server (#62527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update EKS hook auth API version to v1 and replace non-POSIX 'source' with '.' (#61441)``
+* ``Fix hardcoded waiter logic in EmrCreateJobFlowOperator (#61195)``
+* ``Fix 'host' in AWS auth manager (#61368)``
+* ``Fix variable name in 'exemple_emr_eks' (#62480)``
+* ``fix S3RemoteLogIO using incorrect transfer config (#62423)``
+* ``Fix EKSPodOperator credential refresh errors and improve error handling (#57585) (#58743)``
+* ``Fix ECS Executor compatibility with Airflow 3.x in 'try_adopt_task_instances' (#62192)``
+* ``fix(amazon): flush file buffer in S3Hook.download_file() before returning path (#62078)``
+* ``Handle CrawlerRunningException gracefully in GlueCrawlerOperator (#62016)``
+* ``RedshiftCreateClusterOperator could leave clusters running when failures (#61333)``
+* ``Fix EKS operator failures by consolidating API version references into a shared constant (#61891)``
+* ``Remove Connection dependency from shared secrets backend (#61523)``
+
+Misc
+~~~~
+
+* ``Deprecate 'is_authorized_backfill' in AWS auth manager (#61402)``
+* ``Cleanup some dependencies (#60992)``
+* ``Increase the redshift cluster deletion to 25 minutes in system tests (#62413)``
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+* ``Update trigger rule in 'example_emr_eks.py' (#62228)``
+* ``Migrate connection UI metadata to YAML for some providers (#62011)``
+* ``Fix EKS system test xcom issue and standardize naming between tests (#61893)``
+* ``Warn about AWS auth manager being in alpha stage in identity-center (#61745)``
+* ``fix(amazon): Filter kwargs in AthenaSQLHook to prevent TypeError (#62227)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing bundles entries to Amazon and Google provider.yaml (#61650)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``ECS system test occasionally fails with transient timeouts (#61895)``
+   * ``Providers wave 2026-02-10 (#61746)``
+   * ``Bump black to latest 26.1.0 release (#61612)``
+   * ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
+   * ``Revert "Add resume_glue_job_on_retry to GlueJobOperator (#59392)" (#62730)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
 9.21.0
 ......
 

@@ -152,7 +152,7 @@ def run_docker_compose_tests(
         test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
         cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
     elif test_type == "airflow-ctl-integration":
-        test_path = Path("tests") / "airflowctl_tests" / "test_airflowctl_commands.py"
+        test_path = Path("tests") / "airflowctl_tests"
         cwd = AIRFLOW_CTL_TESTS_ROOT_PATH.as_posix()
     else:
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"

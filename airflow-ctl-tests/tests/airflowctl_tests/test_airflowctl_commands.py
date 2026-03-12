@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from subprocess import PIPE, STDOUT, Popen
-
 import pytest
-
-from airflowctl_tests import console
 
 
 def date_param():
@@ -47,13 +42,15 @@ def date_param():
     return random_dt.isoformat()
 
 
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
+# Passing password via command line is insecure but acceptable for testing purposes
+# Please do not do this in production, it enables possibility of exposing your credentials
+CREDENTIAL_SUFFIX = "--username airflow --password airflow"
+LOGIN_COMMAND = f"auth login {CREDENTIAL_SUFFIX}"
+LOGIN_COMMAND_SKIP_KEYRING = "auth login --skip-keyring"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
-ONE_DATE_PARAM = date_param()
 TEST_COMMANDS = [
-    # Passing password via command line is insecure but acceptable for testing purposes
-    # Please do not do this in production, it enables possibility of exposing your credentials
-    LOGIN_COMMAND,
+    # Auth commands
+    f"auth token {CREDENTIAL_SUFFIX}",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -85,22 +82,22 @@ TEST_COMMANDS = [
     "dags list-version --dag-id=example_bash_operator",
     "dags list-warning",
     # Order of trigger and pause/unpause is important for test stability because state checked
-    f"dags trigger --dag-id=example_bash_operator --logical-date={ONE_DATE_PARAM} --run-after={ONE_DATE_PARAM}",
+    "dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
     # Test trigger without logical-date (should default to now)
     "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
     # DAG Run commands
-    f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}"',
+    'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     "dags update --dag-id=example_bash_operator --no-is-paused",
     # DAG Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # XCom commands - need a DAG run with completed tasks
-    f'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
-    f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
-    f'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
-    f'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
-    f'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
+    'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
+    'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key',
+    'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
+    'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key=test_xcom_key',
     # Jobs commands
     "jobs list",
     # Pools commands
@@ -129,67 +126,36 @@ TEST_COMMANDS = [
     "version --remote",
 ]
 
+DATE_PARAM_1 = date_param()
+DATE_PARAM_2 = date_param()
+TEST_COMMANDS_DEBUG_MODE = [LOGIN_COMMAND] + [test.format(date_param=DATE_PARAM_1) for test in TEST_COMMANDS]
+TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
+    test.format(date_param=DATE_PARAM_2) for test in TEST_COMMANDS
+]
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
+
 @pytest.mark.parametrize(
-    "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
+    "command",
+    TEST_COMMANDS_DEBUG_MODE,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_DEBUG_MODE],
 )
-def test_airflowctl_commands(command: str):
+def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    host_envs = os.environ.copy()
-    host_envs["AIRFLOW_CLI_DEBUG_MODE"] = "true"
+    env_vars = {"AIRFLOW_CLI_DEBUG_MODE": "true"}
 
-    command_from_config = f"airflowctl {command}"
-    # We need to run auth login first for all commands except login itself
-    if command != LOGIN_COMMAND:
-        run_command = f"airflowctl {LOGIN_COMMAND} && {command_from_config}"
-    else:
-        run_command = command_from_config
-    console.print(f"[yellow]Running command: {command}")
+    run_command(command, env_vars, skip_login=True)
 
-    # Give some time for the command to execute and output to be ready
-    proc = Popen(run_command.encode(), stdout=PIPE, stderr=STDOUT, stdin=PIPE, shell=True, env=host_envs)
-    stdout_bytes, stderr_result = proc.communicate(timeout=60)
 
-    # CLI command gave errors
-    assert not stderr_result, (
-        f"Errors while executing command '{command_from_config}':\n{stderr_result.decode()}"
-    )
+@pytest.mark.parametrize(
+    "command",
+    TEST_COMMANDS_SKIP_KEYRING,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_SKIP_KEYRING],
+)
+def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
+    """Test airflowctl commands using docker-compose environment without using keyring."""
+    env_vars = {}
+    env_vars["AIRFLOW_CLI_TOKEN"] = api_token
+    env_vars["AIRFLOW_CLI_DEBUG_MODE"] = "false"
+    env_vars["AIRFLOW_CLI_ENVIRONMENT"] = "nokeyring"
 
-    # Decode the output
-    stdout_result = stdout_bytes.decode()
-    # We need to trim auth login output if the command is not login itself and clean backspaces
-    if command != LOGIN_COMMAND:
-        assert LOGIN_OUTPUT in stdout_result, (
-            f"❌ Login output not found before command output for '{command_from_config}'",
-            f"\nFull output:\n{stdout_result}",
-        )
-        stdout_result = stdout_result.split(f"{LOGIN_OUTPUT}\n")[1].strip()
-    else:
-        stdout_result = stdout_result.strip()
-
-    # Check for non-zero exit code
-    assert proc.returncode == 0, (
-        f"❌ Command '{command_from_config}' exited with code {proc.returncode}",
-        f"\nOutput:\n{stdout_result}",
-    )
-
-    # Error patterns to detect failures that might otherwise slip through
-    # Please ensure it is aligning with airflowctl.api.client.get_json_error
-    error_patterns = [
-        "Server error",
-        "command error",
-        "unrecognized arguments",
-        "invalid choice",
-        "Traceback (most recent call last):",
-    ]
-    matched_error = next((error for error in error_patterns if error in stdout_result), None)
-    assert not matched_error, (
-        f"❌ Output contained unexpected text for command '{command_from_config}'",
-        f"\nMatched error pattern: {matched_error}",
-        f"\nOutput:\n{stdout_result}",
-    )
-
-    console.print(f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'")
-    console.print(f"[cyan]Result:\n{stdout_result}\n")
-    proc.kill()
+    run_command(command, env_vars, skip_login=True)

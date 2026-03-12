@@ -361,14 +361,10 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
         __file__ as fab_auth_manager_fastapi_api_file,
     )
-    from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
     from airflow.providers.keycloak.auth_manager.openapi import (
         __file__ as keycloak_auth_manager_fastapi_api_file,
     )
 
-    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath(
-        "v1-flask-api.yaml"
-    )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
         "v2-fab-auth-manager-generated.yaml"
     )
@@ -378,15 +374,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     redoc = [
         {
             "name": "Fab auth manager API",
-            "page": "api-ref/fab-public-api-ref",
-            "spec": fab_auth_manager_flask_api_path.as_posix(),
-            "opts": {
-                "hide-hostname": True,
-            },
-        },
-        {
-            "name": "Fab auth manager token API",
-            "page": "api-ref/fab-token-api-ref",
+            "page": "api-ref/fab-api-ref",
             "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,

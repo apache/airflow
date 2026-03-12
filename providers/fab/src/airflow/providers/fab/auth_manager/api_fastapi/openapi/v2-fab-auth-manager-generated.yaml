@@ -409,20 +409,24 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
       - name: offset
         in: query
         required: false
         schema:
           type: integer
+          minimum: 0
+          description: Number of items to skip before starting to collect results.
           default: 0
           title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
       responses:
         '200':
           description: Successful Response

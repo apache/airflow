@@ -260,15 +260,38 @@ class SecretsMasker(logging.Filter):
         )
         return frozenset(record.__dict__).difference({"msg", "args"})
 
-    def _redact_exception_with_context(self, exception):
+    def _redact_exception_with_context_or_cause(self, exception, visited=None):
         # Exception class may not be modifiable (e.g. declared by an
         # extension module such as JDBC).
         with contextlib.suppress(AttributeError):
-            exception.args = (self.redact(v) for v in exception.args)
-        if exception.__context__:
-            self._redact_exception_with_context(exception.__context__)
-        if exception.__cause__ and exception.__cause__ is not exception.__context__:
-            self._redact_exception_with_context(exception.__cause__)
+            if visited is None:
+                visited = set()
+
+            if id(exception) in visited:
+                # already visited - it was redacted earlier
+                return exception
+
+            # Check depth before adding to visited to ensure we skip exceptions beyond the limit
+            if len(visited) >= self.MAX_RECURSION_DEPTH:
+                return RuntimeError(
+                    f"Stack trace redaction hit recursion limit of {self.MAX_RECURSION_DEPTH} "
+                    f"when processing exception of type {type(exception).__name__}. "
+                    f"The remaining exceptions will be skipped to avoid "
+                    f"infinite recursion and protect against revealing sensitive information."
+                )
+
+            visited.add(id(exception))
+
+            exception.args = tuple(self.redact(v) for v in exception.args)
+            if exception.__context__:
+                exception.__context__ = self._redact_exception_with_context_or_cause(
+                    exception.__context__, visited
+                )
+            if exception.__cause__ and exception.__cause__ is not exception.__context__:
+                exception.__cause__ = self._redact_exception_with_context_or_cause(
+                    exception.__cause__, visited
+                )
+        return exception
 
     def filter(self, record) -> bool:
         if not self.is_log_masking_enabled():
@@ -285,7 +308,7 @@ class SecretsMasker(logging.Filter):
                     record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
-                self._redact_exception_with_context(exc)
+                self._redact_exception_with_context_or_cause(exc)
         record.__dict__[self.ALREADY_FILTERED_FLAG] = True
 
         return True

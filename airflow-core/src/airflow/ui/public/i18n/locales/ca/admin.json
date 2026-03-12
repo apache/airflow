@@ -81,6 +81,23 @@
   "formActions": {
     "save": "Desar"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Tipus d'executor",
+      "hostname": "Nom del Host",
+      "id": "ID",
+      "jobType": "Tipus de procés",
+      "latestHeartbeat": "Darrer batec",
+      "unixname": "Nom Unix"
+    },
+    "filters": {
+      "allStates": "Tots els estats",
+      "allTypes": "Tots els tipus",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Font"

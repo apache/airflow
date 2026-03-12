@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 from collections.abc import Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
@@ -40,6 +41,9 @@ from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -447,7 +451,25 @@ class DatabricksCopyIntoOperator(BaseOperator):
 
         return formatted_opts
 
+    def _validate_sql_fragments(self) -> None:
+        # Validate table_name segments (supports table, schema.table, catalog.schema.table).
+        parts = self.table_name.split(".")
+        for part in parts:
+            if not part or not _IDENTIFIER_RE.match(part):
+                raise ValueError(
+                    f"Invalid table identifier segment '{part}' in '{self.table_name}'. "
+                    "Only alphanumeric characters and underscores are allowed."
+                )
+
+        # Prevent multi-statement injection via expression_list.
+        if self._expression_list:
+            for token in _DISALLOWED_SQL_TOKENS:
+                if token in self._expression_list:
+                    raise ValueError("expression_list must not contain statement separators or comments.")
+
     def _create_sql_query(self) -> str:
+
+        self._validate_sql_fragments()
         escaper = ParamEscaper()
         maybe_with = ""
         if self._encryption is not None or self._credential is not None:
@@ -484,7 +506,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
                 validation = f"VALIDATE {self._validate} ROWS\n"
             else:
                 raise AirflowException(f"Incorrect data type for validate parameter: {type(self._validate)}")
-        # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
+
         sql = f"""COPY INTO {self.table_name}{storage_cred}
 FROM {location}
 FILEFORMAT = {self._file_format}

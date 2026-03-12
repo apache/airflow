@@ -328,6 +328,61 @@ class TestJdbcHook:
 
             assert mock_connect.call_count == 10
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_run_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        jdbc_conn_mock.cursor.return_value.rowcount = 0
+        sql = "SELECT 1"
+        hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_insert_rows_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        table = "table"
+        rows = [("hello",), ("world",)]
+        hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        parameters = ("x",)
+        hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     @pytest.mark.parametrize(
         ("params", "expected_uri"),
         [
