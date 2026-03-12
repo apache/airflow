@@ -69,11 +69,6 @@
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"
-    },
-    "queueNew": {
-      "summary_one": "{{count}} new task will be queued.",
-      "summary_other": "{{count}} new tasks will be queued.",
-      "summary_zero": "No new tasks to queue."
     }
   },
   "search": {
