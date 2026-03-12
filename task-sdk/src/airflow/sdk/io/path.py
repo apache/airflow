@@ -23,7 +23,12 @@ from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
 from upath import UPath
-from upath.extensions import ProxyUPath, classmethod_or_method as _classmethod_or_method
+from upath.extensions import ProxyUPath, classmethod_or_method
+
+if TYPE_CHECKING:
+    _classmethod_or_method = classmethod
+else:
+    _classmethod_or_method = classmethod_or_method
 
 from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
@@ -32,8 +37,6 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
     from typing_extensions import Self
     from upath.types import JoinablePathLike
-
-    _classmethod_or_method = classmethod
 
 
 class _TrackingFileWrapper:
