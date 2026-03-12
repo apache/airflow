@@ -89,7 +89,7 @@ def mock_executor(set_env_vars) -> AwsLambdaExecutor:
     executor = AwsLambdaExecutor()
     executor.IS_BOTO_CONNECTION_HEALTHY = True
 
-    # Replace boto3 clients with mocks
+    # Replace boto3 clients with mocks.
     lambda_mock = mock.Mock(spec=executor.lambda_client)
     lambda_mock.invoke.return_value = {"StatusCode": 0, "failures": []}
     executor.lambda_client = lambda_mock
@@ -110,18 +110,18 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 0
         mock_executor.execute_async(airflow_key, mock_cmd)
-        assert len(mock_executor.pending_tasks) == 1
+        assert len(mock_executor.pending_workloads) == 1
 
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
         assert payload["executor_config"] == {}
 
-        # Task is stored in active worker.
-        assert len(mock_executor.running_tasks) == 1
-        assert json.dumps(airflow_key._asdict()) in mock_executor.running_tasks
+        # Workload is stored in active worker.
+        assert len(mock_executor.running_workloads) == 1
+        assert json.dumps(airflow_key._asdict()) in mock_executor.running_workloads
         change_state_mock.assert_called_once_with(
             airflow_key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
@@ -148,14 +148,14 @@ class TestAwsLambdaExecutor:
         mock_executor.queue_workload(workload, mock.Mock())
 
         assert mock_executor.queued_tasks[workload.ti.key] == workload
-        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
         assert len(mock_executor.queued_tasks) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
-        assert len(mock_executor.pending_tasks) == 1
-        assert mock_executor.pending_tasks[0].command == [
+        assert len(mock_executor.pending_workloads) == 1
+        assert mock_executor.pending_workloads[0].command == [
             "python",
             "-m",
             "airflow.sdk.execution_time.execute_workload",
@@ -163,15 +163,15 @@ class TestAwsLambdaExecutor:
             '{"test_key": "test_value"}',
         ]
 
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
         assert payload["executor_config"] == executor_config
-        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 0
 
-        # Task is stored in active worker.
-        assert len(mock_executor.running_tasks) == 1
-        assert mock_executor.running_tasks[ser_airflow_key] == workload.ti.key
+        # Workload is stored in active worker.
+        assert len(mock_executor.running_workloads) == 1
+        assert mock_executor.running_workloads[ser_airflow_key] == workload.ti.key
         change_state_mock.assert_called_once_with(
             workload.ti.key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
@@ -194,14 +194,14 @@ class TestAwsLambdaExecutor:
         mock_executor.queue_workload(workload, mock.Mock())
 
         assert mock_executor.queued_callbacks[callback_id] == workload
-        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
         assert len(mock_executor.queued_callbacks) == 0
         assert len(mock_executor.running) == 1
         assert callback_id in mock_executor.running
-        assert len(mock_executor.pending_tasks) == 1
-        assert mock_executor.pending_tasks[0].command == [
+        assert len(mock_executor.pending_workloads) == 1
+        assert mock_executor.pending_workloads[0].command == [
             "python",
             "-m",
             "airflow.sdk.execution_time.execute_workload",
@@ -209,7 +209,7 @@ class TestAwsLambdaExecutor:
             ser_workload,
         ]
 
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
         assert payload["task_key"] == callback_id
@@ -221,9 +221,9 @@ class TestAwsLambdaExecutor:
             ser_workload,
         ]
 
-        # Callback is stored in running tasks.
-        assert len(mock_executor.running_tasks) == 1
-        assert callback_id in mock_executor.running_tasks
+        # Callback is stored in running workloads.
+        assert len(mock_executor.running_workloads) == 1
+        assert callback_id in mock_executor.running_workloads
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
@@ -243,7 +243,7 @@ class TestAwsLambdaExecutor:
         mock_executor.queue_workload(workload, mock.Mock())
 
         assert mock_executor.queued_callbacks[callback_id] == workload
-        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
 
         mock_executor._process_workloads([workload])
@@ -252,8 +252,8 @@ class TestAwsLambdaExecutor:
         assert len(mock_executor.running) == 1
         assert callback_id in mock_executor.running
 
-        assert len(mock_executor.pending_tasks) == 1
-        assert mock_executor.pending_tasks[0].queue == "fast-queue"
+        assert len(mock_executor.pending_workloads) == 1
+        assert mock_executor.pending_workloads[0].queue == "fast-queue"
 
     @mock.patch.object(lambda_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_success_execute_api_exception(self, mock_backoff, mock_executor, mock_cmd, mock_airflow_key):
@@ -269,20 +269,20 @@ class TestAwsLambdaExecutor:
 
         # Fail 2 times
         for _ in range(expected_retry_count):
-            mock_executor.attempt_task_runs()
-            # Task is not stored in active workers.
-            assert len(mock_executor.running_tasks) == 0
+            mock_executor.attempt_workload_runs()
+            # Workload is not stored in active workers.
+            assert len(mock_executor.running_workloads) == 0
 
         # Pass in last attempt
-        mock_executor.attempt_task_runs()
-        assert len(mock_executor.pending_tasks) == 0
-        assert ser_airflow_key in mock_executor.running_tasks
+        mock_executor.attempt_workload_runs()
+        assert len(mock_executor.pending_workloads) == 0
+        assert ser_airflow_key in mock_executor.running_workloads
         assert mock_backoff.call_count == expected_retry_count
         for attempt_number in range(1, expected_retry_count):
             mock_backoff.assert_has_calls([mock.call(attempt_number)])
 
     def test_failed_execute_api_exception(self, mock_executor, mock_cmd, mock_airflow_key):
-        """Test what happens when Lambda refuses to execute a task and throws an exception"""
+        """Test what happens when Lambda refuses to execute a workload and throws an exception"""
         mock_airflow_key = mock_airflow_key()
 
         mock_executor.lambda_client.invoke.side_effect = Exception("Test exception")
@@ -290,63 +290,63 @@ class TestAwsLambdaExecutor:
 
         # No matter what, don't schedule until invoke becomes successful.
         for _ in range(int(mock_executor.max_invoke_attempts) * 2):
-            mock_executor.attempt_task_runs()
-            # Task is not stored in running tasks
-            assert len(mock_executor.running_tasks) == 0
+            mock_executor.attempt_workload_runs()
+            # Workload is not stored in running workloads.
+            assert len(mock_executor.running_workloads) == 0
 
     def test_failed_execute_creds_exception(self, mock_executor, mock_cmd, mock_airflow_key):
-        """Test what happens when Lambda refuses to execute a task and throws an exception due to credentials"""
+        """Test what happens when Lambda refuses to execute a workload and throws an exception due to credentials"""
         airflow_key = mock_airflow_key()
 
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
         mock_executor.execute_async(airflow_key, mock_cmd)
-        assert mock_executor.pending_tasks[0].attempt_number == 1
+        assert mock_executor.pending_workloads[0].attempt_number == 1
 
         error_to_raise = ClientError(
             {"Error": {"Code": "ExpiredTokenException", "Message": "foobar"}}, "OperationName"
         )
         mock_executor.lambda_client.invoke.side_effect = error_to_raise
 
-        # Sync will ultimately call attempt_task_runs, which is the code under test
+        # Sync will ultimately call attempt_workload_runs, which is the code under test.
         mock_executor.sync()
 
-        # Task should end up back in the queue
-        assert mock_executor.pending_tasks[0].key == airflow_key
+        # Workload should end up back in the queue.
+        assert mock_executor.pending_workloads[0].key == airflow_key
         # The connection should get marked as unhealthy
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
         # We retry on connections issues indefinitely, so the attempt number should be 1
-        assert mock_executor.pending_tasks[0].attempt_number == 1
+        assert mock_executor.pending_workloads[0].attempt_number == 1
 
     def test_failed_execute_client_error_exception(self, mock_executor, mock_cmd, mock_airflow_key):
-        """Test what happens when Lambda refuses to execute a task and throws an exception for non-credentials issue"""
+        """Test what happens when Lambda refuses to execute a workload and throws an exception for non-credentials issue"""
         airflow_key = mock_airflow_key()
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
         mock_executor.execute_async(airflow_key, mock_cmd)
-        assert mock_executor.pending_tasks[0].attempt_number == 1
+        assert mock_executor.pending_workloads[0].attempt_number == 1
 
         error_to_raise = ClientError(
             {"Error": {"Code": "RandomeError", "Message": "foobar"}}, "OperationName"
         )
         mock_executor.lambda_client.invoke.side_effect = error_to_raise
 
-        # Sync will ultimately call attempt_task_runs, which is the code under test
+        # Sync will ultimately call attempt_workload_runs, which is the code under test.
         mock_executor.sync()
 
-        # Task should end up back in the queue
-        assert mock_executor.pending_tasks[0].key == airflow_key
-        # The connection should stay marked as healthy because the error is something else
+        # Workload should end up back in the queue.
+        assert mock_executor.pending_workloads[0].key == airflow_key
+        # The connection should stay marked as healthy because the error is something else.
         assert mock_executor.IS_BOTO_CONNECTION_HEALTHY
-        # Not a retry so increment attempts
-        assert mock_executor.pending_tasks[0].attempt_number == 2
+        # Not a retry so increment attempts.
+        assert mock_executor.pending_workloads[0].attempt_number == 2
 
     @mock.patch.object(lambda_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor):
+    def test_attempt_workload_runs_attempts_when_workloads_fail(self, _, mock_executor):
         """
-        Test case when all tasks fail to run.
+        Test case when all workloads fail to run.
 
-        The executor should attempt each task exactly once per sync() iteration.
-        It should preserve the order of tasks, and attempt each task up to
-        `max_invoke_attempts` times before dropping the task.
+        The executor should attempt each workload exactly once per sync() iteration.
+        It should preserve the order of workloads, and attempt each workload up to
+        `max_invoke_attempts` times before dropping the workload.
         """
         airflow_keys = [
             TaskInstanceKey("a", "task_a", "c", 1, -1),
@@ -361,40 +361,40 @@ class TestAwsLambdaExecutor:
         mock_executor.execute_async(airflow_keys[0], commands[0])
         mock_executor.execute_async(airflow_keys[1], commands[1])
 
-        assert len(mock_executor.pending_tasks) == 2
-        assert len(mock_executor.running_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 2
+        assert len(mock_executor.running_workloads) == 0
 
         mock_executor.lambda_client.invoke.side_effect = failures
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         for i in range(2):
             payload = json.loads(mock_executor.lambda_client.invoke.call_args_list[i].kwargs["Payload"])
             assert airflow_keys[i].task_id in payload["task_key"]
 
-        assert len(mock_executor.pending_tasks) == 2
-        assert len(mock_executor.running_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 2
+        assert len(mock_executor.running_workloads) == 0
 
         mock_executor.lambda_client.invoke.call_args_list.clear()
 
         mock_executor.lambda_client.invoke.side_effect = failures
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         for i in range(2):
             payload = json.loads(mock_executor.lambda_client.invoke.call_args_list[i].kwargs["Payload"])
             assert airflow_keys[i].task_id in payload["task_key"]
 
-        assert len(mock_executor.pending_tasks) == 2
-        assert len(mock_executor.running_tasks) == 0
+        assert len(mock_executor.pending_workloads) == 2
+        assert len(mock_executor.running_workloads) == 0
 
         mock_executor.lambda_client.invoke.call_args_list.clear()
 
         mock_executor.lambda_client.invoke.side_effect = failures
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         assert (
-            len(mock_executor.pending_tasks) == 0
-        )  # Pending now zero since we've had three failures to invoke
-        assert len(mock_executor.running_tasks) == 0
+            len(mock_executor.pending_workloads) == 0
+        )  # Pending now zero since we've had three failures to invoke.
+        assert len(mock_executor.running_workloads) == 0
 
         if airflow_version >= (2, 10, 0):
             events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
@@ -404,9 +404,9 @@ class TestAwsLambdaExecutor:
             ]
 
     @mock.patch.object(lambda_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
+    def test_attempt_workload_runs_attempts_when_some_workloads_fail(self, _, mock_executor):
         """
-        Test case when one task fail to run, others succeed, and a new task gets queued.
+        Test case when one workload fails to run, others succeed, and a new workload gets queued.
 
         """
         airflow_keys = [
@@ -424,46 +424,46 @@ class TestAwsLambdaExecutor:
         mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
 
-        assert len(mock_executor.pending_tasks) == 2
+        assert len(mock_executor.pending_workloads) == 2
 
         mock_executor.lambda_client.invoke.side_effect = responses
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         for i in range(2):
             payload = json.loads(mock_executor.lambda_client.invoke.call_args_list[i].kwargs["Payload"])
             assert airflow_keys[i].task_id in payload["task_key"]
 
-        assert len(mock_executor.pending_tasks) == 1
-        assert len(mock_executor.running_tasks) == 1
+        assert len(mock_executor.pending_workloads) == 1
+        assert len(mock_executor.running_workloads) == 1
 
         mock_executor.lambda_client.invoke.call_args_list.clear()
 
-        # queue new task
+        # Queue new workload.
         airflow_keys[1] = TaskInstanceKey("a", "task_c", "c", 1, -1)
         airflow_commands[1] = _generate_mock_cmd()
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
 
-        assert len(mock_executor.pending_tasks) == 2
-        # assert that the order of pending tasks is preserved i.e. the first task is 1st etc.
-        assert mock_executor.pending_tasks[0].key == airflow_keys[0]
-        assert mock_executor.pending_tasks[0].command == airflow_commands[0]
+        assert len(mock_executor.pending_workloads) == 2
+        # Assert that the order of pending workloads is preserved.
+        assert mock_executor.pending_workloads[0].key == airflow_keys[0]
+        assert mock_executor.pending_workloads[0].command == airflow_commands[0]
 
         responses = [Exception("Failure 1"), success_response]
         mock_executor.lambda_client.invoke.side_effect = responses
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         for i in range(2):
             payload = json.loads(mock_executor.lambda_client.invoke.call_args_list[i].kwargs["Payload"])
             assert airflow_keys[i].task_id in payload["task_key"]
 
-        assert len(mock_executor.pending_tasks) == 1
-        assert len(mock_executor.running_tasks) == 2
+        assert len(mock_executor.pending_workloads) == 1
+        assert len(mock_executor.running_workloads) == 2
 
         mock_executor.lambda_client.invoke.call_args_list.clear()
 
         responses = [Exception("Failure 1")]
         mock_executor.lambda_client.invoke.side_effect = responses
-        mock_executor.attempt_task_runs()
+        mock_executor.attempt_workload_runs()
 
         payload = json.loads(mock_executor.lambda_client.invoke.call_args_list[0].kwargs["Payload"])
         assert airflow_keys[0].task_id in payload["task_key"]
@@ -478,19 +478,19 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
         mock_executor.sqs_client.receive_message.side_effect = [
-            {},  # First request from the results queue will be empty
+            {},  # First request from the results queue will be empty.
             {
-                # Second request from the DLQ will have a message
+                # Second request from the DLQ will have a message.
                 "Messages": [
                     {
                         "ReceiptHandle": "receipt_handle",
                         "Body": json.dumps(
                             {
                                 "task_key": ser_airflow_key,
-                                # DLQ messages will have the input (task_key, command) instead of return_code
+                                # DLQ messages will have the input (task_key, command) instead of return_code.
                                 "command": "command",
                             }
                         ),
@@ -499,8 +499,8 @@ class TestAwsLambdaExecutor:
             },
         ]
 
-        mock_executor.sync_running_tasks()
-        # Receive messages should be called twice
+        mock_executor.sync_running_workloads()
+        # Receive messages should be called twice.
         assert mock_executor.sqs_client.receive_message.call_count == 2
         assert mock_executor.sqs_client.receive_message.call_args_list[0].kwargs == {
             "QueueUrl": DEFAULT_QUEUE_URL,
@@ -512,8 +512,8 @@ class TestAwsLambdaExecutor:
             "MaxNumberOfMessages": 10,
         }
 
-        # Task is not stored in active workers.
-        assert len(mock_executor.running_tasks) == 0
+        # Workload is not stored in active workers.
+        assert len(mock_executor.running_workloads) == 0
         success_mock.assert_not_called()
         fail_mock.assert_called_once()
         assert mock_executor.sqs_client.delete_message.call_count == 1
@@ -528,9 +528,9 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        # Success message
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        # Success message.
         mock_executor.sqs_client.receive_message.return_value = {
             "Messages": [
                 {
@@ -545,16 +545,16 @@ class TestAwsLambdaExecutor:
             ]
         }
 
-        mock_executor.sync_running_tasks()
+        mock_executor.sync_running_workloads()
         mock_executor.sqs_client.receive_message.assert_called_once()
         assert mock_executor.sqs_client.receive_message.call_args_list[0].kwargs == {
             "QueueUrl": DEFAULT_QUEUE_URL,
             "MaxNumberOfMessages": 10,
         }
 
-        # Task is not stored in active workers.
-        assert len(mock_executor.running_tasks) == 0
-        # Task is immediately succeeded.
+        # Workload is not stored in active workers.
+        assert len(mock_executor.running_workloads) == 0
+        # Workload immediately succeeds.
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 1
@@ -569,9 +569,9 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        # Failure message
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        # Failure message.
         mock_executor.sqs_client.receive_message.return_value = {
             "Messages": [
                 {
@@ -579,19 +579,19 @@ class TestAwsLambdaExecutor:
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key,
-                            "return_code": 1,  # Non-zero return code, task failed
+                            "return_code": 1,  # Non-zero return code, workload failed.
                         }
                     ),
                 }
             ]
         }
 
-        mock_executor.sync_running_tasks()
+        mock_executor.sync_running_workloads()
         mock_executor.sqs_client.receive_message.assert_called_once()
 
-        # Task is not stored in active workers.
-        assert len(mock_executor.running_tasks) == 0
-        # Task is immediately succeeded.
+        # Workload is not stored in active workers.
+        assert len(mock_executor.running_workloads) == 0
+        # Workload is immediately succeeded.
         success_mock.assert_not_called()
         fail_mock.assert_called_once()
         assert mock_executor.sqs_client.delete_message.call_count == 1
@@ -600,22 +600,22 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
         mock_executor.sqs_client.receive_message.side_effect = [
             {
                 "Messages": [
                     {
                         "ReceiptHandle": "receipt_handle",
-                        "Body": "Banana",  # Body not json format
+                        "Body": "Banana",  # Body not json format.
                     }
                 ]
             },
-            {},  # Second request from the DLQ will be empty
+            {},  # Second request from the DLQ will be empty.
         ]
 
-        mock_executor.sync_running_tasks()
-        # Assert that the message is deleted if the message is not formatted as json
+        mock_executor.sync_running_workloads()
+        # Assert that the message is deleted if the message is not formatted as json.
         assert mock_executor.sqs_client.receive_message.call_count == 2
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
@@ -623,8 +623,8 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
         mock_executor.sqs_client.receive_message.side_effect = [
             {
                 "Messages": [
@@ -632,18 +632,18 @@ class TestAwsLambdaExecutor:
                         "ReceiptHandle": "receipt_handle",
                         "Body": json.dumps(
                             {
-                                "foo": "bar",  # Missing expected keys like "task_key"
-                                "return_code": 1,  # Non-zero return code, task failed
+                                "foo": "bar",  # Missing expected keys like "task_key".
+                                "return_code": 1,  # Non-zero return code, workload failed.
                             }
                         ),
                     }
                 ]
             },
-            {},  # Second request from the DLQ will be empty
+            {},  # Second request from the DLQ will be empty.
         ]
 
-        mock_executor.sync_running_tasks()
-        # Assert that the message is deleted if the message does not contain the expected keys
+        mock_executor.sync_running_workloads()
+        # Assert that the message is deleted if the message does not contain the expected keys.
         assert mock_executor.sqs_client.receive_message.call_count == 2
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
@@ -651,19 +651,19 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        # Failure message
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        # Failure message.
         mock_executor.sqs_client.receive_message.side_effect = [
-            {},  # First request from the results queue will be empty
+            {},  # First request from the results queue will be empty.
             {
-                # Second request from the DLQ will have a message
+                # Second request from the DLQ will have a message.
                 "Messages": [
                     {
                         "ReceiptHandle": "receipt_handle",
                         "Body": json.dumps(
                             {
-                                "foo": "bar",  # Missing expected keys like "task_key"
+                                "foo": "bar",  # Missing expected keys like "task_key".
                                 "return_code": 1,
                             }
                         ),
@@ -672,23 +672,23 @@ class TestAwsLambdaExecutor:
             },
         ]
 
-        mock_executor.sync_running_tasks()
-        # Assert that the message is deleted if the message does not contain the expected keys
+        mock_executor.sync_running_workloads()
+        # Assert that the message is deleted if the message does not contain the expected keys.
         assert mock_executor.sqs_client.receive_message.call_count == 2
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     def test_sync_running_short_circuit(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
-        mock_executor.running_tasks.clear()
-        # No running tasks, so we will short circuit
+        mock_executor.running_workloads.clear()
+        # No running workloads, so we will short circuit.
 
-        mock_executor.sync_running_tasks()
+        mock_executor.sync_running_workloads()
         mock_executor.sqs_client.receive_message.assert_not_called()
 
-        # Task is still stored in active workers.
-        assert len(mock_executor.running_tasks) == 0
-        # Task is immediately succeeded.
+        # Workload is still stored in active workers.
+        assert len(mock_executor.running_workloads) == 0
+        # Workload immediately succeeds.
         success_mock.assert_not_called()
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 0
@@ -699,25 +699,25 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        # No messages, so we will not loop
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        # No messages, so we will not loop.
         mock_executor.sqs_client.receive_message.return_value = {"Messages": []}
 
-        mock_executor.sync_running_tasks()
-        # Both the results queue and DLQ should have been checked
+        mock_executor.sync_running_workloads()
+        # Both the results queue and DLQ should have been checked.
         assert mock_executor.sqs_client.receive_message.call_count == 2
 
-        # Task is still stored in active workers.
-        assert len(mock_executor.running_tasks) == 1
-        # Task is immediately succeeded.
+        # Workload is still stored in active workers.
+        assert len(mock_executor.running_workloads) == 1
+        # Workload immediately succeeds.
         success_mock.assert_not_called()
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 0
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_sync_running_two_tasks_one_relevant(
+    def test_sync_running_two_workloads_one_relevant(
         self, success_mock, fail_mock, mock_executor, mock_airflow_key
     ):
         airflow_key = mock_airflow_key()
@@ -725,10 +725,10 @@ class TestAwsLambdaExecutor:
         airflow_key_2 = mock_airflow_key()
         ser_airflow_key_2 = json.dumps(airflow_key_2._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        mock_executor.running_tasks[ser_airflow_key_2] = airflow_key_2
-        # Success message
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads[ser_airflow_key_2] = airflow_key_2
+        # Success message.
         mock_executor.sqs_client.receive_message.side_effect = [
             {
                 "Messages": [
@@ -743,41 +743,41 @@ class TestAwsLambdaExecutor:
                     }
                 ]
             },
-            {},  # No messages from DLQ
+            {},  # No messages from DLQ.
         ]
 
-        mock_executor.sync_running_tasks()
-        # Both the results queue and DLQ should have been checked
+        mock_executor.sync_running_workloads()
+        # Both the results queue and DLQ should have been checked.
         assert mock_executor.sqs_client.receive_message.call_count == 2
 
-        # One task left running
-        assert len(mock_executor.running_tasks) == 1
-        # Task one completed, task two is still running
-        assert ser_airflow_key_2 in mock_executor.running_tasks
-        # Task is immediately succeeded.
+        # One workload left running.
+        assert len(mock_executor.running_workloads) == 1
+        # Workload one completed, Workload two is still running.
+        assert ser_airflow_key_2 in mock_executor.running_workloads
+        # Workload immediately succeeds.
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_sync_running_unknown_task(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
+    def test_sync_running_unknown_workload(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
         airflow_key_2 = mock_airflow_key()
         ser_airflow_key_2 = json.dumps(airflow_key_2._asdict())
 
-        mock_executor.running_tasks.clear()
-        # Only add one of the tasks to the running list, the other will be unknown
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        # Only add one of the workloads to the running list, the other will be unknown.
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
 
-        # Receive the known task and unknown task
-        known_task_receipt = "receipt_handle_known"
-        unknown_task_receipt = "receipt_handle_unknown"
+        # Receive the known workload and unknown workload.
+        known_workload_receipt = "receipt_handle_known"
+        unknown_workload_receipt = "receipt_handle_unknown"
         mock_executor.sqs_client.receive_message.return_value = {
             "Messages": [
                 {
-                    "ReceiptHandle": known_task_receipt,
+                    "ReceiptHandle": known_workload_receipt,
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key,
@@ -786,7 +786,7 @@ class TestAwsLambdaExecutor:
                     ),
                 },
                 {
-                    "ReceiptHandle": unknown_task_receipt,
+                    "ReceiptHandle": unknown_workload_receipt,
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key_2,
@@ -797,25 +797,25 @@ class TestAwsLambdaExecutor:
             ]
         }
 
-        mock_executor.sync_running_tasks()
+        mock_executor.sync_running_workloads()
         mock_executor.sqs_client.receive_message.assert_called_once()
 
-        # The known task is set to succeeded, unknown task is dropped
-        assert len(mock_executor.running_tasks) == 0
+        # The known workload is set to succeeded, unknown workload is dropped.
+        assert len(mock_executor.running_workloads) == 0
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
-        # Only the known message from the queue should be deleted, the other should be marked as visible again
+        # Only the known message from the queue should be deleted, the other should be marked as visible again.
         assert mock_executor.sqs_client.delete_message.call_count == 1
         assert mock_executor.sqs_client.change_message_visibility.call_count == 1
-        # The argument to delete_message should be the known task
+        # The argument to delete_message should be the known workload.
         assert mock_executor.sqs_client.delete_message.call_args_list[0].kwargs == {
             "QueueUrl": DEFAULT_QUEUE_URL,
-            "ReceiptHandle": known_task_receipt,
+            "ReceiptHandle": known_workload_receipt,
         }
-        # The change_message_visibility should be called with the unknown task
+        # The change_message_visibility should be called with the unknown workload.
         assert mock_executor.sqs_client.change_message_visibility.call_args_list[0].kwargs == {
             "QueueUrl": DEFAULT_QUEUE_URL,
-            "ReceiptHandle": unknown_task_receipt,
+            "ReceiptHandle": unknown_workload_receipt,
             "VisibilityTimeout": 0,
         }
 
@@ -870,7 +870,7 @@ class TestAwsLambdaExecutor:
         with pytest.raises(AirflowException):
             mock_executor.check_health()
         assert mock_executor.lambda_client.get_function.call_count == 1
-        # Lambda has already failed so SQS should not be called
+        # Lambda has already failed so SQS should not be called.
         assert mock_executor.sqs_client.get_queue_attributes.call_count == 0
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
 
@@ -888,7 +888,7 @@ class TestAwsLambdaExecutor:
         with pytest.raises(AirflowException):
             mock_executor.check_health()
         assert mock_executor.lambda_client.get_function.call_count == 1
-        # Lambda has already failed so SQS should not be called
+        # Lambda has already failed so SQS should not be called.
         assert mock_executor.sqs_client.get_queue_attributes.call_count == 1
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
 
@@ -909,42 +909,42 @@ class TestAwsLambdaExecutor:
         with pytest.raises(AirflowException):
             mock_executor.check_health()
         assert mock_executor.lambda_client.get_function.call_count == 1
-        # Lambda has already failed so SQS should not be called
+        # Lambda has already failed so SQS should not be called.
         assert mock_executor.sqs_client.get_queue_attributes.call_count == 2
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
 
     def test_sync_already_unhealthy(self, mock_executor):
-        # Something has set the connection to unhealthy (tested elsewhere)
+        # Something has set the connection to unhealthy (tested elsewhere).
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
-        mock_executor.sync_running_tasks = mock.Mock()
-        mock_executor.attempt_task_runs = mock.Mock()
+        mock_executor.sync_running_workloads = mock.Mock()
+        mock_executor.attempt_workload_runs = mock.Mock()
         mock_executor.load_connections = mock.Mock()
-        # Set the last connection reload to be more than 60 seconds ago so that we get a reload
+        # Set the last connection reload to be more than 60 seconds ago so that we get a reload.
         mock_executor.last_connection_reload = timezone.utcnow() - dt.timedelta(seconds=100)
-        # We should not be able to sync
+        # We should not be able to sync.
         mock_executor.sync()
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
-        mock_executor.sync_running_tasks.assert_not_called()
-        mock_executor.attempt_task_runs.assert_not_called()
+        mock_executor.sync_running_workloads.assert_not_called()
+        mock_executor.attempt_workload_runs.assert_not_called()
         mock_executor.load_connections.assert_called_once()
 
     def test_sync_already_unhealthy_then_repaired(self, mock_executor):
-        # Something has set the connection to unhealthy (tested elsewhere)
+        # Something has set the connection to unhealthy (tested elsewhere).
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
-        mock_executor.sync_running_tasks = mock.Mock()
-        mock_executor.attempt_task_runs = mock.Mock()
+        mock_executor.sync_running_workloads = mock.Mock()
+        mock_executor.attempt_workload_runs = mock.Mock()
 
         def check_health_side_effect():
             mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
 
         mock_executor.check_health = mock.Mock(side_effect=check_health_side_effect)
-        # Set the last connection reload to be more than 60 seconds ago so that we get a reload
+        # Set the last connection reload to be more than 60 seconds ago so that we get a reload.
         mock_executor.last_connection_reload = timezone.utcnow() - dt.timedelta(seconds=100)
-        # Sync should repair itself and continue to call the sync methods
+        # Sync should repair itself and continue to call the sync methods.
         mock_executor.sync()
         assert mock_executor.IS_BOTO_CONNECTION_HEALTHY
-        mock_executor.sync_running_tasks.assert_called_once()
-        mock_executor.attempt_task_runs.assert_called_once()
+        mock_executor.sync_running_workloads.assert_called_once()
+        mock_executor.attempt_workload_runs.assert_called_once()
 
     @pytest.mark.parametrize(
         "error_code",
@@ -955,19 +955,19 @@ class TestAwsLambdaExecutor:
         ],
     )
     def test_sync_become_unhealthy_no_creds(self, error_code, mock_executor):
-        # Something has set the connection to unhealthy (tested elsewhere)
+        # Something has set the connection to unhealthy (tested elsewhere).
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
         mock_executor.log.warning = mock.Mock()
-        mock_executor.attempt_task_runs = mock.Mock()
+        mock_executor.attempt_workload_runs = mock.Mock()
         error_to_raise = ClientError({"Error": {"Code": error_code, "Message": "foobar"}}, "OperationName")
-        mock_executor.sync_running_tasks = mock.Mock(side_effect=error_to_raise)
+        mock_executor.sync_running_workloads = mock.Mock(side_effect=error_to_raise)
 
-        # sync should catch the error and handle it, setting connection to unhealthy
+        # sync should catch the error and handle it, setting connection to unhealthy.
         mock_executor.sync()
         assert not mock_executor.IS_BOTO_CONNECTION_HEALTHY
-        mock_executor.sync_running_tasks.assert_called_once()
-        mock_executor.attempt_task_runs.assert_not_called()
-        # Check that the substring "AWS credentials are either missing or expired" was logged
+        mock_executor.sync_running_workloads.assert_called_once()
+        mock_executor.attempt_workload_runs.assert_not_called()
+        # Check that the substring "AWS credentials are either missing or expired" was logged.
         mock_executor.log.warning.assert_called_once()
         assert "AWS credentials are either missing or expired" in mock_executor.log.warning.call_args[0][0]
 
@@ -975,18 +975,18 @@ class TestAwsLambdaExecutor:
         # Something has set the connection to unhealthy (tested elsewhere)
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
         mock_executor.log.exception = mock.Mock()
-        mock_executor.attempt_task_runs = mock.Mock()
-        mock_executor.sync_running_tasks = mock.Mock(side_effect=Exception())
+        mock_executor.attempt_workload_runs = mock.Mock()
+        mock_executor.sync_running_workloads = mock.Mock(side_effect=Exception())
 
         # sync should catch the error and log, don't kill scheduler by letting it raise up higher.
         mock_executor.sync()
-        # Not a credentials error that we can tell, so connection stays healthy
+        # Not a credentials error that we can tell, so connection stays healthy.
         assert mock_executor.IS_BOTO_CONNECTION_HEALTHY
-        mock_executor.sync_running_tasks.assert_called_once()
-        mock_executor.attempt_task_runs.assert_not_called()
-        # Check that the substring "AWS credentials are either missing or expired" was logged
+        mock_executor.sync_running_workloads.assert_called_once()
+        mock_executor.attempt_workload_runs.assert_not_called()
+        # Check that the substring "AWS credentials are either missing or expired" was logged.
         mock_executor.log.exception.assert_called_once()
-        assert "An error occurred while syncing tasks" in mock_executor.log.exception.call_args[0][0]
+        assert "An error occurred while syncing workloads" in mock_executor.log.exception.call_args[0][0]
 
     def test_try_adopt_task_instances(self, mock_executor, mock_airflow_key):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
@@ -1006,7 +1006,7 @@ class TestAwsLambdaExecutor:
         orphaned_tasks[1].external_executor_id = ser_airflow_key_2
         orphaned_tasks[
             2
-        ].external_executor_id = None  # One orphaned task has no external_executor_id, not adopted
+        ].external_executor_id = None  # One orphaned task has no external_executor_id, not adopted.
 
         for task in orphaned_tasks:
             task.try_number = 1
@@ -1014,12 +1014,12 @@ class TestAwsLambdaExecutor:
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
         # Two of the three tasks should be adopted.
-        assert len(orphaned_tasks) - 1 == len(mock_executor.running_tasks)
-        assert ser_airflow_key_1 in mock_executor.running_tasks
+        assert len(orphaned_tasks) - 1 == len(mock_executor.running_workloads)
+        assert ser_airflow_key_1 in mock_executor.running_workloads
 
-        assert mock_executor.running_tasks[ser_airflow_key_1] == airflow_key_1
-        assert ser_airflow_key_2 in mock_executor.running_tasks
-        assert mock_executor.running_tasks[ser_airflow_key_2] == airflow_key_2
+        assert mock_executor.running_workloads[ser_airflow_key_1] == airflow_key_1
+        assert ser_airflow_key_2 in mock_executor.running_workloads
+        assert mock_executor.running_workloads[ser_airflow_key_2] == airflow_key_2
 
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
@@ -1028,13 +1028,13 @@ class TestAwsLambdaExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     def test_end(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
-        """Test that executor can end successfully; waiting for all tasks to naturally exit."""
+        """Test that executor can end successfully; waiting for all workloads to naturally exit."""
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
-        # First message is empty, so we loop again while waiting for tasks to finish
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
+        # First message is empty, so we loop again while waiting for workloads to finish.
         mock_executor.sqs_client.receive_message.side_effect = [
             {},
             {},
@@ -1053,11 +1053,11 @@ class TestAwsLambdaExecutor:
             },
         ]
         mock_executor.end(heartbeat_interval=0)
-        # Assert that the sqs_client mock method receive_message was called exactly twice
+        # Assert that the sqs_client mock method receive_message was called exactly twice.
         assert mock_executor.sqs_client.receive_message.call_count == 3
 
-        # Task is not stored in active workers.
-        assert len(mock_executor.running_tasks) == 0
+        # Workload is not stored in active workers.
+        assert len(mock_executor.running_workloads) == 0
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
         assert mock_executor.sqs_client.delete_message.call_count == 1
@@ -1074,16 +1074,16 @@ class TestAwsLambdaExecutor:
 
         not_adopted = mock_executor.try_adopt_task_instances([ti])
 
-        assert len(mock_executor.running_tasks) == 1
-        assert callback_id in mock_executor.running_tasks
-        assert mock_executor.running_tasks[callback_id] == callback_id
+        assert len(mock_executor.running_workloads) == 1
+        assert callback_id in mock_executor.running_workloads
+        assert mock_executor.running_workloads[callback_id] == callback_id
 
         assert len(not_adopted) == 0
 
     @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.timezone")
     def test_end_timeout(self, mock_timezone, mock_executor, mock_airflow_key):
-        """Test that executor can end successfully; waiting for all tasks to naturally exit."""
-        # Mock the sync method of the mock_executor object so we can count how many times it was called
+        """Test that executor can end successfully; waiting for all workloads to naturally exit."""
+        # Mock the sync method of the mock_executor object so we can count how many times it was called.
         mock_executor.sync = mock.Mock()
         mock_executor.log.warning = mock.Mock()
         current_time = timezone.utcnow()
@@ -1097,17 +1097,17 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
 
         with conf_vars({(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT): "5"}):
             mock_executor.end(heartbeat_interval=0)
 
-        # Task is still stored in active workers.
-        assert len(mock_executor.running_tasks) == 1
+        # Workload is still stored in active workers.
+        assert len(mock_executor.running_workloads) == 1
         assert mock_executor.sync.call_count == 2
         mock_executor.log.warning.assert_called_once_with(
-            "Timed out waiting for tasks to finish. Some tasks may not be handled gracefully"
+            "Timed out waiting for workloads to finish. Some workloads may not be handled gracefully"
             " as the executor is force ending due to timeout."
         )
 
@@ -1116,22 +1116,22 @@ class TestAwsLambdaExecutor:
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
-        mock_executor.running_tasks.clear()
-        mock_executor.running_tasks[ser_airflow_key] = airflow_key
+        mock_executor.running_workloads.clear()
+        mock_executor.running_workloads[ser_airflow_key] = airflow_key
         mock_executor.log.warning = mock.Mock()
 
         mock_executor.terminate()
         mock_executor.log.warning.assert_called_once_with(
-            "Terminating Lambda executor. In-flight tasks cannot be stopped."
+            "Terminating Lambda executor. In-flight workloads cannot be stopped."
         )
-        assert len(mock_executor.running_tasks) == 1
+        assert len(mock_executor.running_workloads) == 1
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
     def test_team_config(self):
         """Test that the executor uses team-specific configuration when provided via self.conf."""
         from unittest.mock import patch
 
-        # Team name to be used throughout
+        # Team name to be used throughout.
         team_name = "team_a"
         # Patch environment to include two sets of configs for the Lambda executor. One that is related to a
         # team and one that is not. Then we will create two executors (one with a team and one without) and
@@ -1179,7 +1179,7 @@ class TestAwsLambdaExecutor:
             ),
         ]
         with patch("os.environ", {key.upper(): value for key, value in config_overrides}):
-            # Create a team-specific executor
+            # Create a team-specific executor.
             team_executor = AwsLambdaExecutor(team_name=team_name)
 
             assert team_executor.lambda_function_name == "team_a_function"
@@ -1194,7 +1194,7 @@ class TestAwsLambdaExecutor:
                 == "True"
             )
 
-            # Now create an executor without a team and ensure the global configs are used
+            # Now create an executor without a team and ensure the global configs are used.
             global_executor = AwsLambdaExecutor()
 
             assert global_executor.lambda_function_name == "global-function"

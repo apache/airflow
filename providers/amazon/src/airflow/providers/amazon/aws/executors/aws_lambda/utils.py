@@ -19,12 +19,14 @@ from __future__ import annotations
 import datetime
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.executors.workloads.types import WorkloadKey
 
 CONFIG_GROUP_NAME = "aws_lambda_executor"
 INVALID_CREDENTIALS_EXCEPTIONS = [
@@ -36,9 +38,9 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
 
 @dataclass
 class LambdaQueuedTask:
-    """Represents a Lambda workload that is queued. The task will be run in the next heartbeat."""
+    """Represents a Lambda workload that is queued. The workload will be run in the next heartbeat."""
 
-    key: TaskInstanceKey | str
+    key: WorkloadKey
     command: CommandType
     queue: str
     executor_config: ExecutorConfigType
@@ -65,5 +67,11 @@ class AllLambdaConfigKeys(InvokeLambdaKwargsConfigKeys):
     END_WAIT_TIMEOUT = "end_wait_timeout"
 
 
-CommandType = Sequence[Any]
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+
+    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback]
+else:
+    CommandType: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
+
 ExecutorConfigType = dict[str, Any]
