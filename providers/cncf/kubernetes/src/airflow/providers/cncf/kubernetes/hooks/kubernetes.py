@@ -314,7 +314,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            if disable_verify_ssl is True:
+            if disable_verify_ssl is True and self.client_configuration is not None:
                 self.client_configuration.verify_ssl = False
                 return _TimeoutK8sApiClient(configuration=self.client_configuration)
             return _TimeoutK8sApiClient()
@@ -332,7 +332,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-            if disable_verify_ssl is True:
+            if disable_verify_ssl is True and self.client_configuration is not None:
                 self.client_configuration.verify_ssl = False
                 return _TimeoutK8sApiClient(configuration=self.client_configuration)
             return _TimeoutK8sApiClient()
@@ -345,7 +345,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            if disable_verify_ssl is True:
+            if disable_verify_ssl is True and self.client_configuration is not None:
                 self.client_configuration.verify_ssl = False
                 return _TimeoutK8sApiClient(configuration=self.client_configuration)
             return _TimeoutK8sApiClient()
@@ -371,7 +371,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-        if disable_verify_ssl is True:
+        if disable_verify_ssl is True and self.client_configuration is not None:
             self.client_configuration.verify_ssl = False
             return _TimeoutK8sApiClient(configuration=self.client_configuration)
         return _TimeoutK8sApiClient()
