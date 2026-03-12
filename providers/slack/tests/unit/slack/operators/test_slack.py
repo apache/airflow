@@ -406,10 +406,15 @@ class TestSlackAPIFileOperator:
         with mock.patch(
             "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2",
             return_value=mock_response,
-        ) as mock_send_file:
+        ):
             result = op.execute({})
 
-        expected = {"ok": True, "ts": "1234567890.123456", "channel": "C1234567890", "file": {"id": "F1234567890"}}
+        expected = {
+            "ok": True,
+            "ts": "1234567890.123456",
+            "channel": "C1234567890",
+            "file": {"id": "F1234567890"},
+        }
         assert result == [expected]
         assert result[0]["ts"] == "1234567890.123456"
         assert result[0]["file"]["id"] == "F1234567890"
