@@ -92,9 +92,7 @@ test.describe("DAG Calendar Tab", () => {
   test("verify active cells appear for DAG runs", async () => {
     await calendar.switchToHourly();
 
-    const count = await calendar.getActiveCellCount();
-
-    expect(count).toBeGreaterThan(0);
+    await expect(calendar.activeCells).not.toHaveCount(0);
   });
 
   test("verify manual runs are detected", async () => {
