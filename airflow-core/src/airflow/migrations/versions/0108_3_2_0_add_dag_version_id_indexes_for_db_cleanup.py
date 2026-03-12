@@ -55,5 +55,33 @@ def upgrade():
 
 def downgrade():
     """Remove dag_version cleanup indexes."""
+    conn = op.get_bind()
+
+    # MySQL can bind a foreign key to the newly-created index, so dropping that index
+    # requires dropping and re-creating the foreign key constraint.
+    if conn.dialect.name == "mysql":
+        with op.batch_alter_table("dag_run", schema=None) as batch_op:
+            batch_op.drop_constraint("created_dag_version_id_fkey", type_="foreignkey")
+            batch_op.drop_index("idx_dag_run_created_dag_version_id")
+            batch_op.create_foreign_key(
+                "created_dag_version_id_fkey",
+                "dag_version",
+                ["created_dag_version_id"],
+                ["id"],
+                ondelete="set null",
+            )
+
+        with op.batch_alter_table("task_instance", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("task_instance_dag_version_id_fkey"), type_="foreignkey")
+            batch_op.drop_index("idx_task_instance_dag_version_id")
+            batch_op.create_foreign_key(
+                batch_op.f("task_instance_dag_version_id_fkey"),
+                "dag_version",
+                ["dag_version_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+        return
+
     op.drop_index("idx_dag_run_created_dag_version_id", table_name="dag_run")
     op.drop_index("idx_task_instance_dag_version_id", table_name="task_instance")
