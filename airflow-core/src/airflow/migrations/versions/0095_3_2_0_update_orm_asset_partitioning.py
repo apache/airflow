@@ -80,6 +80,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Update ORM for asset partitioning."""
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("partition_key")
 
@@ -88,3 +92,6 @@ def downgrade():
 
     op.drop_table("partitioned_asset_key_log")
     op.drop_table("asset_partition_dag_run")
+
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))

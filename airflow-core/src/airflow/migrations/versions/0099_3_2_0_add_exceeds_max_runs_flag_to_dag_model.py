@@ -52,5 +52,12 @@ def upgrade():
 
 def downgrade():
     """Unapply Add exceeds max runs flag to dag model."""
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("exceeds_max_non_backfill")
+
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))

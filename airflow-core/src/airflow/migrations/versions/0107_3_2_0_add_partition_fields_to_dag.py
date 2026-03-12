@@ -53,9 +53,16 @@ def upgrade():
 
 def downgrade():
     """Remove partition fields from DagModel."""
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("timetable_partitioned")
         batch_op.drop_column("next_dagrun_partition_key")
         batch_op.drop_column("next_dagrun_partition_date")
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("partition_date")
+
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))

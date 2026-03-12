@@ -54,6 +54,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Add partition_key to backfill_dag_run."""
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
     op.execute("DELETE FROM backfill_dag_run WHERE logical_date IS NULL;")
     with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
         batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=False)
@@ -61,3 +65,6 @@ def downgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("created_at")
+
+    if conn.dialect.name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
