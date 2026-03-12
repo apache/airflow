@@ -30,10 +30,12 @@ import { getMetaKey } from "src/utils";
 import { scrollToBottom, scrollToTop } from "./utils";
 
 export type TaskLogContentProps = {
+  readonly currentMatchIndex?: number;
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
   readonly parsedLogs: Array<JSX.Element | string | undefined>;
+  readonly searchMatchIndices?: Set<number>;
   readonly wrap: boolean;
 };
 
@@ -79,7 +81,41 @@ const ScrollToButton = ({
   );
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
+type HighlightOptions = {
+  currentMatchIndex?: number;
+  hash: string;
+  index: number;
+  searchMatchIndices?: Set<number>;
+};
+
+const getHighlightColor = ({
+  currentMatchIndex,
+  hash,
+  index,
+  searchMatchIndices,
+}: HighlightOptions): string => {
+  if (currentMatchIndex !== undefined && index === currentMatchIndex) {
+    return "orange.emphasized";
+  }
+  if (searchMatchIndices?.has(index)) {
+    return "yellow.emphasized";
+  }
+  if (Boolean(hash) && index === Number(hash) - 1) {
+    return "brand.emphasized";
+  }
+
+  return "transparent";
+};
+
+export const TaskLogContent = ({
+  currentMatchIndex,
+  error,
+  isLoading,
+  logError,
+  parsedLogs,
+  searchMatchIndices,
+  wrap,
+}: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,6 +135,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
     }
   }, [isLoading, rowVirtualizer, hash, parsedLogs]);
+
+  useLayoutEffect(() => {
+    if (currentMatchIndex !== undefined && !isLoading) {
+      rowVirtualizer.scrollToIndex(Math.min(currentMatchIndex + 3, parsedLogs.length - 1));
+    }
+  }, [currentMatchIndex, isLoading, rowVirtualizer, parsedLogs]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
     if (parsedLogs.length === 0) {
@@ -155,9 +197,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               <Box
                 _ltr={{ left: 0, right: "auto" }}
                 _rtl={{ left: "auto", right: 0 }}
-                bgColor={
-                  Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
-                }
+                bgColor={getHighlightColor({
+                  currentMatchIndex,
+                  hash,
+                  index: virtualRow.index,
+                  searchMatchIndices,
+                })}
                 data-index={virtualRow.index}
                 data-testid={`virtualized-item-${virtualRow.index}`}
                 key={virtualRow.key}

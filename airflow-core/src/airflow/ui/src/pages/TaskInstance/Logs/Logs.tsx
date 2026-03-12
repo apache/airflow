@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Heading } from "@chakra-ui/react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -118,6 +118,59 @@ export const Logs = () => {
 
   const getLogString = () => getParsedLogs().join("\n");
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  const searchMatchIndices = useMemo(() => {
+    if (!searchQuery) {
+      return [];
+    }
+    const query = searchQuery.toLowerCase();
+    const lines = parseStreamingLogContent(fetchedData);
+    const textLines = lines.map((line) =>
+      renderStructuredLog({
+        index: 0,
+        logLevelFilters,
+        logLink: "",
+        logMessage: line,
+        renderingMode: "text",
+        showSource,
+        showTimestamp,
+        sourceFilters,
+        translate,
+      }),
+    );
+    const indices: Array<number> = [];
+
+    textLines.forEach((line, index) => {
+      if (line.toLowerCase().includes(query)) {
+        indices.push(index);
+      }
+    });
+
+    return indices;
+  }, [searchQuery, fetchedData, showTimestamp, showSource, logLevelFilters, sourceFilters, translate]);
+
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      setCurrentMatchIndex(0);
+    },
+    [setSearchQuery, setCurrentMatchIndex],
+  );
+
+  const handleSearchNext = useCallback(() => {
+    if (searchMatchIndices.length > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % searchMatchIndices.length);
+    }
+  }, [searchMatchIndices.length]);
+
+  const handleSearchPrevious = useCallback(() => {
+    if (searchMatchIndices.length > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + searchMatchIndices.length) % searchMatchIndices.length);
+    }
+  }, [searchMatchIndices.length]);
+
   const downloadLogs = () => {
     const logContent = getLogString();
     const element = document.createElement("a");
@@ -154,6 +207,14 @@ export const Logs = () => {
     expanded,
     getLogString,
     onSelectTryNumber,
+    search: {
+      currentMatchIndex,
+      onSearchChange: handleSearchChange,
+      onSearchNext: handleSearchNext,
+      onSearchPrevious: handleSearchPrevious,
+      searchQuery,
+      totalMatches: searchMatchIndices.length,
+    },
     showSource,
     showTimestamp,
     sourceOptions: parsedData.sources,
@@ -168,10 +229,12 @@ export const Logs = () => {
   };
 
   const logContentProps: TaskLogContentProps = {
+    currentMatchIndex: searchMatchIndices[currentMatchIndex],
     error,
     isLoading: isLoading || isLoadingLogs,
     logError,
     parsedLogs: parsedData.parsedLogs ?? [],
+    searchMatchIndices: searchQuery ? new Set(searchMatchIndices) : undefined,
     wrap,
   };
 
