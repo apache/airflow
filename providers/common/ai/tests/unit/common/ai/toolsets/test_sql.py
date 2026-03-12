@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import sqlite3
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -229,6 +230,10 @@ class TestSQLToolsetQuery:
         with pytest.raises(RuntimeError, match="hook error"):
             asyncio.run(ts.call_tool("query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock()))
 
+    @pytest.mark.skipif(
+        importlib.util.find_spec("psycopg2") is None,
+        reason="psycopg2 is not available for lowest dependency tests",
+    )
     def test_sqlalchemy_programming_error_with_psycopg2_undefined_column_orig_raises_model_retry_for_postgres(
         self,
     ):
@@ -264,6 +269,10 @@ class TestSQLToolsetQuery:
                 )
             )
 
+    @pytest.mark.skipif(
+        importlib.util.find_spec("psycopg2") is None,
+        reason="psycopg2 is not available for lowest dependency tests",
+    )
     def test_sqlalchemy_programming_error_with_psycopg2_insufficient_privilege_orig_is_not_retried_for_postgres(
         self,
     ):
