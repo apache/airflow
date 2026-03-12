@@ -877,6 +877,31 @@ def test_decode_product_mapper():
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
+def test_encode_allowed_key_mapper():
+    from airflow.sdk import AllowedKeyMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = AllowedKeyMapper(["us", "eu", "apac"])
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        Encoding.VAR: {"allowed_keys": ["us", "eu", "apac"]},
+    }
+
+
+def test_decode_allowed_key_mapper():
+    from airflow.partition_mappers.allowed_key import AllowedKeyMapper as CoreAllowedKeyMapper
+    from airflow.sdk import AllowedKeyMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = AllowedKeyMapper(["us", "eu", "apac"])
+    encoded_pm = encode_partition_mapper(partition_mapper)
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreAllowedKeyMapper)
+    assert core_pm.allowed_keys == ["us", "eu", "apac"]
+
+
 class TestSerializedBaseOperator:
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")

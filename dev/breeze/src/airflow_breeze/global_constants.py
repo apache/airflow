@@ -181,6 +181,26 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
+ALLOWED_LLM_MODELS = [
+    # Claude models (via claude CLI)
+    "claude/claude-opus-4-6",
+    "claude/claude-sonnet-4-6",
+    "claude/claude-opus-4-20250514",
+    "claude/claude-sonnet-4-20250514",
+    "claude/claude-haiku-4-5-20251001",
+    "claude/sonnet",
+    "claude/opus",
+    "claude/haiku",
+    # OpenAI Codex models (via codex CLI)
+    "codex/gpt-5.3-codex",
+    "codex/gpt-5.3-codex-spark",
+    "codex/gpt-5.2-codex",
+    "codex/gpt-5.1-codex",
+    "codex/gpt-5-codex",
+    "codex/gpt-5-codex-mini",
+    "codex/gpt-5",
+]
+
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
 
@@ -217,7 +237,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.0.1"
-UV_VERSION = "0.10.8"
+UV_VERSION = "0.10.9"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -749,7 +769,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.7",
+        "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

@@ -43,7 +43,7 @@ metadata:
       {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
-    {{- toYaml $podAnnotations | nindent 4 }}
+    {{- tpl (toYaml $podAnnotations) . | nindent 4 }}
     {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
     {{- end }}
@@ -131,7 +131,7 @@ spec:
       {{- if or .Values.workers.kubernetes.command .Values.workers.command }}
       command: {{ tpl (toYaml (.Values.workers.kubernetes.command | default .Values.workers.command)) . | nindent 8 }}
       {{- end }}
-      resources: {{- toYaml .Values.workers.resources | nindent 8 }}
+      resources: {{- toYaml (.Values.workers.kubernetes.resources | default .Values.workers.resources) | nindent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
@@ -233,7 +233,7 @@ spec:
   {{- if $schedulerName }}
   schedulerName: {{ $schedulerName }}
   {{- end }}
-  terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+  terminationGracePeriodSeconds: {{ .Values.workers.kubernetes.terminationGracePeriodSeconds | default .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}

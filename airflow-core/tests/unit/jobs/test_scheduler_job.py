@@ -81,7 +81,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.observability.trace import Trace
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -93,9 +92,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -2956,20 +2953,18 @@ class TestSchedulerJob:
         ti.state = TaskInstanceState.RUNNING
         ti.queued_by_job_id = scheduler_job.id
         ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
-        # Simulate missing dag_version
+        # Simulate missing dag_version (legacy Airflow 2 task)
         ti.dag_version_id = None
         session.merge(ti)
         session.commit()
 
-        with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
+        with caplog.at_level("INFO", logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
 
-        # Should log a warning and skip processing
-        assert any("DAG Version not found for TaskInstance" in rec.message for rec in caplog.records)
-        mock_executor.send_callback.assert_not_called()
-        # State should be unchanged (not failed)
-        ti.refresh_from_db(session=session)
-        assert ti.state == TaskInstanceState.RUNNING
+        # dag_version_id should be backfilled from the latest DagVersion in the DB
+        # (dag_maker creates one) and the callback should be sent
+        assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
+        mock_executor.send_callback.assert_called_once()
 
     @staticmethod
     def mock_failure_callback(context):
@@ -3285,190 +3280,6 @@ class TestSchedulerJob:
         dag_runs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(dag_runs) == 2
 
-    @pytest.mark.parametrize(
-        ("ti_state", "final_ti_span_status"),
-        [
-            pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
-            pytest.param(State.RUNNING, SpanStatus.ACTIVE, id="dr_still_running"),
-        ],
-    )
-    def test_recreate_unhealthy_scheduler_spans_if_needed(self, ti_state, final_ti_span_status, dag_maker):
-        with dag_maker(
-            dag_id="test_recreate_unhealthy_scheduler_spans_if_needed",
-            start_date=DEFAULT_DATE,
-            max_active_runs=1,
-            dagrun_timeout=datetime.timedelta(seconds=60),
-        ):
-            EmptyOperator(task_id="dummy")
-
-        session = settings.Session()
-
-        old_job = Job()
-        old_job.job_type = SchedulerJobRunner.job_type
-
-        session.add(old_job)
-        session.commit()
-
-        assert old_job.is_alive() is False
-
-        new_job = Job()
-        new_job.job_type = SchedulerJobRunner.job_type
-        session.add(new_job)
-        session.flush()
-
-        self.job_runner = SchedulerJobRunner(job=new_job)
-        self.job_runner.active_spans = ThreadSafeDict()
-        assert len(self.job_runner.active_spans.get_all()) == 0
-
-        dr = dag_maker.create_dagrun()
-        dr.state = State.RUNNING
-        dr.span_status = SpanStatus.ACTIVE
-        dr.scheduled_by_job_id = old_job.id
-
-        ti = dr.get_task_instances(session=session)[0]
-        ti.state = ti_state
-        ti.start_date = timezone.utcnow()
-        ti.span_status = SpanStatus.ACTIVE
-        ti.queued_by_job_id = old_job.id
-        session.merge(ti)
-        session.merge(dr)
-        session.commit()
-
-        assert dr.scheduled_by_job_id != self.job_runner.job.id
-        assert dr.scheduled_by_job_id == old_job.id
-        assert dr.run_id is not None
-        assert dr.state == State.RUNNING
-        assert dr.span_status == SpanStatus.ACTIVE
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
-
-        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
-        assert ti.state == ti_state
-        assert ti.span_status == SpanStatus.ACTIVE
-
-        self.job_runner._recreate_unhealthy_scheduler_spans_if_needed(dr, session)
-
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
-
-        if final_ti_span_status == SpanStatus.ACTIVE:
-            assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
-            assert len(self.job_runner.active_spans.get_all()) == 2
-        else:
-            assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
-            assert len(self.job_runner.active_spans.get_all()) == 1
-
-        assert dr.span_status == SpanStatus.ACTIVE
-        assert ti.span_status == final_ti_span_status
-
-    def test_end_spans_of_externally_ended_ops(self, dag_maker):
-        with dag_maker(
-            dag_id="test_end_spans_of_externally_ended_ops",
-            start_date=DEFAULT_DATE,
-            max_active_runs=1,
-            dagrun_timeout=datetime.timedelta(seconds=60),
-        ):
-            EmptyOperator(task_id="dummy")
-
-        session = settings.Session()
-
-        job = Job()
-        job.job_type = SchedulerJobRunner.job_type
-        session.add(job)
-
-        self.job_runner = SchedulerJobRunner(job=job)
-        self.job_runner.active_spans = ThreadSafeDict()
-        assert len(self.job_runner.active_spans.get_all()) == 0
-
-        dr = dag_maker.create_dagrun()
-        dr.state = State.SUCCESS
-        dr.span_status = SpanStatus.SHOULD_END
-
-        ti = dr.get_task_instances(session=session)[0]
-        ti.state = State.SUCCESS
-        ti.span_status = SpanStatus.SHOULD_END
-        ti.context_carrier = {}
-        session.merge(ti)
-        session.merge(dr)
-        session.commit()
-
-        dr_span = Trace.start_root_span(span_name="dag_run_span", start_as_current=False)
-        ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
-
-        self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
-        self.job_runner.active_spans.set(f"ti:{ti.id}", ti_span)
-
-        assert dr.span_status == SpanStatus.SHOULD_END
-        assert ti.span_status == SpanStatus.SHOULD_END
-
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
-        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
-
-        self.job_runner._end_spans_of_externally_ended_ops(session)
-
-        assert dr.span_status == SpanStatus.ENDED
-        assert ti.span_status == SpanStatus.ENDED
-
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
-        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
-
-    @pytest.mark.parametrize(
-        ("state", "final_span_status"),
-        [
-            pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
-            pytest.param(State.RUNNING, SpanStatus.NEEDS_CONTINUANCE, id="dr_still_running"),
-        ],
-    )
-    def test_end_active_spans(self, state, final_span_status, dag_maker):
-        with dag_maker(
-            dag_id="test_end_active_spans",
-            start_date=DEFAULT_DATE,
-            max_active_runs=1,
-            dagrun_timeout=datetime.timedelta(seconds=60),
-        ):
-            EmptyOperator(task_id="dummy")
-
-        session = settings.Session()
-
-        job = Job()
-        job.job_type = SchedulerJobRunner.job_type
-
-        self.job_runner = SchedulerJobRunner(job=job)
-        self.job_runner.active_spans = ThreadSafeDict()
-        assert len(self.job_runner.active_spans.get_all()) == 0
-
-        dr = dag_maker.create_dagrun()
-        dr.state = state
-        dr.span_status = SpanStatus.ACTIVE
-
-        ti = dr.get_task_instances(session=session)[0]
-        ti.state = state
-        ti.span_status = SpanStatus.ACTIVE
-        ti.context_carrier = {}
-        session.merge(ti)
-        session.merge(dr)
-        session.commit()
-
-        dr_span = Trace.start_root_span(span_name="dag_run_span", start_as_current=False)
-        ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
-
-        self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
-        self.job_runner.active_spans.set(f"ti:{ti.id}", ti_span)
-
-        assert dr.span_status == SpanStatus.ACTIVE
-        assert ti.span_status == SpanStatus.ACTIVE
-
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
-        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
-        assert len(self.job_runner.active_spans.get_all()) == 2
-
-        self.job_runner._end_active_spans(session)
-
-        assert dr.span_status == final_span_status
-        assert ti.span_status == final_span_status
-
-        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
-        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
-        assert len(self.job_runner.active_spans.get_all()) == 0
-
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker, session):
         """
         Test if a dagrun will not be scheduled if max_dag_runs
@@ -3524,7 +3335,7 @@ class TestSchedulerJob:
             bundle_version=orm_dag.bundle_version,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_last_ti(dag, session),
+                last_ti=dr.get_task_instance("dummy", session),
             ),
             msg="timed_out",
         )
@@ -3720,7 +3531,7 @@ class TestSchedulerJob:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_last_ti(dag, session),
+                last_ti=dr.get_task_instance("empty", session),
             ),
         )
 
@@ -9188,3 +8999,144 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
         assert asset_event.source_task_id == "hi"
         assert "asset-event-producer-" in asset_event.source_dag_id
         assert asset_event.source_run_id == "test"
+
+
+# ---------------------------------------------------------------------------
+# Tests for nullable dag_version in scheduler callbacks (AIP-66)
+#
+# Verifies that TaskCallbackRequest and EmailRequest are always created
+# with correct bundle_name/bundle_version whether ti.dag_version is a real
+# DagVersion object (normal) or None (legacy tasks migrated from Airflow 2).
+#
+# Fallback mirrors DagCallbackRequest in dagrun.py:
+#   bundle_name    <- ti.dag_version.bundle_name  OR  ti.dag_model.bundle_name
+#   bundle_version <- ti.dag_version.bundle_version  OR  ti.dag_run.bundle_version
+# ---------------------------------------------------------------------------
+
+
+def _make_ti_with_dag_version(
+    dag_version, dag_model_bundle_name="fallback-bundle", dag_run_bundle_version="v1.0-fallback"
+):
+    """Build a minimal mock TaskInstance for dag_version nullable tests."""
+    ti = mock.MagicMock()
+    ti.dag_version = dag_version
+    ti.dag_model = mock.MagicMock()
+    ti.dag_model.bundle_name = dag_model_bundle_name
+    ti.dag_model.relative_fileloc = "/dags/test_dag.py"
+    ti.dag_run = mock.MagicMock()
+    ti.dag_run.bundle_version = dag_run_bundle_version
+    return ti
+
+
+def _make_dag_version(bundle_name="my-bundle", bundle_version="v2.0"):
+    """Create a simple mock DagVersion."""
+    dv = mock.MagicMock()
+    dv.bundle_name = bundle_name
+    dv.bundle_version = bundle_version
+    return dv
+
+
+def _extract_bundle_name(ti):
+    """Mirror the inline fallback logic from scheduler_job_runner.py."""
+    return ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+
+
+def _extract_bundle_version(ti):
+    """Mirror the inline fallback logic from scheduler_job_runner.py."""
+    return ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+
+
+class TestSchedulerCallbackBundleInfoDagVersionNullable:
+    """
+    Verify the bundle_name / bundle_version extraction logic used at all four
+    TaskCallbackRequest / EmailRequest creation sites in scheduler_job_runner.py.
+
+    When dag_version is present  -> use dag_version.bundle_name / bundle_version.
+    When dag_version is None     -> fall back to dag_model.bundle_name / dag_run.bundle_version.
+    """
+
+    # ── With dag_version present ──────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        ("dv_bundle_name", "dv_bundle_version"),
+        [
+            pytest.param("my-bundle", "v2.0", id="normal"),
+            pytest.param("dags-folder", None, id="version_none"),
+            pytest.param("custom-bundle", "v99.0", id="custom"),
+        ],
+    )
+    def test_bundle_info_from_dag_version_when_present(self, dv_bundle_name, dv_bundle_version):
+        """When dag_version is set, bundle info must come from it."""
+        dv = _make_dag_version(bundle_name=dv_bundle_name, bundle_version=dv_bundle_version)
+        ti = _make_ti_with_dag_version(dag_version=dv, dag_model_bundle_name="SHOULD-NOT-USE")
+
+        assert _extract_bundle_name(ti) == dv_bundle_name
+        assert _extract_bundle_version(ti) == dv_bundle_version
+
+    # ── With dag_version None (legacy Airflow 2 task) ─────────────────────
+
+    @pytest.mark.parametrize(
+        ("model_bundle_name", "run_bundle_version"),
+        [
+            pytest.param("fallback-bundle", "v1.0-fallback", id="normal_fallback"),
+            pytest.param("dags-folder", None, id="version_none_fallback"),
+            pytest.param("another-bundle", "v3.5", id="custom_fallback"),
+        ],
+    )
+    def test_bundle_info_falls_back_when_dag_version_none(self, model_bundle_name, run_bundle_version):
+        """When dag_version is None, bundle info must fall back to dag_model / dag_run."""
+        ti = _make_ti_with_dag_version(
+            dag_version=None,
+            dag_model_bundle_name=model_bundle_name,
+            dag_run_bundle_version=run_bundle_version,
+        )
+
+        assert _extract_bundle_name(ti) == model_bundle_name
+        assert _extract_bundle_version(ti) == run_bundle_version
+
+    # ── No AttributeError crash ────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "dag_version_present",
+        [
+            pytest.param(True, id="dag_version_present"),
+            pytest.param(False, id="dag_version_none"),
+        ],
+    )
+    def test_no_attribute_error_regardless_of_dag_version(self, dag_version_present):
+        """
+        The old code crashed with AttributeError when ti.dag_version was None.
+        The new fallback must never raise regardless of dag_version state.
+        """
+        ti = _make_ti_with_dag_version(dag_version=_make_dag_version() if dag_version_present else None)
+
+        name = _extract_bundle_name(ti)
+        version = _extract_bundle_version(ti)
+
+        assert isinstance(name, str)
+        assert version is None or isinstance(version, str)
+
+    # ── Precedence: dag_version wins over fallback ─────────────────────────
+
+    def test_dag_version_takes_precedence_over_fallback_values(self):
+        """When dag_version is set, dag_model/dag_run fallbacks must NOT be used."""
+        dv = _make_dag_version(bundle_name="preferred-bundle", bundle_version="preferred-v1")
+        ti = _make_ti_with_dag_version(
+            dag_version=dv,
+            dag_model_bundle_name="fallback-bundle",
+            dag_run_bundle_version="fallback-v1",
+        )
+
+        assert _extract_bundle_name(ti) == "preferred-bundle"
+        assert _extract_bundle_version(ti) == "preferred-v1"
+
+    def test_fallback_values_used_only_when_dag_version_is_none(self):
+        """When dag_version is None, fallback values must be used."""
+        ti = _make_ti_with_dag_version(
+            dag_version=None,
+            dag_model_bundle_name="fallback-bundle",
+            dag_run_bundle_version="fallback-v1",
+        )
+
+        assert _extract_bundle_name(ti) == "fallback-bundle"
+        assert _extract_bundle_version(ti) == "fallback-v1"

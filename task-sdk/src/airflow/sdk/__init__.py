@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 __all__ = [
     "__version__",
+    "AllowedKeyMapper",
     "Asset",
     "AssetAlias",
     "AssetAll",
@@ -34,6 +35,7 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
     "BranchMixIn",
     "Connection",
     "Context",
@@ -108,6 +110,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.bases.skipmixin import SkipMixin
+    from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
@@ -121,6 +124,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
@@ -159,6 +163,7 @@ if TYPE_CHECKING:
     conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
+    "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
@@ -173,6 +178,7 @@ __lazy_imports: dict[str, str] = {
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",

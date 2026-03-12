@@ -206,6 +206,16 @@ def test_precent_fmt_force_no_colors(
     )
 
 
+def test_log_timestamp_format(structlog_config):
+    """Test that log_timestamp_format controls the timestamp format in component logs."""
+    with structlog_config(colors=False, log_timestamp_format="%Y-%m-%d %H:%M:%S") as sio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello")
+
+    written = sio.getvalue()
+    assert "1985-10-26 00:00:00" in written
+
+
 @pytest.mark.parametrize(
     ("get_logger", "config_kwargs", "log_kwargs", "expected_kwargs"),
     [

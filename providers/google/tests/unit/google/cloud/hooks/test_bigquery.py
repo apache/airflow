@@ -684,6 +684,37 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         assert job_id == expected_job_id
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.md5")
+    @pytest.mark.parametrize(
+        ("test_dag_id", "expected_job_id", "try_number"),
+        [
+            ("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash", None),
+            ("test-dag-id-1.2", "airflow_test_dag_id_1_2_test_job_id_2020_01_23T00_00_00_hash_2", 2),
+            ("test-dag-id-1.3", "airflow_test_dag_id_1_3_test_job_id_2020_01_23T00_00_00_hash_5", 5),
+        ],
+        ids=["test-dag-id-1.1", "test-dag-id-1.2", "test-dag-id-1.3"],
+    )
+    def test_job_id_validity_with_try_number(self, mock_md5, test_dag_id, expected_job_id, try_number):
+        hash_ = "hash"
+        mock_md5.return_value.hexdigest.return_value = hash_
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        job_id = self.hook.generate_job_id(
+            job_id=None,
+            dag_id=test_dag_id,
+            task_id="test_job_id",
+            logical_date=None,
+            configuration=configuration,
+            run_after=datetime(2020, 1, 23),
+            try_number=try_number,
+        )
+        assert job_id == expected_job_id
+
     def test_get_run_after_or_logical_date(self):
         """Test get_run_after_or_logical_date for both Airflow 3.x and pre-3.0 behavior."""
         if AIRFLOW_V_3_0_PLUS:
@@ -1547,6 +1578,23 @@ class TestBigQueryAsyncHookMethods:
         hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.sync_to_async")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
+    async def test_get_job_runs_via_sync_to_async(self, mock_get_sync_hook, mock_sync_to_async):
+        """Verify _get_job wraps the sync get_job call with sync_to_async (#63182)."""
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+
+        mock_async_get_job = mock.AsyncMock(return_value=mock.MagicMock())
+        mock_sync_to_async.return_value = mock_async_get_job
+
+        hook = BigQueryAsyncHook()
+        await hook._get_job(job_id=JOB_ID, project_id=PROJECT_ID, location="US")
+
+        mock_sync_to_async.assert_called_once_with(mock_sync_hook.get_job)
+        mock_async_get_job.assert_awaited_once_with(job_id=JOB_ID, project_id=PROJECT_ID, location="US")
 
     @pytest.mark.parametrize(
         ("job_state", "error_result", "expected"),

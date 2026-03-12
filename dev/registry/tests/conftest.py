@@ -15,10 +15,3 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-# Add dev/registry/ to sys.path so ``import extract_metadata`` works without
-# a pyproject.toml in that directory.
-sys.path.insert(0, str(Path(__file__).parent.parent))

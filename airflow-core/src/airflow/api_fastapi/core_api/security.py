@@ -238,6 +238,13 @@ class PermittedDagVersionFilter(PermittedDagFilter):
         return select.where(DagVersion.dag_id.in_(self.value or set()))
 
 
+class PermittedBackfillFilter(PermittedDagFilter):
+    """A parameter that filters the permitted backfills for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Backfill.dag_id.in_(self.value or set()))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -281,6 +288,9 @@ ReadableTagsFilterDep = Annotated[
 ]
 ReadableDagVersionsFilterDep = Annotated[
     PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
+]
+ReadableBackfillsFilterDep = Annotated[
+    PermittedBackfillFilter, Depends(permitted_dag_filter_factory("GET", PermittedBackfillFilter))
 ]
 
 

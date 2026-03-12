@@ -292,12 +292,17 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
-    This Operator currently uses key pair authentication, so you need to provide private key raw content or
-    private key file path in the snowflake connection along with other details
+
+    The operator supports the following authentication methods via the Snowflake connection:
+
+    - **Key pair**: provide ``private_key_file`` or ``private_key_content`` in the connection extras.
+    - **OAuth**: provide ``refresh_token``, ``client_id``, and ``client_secret`` in the connection extras.
+    - **Programmatic Access Token (PAT)**: set ``authenticator`` to ``programmatic_access_token`` in
+      the connection extras and put the PAT value in the connection ``password`` field.
 
     .. seealso::
 
-        `Snowflake SQL API key pair Authentication <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating.html#label-sql-api-authenticating-key-pair>`_
+        `Snowflake SQL API Authentication <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating>`_
 
     Where can this operator fit in?
          - To execute multiple SQL statements in a single request

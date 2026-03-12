@@ -68,14 +68,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.1.7"
+defaultAirflowTag: "3.1.8"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 2.11.0 and above is supported.
-airflowVersion: "3.1.7"
+airflowVersion: "3.1.8"
 
 # Images
 images:
@@ -338,7 +338,7 @@ networkPolicies:
   enabled: false
 
 # Extra annotations to apply to all
-# Airflow pods
+# Airflow pods (templated)
 airflowPodAnnotations: {}
 
 # Extra annotations to apply to
@@ -898,6 +898,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -908,6 +909,8 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
+  # Use workers.celery.terminationGracePeriodSeconds and/or workers.kubernetes.terminationGracePeriodSeconds
+  # to separate value between Celery workers and pod-template-file
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
@@ -973,7 +976,7 @@ workers:
   # Annotations for the Airflow Celery worker resource
   annotations: {}
 
-  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
@@ -992,6 +995,12 @@ workers:
 
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
 
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
@@ -1246,6 +1255,18 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Resource configuration for Airflow Celery workers
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1300,6 +1321,18 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
 
 # Airflow scheduler settings
 scheduler:
@@ -1457,6 +1490,7 @@ scheduler:
   # annotations for scheduler deployment
   annotations: {}
 
+  # Pod annotations for scheduler pods (templated)
   podAnnotations: {}
 
   # Labels specific to scheduler objects and pods
@@ -1471,6 +1505,12 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -1541,7 +1581,7 @@ createUserJob:
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
     - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
-  # Annotations on the create user job pod
+  # Annotations on the create user job pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
@@ -1636,7 +1676,7 @@ migrateDatabaseJob:
 
       airflow db migrate
 
-  # Annotations on the database migration pod
+  # Annotations on the database migration pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
@@ -1716,9 +1756,8 @@ migrateDatabaseJob:
 
 apiServer:
   enabled: true
-  # Number of Airflow API servers in the deployment
-  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
-  # as HPA will automatically manage the number of replicas based on the configured metrics.
+  # Number of Airflow API servers in the deployment.
+  # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1852,6 +1891,7 @@ apiServer:
   # annotations for Airflow API server deployment
   annotations: {}
 
+  # Pod annotations for API server pods (templated)
   podAnnotations: {}
 
   networkPolicy:
@@ -2136,6 +2176,7 @@ webserver:
   # annotations for webserver deployment
   annotations: {}
 
+  # Pod annotations for webserver pods (templated)
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -2299,6 +2340,7 @@ triggerer:
   # annotations for the triggerer deployment
   annotations: {}
 
+  # Pod annotations for triggerer pods (templated)
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -2313,6 +2355,12 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2532,6 +2580,7 @@ dagProcessor:
   # annotations for the dag processor deployment
   annotations: {}
 
+  # Pod annotations for dag processor pods (templated)
   podAnnotations: {}
 
   logGroomerSidecar:
@@ -2543,6 +2592,12 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
     # Max size of logs in bytes. 0 = disabled
@@ -2716,6 +2771,7 @@ flower:
   # annotations for the flower deployment
   annotations: {}
 
+  # Pod annotations for flower pods (templated)
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -2833,6 +2889,7 @@ statsd:
   # So, If you use it, ensure all mapping item contains in it.
   overrideMappings: []
 
+  # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
 
   # Labels specific to statsd objects and pods
@@ -2862,6 +2919,7 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  # Pod annotations for PgBouncer pods (templated)
   podAnnotations: {}
 
   # Add custom annotations to the pgbouncer certificates secret
@@ -3159,6 +3217,7 @@ redis:
   # Labels specific to redis objects and pods
   labels: {}
 
+  # Pod annotations for Redis pods (templated)
   podAnnotations: {}
 
 # Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
@@ -3257,6 +3316,7 @@ cleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to cleanup objects and pods
@@ -3346,6 +3406,7 @@ databaseCleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for database cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to database cleanup objects and pods
@@ -3605,8 +3666,35 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    # Git-Sync liveness service http bind port
+    httpPort: 1234
+
+    # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
+    # use a dedicated Git-Sync liveness service. In future, behaviour with value true will be
+    # default one and old one will be removed
+    recommendedProbeSetting: false
+
+    startupProbe:
+      enabled: true
+      timeoutSeconds: 1
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 10
+
+    # As Git-Sync is not service-type object, the usage of this section will be removed.
+    # By setting dags.gitSync.recommendedProbeSetting to true, you will enable future behaviour.
     readinessProbe: {}
+
+    # The behaviour of the livenessProbe will change with the next release of Helm Chart.
+    # To enable future behaviour set dags.gitSync.recommendedProbeSetting to true.
+    # New behaviour uses the recommended liveness configuration by using Git-Sync built-in
+    # liveness service
     livenessProbe: {}
+    #  enabled: true
+    #  timeoutSeconds: 1
+    #  initialDelaySeconds: 0
+    #  periodSeconds: 5
+    #  failureThreshold: 10
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
