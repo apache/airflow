@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
 import logging
@@ -138,13 +139,32 @@ class GitHook(BaseHook):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
             self.repo_url = self.repo_url.replace("https://", f"https://{self.user_name}:{self.auth_token}@")
+            self._set_http_auth_env()
         elif self.auth_token and self.repo_url.startswith("http://"):
             self.repo_url = self.repo_url.replace("http://", f"http://{self.user_name}:{self.auth_token}@")
+            self._set_http_auth_env()
         elif self.repo_url.startswith("http://"):
             # if no auth token, use the repo url as is
             self.repo_url = self.repo_url
         elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    def _set_http_auth_env(self):
+        """
+        Set git config env vars to force HTTP authentication via extraHeader.
+
+        Git does not send credentials for public repositories since the server
+        does not respond with a 401 challenge. This forces the Authorization
+        header to be sent on every request, allowing authenticated rate limits.
+
+        Uses GIT_CONFIG_* environment variables (git >= 2.31) to inject an
+        ``http.extraHeader`` with a Basic auth token.
+        """
+        credentials = f"{self.user_name}:{self.auth_token}"
+        encoded = base64.b64encode(credentials.encode()).decode()
+        self.env["GIT_CONFIG_COUNT"] = "1"
+        self.env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
+        self.env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {encoded}"
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
