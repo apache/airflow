@@ -332,6 +332,7 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/airflow/executors/*",
     "*/_internal*",
     "*/node_modules/*",
+    "*/.pnpm-store/*",
     "*/migrations/*",
     "*/contrib/*",
     "*/example_taskflow_api_docker_virtualenv.py",
