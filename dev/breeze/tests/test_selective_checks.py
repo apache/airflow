@@ -54,6 +54,15 @@ ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUB
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
 
+DEFAULT_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[0].lstrip("v")
+LAST_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[-1].lstrip("v")
+DEFAULT_HELM_K8S_VERSIONS_JSON = json.dumps([DEFAULT_HELM_K8S_VERSION])
+ALL_HELM_K8S_VERSIONS_JSON = json.dumps(
+    [DEFAULT_HELM_K8S_VERSION]
+    if DEFAULT_HELM_K8S_VERSION == LAST_HELM_K8S_VERSION
+    else [DEFAULT_HELM_K8S_VERSION, LAST_HELM_K8S_VERSION]
+)
+
 PYTHON_K8S_COMBO_LENGTH = max(len(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), len(ALLOWED_KUBERNETES_VERSIONS))
 PYTHON_VERSIONS_MAX = (ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
 KUBERNETES_VERSIONS_MAX = (ALLOWED_KUBERNETES_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
@@ -385,7 +394,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -405,17 +414,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -429,7 +437,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -449,17 +457,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -477,7 +484,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -497,17 +504,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -525,7 +531,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -545,17 +551,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam,c...google",
-                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "apache.beam...google",
-                                "test_types": "Providers[apache.beam] "
-                                "Providers[common.compat] Providers[google]",
+                                "description": "common.compat...google",
+                                "test_types": "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -1120,8 +1125,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "testable-core-integrations": "['kerberos', 'redis']",
-                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
+                    "testable-core-integrations": "['kerberos', 'otel', 'redis']",
+                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
@@ -1316,11 +1321,7 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps(
-                {
-                    "3.13": ["fab"],
-                }
-            ),
+            "excluded-providers-as-string": json.dumps({}),
         },
         str(stderr),
     )
@@ -1944,7 +1945,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
+                "selected-providers-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
@@ -1956,7 +1957,7 @@ def test_expected_output_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
@@ -1970,7 +1971,7 @@ def test_expected_output_push(
                     [
                         {
                             "description": "amazon...standard",
-                            "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
+                            "test_types": "Providers[amazon] Providers[apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
@@ -2238,7 +2239,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
+                "docs-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
@@ -2248,8 +2249,8 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
+                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -2755,12 +2756,6 @@ def test_runner_type_schedule(mock_get):
     [
         # Test integrations disabled for all CI environments
         pytest.param(
-            "elasticsearch",
-            PUBLIC_AMD_RUNNERS,
-            True,
-            id="elasticsearch_disabled_on_amd",
-        ),
-        pytest.param(
             "mssql",
             PUBLIC_AMD_RUNNERS,
             True,
@@ -2876,9 +2871,9 @@ def test_testable_core_integrations_excludes_disabled():
     """Test that testable_core_integrations excludes disabled integrations."""
     with patch(
         "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
-        ["postgres", "elasticsearch", "kerberos"],
+        ["postgres", "kerberos"],
     ):
-        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        # Test with AMD runner
         selective_checks_amd = SelectiveChecks(
             files=("airflow-core/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
@@ -2890,7 +2885,6 @@ def test_testable_core_integrations_excludes_disabled():
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
             assert "kerberos" in result
-            assert "elasticsearch" not in result
 
 
 def test_testable_core_integrations_excludes_arm_disabled_on_arm():
@@ -3403,3 +3397,55 @@ dependencies = [
     # Should pass with the skip label
     result = selective_checks.common_compat_changed_without_next_version
     assert result is True
+
+
+@pytest.mark.parametrize(
+    ("files", "pr_labels", "expected_outputs"),
+    [
+        pytest.param(
+            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            (),
+            {
+                "helm-test-kubernetes-versions": DEFAULT_HELM_K8S_VERSIONS_JSON,
+            },
+            id="Default K8s version when no all-versions label",
+        ),
+        pytest.param(
+            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            ("all versions",),
+            {
+                "helm-test-kubernetes-versions": ALL_HELM_K8S_VERSIONS_JSON,
+            },
+            id="First and last K8s versions when all-versions label is set",
+        ),
+        pytest.param(
+            ("INTHEWILD.md",),
+            ("full tests needed", "all versions"),
+            {
+                "helm-test-kubernetes-versions": ALL_HELM_K8S_VERSIONS_JSON,
+                "all-versions": "true",
+            },
+            id="First and last K8s versions when full tests needed with all versions",
+        ),
+        pytest.param(
+            ("INTHEWILD.md",),
+            ("full tests needed",),
+            {
+                "helm-test-kubernetes-versions": DEFAULT_HELM_K8S_VERSIONS_JSON,
+                "all-versions": "false",
+            },
+            id="Default K8s version when full tests needed but no all-versions label",
+        ),
+    ],
+)
+def test_helm_test_kubernetes_versions(
+    files: tuple[str, ...], pr_labels: tuple[str, ...], expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))

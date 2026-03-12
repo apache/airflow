@@ -80,7 +80,11 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_3_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -185,6 +189,7 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.timezone.utc)
     dagrun_mock.triggering_user_name = "user1"
     dagrun_mock.triggered_by = "something"
+    dagrun_mock.note = "note"
     dagrun_mock.dag_versions = [
         MagicMock(
             bundle_name="bundle_name",
@@ -209,6 +214,9 @@ def test_get_airflow_dag_run_facet():
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
+    note: str | None = None
+    if AIRFLOW_V_3_2_PLUS:
+        note = "note"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
             dag=expected_dag_info,
@@ -233,6 +241,7 @@ def test_get_airflow_dag_run_facet():
                 "dag_version_number": "version_number",
                 "triggering_user_name": "user1",
                 "triggered_by": "something",
+                "note": note,
             },
         )
     }
@@ -2665,6 +2674,10 @@ def test_dagrun_info_af3(mocked_dag_versions):
     dv2.bundle_name = "bundle_name"
     dv2.bundle_version = "bundle_version"
 
+    optional_args = {}
+    if AIRFLOW_V_3_2_PLUS:
+        optional_args["note"] = "note"
+
     mocked_dag_versions.return_value = [dv1, dv2]
     dagrun = DagRun(
         dag_id="dag_id",
@@ -2681,6 +2694,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         triggered_by=DagRunTriggeredByType.UI,
         backfill_id=999,
         bundle_version="bundle_version",
+        **optional_args,
     )
     assert dagrun.dag_versions == [dv1, dv2]
     dagrun.end_date = date + datetime.timedelta(seconds=74, microseconds=546)
@@ -2706,6 +2720,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "dag_version_number": "version_number",
         "triggered_by": DagRunTriggeredByType.UI,
         "triggering_user_name": "my_user",
+        "note": optional_args.get("note"),
     }
 
 
@@ -2748,6 +2763,7 @@ def test_dagrun_info_af2():
         "dag_bundle_version": None,
         "dag_version_id": None,
         "dag_version_number": None,
+        "note": None,
     }
 
 
@@ -2852,6 +2868,7 @@ def test_task_info_af3():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.note = "note"  # TriggerDagRunOperator
             self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
@@ -2899,6 +2916,7 @@ def test_task_info_af3():
         "max_active_tis_per_dagrun": None,
         "max_retry_delay": None,
         "multiple_outputs": False,
+        "note": "note",
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
         "operator_provider_version": None,  # Custom operator doesn't have provider version
@@ -2979,6 +2997,7 @@ def test_task_info_af2():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.note = "note"  # TriggerDagRunOperator
             self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
@@ -3063,6 +3082,7 @@ def test_task_info_af2():
         "max_threshold": "max_threshold",
         "metrics_thresholds": "metrics_thresholds",
         "min_threshold": "min_threshold",
+        "note": "note",
         "parameters": "parameters",
         "pass_value": "pass_value",
         "postoperator": "postoperator",

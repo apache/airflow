@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-ssh"
-version = "4.3.1"
+version = "4.3.2"
 description = "Provider package apache-airflow-providers-ssh for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -62,7 +62,7 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     "asyncssh>=2.12.0",
     # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079 is handled
-    "paramiko>=2.9.0,<4.0.0",
+    "paramiko>=3.4.0,<4.0.0",
     "sshtunnel>=0.3.2",
 ]
 
@@ -101,8 +101,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-ssh/4.3.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

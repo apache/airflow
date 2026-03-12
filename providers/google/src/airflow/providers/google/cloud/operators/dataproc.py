@@ -63,6 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -213,6 +214,7 @@ class ClusterGenerator:
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
+    :param cluster_type: The type of the cluster (e.g. "STANDARD" / "SINGLE_NODE" / "ZERO_SCALE")
     """
 
     def __init__(
@@ -263,6 +265,7 @@ class ClusterGenerator:
         secondary_worker_accelerator_count: int | None = None,
         *,
         cluster_tier: str | None = None,
+        cluster_type: str | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -311,6 +314,7 @@ class ClusterGenerator:
         self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
         self.cluster_tier = cluster_tier
+        self.cluster_type = cluster_type
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -518,6 +522,9 @@ class ClusterGenerator:
 
         if self.cluster_tier:
             cluster_data["cluster_tier"] = self.cluster_tier
+
+        if self.cluster_type:
+            cluster_data["cluster_type"] = self.cluster_type
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 
@@ -805,11 +812,47 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         self.log.info("Cluster created.")
         return Cluster.to_dict(cluster)
 
+    def _reconcile_cluster_state(self, hook: DataprocHook, cluster: Cluster) -> Cluster:
+
+        if cluster.status.state == cluster.status.State.CREATING:
+            self.log.info("Cluster %s is in CREATING state.", self.cluster_name)
+
+            cluster = self._wait_for_cluster_in_creating_state(hook)
+            self._handle_error_state(hook, cluster)
+        elif cluster.status.state == cluster.status.State.DELETING:
+            self.log.info("Cluster %s is in DELETING state.", self.cluster_name)
+
+            self._wait_for_cluster_in_deleting_state(hook)
+
+            self.log.info("Attempting to re-create cluster: %s", self.cluster_name)
+
+            operation = self._create_cluster(hook)
+            hook.wait_for_operation(
+                timeout=self.timeout,
+                result_retry=self.retry,
+                operation=operation,
+            )
+            cluster = self._get_cluster(hook)
+
+            self._handle_error_state(hook, cluster)
+        elif cluster.status.state == cluster.status.State.STOPPED:
+            self.log.info("Cluster %s is in STOPPED state.", self.cluster_name)
+
+            self.log.info("Attempting to re-start cluster: %s", self.cluster_name)
+
+            # _start_cluster waits for the operation to complete.
+            self._start_cluster(hook)
+
+            cluster = self._get_cluster(hook)
+
+        return cluster
+
     def execute(self, context: Context) -> dict:
-        self.log.info("Creating cluster: %s", self.cluster_name)
+
+        self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
-        # Save data required to display extra link no matter what the cluster status will be
+        # Save data required to display extra link regardless of the cluster status.
         project_id = self.project_id or hook.project_id
         if project_id:
             DataprocClusterLink.persist(
@@ -820,37 +863,40 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             )
 
         try:
-            # First try to create a new cluster
             operation = self._create_cluster(hook)
-            if not self.deferrable and type(operation) is not str:
-                cluster = hook.wait_for_operation(
-                    timeout=self.timeout, result_retry=self.retry, operation=operation
+
+            if not self.deferrable and not isinstance(operation, str):
+                hook.wait_for_operation(
+                    timeout=self.timeout,
+                    result_retry=self.retry,
+                    operation=operation,
                 )
-                self.log.info("Cluster created.")
-                return Cluster.to_dict(cluster)
-            cluster = hook.get_cluster(
-                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
-            )
-            if cluster.status.state == cluster.status.State.RUNNING:
-                self.log.info("Cluster created.")
-                return Cluster.to_dict(cluster)
-            self.defer(
-                trigger=DataprocClusterTrigger(
-                    cluster_name=self.cluster_name,
-                    project_id=self.project_id,
-                    region=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_interval_seconds=self.polling_interval_seconds,
-                    delete_on_error=self.delete_on_error,
-                ),
-                method_name="execute_complete",
-            )
+
+            # Fetch current state.
+            cluster = self._get_cluster(hook)
+
+            if self.deferrable:
+                if cluster.status.state != cluster.status.State.RUNNING:
+                    self.defer(
+                        trigger=DataprocClusterTrigger(
+                            cluster_name=self.cluster_name,
+                            project_id=self.project_id,
+                            region=self.region,
+                            gcp_conn_id=self.gcp_conn_id,
+                            impersonation_chain=self.impersonation_chain,
+                            polling_interval_seconds=self.polling_interval_seconds,
+                            delete_on_error=self.delete_on_error,
+                        ),
+                        method_name="execute_complete",
+                    )
+                    return
+
         except AlreadyExists:
             if not self.use_if_exists:
                 raise
-            self.log.info("Cluster already exists.")
+            self.log.info("Cluster %s already exists.", self.cluster_name)
             cluster = self._get_cluster(hook)
+
         except DataprocResourceIsNotReadyError as resource_not_ready_error:
             if self.num_retries_if_resource_is_not_ready:
                 attempt = self.num_retries_if_resource_is_not_ready
@@ -870,39 +916,28 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 self._delete_cluster(hook)
                 self._wait_for_cluster_in_deleting_state(hook)
             raise resource_not_ready_error
-        except AirflowException as ae:
-            # There still could be a cluster created here in an ERROR state which
-            # should be deleted immediately rather than consuming another retry attempt
-            # (assuming delete_on_error is true (default))
-            # This reduces overall the number of task attempts from 3 to 2 to successful cluster creation
-            # assuming the underlying GCE issues have resolved within that window. Users can configure
-            # a higher number of retry attempts in powers of two with 30s-60s wait interval
+
+        except AirflowException as outer_airflow_exception:
+            # A cluster may have been created but entered ERROR state.
+            # If delete_on_error is enabled, delete it immediately so that
+            # the next retry attempt starts from a clean state.
             try:
                 cluster = self._get_cluster(hook)
                 self._handle_error_state(hook, cluster)
-            except AirflowException as ae_inner:
-                # We could get any number of failures here, including cluster not found and we
-                # can just ignore to ensure we surface the original cluster create failure
-                self.log.exception(ae_inner)
+            except AirflowException as inner_airflow_exception:
+                # Cleanup logic may raise secondary exceptions (e.g., cluster not found).
+                # Suppress those so that the original cluster creation failure is surfaced.
+                self.log.exception(inner_airflow_exception)
             finally:
-                raise ae
+                raise outer_airflow_exception
 
-        # Check if cluster is not in ERROR state
+        # Check if cluster is not in ERROR state.
         self._handle_error_state(hook, cluster)
-        if cluster.status.state == cluster.status.State.CREATING:
-            # Wait for cluster to be created
-            cluster = self._wait_for_cluster_in_creating_state(hook)
-            self._handle_error_state(hook, cluster)
-        elif cluster.status.state == cluster.status.State.DELETING:
-            # Wait for cluster to be deleted
-            self._wait_for_cluster_in_deleting_state(hook)
-            # Create new cluster
-            cluster = self._create_cluster(hook)
-            self._handle_error_state(hook, cluster)
-        elif cluster.status.state == cluster.status.State.STOPPED:
-            # if the cluster exists and already stopped, then start the cluster
-            self._start_cluster(hook)
 
+        # If cluster is not in RUNNING state, reconcile.
+        cluster = self._reconcile_cluster_state(hook, cluster)
+
+        self.log.info("Cluster %s is RUNNING.", self.cluster_name)
         return Cluster.to_dict(cluster)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
@@ -1846,6 +1881,8 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+    :param start_from_trigger: If True and deferrable is True, the operator will start directly
+        from the triggerer without occupying a worker slot.
     """
 
     template_fields: Sequence[str] = (
@@ -1859,6 +1896,15 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
+
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
 
     def __init__(
         self,
@@ -1877,6 +1923,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: int | None = None,
+        start_from_trigger: bool = False,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -1904,8 +1951,27 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.hook: DataprocHook | None = None
         self.job_id: str | None = None
         self.wait_timeout = wait_timeout
+        self.start_from_trigger = start_from_trigger
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
+
+        if self.deferrable and self.start_from_trigger:
+            self.start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
+                trigger_kwargs={
+                    "job": self.job,
+                    "project_id": self.project_id,
+                    "region": self.region,
+                    "gcp_conn_id": self.gcp_conn_id,
+                    "impersonation_chain": self.impersonation_chain,
+                    "polling_interval_seconds": self.polling_interval_seconds,
+                    "cancel_on_kill": self.cancel_on_kill,
+                    "request_id": self.request_id,
+                },
+                next_method="execute_complete",
+                next_kwargs=None,
+                timeout=None,
+            )
 
     def execute(self, context: Context):
         self.log.info("Submitting job")

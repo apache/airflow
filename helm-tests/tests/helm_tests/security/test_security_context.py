@@ -117,34 +117,6 @@ class TestSCBackwardsCompatibility:
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0]) == 30
 
-    def test_gitsync_sidecar_and_init_container_airflow_1(self):
-        docs = render_chart(
-            values={
-                "dags": {"gitSync": {"enabled": True, "uid": 3000}},
-                "airflowVersion": "1.10.15",
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
-        assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-        assert (
-            jmespath.search(
-                "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-
     def test_gitsync_sidecar_and_init_container_airflow_2(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True, "uid": 3000}}, "airflowVersion": "2.11.0"},
@@ -619,18 +591,43 @@ class TestSecurityContext:
         assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", docs[0])
 
     # Test securityContexts for worker-kerberos main container
-    def test_worker_kerberos_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        docs = render_chart(
-            values={
-                "workers": {
-                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                }
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {"securityContexts": {"container": {"runAsUser": 10}}},
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
                 },
             },
+        ],
+    )
+    def test_worker_kerberos_container_security_context(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.containers[2].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -652,7 +649,7 @@ class TestSecurityContext:
             {
                 "kerberosInitContainer": {
                     "enabled": True,
-                    "securityContexts": {"container": {"runAsUser": 1000}},
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                 },
                 "celery": {
                     "kerberosInitContainer": {
@@ -663,11 +660,9 @@ class TestSecurityContext:
             },
         ],
     )
-    def test_worker_kerberos_init_container_security_context(self, workers_values):
+    def test_worker_kerberos_init_container_security_contexts(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": workers_values,
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 

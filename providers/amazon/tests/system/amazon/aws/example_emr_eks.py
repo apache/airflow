@@ -58,7 +58,7 @@ ROLE_ARN_KEY = "ROLE_ARN"
 JOB_ROLE_ARN_KEY = "JOB_ROLE_ARN"
 JOB_ROLE_NAME_KEY = "JOB_ROLE_NAME"
 SUBNETS_KEY = "SUBNETS"
-UPDATE_TRUST_POLICY_WAIT_TIME_KEY = "UPDATE_TRUST_POLICY_WAIT_TIME_KEY"
+UPDATE_TRUST_POLICY_WAIT_TIME_KEY = "UPDATE_TRUST_POLICY_WAIT_TIME"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -66,7 +66,7 @@ sys_test_context_task = (
     .add_variable(JOB_ROLE_ARN_KEY)
     .add_variable(JOB_ROLE_NAME_KEY)
     .add_variable(SUBNETS_KEY, split_string=True)
-    .add_variable(UPDATE_TRUST_POLICY_WAIT_TIME_KEY, optional=True, default_value=10)
+    .add_variable(UPDATE_TRUST_POLICY_WAIT_TIME_KEY, optional=True, default_value="10")
     .build()
 )
 
@@ -177,7 +177,7 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
         raise RuntimeError(err)
 
     # Wait for IAM changes to propagate to avoid authentication failures
-    time.sleep(wait_time)
+    time.sleep(int(wait_time))
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

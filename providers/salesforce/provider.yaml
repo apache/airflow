@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768335553
+source-date-epoch: 1773071089
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.12.3
   - 5.12.2
   - 5.12.1
   - 5.12.0
@@ -95,3 +96,88 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.salesforce.hooks.salesforce.SalesforceHook
     connection-type: salesforce
+    conn-fields:
+      security_token:
+        label: Security Token
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      domain:
+        label: Domain
+        schema:
+          type:
+            - string
+            - 'null'
+      consumer_key:
+        label: Consumer Key
+        schema:
+          type:
+            - string
+            - 'null'
+      consumer_secret:
+        label: Consumer Secret
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      private_key_file_path:
+        label: Private Key File Path
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      private_key:
+        label: Private Key
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      organization_id:
+        label: Organization ID
+        schema:
+          type:
+            - string
+            - 'null'
+      instance:
+        label: Instance
+        schema:
+          type:
+            - string
+            - 'null'
+      instance_url:
+        label: Instance URL
+        schema:
+          type:
+            - string
+            - 'null'
+      proxies:
+        label: Proxies
+        schema:
+          type:
+            - string
+            - 'null'
+      version:
+        label: API Version
+        schema:
+          type:
+            - string
+            - 'null'
+      client_id:
+        label: Client ID
+        schema:
+          type:
+            - string
+            - 'null'
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - extra
+        - host
+      relabeling:
+        login: Username

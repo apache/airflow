@@ -83,34 +83,46 @@ class ExecutorLoader:
             for executor_name_str in executor_names_config:
                 if len(split_name := executor_name_str.split(":")) == 1:
                     name = split_name[0]
-                    # Check if this is an alias for a core airflow executor, module
-                    # paths won't be provided by the user in that case.
-                    if core_executor_module := cls.executors.get(name):
+                    # Check if this is a core airflow executor name. Use CORE_EXECUTOR_NAMES
+                    # (immutable set) rather than cls.executors (mutable dict that may contain
+                    # aliases added by init_executors at runtime).
+                    if name in CORE_EXECUTOR_NAMES:
                         executor_names_per_team.append(
-                            ExecutorName(module_path=core_executor_module, alias=name, team_name=team_name)
+                            ExecutorName(module_path=cls.executors[name], alias=name, team_name=team_name)
                         )
                     # A module path was provided
                     else:
                         executor_names_per_team.append(
                             ExecutorName(alias=None, module_path=name, team_name=team_name)
                         )
-                # An alias was provided with the module path
+                # An alias was provided with the module path or core executor name
                 elif len(split_name) == 2:
-                    # Ensure the user is not trying to override the existing aliases of any of the core
-                    # executors by providing an alias along with the existing core airflow executor alias
-                    # (e.g. my_local_exec_alias:LocalExecutor). Allowing this makes things unnecessarily
-                    # complicated. Multiple Executors of the same type will be supported by a future
-                    # multitenancy AIP.
-                    # The module component should always be a module path.
-                    module_path = split_name[1]
-                    if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
+                    alias = split_name[0]
+                    module_or_name = split_name[1]
+                    if not module_or_name:
                         raise AirflowConfigException(
                             "Incorrectly formatted executor configuration. Second portion of an executor "
-                            f"configuration must be a module path but received: {module_path}"
+                            f"configuration must be a core executor name or module path but received: {module_or_name}"
                         )
-                    executor_names_per_team.append(
-                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_name=team_name)
-                    )
+                    # Check if the second part is a core executor name (e.g. "MyAlias:LocalExecutor").
+                    # If so, resolve it to its module path. Use CORE_EXECUTOR_NAMES (immutable set)
+                    # rather than cls.executors (mutable dict that may contain aliases added by
+                    # init_executors at runtime).
+                    if module_or_name in CORE_EXECUTOR_NAMES:
+                        executor_names_per_team.append(
+                            ExecutorName(
+                                alias=alias, module_path=cls.executors[module_or_name], team_name=team_name
+                            )
+                        )
+                    elif "." not in module_or_name:
+                        raise AirflowConfigException(
+                            "Incorrectly formatted executor configuration. Second portion of an executor "
+                            f"configuration must be a core executor name or module path but received: {module_or_name}"
+                        )
+                    else:
+                        executor_names_per_team.append(
+                            ExecutorName(alias=alias, module_path=module_or_name, team_name=team_name)
+                        )
                 else:
                     raise AirflowConfigException(
                         f"Incorrectly formatted executor configuration: {executor_name_str}"
@@ -301,7 +313,7 @@ class ExecutorLoader:
 
     @classmethod
     def lookup_executor_name_by_str(
-        cls, executor_name_str: str, team_name: str | None = None
+        cls, executor_name_str: str, team_name: str | None = None, validate_teams: bool = True
     ) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
         if (
@@ -310,7 +322,7 @@ class ExecutorLoader:
             or not _alias_to_executors_per_team
         ):
             # if we haven't loaded the executors yet, such as directly calling load_executor
-            cls._get_executor_names()
+            cls._get_executor_names(validate_teams)
 
         if executor_name := _alias_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name

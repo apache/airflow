@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, overload
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
@@ -93,7 +93,7 @@ def _prune_dict(val: Any, mode="strict"):
     return val
 
 
-@attrs.define
+@attrs.define(slots=False)
 class Connection:
     """
     A connection to an external data source.
@@ -108,6 +108,7 @@ class Connection:
     :param port: The port number.
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
+    :param uri: URI address describing connection parameters.
     """
 
     conn_id: str
@@ -121,6 +122,36 @@ class Connection:
     extra: str | None = None
 
     EXTRA_KEY = "__extra__"
+
+    @overload
+    def __init__(self, *, conn_id: str, uri: str) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        conn_id: str,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        schema: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        port: int | None = None,
+        extra: str | None = None,
+    ) -> None: ...
+
+    def __init__(self, *, conn_id: str, uri: str | None = None, **kwargs) -> None:
+        if uri is not None and kwargs:
+            raise AirflowException(
+                "You must create an object using the URI or individual values "
+                "(conn_type, host, login, password, schema, port or extra). "
+                "You can't mix these two ways to create this object."
+            )
+        if uri is None:
+            self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
+        else:
+            self.__dict__.update(self.from_uri(uri, conn_id=conn_id).to_dict(validate=False))
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""

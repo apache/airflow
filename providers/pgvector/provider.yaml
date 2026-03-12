@@ -25,13 +25,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768335495
+source-date-epoch: 1772065148
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.7.0
   - 1.6.1
   - 1.6.0
   - 1.5.4

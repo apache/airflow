@@ -40,6 +40,35 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/token:
+    post:
+      tags:
+      - Auth Links
+      summary: Generate Token
+      description: Generate a JWT token for the authenticated user.
+      operationId: generate_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTokenBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateTokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -615,7 +644,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DealineCollectionResponse'
+                $ref: '#/components/schemas/DeadlineCollectionResponse'
         '404':
           content:
             application/json:
@@ -1847,6 +1876,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -1945,6 +1977,7 @@ components:
       - description
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2076,6 +2109,22 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineCollectionResponse:
+      properties:
+        deadlines:
+          items:
+            $ref: '#/components/schemas/DeadlineResponse'
+          type: array
+          title: Deadlines
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadlines
+      - total_entries
+      title: DeadlineCollectionResponse
+      description: Deadline Collection serializer for responses.
     DeadlineResponse:
       properties:
         id:
@@ -2111,22 +2160,6 @@ components:
       - created_at
       title: DeadlineResponse
       description: Deadline serializer for responses.
-    DealineCollectionResponse:
-      properties:
-        deadlines:
-          items:
-            $ref: '#/components/schemas/DeadlineResponse'
-          type: array
-          title: Deadlines
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - deadlines
-      - total_entries
-      title: DealineCollectionResponse
-      description: Deadline Collection serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -2234,6 +2267,31 @@ components:
       - end_date
       title: GanttTaskInstance
       description: Task instance data for Gantt chart.
+    GenerateTokenBody:
+      properties:
+        token_type:
+          $ref: '#/components/schemas/TokenType'
+          default: api
+      type: object
+      title: GenerateTokenBody
+      description: Request body for generating a token.
+    GenerateTokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          $ref: '#/components/schemas/TokenType'
+        expires_in_seconds:
+          type: integer
+          title: Expires In Seconds
+      type: object
+      required:
+      - access_token
+      - token_type
+      - expires_in_seconds
+      title: GenerateTokenResponse
+      description: Response for a generated token.
     GridNodeResponse:
       properties:
         id:
@@ -2305,6 +2363,12 @@ components:
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
+          default: []
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
@@ -2575,6 +2639,11 @@ components:
             format: date-time
           - type: 'null'
           title: Max End Date
+        dag_version_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Dag Version Number
       type: object
       required:
       - task_id
@@ -3227,11 +3296,28 @@ components:
             type: object
           - type: 'null'
           title: Globalcss
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
       type: object
       required:
       - tokens
       title: Theme
       description: JSON to modify Chakra's theme.
+    TokenType:
+      type: string
+      enum:
+      - api
+      - cli
+      title: TokenType
+      description: Type of token to generate.
     TriggerResponse:
       properties:
         id:

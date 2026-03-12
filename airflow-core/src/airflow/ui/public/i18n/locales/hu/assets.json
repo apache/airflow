@@ -1,5 +1,10 @@
 {
+  "additional_data": "További adatok",
+  "asset_many": "Adatkészletek",
+  "asset_one": "Adatkészlet",
+  "asset_other": "Adatkészlet",
   "consumingDags": "Fogyasztó Dag-ek",
+  "consumingTasks": "Fogyasztó feladatok",
   "createEvent": {
     "button": "Esemény létrehozása",
     "manual": {
@@ -21,10 +26,13 @@
     },
     "title": "Adatkészlet (asset) esemény létrehozása {{name}} számára"
   },
+  "extra": "Kiegészítő adatok",
   "group": "Csoport",
   "lastAssetEvent": "Utolsó Adatkészlet (asset) esemény",
   "name": "Név",
   "producingTasks": "Előállító feladatok",
   "scheduledDags": "Ütemezett Dag-ek",
-  "searchPlaceholder": "Adatkészlet (asset) keresése"
+  "scheduling": "Ütemezés",
+  "searchPlaceholder": "Adatkészlet (asset) keresése",
+  "taskDependencies": "Feladatfüggőségek"
 }

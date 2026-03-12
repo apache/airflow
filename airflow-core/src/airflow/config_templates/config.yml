@@ -917,11 +917,24 @@ logging:
       description: |
         Determines the formatter class used by Airflow for structuring its log messages
         The default formatter class is timezone-aware, which means that timestamps attached to log entries
-        will be adjusted to reflect the local timezone of the Airflow instance
+        will be adjusted to reflect the local timezone of the Airflow instance.
+        Note: This setting does NOT affect component logs (scheduler, api-server, triggerer, etc.) since
+        those use structlog directly. Use ``log_timestamp_format`` to control timestamps for those logs.
       version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
+    log_timestamp_format:
+      description: |
+        Timestamp format for component logs (scheduler, api-server, triggerer, etc.).
+        Use ``iso`` for ISO 8601 format (default), or a Python strftime format string
+        such as ``%Y-%m-%d %H:%M:%S``.
+        Note: This setting only applies to component logs rendered via structlog.
+        Task/DAG logs use ``log_format`` instead.
+      version_added: 3.0.4
+      type: string
+      example: "%Y-%m-%d %H:%M:%S"
+      default: "iso"
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
@@ -1414,9 +1427,21 @@ traces:
       description: |
         If True, then traces from Airflow internal methods are exported. Defaults to False.
       version_added: 3.1.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "False"
+    task_runner_flush_timeout_milliseconds:
+      description: |
+        Timeout in milliseconds to wait for the OpenTelemetry span exporter to flush pending spans
+        when a task runner process exits. If the exporter does not finish within this time, any
+        buffered spans may be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30000"
 secrets:
   description: ~
   options:
@@ -1480,7 +1505,9 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization and ``globalCss``.
+        Supports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``
+        (for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be
+        either absolute http(s) URLs or app-relative paths starting with ``/``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
 
@@ -2310,6 +2337,14 @@ scheduler:
       type: integer
       example: ~
       default: "-1"
+    only_idle:
+      description: |
+        Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
+        toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "false"
     scheduler_idle_sleep_time:
       description: |
         Controls how long the scheduler will sleep between loops, but if there was nothing to do

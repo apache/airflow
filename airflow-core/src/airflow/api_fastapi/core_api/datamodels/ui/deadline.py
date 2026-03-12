@@ -39,7 +39,7 @@ class DeadlineResponse(BaseModel):
     )
 
 
-class DealineCollectionResponse(BaseModel):
+class DeadlineCollectionResponse(BaseModel):
     """Deadline Collection serializer for responses."""
 
     deadlines: Iterable[DeadlineResponse]

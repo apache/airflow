@@ -29,10 +29,9 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
-from sqlalchemy.engine import URL
 from typing_extensions import overload
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
@@ -47,6 +46,7 @@ from airflow.utils.helpers import as_flattened_list
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    from sqlalchemy.engine import URL
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
@@ -140,6 +140,10 @@ class HiveCliHook(BaseHook):
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
             "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
+            "ssl": BooleanField(lazy_gettext("Ssl"), default=True),
+            "zoo_keeper_namespace": StringField(
+                lazy_gettext("Zoo Keeper Namespace"), widget=BS3TextFieldWidget(), default="hiveserver2"
+            ),
         }
 
     @classmethod
@@ -188,7 +192,11 @@ class HiveCliHook(BaseHook):
                 if self.high_availability:
                     if not jdbc_url.endswith(";"):
                         jdbc_url += ";"
-                    jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
+                    ssl = conn.extra_dejson.get("ssl", True)
+                    zoo_keeper_namespace = conn.extra_dejson.get("zoo_keeper_namespace", "hiveserver2")
+                    jdbc_url += (
+                        f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
+                    )
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
@@ -519,7 +527,7 @@ class HiveCliHook(BaseHook):
         """Kill Hive cli command."""
         if hasattr(self, "sub_process"):
             if self.sub_process.poll() is None:
-                print("Killing the Hive job")
+                self.log.info("Killing the Hive job")
                 self.sub_process.terminate()
                 time.sleep(60)
                 self.sub_process.kill()
@@ -877,8 +885,11 @@ class HiveServer2Hook(DbApiHook):
             auth_mechanism = db.extra_dejson.get("auth_mechanism", "KERBEROS")
             kerberos_service_name = db.extra_dejson.get("kerberos_service_name", "hive")
 
-        # Password should be set if in LDAP, CUSTOM or PLAIN mode
-        if auth_mechanism in ("LDAP", "CUSTOM", "PLAIN"):
+        # Pass through the password whenever the user has explicitly set one.
+        # Previously this was restricted to LDAP/CUSTOM/PLAIN, which caused
+        # user-provided passwords to be silently dropped for other auth modes
+        # (pyhive defaults to sending "x" when password is None).
+        if db.password:
             password = db.password
 
         from pyhive.hive import connect
@@ -1140,6 +1151,13 @@ class HiveServer2Hook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URL. "
+                "Install it with: pip install 'apache-airflow-providers-apache-hive[sqlalchemy]'"
+            )
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 

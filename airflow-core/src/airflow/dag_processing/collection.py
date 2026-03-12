@@ -63,7 +63,6 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -85,12 +84,17 @@ log = structlog.get_logger(__name__)
 
 def _create_orm_dags(
     bundle_name: str,
+    bundle_version: str | None,
     dags: Iterable[LazyDeserializedDAG],
     *,
     session: Session,
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+        )
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
         log.info("Creating ORM DAG for %s", dag.dag_id)
@@ -174,17 +178,15 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        # Skip these queries entirely if no Dags can be scheduled to save time.
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
-        # todo: AIP-76 what's a more general way to detect?
-        #  https://github.com/apache/airflow/issues/61086
-        if isinstance(dag.timetable, CronPartitionTimetable):
-            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
+        if dag.timetable.partitioned:
+            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Gag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
@@ -532,6 +534,7 @@ class DagModelOperation(NamedTuple):
             (model.dag_id, model)
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
+                bundle_version=self.bundle_version,
                 dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
                 session=session,
             )
@@ -595,9 +598,10 @@ class DagModelOperation(NamedTuple):
                     t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
                     for t in dag.tasks
                 )
-            dm.timetable_summary = dag.timetable.summary
             dm.timetable_type = dag.timetable.type_name
+            dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
+            dm.timetable_partitioned = dag.timetable.partitioned
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
             allowed_types = dag.allowed_run_types

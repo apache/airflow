@@ -378,12 +378,14 @@ class DagModel(Base):
     )
     # Description of the dag
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Timetable Type
+    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Timetable summary
     timetable_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable description
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    # Timetable Type
-    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    # Whether the timetable do partitioning.
+    timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
@@ -412,6 +414,9 @@ class DagModel(Base):
     # Must be either both NULL or both datetime.
     next_dagrun_data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     next_dagrun_data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
+    next_dagrun_partition_key: Mapped[str | None] = mapped_column(String(255))
+    next_dagrun_partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -748,11 +753,14 @@ class DagModel(Base):
             last_run_info = dag.timetable.run_info_from_dag_run(dag_run=last_automated_run)
         next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
-            # there is no next dag run after the last dag run; set to None
+            # there is no next dag run after the last dag run; set everything to None
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
+            self.next_dagrun_partition_key = self.next_dagrun_partition_date = None
         else:
+            self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.logical_date or next_dagrun_info.partition_date
+            self.next_dagrun_partition_key = next_dagrun_info.partition_key
+            self.next_dagrun_partition_date = next_dagrun_info.partition_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
         log.info(
             "setting next dagrun info",
@@ -760,6 +768,8 @@ class DagModel(Base):
             next_dagrun_create_after=str(self.next_dagrun_create_after),
             next_dagrun_data_interval_start=str(self.next_dagrun_data_interval_start),
             next_dagrun_data_interval_end=str(self.next_dagrun_data_interval_end),
+            next_dagrun_partition_key=self.next_dagrun_partition_key,
+            next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
 
     @provide_session

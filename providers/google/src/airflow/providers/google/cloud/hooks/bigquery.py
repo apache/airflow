@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 import pendulum
 from aiohttp import ClientSession as ClientSession
+from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -68,7 +69,6 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     _UNSET,
     PROVIDE_PROJECT_ID,
@@ -391,14 +391,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             sql_parameters=parameters,
         )
         return result
-
-    @deprecated(
-        planned_removal_date="November 30, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_df",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -2098,7 +2090,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     ) -> BigQueryJob | UnknownJob:
         """Get BigQuery job by its ID, project ID and location."""
         sync_hook = await self.get_sync_hook()
-        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
+        job = await sync_to_async(sync_hook.get_job)(job_id=job_id, project_id=project_id, location=location)
         return job
 
     async def get_job_status(

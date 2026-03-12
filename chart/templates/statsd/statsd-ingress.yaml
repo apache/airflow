@@ -54,7 +54,7 @@ spec:
   {{- if .tls }}
   {{- if .tls.enabled }}
     - hosts:
-        - {{ .name | quote }}
+        - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
   {{- end }}
   {{- end }}

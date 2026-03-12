@@ -42,6 +42,7 @@ from airflow.jobs.triggerer_job_runner import (
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
+    TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
     messages,
@@ -299,6 +300,42 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     stdout = capsys.readouterr().out
     assert f"{trigger_count} triggers currently running" in stdout
     assert f"{watcher_count} watchers currently running" in stdout
+
+    trigger_runner_supervisor.kill(force=False)
+
+
+def test_trigger_logger_close():
+    logger = TriggerLoggingFactory(log_path="/tmp/test.log", ti=MagicMock())
+
+    mock_fh = MagicMock()
+    mock_fh.closed = False
+
+    logger._filehandle = mock_fh
+
+    logger.close()
+
+    mock_fh.close.assert_called_once()
+
+
+def test_trigger_logger_fd_closed_when_removed(session):
+
+    trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
+
+    create_trigger_in_db(session, trigger)
+
+    mock_file = MagicMock()
+    mock_file.closed = False
+
+    with patch("airflow.sdk.log.init_log_file") as mock_init_log_file:
+        mock_init_log_file.return_value.open.return_value = mock_file
+
+        trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+        trigger_runner_supervisor.load_triggers()
+
+        for _ in range(30):
+            trigger_runner_supervisor._service_subprocess(0.1)
+
+    mock_file.close.assert_called_once()
 
     trigger_runner_supervisor.kill(force=False)
 

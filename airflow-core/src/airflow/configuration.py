@@ -269,6 +269,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
+        # Remove team_name from kwargs as the fallback defaults ConfigParser
+        # does not support team-aware lookups (it's a standard ConfigParser).
+        kwargs.pop("team_name", None)
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
 
     # A mapping of old default values that we want to change and warn the user
@@ -870,11 +873,18 @@ def initialize_secrets_backends(
     custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
+        from airflow.models import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
     for class_name in default_backends:
+        from airflow.models import Connection
+
         secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append(backend)
 
     return backend_list
 

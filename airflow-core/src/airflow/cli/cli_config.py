@@ -276,11 +276,30 @@ ARG_JOB_STATE = Arg(
 )
 
 # next_execution
+ARG_TABLE = Arg(
+    ("--table",),
+    action="store_true",
+    default=False,
+    help="Show a table expected of attributes of next executions",
+)
+ARG_FIELD = Arg(
+    ("--field",),
+    choices=(
+        "logical_date",
+        "data_interval.start",
+        "data_interval.end",
+        "partition_key",
+        "partition_date",
+        "run_after",
+    ),
+    default=None,
+    help="Show given attribute of next executions",
+)
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next logical date times to show",
+    help="The number of next executions to show",
 )
 
 # misc
@@ -710,6 +729,13 @@ ARG_NUM_RUNS = Arg(
     help="Set the number of runs to execute before exiting",
 )
 
+ARG_ONLY_IDLE = Arg(
+    ("-i", "--only-idle"),
+    default=conf.getboolean("scheduler", "only_idle", fallback=False),
+    help="Only count runs after the scheduler becomes idle.",
+    action="store_true",
+)
+
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
@@ -1097,7 +1123,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TABLE, ARG_FIELD, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
@@ -1444,6 +1470,9 @@ TEAMS_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a team",
+        description=(
+            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
     ),
@@ -1967,6 +1996,7 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
         args=(
             ARG_NUM_RUNS,
+            ARG_ONLY_IDLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,

@@ -20,6 +20,7 @@ import os
 import sys
 from enum import Enum
 
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.shared_options import get_forced_answer
 
 STANDARD_TIMEOUT = 10
@@ -36,6 +37,7 @@ def user_confirm(
     timeout: float | None = None,
     default_answer: Answer | None = Answer.NO,
     quit_allowed: bool = True,
+    forced_answer: str | None = None,
 ) -> Answer:
     """Ask the user for confirmation.
 
@@ -43,13 +45,14 @@ def user_confirm(
     :param timeout: time given user to answer
     :param default_answer: default value returned on timeout. If no default - is set, the timeout is ignored.
     :param quit_allowed: whether quit answer is allowed
+    :param forced_answer: explicit override for forced answer (bypasses global --answer)
     """
     from inputimeout import TimeoutOccurred, inputimeout
 
     allowed_answers = "y/n/q" if quit_allowed else "y/n"
     while True:
         try:
-            force = get_forced_answer() or os.environ.get("ANSWER")
+            force = forced_answer or get_forced_answer() or os.environ.get("ANSWER")
             if force:
                 user_status = force
                 print(f"Forced answer for '{message}': {force}")
@@ -110,3 +113,87 @@ def confirm_action(
     elif answer == Answer.QUIT:
         sys.exit(1)
     return False
+
+
+class TriageAction(Enum):
+    DRAFT = "d"
+    COMMENT = "a"
+    CLOSE = "c"
+    READY = "r"
+    SKIP = "s"
+    QUIT = "q"
+
+
+def prompt_triage_action(
+    message: str,
+    default: TriageAction = TriageAction.DRAFT,
+    timeout: float | None = None,
+    forced_answer: str | None = None,
+) -> TriageAction:
+    """Prompt the user to choose a triage action for a flagged PR.
+
+    :param message: message to display (should describe the PR)
+    :param default: default action returned on Enter or timeout
+    :param timeout: seconds before auto-selecting default (None = no timeout)
+    :param forced_answer: explicit override for forced answer (bypasses global --answer)
+    """
+    from inputimeout import TimeoutOccurred, inputimeout
+
+    _LABELS = {
+        TriageAction.DRAFT: "draft",
+        TriageAction.COMMENT: "add comment",
+        TriageAction.CLOSE: "close",
+        TriageAction.READY: "ready",
+        TriageAction.SKIP: "skip",
+        TriageAction.QUIT: "quit",
+    }
+    while True:
+        try:
+            force = forced_answer or get_forced_answer() or os.environ.get("ANSWER")
+            if force:
+                print(f"Forced answer for '{message}': {force}")
+                upper = force.upper()
+                if upper in ("Y", "YES"):
+                    return default
+                if upper in ("N", "NO"):
+                    return TriageAction.SKIP
+                if upper == "Q":
+                    return TriageAction.QUIT
+                for action in TriageAction:
+                    if upper == action.value.upper():
+                        return action
+                return default
+
+            # Build choice display: uppercase the default letter
+            choices = []
+            for action in TriageAction:
+                letter = action.value
+                label = _LABELS[action]
+                if action == default:
+                    choices.append(f"[{letter.upper()}]{label}")
+                else:
+                    choices.append(f"[{letter}]{label}")
+            choices_str = " / ".join(choices)
+
+            get_console().print(f"\n{message}")
+            prompt_text = choices_str
+            if timeout:
+                prompt_text += (
+                    f"  (auto-select {_LABELS[default]} in {timeout}s"
+                    f" — add `--answer-triage {default.value}` to skip)"
+                )
+            prompt_text += ": "
+
+            user_input = inputimeout(prompt=prompt_text, timeout=timeout)
+            if user_input == "":
+                return default
+
+            upper = user_input.strip().upper()
+            for action in TriageAction:
+                if upper == action.value.upper():
+                    return action
+            print(f"Invalid input '{user_input}'. Please enter one of: d/a/c/r/s/q")
+        except TimeoutOccurred:
+            return default
+        except KeyboardInterrupt:
+            return TriageAction.QUIT

@@ -89,6 +89,7 @@
                         "items": {
                             "type": "string",
                             "enum": [
+                                "ai",
                                 "alibaba",
                                 "apache",
                                 "aws",

@@ -643,6 +643,12 @@ class TestDagFileProcessorManager:
         manager._cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_not_called()
 
+    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    def test_cleanup_stale_bundle_versions(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
+
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
@@ -1356,6 +1362,47 @@ class TestDagFileProcessorManager:
             assert bundleone.refresh.call_count == 1
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 1  # didn't fresh the second time
+
+    @pytest.mark.parametrize(
+        (
+            "elapsed_time_since_refresh",
+            "current_version_matches_db",
+            "previously_seen",
+            "force_refresh",
+            "expected",
+        ),
+        [
+            (10, True, True, False, True),
+            (400, True, True, False, False),
+            (10, False, True, False, False),
+            (10, True, False, False, False),
+            (10, True, True, True, False),
+        ],
+    )
+    def test_should_skip_bundle_refresh(
+        self,
+        elapsed_time_since_refresh,
+        current_version_matches_db,
+        previously_seen,
+        force_refresh,
+        expected,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.name = "bundleone"
+        bundle.refresh_interval = 300
+
+        if force_refresh:
+            manager._force_refresh_bundles = {"bundleone"}
+
+        should_skip_refresh = manager.should_skip_refresh(
+            bundle=bundle,
+            elapsed_time_since_refresh=elapsed_time_since_refresh,
+            current_version_matches_db=current_version_matches_db,
+            previously_seen=previously_seen,
+        )
+
+        assert should_skip_refresh is expected
 
     def test_bundle_force_refresh(self):
         """Ensure the dag processor honors force refreshing a bundle."""

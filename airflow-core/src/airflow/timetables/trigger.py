@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -38,8 +37,6 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.models.dag import DagModel
-    from airflow.models.dagrun import DagRun
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -392,8 +389,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
 
     # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
     # todo: AIP-76 we could allow a tuple of integer + time-based
-
     """
+
+    partitioned = True
 
     def __init__(
         self,
@@ -402,7 +400,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        key_format: str = "%Y-%m-%dT%H:%M:%S",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
+        # todo: AIP-76 we can't infer partition date from this, so we need to store it separately.
+        key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
         super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
         if not isinstance(run_offset, (int, NoneType)):
@@ -446,15 +445,27 @@ class CronPartitionTimetable(CronTriggerTimetable):
         if self._run_offset == 0:
             return run_date
         # we will need to apply offset to determine run date
-        partition_date = timezone.coerce_datetime(run_date)
+        partition_date = coerce_datetime(run_date)
         log.info(
-            "applying offset to partition date", partition_date=partition_date, run_offset=self._run_offset
+            "applying offset to partition date",
+            partition_date=partition_date,
+            run_offset=self._run_offset,
         )
         iter_func = self._get_next if self._run_offset > 0 else self._get_prev
         for _ in range(abs(self._run_offset)):
             partition_date = iter_func(partition_date)
         log.info("new partition date", partition_date=partition_date)
         return partition_date
+
+    def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
+        # todo: AIP-76 it does not make sense that we would infer partition info from run date
+        #  in general, because they might not be 1-1
+        partition_date = self._get_partition_date(run_date=run_date)
+        partition_key = self._format_key(partition_date)
+        return partition_date, partition_key
+
+    def _format_key(self, partition_date: DateTime) -> str:
+        return partition_date.strftime(self._key_format)
 
     def next_dagrun_info_v2(
         self,
@@ -498,16 +509,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
         )
 
-    def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
-        # todo: AIP-76 it does not make sense that we would infer partition info from run date
-        #  in general, because they might not be 1-1
-        partition_date = self._get_partition_date(run_date=run_date)
-        partition_key = self._format_key(partition_date)
-        return partition_date, partition_key
-
-    def _format_key(self, partition_date: DateTime) -> str:
-        return partition_date.strftime(self._key_format)
-
     def generate_run_id(
         self,
         *,
@@ -521,27 +522,3 @@ class CronPartitionTimetable(CronTriggerTimetable):
             suffix = f"{suffix}__{partition_key}"
         suffix = f"{suffix}__{get_random_string()}"
         return run_type.generate_run_id(suffix=suffix)
-
-    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if TYPE_CHECKING:
-            assert run_after is not None
-        partition_date, partition_key = self._get_partition_info(run_date=run_after)
-        return DagRunInfo(
-            run_after=run_after,
-            data_interval=None,
-            partition_date=partition_date,
-            partition_key=partition_key,
-        )
-
-    def run_info_from_dag_run(self, *, dag_run: DagRun) -> DagRunInfo:
-        run_after = timezone.coerce_datetime(dag_run.run_after)
-        # todo: AIP-76 store this on DagRun so we don't need to recalculate?
-        # todo: AIP-76 this needs to be public
-        partition_date = self._get_partition_date(run_date=dag_run.run_after)
-        return DagRunInfo(
-            run_after=run_after,
-            data_interval=None,
-            partition_date=partition_date,
-            partition_key=dag_run.partition_key,
-        )

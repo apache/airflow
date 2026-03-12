@@ -57,6 +57,7 @@ versions:
 integrations:
   - integration-name: OpenAI
     external-doc-url: https://platform.openai.com/docs/introduction
+    logo: /docs/integration-logos/OpenAI.png
     how-to-guide:
       - /docs/apache-airflow-providers-openai/operators/openai.rst
     tags: [software]
@@ -79,3 +80,11 @@ triggers:
 connection-types:
   - hook-class-name: airflow.providers.openai.hooks.openai.OpenAIHook
     connection-type: openai
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+      relabeling:
+        password: API Key
+      placeholders: {}

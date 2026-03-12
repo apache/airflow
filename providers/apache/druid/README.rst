@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-druid``
 
-Release: ``4.4.2``
+Release: ``4.5.0``
 
 
 `Apache Druid <https://druid.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.druid`` provider. All classes for this p
 are in ``airflow.providers.apache.druid`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.4.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.5.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``pydruid``                                 ``>=0.6.6``
 ==========================================  ==================
@@ -83,12 +83,11 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``apache.hive``    ``apache-airflow-providers-apache-hive``
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``apache.hive``  ``apache-airflow-providers-apache-hive``
+===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.4.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.5.0/changelog.html>`_.

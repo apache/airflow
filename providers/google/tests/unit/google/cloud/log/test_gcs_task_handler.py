@@ -381,6 +381,8 @@ class TestGCSTaskHandler:
             assert logs.endswith("CONTENT")
             assert metadata == {"end_of_log": True, "log_pos": 7}
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
@@ -418,6 +420,8 @@ class TestGCSTaskHandler:
             assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
@@ -453,6 +457,8 @@ class TestGCSTaskHandler:
         mock_blob.from_string.return_value.upload_from_string(data="CONTENT\nMESSAGE\n")
         assert self.gcs_task_handler.closed is True
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
@@ -495,6 +501,8 @@ class TestGCSTaskHandler:
             any_order=False,
         )
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),

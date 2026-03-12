@@ -46,4 +46,38 @@ Setup and develop using GitHub Codespaces
    as Codespaces use Visual Studio Code as interface.
 
 
+Troubleshooting Docker in Codespaces
+-------------------------------------
+
+If you see a "Docker is not running" error when running Breeze commands, try these steps:
+
+1. Verify that Docker is accessible by running:
+
+   .. code-block:: bash
+
+      docker info
+
+2. If the command fails, check that the Docker socket exists:
+
+   .. code-block:: bash
+
+      ls -la /var/run/docker.sock
+
+3. Check that your user has permission to access Docker:
+
+   .. code-block:: bash
+
+      groups $USER
+
+   You should see ``docker`` in the list. If not, add yourself to the group:
+
+   .. code-block:: bash
+
+      sudo usermod -aG docker $USER
+
+4. If the above steps do not help, rebuild the devcontainer
+   (Command Palette → *Codespaces: Rebuild Container*) or restart the Codespace
+   from the GitHub Codespaces dashboard.
+
+
 Follow the `Quick start <../03b_contributors_quick_start_seasoned_developers.rst>`_ for typical development tasks.
