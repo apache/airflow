@@ -322,8 +322,6 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
             1 / 0
         except ZeroDivisionError:
             get_logger("logger").exception("Error")
-    written = bio.getvalue()
-
     written = json.load(bio)
     assert written == {
         "event": "Error",
@@ -390,3 +388,42 @@ def test_logger_respects_configured_level(structlog_config):
 
     written = sio.getvalue()
     assert "[my_logger] Debug message\n" in written
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "config_kwargs", "expected_substring"),
+    [
+        pytest.param(
+            logging.getLogger,
+            {},
+            "Info message {'a': 10}",
+            id="stdlib-console",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {"json_output": True},
+            "Info message {'a': 10}",
+            id="stdlib-json",
+        ),
+    ],
+)
+def test_dict_as_positional_arg(structlog_config, get_logger, config_kwargs, expected_substring):
+    """Regression test for Issue #62201: dict as positional arg must not crash."""
+    with structlog_config(colors=False, **config_kwargs) as sio:
+        logger = get_logger("my.logger")
+        logger.warning("Info message %s", {"a": 10})
+
+    output = sio.getvalue() if hasattr(sio, "getvalue") else sio.read()
+    if isinstance(output, bytes):
+        output = output.decode("utf-8")
+    assert expected_substring in output
+
+
+def test_multiple_positional_args_still_work(structlog_config):
+    """Ensure normal positional args formatting is not broken by the dict-arg fix."""
+    with structlog_config(colors=False) as sio:
+        logger = logging.getLogger("my.logger")
+        logger.warning("Values: %s %d %s", "hello", 42, "world")
+
+    written = sio.getvalue()
+    assert "Values: hello 42 world" in written

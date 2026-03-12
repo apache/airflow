@@ -216,6 +216,24 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
     return event_dict
 
 
+def _normalize_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+    """
+    Convert dict positional args to their string representation.
+
+    Python's ``LogRecord.__init__`` converts ``({'key': val},)`` into ``{'key': val}``
+    (a bare dict).  When ``ProcessorFormatter`` stores that dict as ``positional_args``,
+    structlog's ``PositionalArgumentsFormatter`` crashes because it expects a tuple.
+
+    Logging a dict directly (e.g. ``logger.warning("msg %s", {"a": 10})``) is not valid.
+    The correct way is ``logger.warning("msg %s", str({"a": 10}))``.  This processor
+    applies that conversion automatically so that callers do not crash.
+    """
+    args = event_dict.get("positional_args")
+    if isinstance(args, dict):
+        event_dict["positional_args"] = (str(args),)
+    return event_dict
+
+
 # This is a placeholder fn, that is "edited" in place via the `suppress_logs_and_warning` decorator
 # The reason we need to do it this way is that structlog caches loggers on first use, and those include the
 # configured processors, so we can't get away with changing the config as it won't have any effect once the
@@ -254,6 +272,7 @@ def structlog_processors(
         timestamper,
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
+        _normalize_positional_args,
         structlog.stdlib.PositionalArgumentsFormatter(),
         logger_name,
         redact_jwt,
