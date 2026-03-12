@@ -38,7 +38,7 @@ export class EventsPage extends BasePage {
     this.extraColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Extra" });
     this.filterBar = page
       .locator("div")
-      .filter({ has: page.getByRole("button", { name: "Filter" }) })
+      .filter({ has: page.getByTestId("add-filter-button") })
       .first();
     this.ownerColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "User" });
     this.tableRows = this.eventsTable.locator("tbody").getByRole("row");
@@ -50,7 +50,7 @@ export class EventsPage extends BasePage {
   }
 
   public async addFilter(filterName: string): Promise<void> {
-    const filterButton = this.page.getByRole("button", { name: "Filter" });
+    const filterButton = this.page.getByTestId("add-filter-button");
 
     await filterButton.click();
 
