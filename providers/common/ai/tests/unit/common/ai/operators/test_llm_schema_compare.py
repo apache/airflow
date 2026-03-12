@@ -99,6 +99,11 @@ class TestLLMSchemaCompareOperator:
                 "at-least two combinations",
                 id="one_datasource_only",
             ),
+            pytest.param(
+                {"db_conn_ids": ["conn"], "table_names": ["t"], "data_sources": []},
+                "at-least two combinations",
+                id="one_db_table_combination_only",
+            ),
         ],
     )
     def test_init_validation(self, kwargs, expected_error):
@@ -123,6 +128,10 @@ class TestLLMSchemaCompareOperator:
                     "data_sources": [_make_ds_config()],
                 },
                 id="one_db_conn_plus_one_datasource",
+            ),
+            pytest.param(
+                {"db_conn_ids": ["postgres_default"], "table_names": ["orders", "customers"]},
+                id="one_db_conn_plus_two_tables",
             ),
             pytest.param(
                 {
