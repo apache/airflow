@@ -22,12 +22,15 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1770751480
+lifecycle: production
+source-date-epoch: 1773070489
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.33.0
+  - 1.32.0
   - 1.31.0
   - 1.30.4
   - 1.30.3
@@ -101,6 +104,7 @@ operators:
     python-modules:
       - airflow.providers.common.sql.operators.sql
       - airflow.providers.common.sql.operators.generic_transfer
+      - airflow.providers.common.sql.operators.analytics
 
 dialects:
   - dialect-type: default
@@ -110,6 +114,7 @@ hooks:
   - integration-name: Common SQL
     python-modules:
       - airflow.providers.common.sql.hooks.handlers
+      - airflow.providers.common.sql.hooks.lineage
       - airflow.providers.common.sql.hooks.sql
 
 triggers:
@@ -121,3 +126,9 @@ sensors:
   - integration-name: Common SQL
     python-modules:
       - airflow.providers.common.sql.sensors.sql
+
+task-decorators:
+  - class-name: airflow.providers.common.sql.decorators.sql.sql_task
+    name: sql
+  - class-name: airflow.providers.common.sql.decorators.analytics.analytics_task
+    name: analytics

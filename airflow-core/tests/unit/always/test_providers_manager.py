@@ -57,6 +57,23 @@ def test_cleanup_providers_manager(cleanup_providers_manager):
     assert len(ProvidersManager().providers) > 0
 
 
+@pytest.fixture
+def yaml_ui_metadata_counts(cleanup_providers_manager):
+    """Get counts of UI metadata defined in YAML (widgets, behaviours)."""
+    pm = ProvidersManager()
+    pm.initialize_providers_list()
+
+    widgets = 0
+    behaviours = 0
+    for provider in pm._provider_dict.values():
+        for conn_config in provider.data.get("connection-types", []):
+            widgets += len(conn_config.get("conn-fields", {}))
+            if conn_config.get("ui-field-behaviour"):
+                behaviours += 1
+
+    return widgets, behaviours
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestProviderManager:
     @pytest.fixture(autouse=True)
@@ -143,7 +160,8 @@ class TestProviderManager:
             ),
         )
 
-    def test_connection_form_widgets(self):
+    def test_connection_form_widgets(self, yaml_ui_metadata_counts):
+        yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         # Connection form widgets use flask_appbuilder widgets, so they're only available when it's installed
@@ -152,18 +170,20 @@ class TestProviderManager:
 
             assert len(connections_form_widgets) > 29
         except ImportError:
-            assert len(connections_form_widgets) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_form_widgets) == yaml_widgets
 
-    def test_field_behaviours(self):
+    def test_field_behaviours(self, yaml_ui_metadata_counts):
+        _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        # Field behaviours are often related to connection forms, only available when flask_appbuilder is installed
         try:
             import flask_appbuilder  # noqa: F401
 
             assert len(connections_with_field_behaviours) > 16
         except ImportError:
-            assert len(connections_with_field_behaviours) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_with_field_behaviours) == yaml_behaviours
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
@@ -237,6 +257,10 @@ class TestProviderManager:
 
 
 class TestWithoutCheckProviderManager:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, cleanup_providers_manager):
+        pass
+
     @patch("airflow.providers_manager.import_string")
     @patch("airflow.providers_manager._correctness_check")
     @patch("airflow.providers_manager.ProvidersManager._discover_auth_managers")
@@ -265,104 +289,13 @@ class TestWithoutCheckProviderManager:
         mock_importlib_import_string: MagicMock,
     ):
         providers_manager = ProvidersManager()
-        providers_manager.executor_without_check
-        result = providers_manager.auth_manager_without_check
+        result = providers_manager.executor_without_check
 
         mock_discover_executors.assert_called_once_with(check=False)
         mock_importlib_import_string.assert_not_called()
         mock_correctness_check.assert_not_called()
 
         assert providers_manager._executor_without_check_set == result
-
-
-@pytest.mark.parametrize(
-    ("value", "expected_outputs"),
-    [
-        ("a", "a"),
-        (1, 1),
-        (None, None),
-        (lambda: 0, 0),
-        (lambda: None, None),
-        (lambda: "z", "z"),
-    ],
-)
-def test_lazy_cache_dict_resolving(value, expected_outputs):
-    lazy_cache_dict = LazyDictWithCache()
-    lazy_cache_dict["key"] = value
-    assert lazy_cache_dict["key"] == expected_outputs
-    # Retrieve it again to see if it is correctly returned again
-    assert lazy_cache_dict["key"] == expected_outputs
-
-
-def test_lazy_cache_dict_raises_error():
-    def raise_method():
-        raise RuntimeError("test")
-
-    lazy_cache_dict = LazyDictWithCache()
-    lazy_cache_dict["key"] = raise_method
-    with pytest.raises(RuntimeError, match="test"):
-        _ = lazy_cache_dict["key"]
-
-
-def test_lazy_cache_dict_del_item():
-    lazy_cache_dict = LazyDictWithCache()
-
-    def answer():
-        return 42
-
-    lazy_cache_dict["spam"] = answer
-    assert "spam" in lazy_cache_dict._raw_dict
-    assert "spam" not in lazy_cache_dict._resolved  # Not resoled yet
-    assert lazy_cache_dict["spam"] == 42
-    assert "spam" in lazy_cache_dict._resolved
-    del lazy_cache_dict["spam"]
-    assert "spam" not in lazy_cache_dict._raw_dict
-    assert "spam" not in lazy_cache_dict._resolved
-
-    lazy_cache_dict["foo"] = answer
-    assert lazy_cache_dict["foo"] == 42
-    assert "foo" in lazy_cache_dict._resolved
-    # Emulate some mess in data, e.g. value from `_raw_dict` deleted but not from `_resolved`
-    del lazy_cache_dict._raw_dict["foo"]
-    assert "foo" in lazy_cache_dict._resolved
-    with pytest.raises(KeyError):
-        # Error expected here, but we still expect to remove also record into `resolved`
-        del lazy_cache_dict["foo"]
-    assert "foo" not in lazy_cache_dict._resolved
-
-    lazy_cache_dict["baz"] = answer
-    # Key in `_resolved` not created yet
-    assert "baz" in lazy_cache_dict._raw_dict
-    assert "baz" not in lazy_cache_dict._resolved
-    del lazy_cache_dict._raw_dict["baz"]
-    assert "baz" not in lazy_cache_dict._raw_dict
-    assert "baz" not in lazy_cache_dict._resolved
-
-
-def test_lazy_cache_dict_clear():
-    def answer():
-        return 42
-
-    lazy_cache_dict = LazyDictWithCache()
-    assert len(lazy_cache_dict) == 0
-    lazy_cache_dict["spam"] = answer
-    lazy_cache_dict["foo"] = answer
-    lazy_cache_dict["baz"] = answer
-
-    assert len(lazy_cache_dict) == 3
-    assert len(lazy_cache_dict._raw_dict) == 3
-    assert not lazy_cache_dict._resolved
-    assert lazy_cache_dict["spam"] == 42
-    assert len(lazy_cache_dict._resolved) == 1
-    # Emulate some mess in data, contain some data into the `_resolved`
-    lazy_cache_dict._resolved.add("biz")
-    assert len(lazy_cache_dict) == 3
-    assert len(lazy_cache_dict._resolved) == 2
-    # And finally cleanup everything
-    lazy_cache_dict.clear()
-    assert len(lazy_cache_dict) == 0
-    assert not lazy_cache_dict._raw_dict
-    assert not lazy_cache_dict._resolved
 
 
 class TestProvidersMetadataLoading:

@@ -48,7 +48,6 @@ from airflow_breeze.global_constants import (
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
@@ -105,6 +104,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
@@ -246,7 +246,6 @@ class ShellParams:
     terminal_multiplexer: str = ALLOWED_TERMINAL_MULTIPLEXERS[0]
     use_uv: bool = False
     use_xdist: bool = False
-    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix: str = ""
@@ -389,6 +388,7 @@ class ShellParams:
 
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH)
         self.add_docker_in_docker(compose_file_list)
+        self.add_git_worktree_mount(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH)
         if os.environ.get("CI", "false") == "true":
@@ -536,6 +536,26 @@ class ShellParams:
             # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH)
 
+    def add_git_worktree_mount(self, compose_file_list: list[Path]):
+        main_git_directory = get_main_git_dir_for_worktree()
+        if main_git_directory:
+            get_console().print(
+                f"[info]Detected git worktree. Mounting main git directory: {main_git_directory}[/]"
+            )
+            generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml"
+            generated_compose_file.write_text(
+                f"""---
+services:
+  airflow:
+    volumes:
+      - type: bind
+        source: "{main_git_directory}"
+        target: "{main_git_directory}"
+        read_only: true
+"""
+            )
+            compose_file_list.append(generated_compose_file)
+
     @cached_property
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
@@ -578,6 +598,7 @@ class ShellParams:
             "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
         _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__INFORMATICA__LISTENER_DISABLED", "true")
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env,

@@ -1499,9 +1499,11 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 404
         assert response.json() == {"detail": "The Dag with ID: `invalid` was not found"}
 
-        response = test_client.get("/dags/~/dagRuns/invalid/taskInstances")
-        assert response.status_code == 404
-        assert response.json() == {"detail": "DagRun with run_id: `invalid` was not found"}
+    def test_dag_id_required_when_dag_run_id_specified(self, test_client):
+        # dag_run_id is not unique - it requires dag_id to identify a specific dag_run
+        response = test_client.get("/dags/~/dagRuns/some_run_id/taskInstances")
+        assert response.status_code == 400
+        assert response.json() == {"detail": "dag_id is required when dag_run_id is specified"}
 
     def test_bad_state(self, test_client):
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"state": "invalid"})

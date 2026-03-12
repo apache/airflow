@@ -48,8 +48,11 @@ class SageMakerNotebookOperator(BaseOperator):
 
         notebook_operator = SageMakerNotebookOperator(
             task_id="notebook_task",
+            domain_id="dzd-example123456",
+            project_id="example123456",
             input_config={"input_path": "path/to/notebook.ipynb", "input_params": ""},
             output_config={"output_format": "ipynb"},
+            domain_region="us-east-1",
             wait_for_completion=True,
             waiter_delay=10,
             waiter_max_attempts=1440,
@@ -63,12 +66,28 @@ class SageMakerNotebookOperator(BaseOperator):
     :param output_config:  Configuration for the output format. It should include an output_format parameter to control
         the format of the notebook execution output.
         Example: {"output_formats": ["NOTEBOOK"]}
-    :param compute: compute configuration to use for the notebook execution. This is a required attribute if the execution is on a remote compute.
-        Example: {"instance_type": "ml.m5.large", "volume_size_in_gb": 30, "volume_kms_key_id": "", "image_details": {"ecr_uri": "string"}, "container_entrypoint": ["string"]}
+    :param domain_id: The domain ID for Amazon SageMaker Unified Studio. Optional - if not provided,
+        the SDK will attempt to resolve it from the environment.
+    :param project_id: The project ID for Amazon SageMaker Unified Studio. Optional - if not provided,
+        the SDK will attempt to resolve it from the environment.
+    :param domain_region: The AWS region for the domain. If not provided, the default AWS region will be used.
+    :param compute: compute configuration to use for the artifact execution. This is a required attribute
+        if the execution is on a remote compute.
+        Example::
+
+            {
+                "instance_type": "ml.c5.xlarge",
+                "image_details": {
+                    "image_name": "sagemaker-distribution-prod",
+                    "image_version": "3",
+                    "ecr_uri": "123456123456.dkr.ecr.us-west-2.amazonaws.com/ImageName:latest",
+                },
+            }
+
     :param termination_condition: conditions to match to terminate the remote execution.
-        Example: { "MaxRuntimeInSeconds": 3600 }
+        Example: ``{"MaxRuntimeInSeconds": 3600}``
     :param tags: tags to be associated with the remote execution runs.
-        Example: { "md_analytics": "logs" }
+        Example: ``{"md_analytics": "logs"}``
     :param wait_for_completion: Indicates whether to wait for the notebook execution to complete. If True, wait for completion; if False, don't wait.
     :param waiter_delay: Interval in seconds to check the notebook execution status.
     :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
@@ -87,7 +106,10 @@ class SageMakerNotebookOperator(BaseOperator):
         self,
         task_id: str,
         input_config: dict,
+        domain_id: str | None = None,
+        project_id: str | None = None,
         output_config: dict | None = None,
+        domain_region: str | None = None,
         compute: dict | None = None,
         termination_condition: dict | None = None,
         tags: dict | None = None,
@@ -99,8 +121,11 @@ class SageMakerNotebookOperator(BaseOperator):
     ):
         super().__init__(task_id=task_id, **kwargs)
         self.execution_name = task_id
+        self.domain_id = domain_id
+        self.project_id = project_id
         self.input_config = input_config
         self.output_config = output_config or {"output_formats": ["NOTEBOOK"]}
+        self.domain_region = domain_region
         self.compute = compute or {}
         self.termination_condition = termination_condition or {}
         self.tags = tags or {}
@@ -119,9 +144,12 @@ class SageMakerNotebookOperator(BaseOperator):
             raise AirflowException("input_path is a required field in the input_config")
 
         return SageMakerNotebookHook(
+            domain_id=self.domain_id,
+            project_id=self.project_id,
             input_config=self.input_config,
             output_config=self.output_config,
             execution_name=self.execution_name,
+            domain_region=self.domain_region,
             compute=self.compute,
             termination_condition=self.termination_condition,
             tags=self.tags,

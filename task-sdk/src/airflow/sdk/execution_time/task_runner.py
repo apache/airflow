@@ -19,14 +19,13 @@
 
 from __future__ import annotations
 
-import contextlib
 import contextvars
 import functools
 import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import suppress
+from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
@@ -36,6 +35,8 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
@@ -120,6 +121,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
+from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -131,6 +133,32 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
+
+log = structlog.get_logger("task")
+
+tracer = trace.get_tracer(__name__)
+
+
+@contextmanager
+def _make_task_span(msg: StartupDetails):
+    parent_context = (
+        TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    )
+    ti = msg.ti
+    span_name = f"task_run.{ti.task_id}"
+    if ti.map_index is not None and ti.map_index >= 0:
+        span_name += f"_{ti.map_index}"
+    with tracer.start_as_current_span(span_name, context=parent_context) as span:
+        span.set_attributes(
+            {
+                "airflow.dag_id": ti.dag_id,
+                "airflow.task_id": ti.task_id,
+                "airflow.dag_run.run_id": ti.run_id,
+                "airflow.task_instance.try_number": ti.try_number,
+                "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
+            }
+        )
+        yield span
 
 
 class TaskRunnerMarker:
@@ -475,8 +503,6 @@ class RuntimeTaskInstance(TaskInstance):
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
 
-        log = structlog.get_logger(logger_name="task")
-
         log.debug("Requesting first reschedule date from supervisor")
 
         response = SUPERVISOR_COMMS.send(
@@ -492,8 +518,6 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the previous Dag run before the given logical date, optionally filtered by state."""
         context = self.get_template_context()
         dag_run = context.get("dag_run")
-
-        log = structlog.get_logger(logger_name="task")
 
         log.debug("Getting previous Dag run", dag_run=dag_run)
 
@@ -529,7 +553,6 @@ class RuntimeTaskInstance(TaskInstance):
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
-        log = structlog.get_logger(logger_name="task")
         log.debug("Getting previous task instance", task_id=self.task_id, state=state)
 
         # Use current dag run's logical_date if not provided
@@ -706,11 +729,11 @@ def _maybe_reschedule_startup_failure(
     This does not count as a retry. If the reschedule limit is exceeded, this function
     returns and the caller should fail the task.
     """
-    missing_dag_retires = conf.getint("workers", "missing_dag_retires", fallback=3)
+    missing_dag_retries = conf.getint("workers", "missing_dag_retries", fallback=3)
     missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
 
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
-    if missing_dag_retires > 0 and reschedule_count < missing_dag_retires:
+    if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
             reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
         )
@@ -718,7 +741,7 @@ def _maybe_reschedule_startup_failure(
     log.error(
         "Startup reschedule limit exceeded",
         reschedule_count=reschedule_count,
-        max_reschedules=missing_dag_retires,
+        max_reschedules=missing_dag_retries,
     )
 
 
@@ -842,10 +865,9 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
         )
 
 
-def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
+def get_startup_details() -> StartupDetails:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
-    log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
         msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
@@ -866,7 +888,10 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    return msg
 
+
+def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -1004,16 +1029,44 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     from airflow.sdk._shared.secrets_masker import redact
 
-    rendered_fields = {}
+    rendered_fields: dict[str, JsonValue] = {}
     for field in task.template_fields:
         value = getattr(task, field)
         serialized = _serialize_template_field(value, field)
         # Redact secrets in the task process itself before sending to API server
         # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
         # on the UI.
-        rendered_fields[field] = redact(serialized, field)
+        redacted = redact(serialized, field)
+        rendered_fields[field] = TypeAdapter(JsonValue).validate_python(redacted)
 
-    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." not in renderer_path:
+            continue
+
+        base_field, _, remainder = renderer_path.partition(".")
+        if base_field not in task.template_fields:
+            continue
+
+        base_value = getattr(task, base_field, None)
+        if base_value is None:
+            continue
+
+        current = base_value
+        for key in remainder.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                current = getattr(current, key, None)
+            if current is None:
+                break
+
+        if current is not None:
+            serialized = _serialize_template_field(current, renderer_path)
+            redacted = redact(serialized, renderer_path)
+            rendered_fields[renderer_path] = TypeAdapter(JsonValue).validate_python(redacted)
+
+    return rendered_fields
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -1173,6 +1226,11 @@ def run(
     state: TaskInstanceState
     error: BaseException | None = None
 
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("ti.start", tags=stats_tags)
+
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -1200,7 +1258,7 @@ def run(
                 import jinja2
 
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
-                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                with suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
                     previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                     # Send update only if value changed (e.g., user set context variables during execution)
@@ -1283,6 +1341,13 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
+        Stats.incr(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
+            tags=stats_tags,
+        )
+        # Same metric with tagging
+        Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+
         if msg:
             SUPERVISOR_COMMS.send(msg=msg)
 
@@ -1355,6 +1420,7 @@ def _handle_trigger_dag_run(
             logical_date=drte.logical_date,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
+            note=drte.note,
         ),
     )
 
@@ -1701,7 +1767,10 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            try:
+                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            except Exception:
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1747,49 +1816,65 @@ def finalize(
         log.exception("error calling listener")
 
 
+@contextmanager
+def flush_spans():
+    try:
+        yield
+    finally:
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "force_flush"):
+            from airflow.sdk.configuration import conf
+
+            timeout_millis = conf.getint("traces", "task_runner_flush_timeout_milliseconds", fallback=30000)
+            provider.force_flush(timeout_millis=timeout_millis)
+
+
+@flush_spans()
 def main():
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    Stats.initialize(
-        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-        is_otel_on=conf.getboolean("metrics", "otel_on"),
-    )
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
 
-    try:
+    stack = ExitStack()
+    with stack:
         try:
-            ti, context, log = startup()
-        except AirflowRescheduleException as reschedule:
-            log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-            SUPERVISOR_COMMS.send(
-                msg=RescheduleTask(
-                    reschedule_date=reschedule.reschedule_date,
-                    end_date=datetime.now(tz=timezone.utc),
+            try:
+                startup_details = get_startup_details()
+                span = _make_task_span(msg=startup_details)
+                stack.enter_context(span)
+                ti, context, log = startup(msg=startup_details)
+            except AirflowRescheduleException as reschedule:
+                log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+                SUPERVISOR_COMMS.send(
+                    msg=RescheduleTask(
+                        reschedule_date=reschedule.reschedule_date,
+                        end_date=datetime.now(tz=timezone.utc),
+                    )
                 )
-            )
-            sys.exit(0)
-        with BundleVersionLock(
-            bundle_name=ti.bundle_instance.name,
-            bundle_version=ti.bundle_instance.version,
-        ):
-            state, _, error = run(ti, context, log)
-            context["exception"] = error
-            finalize(ti, state, context, log, error)
-    except KeyboardInterrupt:
-        log.exception("Ctrl-c hit")
-        sys.exit(2)
-    except Exception:
-        log.exception("Top level error")
-        sys.exit(1)
-    finally:
-        # Ensure the request socket is closed on the child side in all circumstances
-        # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-            with suppress(Exception):
-                SUPERVISOR_COMMS.socket.close()
+                sys.exit(0)
+            with BundleVersionLock(
+                bundle_name=ti.bundle_instance.name,
+                bundle_version=ti.bundle_instance.version,
+            ):
+                state, _, error = run(ti, context, log)
+                context["exception"] = error
+                finalize(ti, state, context, log, error)
+        except KeyboardInterrupt:
+            log.exception("Ctrl-c hit")
+            sys.exit(2)
+        except Exception:
+            log.exception("Top level error")
+            sys.exit(1)
+        finally:
+            # Ensure the request socket is closed on the child side in all circumstances
+            # before the process fully terminates.
+            if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                with suppress(Exception):
+                    SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:
@@ -1804,7 +1889,6 @@ def reinit_supervisor_comms() -> None:
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
-        log = structlog.get_logger(logger_name="task")
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 

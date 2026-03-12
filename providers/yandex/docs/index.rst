@@ -109,7 +109,7 @@ PIP package                                 Version required
 ``yandexcloud``                             ``>=0.328.0; python_version < "3.13"``
 ``yandex-query-client``                     ``>=0.1.4``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``grpcio``                                  ``>=1.70.0; python_version >= "3.13"``
+``grpcio``                                  ``>=1.70.0``
 ==========================================  =======================================
 
 Cross provider package dependencies

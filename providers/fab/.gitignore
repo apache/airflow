@@ -1,0 +1,2 @@
+# Do not commit hash files, this is just to speed-up local builds
+www-hash.txt

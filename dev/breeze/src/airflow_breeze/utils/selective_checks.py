@@ -65,7 +65,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DEVEL_COMMON_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -210,20 +210,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^docs",
             r"^devel-common/src/docs",
             r"^\.github/SECURITY\.md",
-            r"^airflow-core/src/.*\.py$",
-            r"^airflow-core/docs/",
-            r"^providers/.*/src/",
-            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
+            r"^providers/.*/src/.*\.py$",
+            r"^providers/.*/tests/system/.*\.py$",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
             r"^chart",
             r"^task-sdk/docs/",
-            r"^task-sdk/src/",
-            r"^airflow-ctl/src/",
-            r"^airflow-core/tests/system",
-            r"^airflow-ctl/src",
+            r"^task-sdk/src/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^airflow-core/docs/",
+            r"^airflow-core/src/.*\.py$",
+            r"^airflow-core/tests/system/.*\.py$",
             r"^airflow-ctl/docs",
+            r"^airflow-ctl/src/.*\.py$",
+            r"^airflow-ctl/tests/.*\.py$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -264,14 +265,20 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
-            r"^airflow-core/.*",
-            r"^airflow-ctl/.*",
-            r"^chart/.*",
-            r"^providers/.*",
-            r"^task-sdk/.*",
-            r"^devel-common/.*",
-            r"^kubernetes-tests/.*",
-            r"^docker-tests/.*",
+            r"^airflow-core/src/.*",
+            r"^airflow-core/tests/.*",
+            r"^airflow-ctl/src/.*",
+            r"^airflow-ctl/tests/.*",
+            r"^chart/templates/.*",
+            r"^providers/.*/src/.*",
+            r"^providers/.*/tests/.*",
+            r"^task-sdk/src/.*",
+            r"^task-sdk/tests/.*",
+            r"^devel-common/src/.*",
+            r"^devel-common/tests/.*",
+            r"^helm-tests/tests/.*",
+            r"^kubernetes-tests/tests/.*",
+            r"^docker-tests/tests/.*",
             r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -1127,11 +1134,13 @@ class SelectiveChecks:
             else:
                 candidate_test_types.add("Providers")
         elif affected_providers:
+            suspended = set(get_suspended_provider_ids())
+            providers_to_test = [p for p in affected_providers if p not in suspended]
             if split_to_individual_providers:
-                for provider in affected_providers:
+                for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
-                candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+                candidate_test_types.add(f"Providers[{','.join(sorted(providers_to_test))}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected providers test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -1341,8 +1350,11 @@ class SelectiveChecks:
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
         if providers_affected:
+            suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
-                packages.append(provider.replace("-", "."))
+                pkg = provider.replace("-", ".")
+                if pkg not in suspended:
+                    packages.append(pkg)
         return " ".join(packages)
 
     @cached_property
@@ -1421,6 +1433,16 @@ class SelectiveChecks:
         return json.dumps(all_helm_test_packages())
 
     @cached_property
+    def helm_test_kubernetes_versions(self) -> str:
+        default = CURRENT_KUBERNETES_VERSIONS[0]
+        if self.all_versions:
+            last = CURRENT_KUBERNETES_VERSIONS[-1]
+            versions = [default] if default == last else [default, last]
+        else:
+            versions = [default]
+        return json.dumps([v.lstrip("v") for v in versions])
+
+    @cached_property
     def selected_providers_list_as_string(self) -> str | None:
         if self._default_branch != "main":
             return None
@@ -1433,7 +1455,8 @@ class SelectiveChecks:
             return None
         if isinstance(affected_providers, AllProvidersSentinel):
             return ""
-        return " ".join(sorted(affected_providers))
+        suspended = set(get_suspended_provider_ids())
+        return " ".join(sorted(p for p in affected_providers if p not in suspended))
 
     def get_job_label(self, event_type: str, branch: str):
         import requests
@@ -1858,7 +1881,7 @@ class SelectiveChecks:
         # Check if dependency line contains both the package and the comment
         for line in result.stdout.splitlines():
             if "apache-airflow-providers-common-compat" in line.lower():
-                return "# use next version" in line.lower()
+                return bool(re.search(r"#\s*use next version", line, re.IGNORECASE))
         return True  # If dependency not found, don't flag as violation
 
     def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:

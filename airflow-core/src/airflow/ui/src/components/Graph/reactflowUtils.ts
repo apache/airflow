@@ -37,6 +37,7 @@ export type CustomNodeProps = {
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   taskInstance?: LightGridTaskInstanceSummary;
+  tooltip?: string | null;
   type: string;
   width?: number;
 };

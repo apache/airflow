@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
@@ -179,3 +180,113 @@ class TestGlueCrawlerOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.op)
+
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion")
+    @mock.patch.object(GlueCrawlerHook, "start_crawler")
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_crawler_running_on_start(self, mock_has_crawler, mock_update, mock_start, mock_wait):
+        """CrawlerRunningException on start_crawler should be caught when fail_on_already_running=False."""
+        mock_has_crawler.return_value = True
+        mock_start.side_effect = ClientError(
+            error_response={"Error": {"Code": "CrawlerRunningException", "Message": "Already running"}},
+            operation_name="StartCrawler",
+        )
+        self.op.fail_on_already_running = False
+
+        crawler_name = self.op.execute({})
+
+        assert crawler_name == mock_crawler_name
+        mock_update.assert_called_once()
+        mock_start.assert_called_once_with(mock_crawler_name)
+        mock_wait.assert_called_once_with(crawler_name=mock_crawler_name, poll_interval=5)
+
+    @mock.patch.object(GlueCrawlerHook, "start_crawler")
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_crawler_running_on_update(self, mock_has_crawler, mock_update, mock_start):
+        """CrawlerRunningException on update_crawler should be caught when fail_on_already_running=False."""
+        mock_has_crawler.return_value = True
+        mock_update.side_effect = ClientError(
+            error_response={"Error": {"Code": "CrawlerRunningException", "Message": "Already running"}},
+            operation_name="UpdateCrawler",
+        )
+        self.op.fail_on_already_running = False
+        self.op.wait_for_completion = False
+
+        crawler_name = self.op.execute({})
+
+        assert crawler_name == mock_crawler_name
+        mock_update.assert_called_once()
+        mock_start.assert_called_once_with(mock_crawler_name)
+
+    @mock.patch.object(GlueCrawlerHook, "start_crawler")
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_other_client_error_on_start_raises(self, mock_has_crawler, mock_update, mock_start):
+        """Non-CrawlerRunningException ClientError on start_crawler should propagate."""
+        mock_has_crawler.return_value = True
+        mock_start.side_effect = ClientError(
+            error_response={"Error": {"Code": "EntityNotFoundException", "Message": "Not found"}},
+            operation_name="StartCrawler",
+        )
+        self.op.wait_for_completion = False
+
+        with pytest.raises(ClientError) as exc_info:
+            self.op.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == "EntityNotFoundException"
+
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_other_client_error_on_update_raises(self, mock_has_crawler, mock_update):
+        """Non-CrawlerRunningException ClientError on update_crawler should propagate."""
+        mock_has_crawler.return_value = True
+        mock_update.side_effect = ClientError(
+            error_response={"Error": {"Code": "InvalidInputException", "Message": "Bad config"}},
+            operation_name="UpdateCrawler",
+        )
+
+        with pytest.raises(ClientError) as exc_info:
+            self.op.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == "InvalidInputException"
+
+    @mock.patch.object(GlueCrawlerHook, "start_crawler")
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_crawler_running_on_start_raises_when_fail_on_already_running(
+        self, mock_has_crawler, mock_update, mock_start
+    ):
+        """CrawlerRunningException on start_crawler re-raises by default (fail_on_already_running=True)."""
+        mock_has_crawler.return_value = True
+        mock_start.side_effect = ClientError(
+            error_response={"Error": {"Code": "CrawlerRunningException", "Message": "Already running"}},
+            operation_name="StartCrawler",
+        )
+        self.op.wait_for_completion = False
+
+        with pytest.raises(ClientError) as exc_info:
+            self.op.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == "CrawlerRunningException"
+
+    @mock.patch.object(GlueCrawlerHook, "start_crawler")
+    @mock.patch.object(GlueCrawlerHook, "update_crawler")
+    @mock.patch.object(GlueCrawlerHook, "has_crawler")
+    def test_execute_crawler_running_on_update_raises_when_fail_on_already_running(
+        self, mock_has_crawler, mock_update, mock_start
+    ):
+        """CrawlerRunningException on update_crawler re-raises by default (fail_on_already_running=True)."""
+        mock_has_crawler.return_value = True
+        mock_update.side_effect = ClientError(
+            error_response={"Error": {"Code": "CrawlerRunningException", "Message": "Already running"}},
+            operation_name="UpdateCrawler",
+        )
+        self.op.fail_on_already_running = True
+
+        with pytest.raises(ClientError) as exc_info:
+            self.op.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == "CrawlerRunningException"
+        mock_start.assert_not_called()

@@ -1337,6 +1337,29 @@ class TestTaskInstance:
         ):
             assert ti.are_dependencies_met()
 
+    def test_are_dependencies_met_does_not_mutate_shared_dep_context(self, dag_maker, session):
+        """Verify that calling are_dependencies_met on an UP_FOR_RESCHEDULE TI does not
+        mutate the caller's DepContext.deps set.  The scheduler shares one DepContext across
+        all TIs in a loop, so mutation would leak ReadyToRescheduleDep into unrelated TIs."""
+        with dag_maker("test_depctx_no_mutation", serialized=True):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+        ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+        session.merge(ti)
+        session.flush()
+
+        dep_context = DepContext(deps=RUNNING_DEPS)
+        original_deps = dep_context.deps.copy()
+
+        ti.task = dr.dag.task_dict[ti.task_id]
+        ti.are_dependencies_met(dep_context=dep_context, session=session)
+
+        assert dep_context.deps == original_deps, (
+            "DepContext.deps was mutated — ReadyToRescheduleDep leaked into the shared set"
+        )
+
     @pytest.mark.parametrize(
         ("downstream_ti_state", "expected_are_dependents_done"),
         [
@@ -2862,6 +2885,71 @@ class TestMappedTaskInstanceReceiveValue:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
+    def test_xcom_pull_unmapped_task(self, dag_maker, session):
+        """
+        Test that xcom_pull from unmapped task returns single deserialized value.
+
+        For unmapped tasks with map_index < 0, xcom_pull should return the single value,
+        not a LazyXComSelectSequence.
+        """
+
+        with dag_maker(dag_id="test_xcom_unmapped", session=session):
+            upstream = PythonOperator(
+                task_id="unmapped_task",
+                python_callable=lambda: {"key": "value"},
+            )
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+
+        # Run upstream task to push xcom
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        # Get downstream task instance
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        # Pull xcom - should return single dict value, not LazyXComSelectSequence
+        result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+        assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
+        assert result == {"key": "value"}
+
+    def test_xcom_pull_returns_lazy_sequence_for_mapped_xcom(self, dag_maker, session):
+        """
+        Test that xcom_pull returns LazyXComSelectSequence when XComs are mapped (map_index >= 0)
+        and map_indexes is not specified.
+        """
+        from airflow.models.xcom import LazyXComSelectSequence
+
+        with dag_maker(dag_id="test_xcom_mapped_values", session=session):
+
+            @task
+            def push_values(val):
+                return val
+
+            upstream = push_values.expand(val=[2, 4])
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        dag_maker.run_ti(upstream.operator.task_id, map_index=0, dag_run=dag_run, session=session)
+        dag_maker.run_ti(upstream.operator.task_id, map_index=1, dag_run=dag_run, session=session)
+
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        result = ti_downstream.xcom_pull(task_ids=upstream.operator.task_id, session=session)
+        assert isinstance(result, LazyXComSelectSequence), (
+            f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
+        )
+
 
 def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
     backend = os.environ.get("BACKEND")
@@ -3074,7 +3162,9 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     with dag_maker(
         dag_id="asset_event_listener",
-        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
         session=session,
     ):
         EmptyOperator(task_id="hi")

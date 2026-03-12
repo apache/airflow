@@ -451,7 +451,8 @@ Updating provider next version
 """"""""""""""""""""""""""""""
 
 You can use Breeze to update references to other providers automatically to the
-next version of dependent providers, when they are commented with ``# use next version``.
+next version of dependent providers, when they are commented with ``# use next version``
+(or ``#use next version`` without space after ``#``).
 
 The below example perform the upgrade.
 

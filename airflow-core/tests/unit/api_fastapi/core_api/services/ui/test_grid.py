@@ -20,6 +20,72 @@ from __future__ import annotations
 from airflow.api_fastapi.core_api.services.ui.grid import _merge_node_dicts
 
 
+def test_merge_node_dicts_with_none_new_list():
+    """Test merging with None new list doesn't crash.
+
+    Regression test for https://github.com/apache/airflow/issues/61208
+    When a TaskGroup is converted to a task, new can be None for some runs.
+    """
+    current = [{"id": "task1", "label": "Task 1"}]
+    new = None
+
+    _merge_node_dicts(current, new)
+
+    assert len(current) == 1
+    assert current[0]["id"] == "task1"
+
+
+def test_merge_node_dicts_preserves_taskgroup_structure():
+    """Test TaskGroup structure is preserved when converting to task."""
+    current = [
+        {
+            "id": "task_a",
+            "label": "Task A",
+            "children": [
+                {"id": "task_a.subtask1", "label": "Subtask 1"},
+            ],
+        }
+    ]
+    new = [{"id": "task_a", "label": "Task A", "children": None}]
+
+    _merge_node_dicts(current, new)
+
+    # Current structure (TaskGroup) is preserved
+    assert len(current) == 1
+    assert current[0]["id"] == "task_a"
+    assert current[0]["children"] is not None
+    assert len(current[0]["children"]) == 1
+
+
+def test_merge_node_dicts_merges_nested_children():
+    """Test merging nodes with nested children."""
+    current = [
+        {
+            "id": "group1",
+            "label": "Group 1",
+            "children": [
+                {"id": "group1.task1", "label": "Task 1"},
+            ],
+        }
+    ]
+    new = [
+        {
+            "id": "group1",
+            "label": "Group 1",
+            "children": [
+                {"id": "group1.task1", "label": "Task 1"},
+                {"id": "group1.task2", "label": "Task 2"},
+            ],
+        }
+    ]
+
+    _merge_node_dicts(current, new)
+
+    assert len(current) == 1
+    assert current[0]["id"] == "group1"
+    assert len(current[0]["children"]) == 2
+
+
 def test_merge_node_dicts_merges_children_and_appends_new_nodes():
     current = [
         {

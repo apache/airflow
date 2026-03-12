@@ -75,7 +75,7 @@ def compile_assets(ui_directory: Path, hash_file: Path):
     if "NODE_OPTIONS" not in env:
         env["NODE_OPTIONS"] = "--max-old-space-size=4096"
     for try_num in range(3):
-        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        print(f"### Trying to install pnpm dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
             ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
             cwd=os.fspath(ui_directory),

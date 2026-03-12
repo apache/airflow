@@ -64,40 +64,24 @@ class BaseSecretsBackend(ABC):
         """
         return None
 
+    def _set_connection_class(self, conn_class: type) -> None:
+        if not isinstance(conn_class, type):
+            raise TypeError(f"Connection class must be a type/class, got {type(conn_class).__name__}")
+        self._connection_class = conn_class
+
+    def _get_connection_class(self) -> type:
+        """Get the Connection class to use for deserialization."""
+        conn_class = getattr(self, "_connection_class", None)
+        if conn_class is None:
+            raise RuntimeError(
+                "Connection class not set on backend instance. "
+                "Backends must be instantiated via initialize_secrets_backends() "
+                "or have _connection_class set manually."
+            )
+        return conn_class
+
     @staticmethod
-    def _get_connection_class():
-        """
-        Detect which Connection class to use based on execution context.
-
-        Returns SDK Connection in worker context, core Connection in server context.
-        """
-        import os
-
-        process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
-        if process_context == "client":
-            # Client context (worker, dag processor, triggerer)
-            from airflow.sdk.definitions.connection import Connection
-
-            return Connection
-
-        # Server context (scheduler, API server, etc.)
-        from airflow.models.connection import Connection
-
-        return Connection
-
-    def deserialize_connection(self, conn_id: str, value: str):
-        """
-        Given a serialized representation of the airflow Connection, return an instance.
-
-        Auto-detects which Connection class to use based on execution context.
-        Uses Connection.from_json() for JSON format, Connection(uri=...) for URI format.
-
-        :param conn_id: connection id
-        :param value: the serialized representation of the Connection object
-        :return: the deserialized Connection
-        """
-        conn_class = self._get_connection_class()
-
+    def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
             return conn_class.from_json(value=value, conn_id=conn_id)
@@ -106,6 +90,20 @@ class BaseSecretsBackend(ABC):
         if hasattr(conn_class, "from_uri"):
             return conn_class.from_uri(conn_id=conn_id, uri=value)
         return conn_class(conn_id=conn_id, uri=value)
+
+    def deserialize_connection(self, conn_id: str, value: str):
+        """
+        Given a serialized representation of the airflow Connection, return an instance.
+
+        Uses the Connection class set on this class (which should be set to the appropriate Connection class for the execution context).
+        Uses Connection.from_json() for JSON format, Connection(uri=...) for URI format.
+
+        :param conn_id: connection id
+        :param value: the serialized representation of the Connection object
+        :return: the deserialized Connection
+        """
+        conn_class = self._get_connection_class()
+        return self._deserialize_connection_value(conn_class, conn_id, value)
 
     def get_connection(self, conn_id: str, team_name: str | None = None):
         """

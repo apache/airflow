@@ -1,0 +1,5 @@
+As Git-Sync is not service-type object, the readiness probe will be removed. To enable feature behaviour set ``dags.gitSync.recommendedProbeSetting`` to ``true``. Section itself will be removed in future release as to not break setups during upgrades.
+
+As Git-Sync has dedicated liveness service, the liveness probe behaviour will be changed. To enable feature behaviour set ``dags.gitSync.recommendedProbeSetting`` to ``true``.
+
+Please update your configuration accordingly.

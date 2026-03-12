@@ -69,6 +69,7 @@ POSSIBLE_TEST_FOLDERS = [
     "otel",
     "plugins",
     "providers",
+    "partition_mappers",
     "secrets",
     "security",
     "sensors",

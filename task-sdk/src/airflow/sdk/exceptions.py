@@ -248,6 +248,7 @@ class DagRunTriggerException(AirflowException):
         failed_states: list[str],
         poke_interval: int,
         deferrable: bool,
+        note: str | None = None,
     ):
         super().__init__()
         self.trigger_dag_id = trigger_dag_id
@@ -261,6 +262,7 @@ class DagRunTriggerException(AirflowException):
         self.failed_states = failed_states
         self.poke_interval = poke_interval
         self.deferrable = deferrable
+        self.note = note
 
 
 class DownstreamTasksSkipped(AirflowException):

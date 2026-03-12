@@ -33,6 +33,7 @@ from airflow_breeze.commands.common_image_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_reference_build,
+    option_airflow_fallback_no_constraints_installation,
     option_build_progress,
     option_debian_version,
     option_dev_apt_command,
@@ -73,7 +74,6 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv_default_depends_on_installation_method,
-    option_uv_http_timeout,
     option_verbose,
     option_version_suffix,
 )
@@ -245,6 +245,7 @@ def prod_image_group():
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @option_airflow_constraints_reference_build
+@option_airflow_fallback_no_constraints_installation
 @option_answer
 @option_build_progress
 @option_builder
@@ -279,7 +280,6 @@ def prod_image_group():
 )
 @option_skip_cleanup
 @option_use_uv_default_depends_on_installation_method
-@option_uv_http_timeout
 @option_verbose
 @option_version_suffix
 def build(
@@ -295,6 +295,7 @@ def build(
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str | None,
+    airflow_fallback_no_constraints_installation: bool,
     airflow_extras: str,
     build_progress: str,
     builder: str,
@@ -332,7 +333,6 @@ def build(
     skip_cleanup: bool,
     use_constraints_for_context_distributions: bool,
     use_uv: bool | None,
-    uv_http_timeout: int,
     version_suffix: str,
 ):
     """
@@ -404,6 +404,7 @@ def build(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
+        airflow_fallback_no_constraints_installation=airflow_fallback_no_constraints_installation,
         airflow_extras=airflow_extras,
         build_progress=build_progress,
         builder=builder,
@@ -433,7 +434,6 @@ def build(
         runtime_apt_deps=runtime_apt_deps,
         use_constraints_for_context_distributions=use_constraints_for_context_distributions,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         version_suffix=version_suffix,
     )
     if platform:

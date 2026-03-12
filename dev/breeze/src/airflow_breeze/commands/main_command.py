@@ -40,7 +40,6 @@ from airflow_breeze.commands.common_options import (
     option_python,
     option_standalone_dag_processor,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.configure_rich_click import click
@@ -116,7 +115,6 @@ class MainGroupWithAliases(BreezeGroup):
 @option_project_name
 @option_standalone_dag_processor
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 @click.pass_context
 def main(ctx: click.Context, **kwargs: dict[str, Any]):

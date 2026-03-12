@@ -23,14 +23,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
 
 async def has_connection_access(
     connection_id: str = Path(),
-    token=JWTBearerDep,
+    token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the connection."""
     # TODO: Placeholder for actual implementation

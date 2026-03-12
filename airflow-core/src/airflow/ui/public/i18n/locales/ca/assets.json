@@ -32,5 +32,7 @@
   "name": "Nom",
   "producingTasks": "Tasques productores",
   "scheduledDags": "Dags programats",
-  "searchPlaceholder": "Cercar Assets"
+  "scheduling": "Programats",
+  "searchPlaceholder": "Cercar Assets",
+  "taskDependencies": "Dependències de tasca"
 }

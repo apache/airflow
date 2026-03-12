@@ -21,7 +21,6 @@ import importlib
 import json
 import logging
 import os
-import platform
 import re
 import subprocess
 import sys
@@ -225,11 +224,6 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
-
-if platform.system() == "Darwin":
-    # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
-    # but macOS uses "spawn" by default
-    os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
 
 
 @pytest.fixture

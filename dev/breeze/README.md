@@ -136,7 +136,7 @@ The integration tests for Breeze are located in `dev/breeze/integration_tests` d
 They are skipped by default, but you can run them with `integration_tests` marker
 
 ```shell
-uv pytest -m integration_tests
+uv run pytest -m integration_tests
 ```
 
 In CI environment (when `CI` environment variable is set) some of the tests are skipped and some of them

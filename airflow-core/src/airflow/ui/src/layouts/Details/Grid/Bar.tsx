@@ -19,21 +19,27 @@
 import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
-
-const BAR_HEIGHT = 100;
+import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
+import { BAR_HEIGHT } from "./constants";
+import {
+  getBundleVersion,
+  getMaxVersionNumber,
+  type GridRunWithVersionFlags,
+} from "./useGridRunsWithVersionFlags";
 
 type Props = {
   readonly max: number;
   readonly onClick?: () => void;
-  readonly run: GridRunsResponse;
+  readonly run: GridRunWithVersionFlags;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
 };
 
-export const Bar = ({ max, onClick, run }: Props) => {
+export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
   const { hoveredRunId, setHoveredRunId } = useHover();
@@ -53,6 +59,17 @@ export const Bar = ({ max, onClick, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {run.isBundleVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.BUNDLE_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <BundleVersionIndicator bundleVersion={getBundleVersion(run)} />
+      ) : undefined}
+      {run.isDagVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.DAG_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <DagVersionIndicator dagVersionNumber={getMaxVersionNumber(run)} orientation="vertical" />
+      ) : undefined}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}

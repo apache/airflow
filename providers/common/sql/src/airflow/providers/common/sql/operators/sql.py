@@ -23,14 +23,14 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-from airflow import XComArg
-from airflow.models import SkipMixin
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowFailException,
     AirflowSkipException,
     BaseHook,
     BaseOperator,
+    SkipMixin,
+    XComArg,
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -221,11 +221,29 @@ class BaseSQLOperator(BaseOperator):
             return None
 
         sql = getattr(self, "sql", None)
+
         if not sql:
             self.log.debug("OpenLineage could not find 'sql' attribute on `%s`.", type(self).__name__)
             return OperatorLineage()
 
+        # Handle scenario where sql is not a string or a list of strings AND the string/strings in list are
+        # all empty
+        if (
+            not isinstance(sql, (str, list))
+            or (isinstance(sql, str) and not sql.strip())
+            or (isinstance(sql, list) and not all(isinstance(s, str) and s.strip() for s in sql))
+        ):
+            self.log.debug(
+                "OpenLineage found unsupported type of 'sql' attribute on `%s`, type=`%s`, value=`%s`. "
+                "Expected non-empty string or list of non-empty strings.",
+                type(self).__name__,
+                type(sql),
+                sql,
+            )
+            return OperatorLineage()
+
         hook = self.get_db_hook()
+
         try:
             from airflow.providers.openlineage.utils.utils import should_use_external_connection
 
@@ -1342,7 +1360,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         database: str | None = None,
         columns: Iterable[str] | None = None,
         ignored_columns: Iterable[str] | None = None,
-        rows: list[Any] | XComArg | None = None,
+        rows: list[Any] | Iterable[Any] | XComArg | None = None,
         rows_processor: Callable[..., list[Any]] | None = None,
         # rows_processor is called as rows_processor(rows, **context);
         # context keys vary, so Callable[..., list[Any]] is intentional.
@@ -1387,11 +1405,9 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             return [column for column in self.columns if column not in self.ignored_columns]
         return self.columns
 
-    def _insert_rows(self, rows: list[Any], context: Context):
+    def _insert_rows(self, rows: Any | Iterable[Any], context: Context):
         if self._rows_processor:
             rows = self._rows_processor(rows, **context)
-
-        self.log.info("Inserting %d rows into %s", len(rows), self.conn_id)
 
         self.get_db_hook().insert_rows(
             table=self.table_name_with_schema,

@@ -103,6 +103,7 @@ def build_provider_distribution(
     if not provider_info:
         raise RuntimeError(f"The provider {provider_id} has no provider.yaml defined.")
     build_backend = provider_info.get("build-system", "flit_core")
+    build_env = {"SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch)}
     if build_backend == "flit_core":
         command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
         get_console().print(
@@ -121,9 +122,7 @@ def build_provider_distribution(
                 command,
                 check=True,
                 cwd=target_provider_root_sources_path,
-                env={
-                    "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
-                },
+                env=build_env,
             )
         except subprocess.CalledProcessError as ex:
             get_console().print(f"[error]The command returned an error {ex}")
@@ -145,9 +144,7 @@ def build_provider_distribution(
             run_command(
                 cmd=command,
                 cwd=target_provider_root_sources_path,
-                env={
-                    "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
-                },
+                env=build_env,
                 check=True,
             )
         except subprocess.CalledProcessError as ex:

@@ -668,6 +668,21 @@ class TestPodGenerator:
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
         assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
+    def test_reconcile_specs_init_containers_same_name(self):
+        base_spec = k8s.V1PodSpec(
+            containers=[],
+            init_containers=[k8s.V1Container(name="init1", image="base_image", args=["base_arg"])],
+        )
+        client_spec = k8s.V1PodSpec(
+            containers=[],
+            init_containers=[k8s.V1Container(name="init1", image="client_image")],
+        )
+        res = PodGenerator.reconcile_specs(base_spec, client_spec)
+        assert len(res.init_containers) == 1
+        assert res.init_containers[0].name == "init1"
+        assert res.init_containers[0].image == "client_image"
+        assert res.init_containers[0].args == ["base_arg"]
+
     def test_deserialize_model_file(self, caplog, data_file):
         template_file = data_file("pods/template.yaml").as_posix()
         result = PodGenerator.deserialize_model_file(template_file)

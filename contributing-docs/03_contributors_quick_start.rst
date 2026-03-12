@@ -19,7 +19,9 @@
 Contributor's Quick Start
 *************************
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Note to Starters
 ################
@@ -261,6 +263,14 @@ To avoid burden on our CI infrastructure and to save time, prek hooks can be run
 
 Installing prek is best done with ``uv`` (recommended) or ``pipx``.
 
+You can also update the tools installed with UV, including ``prek``.
+
+   Run the following command to upgrade all UV-managed tools:
+
+   .. code-block:: bash
+
+     uv tool upgrade --all
+
 1.  Installing required packages
 
 on Debian / Ubuntu, install via
@@ -284,6 +294,7 @@ on macOS, install via
 .. code-block:: bash
 
   uv tool install prek
+
 
 or with pipx:
 
@@ -360,6 +371,7 @@ It will run prek hooks automatically before committing and stops the commit on f
 
   cd ~/Projects/airflow
   prek uninstall
+
 
 - For more information on this visit |08_static_code_checks.rst|
 
