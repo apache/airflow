@@ -1138,6 +1138,22 @@ export type LastAssetEventResponse = {
 };
 
 /**
+ * Collection of new tasks discovered during an only_new dry run.
+ */
+export type NewTaskCollectionResponse = {
+    new_tasks: Array<NewTaskResponse>;
+    total_entries: number;
+};
+
+/**
+ * Lightweight response for new tasks that don't have TaskInstances yet.
+ */
+export type NewTaskResponse = {
+    task_id: string;
+    task_display_name: string;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
@@ -2536,7 +2552,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -4622,7 +4638,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
+                200: TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
                 /**
                  * Unauthorized
                  */

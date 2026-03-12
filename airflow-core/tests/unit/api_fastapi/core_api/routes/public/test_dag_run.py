@@ -1545,15 +1545,12 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 3
-        # Verify placeholder task instances are returned with correct task_ids
-        task_ids = sorted(ti["task_id"] for ti in body["task_instances"])
+        # Verify new tasks are returned with correct task_ids
+        task_ids = sorted(t["task_id"] for t in body["new_tasks"])
         assert task_ids == ["new_task_1", "new_task_2", "new_task_3"]
-        # Verify placeholder fields
-        for ti in body["task_instances"]:
-            assert ti["dag_id"] == DAG1_ID
-            assert ti["dag_run_id"] == DAG1_RUN1_ID
-            assert ti["state"] is None
-            assert ti["map_index"] == -1
+        # Verify task_display_name defaults to task_id
+        for task in body["new_tasks"]:
+            assert task["task_display_name"] == task["task_id"]
         mock_clear.assert_called_once_with(
             run_id=DAG1_RUN1_ID,
             task_ids=None,
@@ -1580,7 +1577,7 @@ class TestClearDagRun:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["task_instances"] == []
+        assert body["new_tasks"] == []
         assert body["total_entries"] == 0
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")

@@ -627,6 +627,15 @@ class LastAssetEventResponse(BaseModel):
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
 
 
+class NewTaskResponse(BaseModel):
+    """
+    Lightweight response for new tasks that don't have TaskInstances yet.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.
@@ -1615,6 +1624,15 @@ class JobCollectionResponse(BaseModel):
     """
 
     jobs: Annotated[list[JobResponse], Field(title="Jobs")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class NewTaskCollectionResponse(BaseModel):
+    """
+    Collection of new tasks discovered during an only_new dry run.
+    """
+
+    new_tasks: Annotated[list[NewTaskResponse], Field(title="New Tasks")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
