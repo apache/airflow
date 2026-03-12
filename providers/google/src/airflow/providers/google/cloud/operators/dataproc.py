@@ -2662,10 +2662,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             )
 
     def __update_batch_labels(self):
-        dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
-        task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
+        dag_id = re.sub(r"[^a-z0-9-]", "-", self.dag_id.lower())
+        task_id = re.sub(r"[^a-z0-9-]", "-", self.task_id.lower())
 
-        labels_regex = re.compile(r"^[a-z][\w-]{0,62}$")
+        labels_regex = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
         if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
             return
 
@@ -2673,8 +2673,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         new_labels = {"airflow-dag-id": dag_id, "airflow-task-id": task_id}
 
         if self._dag:
-            dag_display_name = re.sub(r"[.\s]", "_", self._dag.dag_display_name.lower())
-            if labels_regex.match(dag_id):
+            dag_display_name = re.sub(r"[^a-z0-9-]", "-", self._dag.dag_display_name.lower())
+            if labels_regex.match(dag_display_name):
                 new_labels["airflow-dag-display-name"] = dag_display_name
 
         if isinstance(self.batch, Batch):
