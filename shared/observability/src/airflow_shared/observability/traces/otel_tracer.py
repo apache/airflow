@@ -225,9 +225,10 @@ class OtelTrace:
             parent_span_context = trace.get_current_span().get_span_context()
             parent_context = trace.set_span_in_context(NonRecordingSpan(parent_span_context))
         else:
-            context_val = next(iter(parent_context.values()))
+            # Handle empty context (e.g., from empty carrier {})
+            context_val = next(iter(parent_context.values()), None)
             parent_span_context = None
-            if isinstance(context_val, NonRecordingSpan):
+            if context_val is not None and isinstance(context_val, NonRecordingSpan):
                 parent_span_context = context_val.get_span_context()
 
         if links is None:
@@ -299,8 +300,10 @@ class OtelTrace:
         TraceContextTextMapPropagator().inject(carrier)
         return carrier
 
-    def extract(self, carrier: dict) -> Context:
+    def extract(self, carrier: dict | None) -> Context:
         """Extract the span context from a provided carrier."""
+        if carrier is None:
+            return {}
         return TraceContextTextMapPropagator().extract(carrier)
 
 
