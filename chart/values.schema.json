@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.7",
+            "default": "3.1.8",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
-            "default": "3.1.7",
+            "default": "3.1.8",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -2282,7 +2282,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file. Use ``workers.celery.terminationGracePeriodSeconds`` and/or ``workers.kubernetes.terminationGracePeriodSeconds`` to separate value between Celery workers and pod-template-file",
                     "type": "integer",
                     "default": 600
                 },
@@ -3275,6 +3275,14 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -3548,6 +3556,14 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 }
@@ -6179,8 +6195,11 @@
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow API server replicas should run. This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled",
-                    "type": "integer",
+                    "description": "How many Airflow API server replicas should run. Omitted from the Deployment, when HPA is enabled.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "default": 1
                 },
                 "revisionHistoryLimit": {
