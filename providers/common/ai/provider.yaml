@@ -49,9 +49,13 @@ integrations:
     external-doc-url: https://google.github.io/adk-docs/
     how-to-guide:
       - /docs/apache-airflow-providers-common-ai/operators/agent.rst
+      - /docs/apache-airflow-providers-common-ai/operators/adk_agent.rst
     tags: [ai]
 
 hooks:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.hooks.base
   - integration-name: Pydantic AI
     python-modules:
       - airflow.providers.common.ai.hooks.pydantic_ai

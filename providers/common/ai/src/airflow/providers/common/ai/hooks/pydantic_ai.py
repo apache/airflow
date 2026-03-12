@@ -175,7 +175,7 @@ class PydanticAIHook(BaseAIHook):
 
     @overload
     def create_agent(
-        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
+        self, *, output_type: type[OutputT], instructions: str, **agent_kwargs
     ) -> Agent[None, OutputT]: ...
 
     @overload
