@@ -163,6 +163,11 @@ class TriggerDagRunOperator(BaseOperator):
         "wait_for_completion",
         "skip_when_already_exists",
     )
+
+    attributes_not_suppported_in_airflow_2: Sequence[str] = (
+        "run_after",
+        "note",
+    )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]
@@ -309,12 +314,10 @@ class TriggerDagRunOperator(BaseOperator):
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
-            if self.note:
-                self.log.warning("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
-
-            if self.run_after is not NOTSET:
-                self.log.warning("Parameter 'run_after' is not supported in Airflow 2.x and will be ignored.")
-
+            self.log.warning(
+                "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
+                ", ".join(self.attributes_not_suppported_in_airflow_2),
+            )
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
