@@ -25,6 +25,7 @@ import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -99,8 +100,15 @@ export const TaskInstance = () => {
     ];
   }
 
-  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+  const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
     autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
+  });
+
+  // HITL review tab
+  const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
+    enabled: !isNaN(parsedMapIndex),
+    mapIndex: parsedMapIndex,
     refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 
