@@ -111,51 +111,11 @@ class TestDefaultFillingLogic:
         op = make_op(func, op_kwargs=kwargs, op_args=args)
         assert op is not None
 
-    @pytest.mark.parametrize(
-        ("func", "op_kwargs", "op_args", "expected_defaults"),
-        [
-            pytest.param(
-                lambda a, b, c: a + b + c,
-                {},
-                [1, 2, 3],
-                [inspect.Parameter.empty, inspect.Parameter.empty, inspect.Parameter.empty],
-                id="all_required_no_defaults_injected",
-            ),
-            pytest.param(
-                lambda required, optional=10: required + optional,
-                {"required": 5},
-                [],
-                [inspect.Parameter.empty, 10],
-                id="params_before_first_default_stay_required",
-            ),
-            pytest.param(
-                lambda a, b=1, c=2, d=3: a + b + c + d,
-                {"a": 10},
-                [],
-                [inspect.Parameter.empty, 1, 2, 3],
-                id="explicit_defaults_after_first_default_preserved",
-            ),
-            pytest.param(
-                lambda no_default_1, no_default_2, first_default=42, after=None: None,
-                {},
-                [1, 2],
-                [inspect.Parameter.empty, inspect.Parameter.empty, 42, None],
-                id="first_default_defines_boundary",
-            ),
-            pytest.param(
-                lambda a=1, b=2, c=3: a + b + c,
-                {},
-                [],
-                [1, 2, 3],
-                id="all_params_have_defaults_none_overwritten",
-            ),
-        ],
-    )
-    def test_param_defaults(self, func, op_kwargs, op_args, expected_defaults):
-        op = make_op(func, op_kwargs=op_kwargs, op_args=op_args)
-        sig = inspect.signature(op.python_callable)
-        actual = [p.default for p in sig.parameters.values()]
-        assert actual == expected_defaults
+    def test_construction_succeeds_with_context_key_params(self):
+        def foo(start_date, end_date):
+            return end_date
+
+        assert make_op(foo, op_args=[None, None]) is not None
 
     def test_context_key_default_none_does_not_raise(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
@@ -231,7 +191,14 @@ class TestDefaultFillingLogic:
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
         f = _make_func(f"def dummy_task({ctx_key}, a): ...")
         assert make_op(f, op_kwargs={"a": "2024-01-01"}) is not None
-        assert make_op(f) is not None
+
+    def test_non_context_param_after_context_key_without_value_raises(self):
+        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
+
+        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        f = _make_func(f"def dummy_task({ctx_key}, a): ...")
+        with pytest.raises(TypeError, match="missing required argument"):
+            make_op(f)
 
     def test_bind_validation_fails_for_missing_required_args(self):
         """Truly required args with no supplied value must still cause a bind failure."""
