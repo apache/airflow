@@ -212,7 +212,9 @@ class TestGetConnection(TestConnectionEndpoint):
     def test_get_should_redact_non_json_extra(self, test_client, session, non_json_extra, expected_extra):
         self.create_connection()
         connection = session.scalars(select(Connection)).first()
-        connection.extra = non_json_extra
+        # Bypass the JSON-validating setter to simulate legacy non-JSON data already in the DB.
+        connection._extra = non_json_extra
+        connection.is_extra_encrypted = False
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
