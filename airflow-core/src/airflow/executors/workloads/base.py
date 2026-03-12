@@ -20,12 +20,30 @@ from __future__ import annotations
 
 import os
 from abc import ABC
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
+
+
+class WorkloadType(StrEnum):
+    """Central registry of all workload types."""
+
+    EXECUTE_TASK = "ExecuteTask"
+    EXECUTE_CALLBACK = "ExecuteCallback"
+    RUN_TRIGGER = "RunTrigger"
+
+
+# Central priority registry: Tuple is ordered from highest priority to lowest.
+_workload_type_priority_order = (
+    WorkloadType.EXECUTE_CALLBACK,
+    WorkloadType.EXECUTE_TASK,
+)
+
+WORKLOAD_TYPE_TIER: dict[str, int] = {name: idx for idx, name in enumerate(_workload_type_priority_order)}
 
 
 class BaseWorkload:
@@ -75,6 +93,23 @@ class BaseWorkloadSchema(BaseModel):
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
         return generator.generate({"sub": sub_id}) if generator else ""
+
+    @property
+    def queue_key(self):
+        """Return a unique key used to store/lookup this workload in the executor queue."""
+        raise NotImplementedError
+
+    @property
+    def sort_key(self) -> int:
+        """
+        Return the sort key for ordering workloads within the same tier.
+
+        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
+        insertion order among equal keys).  Override in subclasses that need
+        priority ordering within their tier — for example, ``ExecuteTask`` returns
+        ``self.ti.priority_weight`` so that higher-priority tasks are scheduled first.
+        """
+        return 0
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):

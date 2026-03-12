@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -71,7 +71,17 @@ class ExecuteTask(BaseDagBundleWorkload):
     ti: TaskInstanceDTO
     sentry_integration: str = ""
 
-    type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+    type: Literal[WorkloadType.EXECUTE_TASK] = Field(init=False, default=WorkloadType.EXECUTE_TASK)
+
+    @property
+    def queue_key(self):
+        """Return the task instance key as the queue key."""
+        return self.ti.key
+
+    @property
+    def sort_key(self) -> int:
+        """Return the task priority weight for sorting (lower = higher priority)."""
+        return self.ti.priority_weight
 
     @classmethod
     def make(

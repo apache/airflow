@@ -27,7 +27,7 @@ from uuid import UUID
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -73,7 +73,12 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     callback: CallbackDTO
 
-    type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+    type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
+
+    @property
+    def queue_key(self):
+        """Return the callback ID as the queue key."""
+        return self.callback.id
 
     @classmethod
     def make(

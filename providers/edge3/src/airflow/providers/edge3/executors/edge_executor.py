@@ -27,6 +27,7 @@ from sqlalchemy import delete, select
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.workloads import WorkloadType
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
@@ -78,7 +79,7 @@ class EdgeExecutor(BaseExecutor):
         Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
         Store queued_tasks in own var to be able to access this in execute_async function.
         """
-        self.edge_queued_tasks = deepcopy(self.queued_tasks)
+        self.edge_queued_tasks = deepcopy(self.executor_queues[WorkloadType.EXECUTE_TASK])
         super()._process_tasks(task_tuples)  # type: ignore[misc]
 
     @provide_session
@@ -308,7 +309,7 @@ class EdgeExecutor(BaseExecutor):
         """
         # Remove from executor's internal state
         self.running.discard(ti.key)
-        self.queued_tasks.pop(ti.key, None)
+        self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
         if ti.key in self.last_reported_state:
             del self.last_reported_state[ti.key]
 

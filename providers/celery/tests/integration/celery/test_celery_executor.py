@@ -222,7 +222,7 @@ def setup_dagrun_with_success_and_fail_tasks(dag_maker):
                 ):
                     executor.queue_workload(w, session=None)
 
-                executor.trigger_tasks(open_slots=10)
+                executor.trigger_workloads(open_slots=10)
                 for _ in range(20):
                     num_tasks = len(executor.tasks.keys())
                     if num_tasks == 2:

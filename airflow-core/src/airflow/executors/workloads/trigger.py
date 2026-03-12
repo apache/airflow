@@ -23,6 +23,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from airflow.executors.workloads.base import WorkloadType
+
 # Using noqa because Ruff wants this in a TYPE_CHECKING block but Pydantic fails if it is.
 from airflow.executors.workloads.task import TaskInstanceDTO  # noqa: TCH001
 
@@ -39,4 +41,4 @@ class RunTrigger(BaseModel):
     classpath: str  # Dot-separated name of the module+fn to import and run this workload.
     encrypted_kwargs: str
     timeout_after: datetime | None = None
-    type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+    type: Literal[WorkloadType.RUN_TRIGGER] = Field(init=False, default=WorkloadType.RUN_TRIGGER)
