@@ -312,6 +312,45 @@ class ExecutorLoader:
         return loaded_executors
 
     @classmethod
+    def find_executor(
+        cls,
+        executors: list[BaseExecutor],
+        executor_name: str | None,
+        team_name: str | None,
+    ) -> BaseExecutor | None:
+        """
+        Find the executor matching the given name and team from a list of executor instances.
+
+        :param executors: List of available executor instances to search through.
+        :param executor_name: The executor name (alias, module path, or class name) to find.
+                             Pass None to get the default executor for the given team.
+        :param team_name: The team to find the executor for (None for global executors).
+        :return: The matching executor instance, or None if not found.
+        """
+        if executor_name is None:
+            if not team_name:
+                # No team specified, return the global default (first in list)
+                return executors[0] if executors else None
+            # Find the default executor for the given team
+            for _executor in executors:
+                if _executor.team_name == team_name:
+                    return _executor
+            # No team-specific executor found, fall back to global default
+            return executors[0] if executors else None
+
+        # An executor name is specified — search by alias, module path, or class name
+        for _executor in executors:
+            if _executor.name and executor_name in (
+                _executor.name.alias,
+                _executor.name.module_path,
+                _executor.name.module_path.split(".")[-1],
+            ):
+                # Must match the team or be a global executor (team_name is None)
+                if team_name and _executor.team_name == team_name or _executor.team_name is None:
+                    return _executor
+        return None
+
+    @classmethod
     def lookup_executor_name_by_str(
         cls, executor_name_str: str, team_name: str | None = None, validate_teams: bool = True
     ) -> ExecutorName:

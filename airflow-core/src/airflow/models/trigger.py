@@ -288,6 +288,64 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    def return_to_worker(cls, task_instance: TaskInstance, session: Session) -> None:
+        """
+        Return a task instance to the worker for execution.
+
+        This is used when a trigger fires an event and we need to resume a deferred task instance.
+        It is optimized for configured executor types to directly enqueue to a worker without going
+        through the scheduler, but can also be used as a general utility to return a task instance
+        to the worker for execution.
+        """
+        from airflow.executors import workloads
+        from airflow.executors.executor_loader import ExecutorLoader
+
+        # Remove ourselves as its trigger
+        task_instance.trigger_id = None
+        task_instance.scheduled_dttm = timezone.utcnow()
+
+        # Check which executors are configured for direct queueing
+        direct_queueing_allowlist = conf.getlist("triggerer", "direct_queueing_executors", fallback=[])
+
+        if direct_queueing_allowlist:
+            # Resolve team name for multi-team setups
+            team_name: str | None = None
+            if conf.getboolean("core", "multi_team"):
+                from airflow.models.dag import DagModel
+                from airflow.models.dagbundle import DagBundleModel
+                from airflow.models.team import Team
+
+                result = session.execute(
+                    select(Team.name)
+                    .join(DagBundleModel.teams)
+                    .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
+                    .where(DagModel.dag_id == task_instance.dag_id)
+                ).first()
+                team_name = result[0] if result else None
+
+            # Load configured executors and find the one responsible for this task instance
+            executors = ExecutorLoader.init_executors()
+            executor = ExecutorLoader.find_executor(executors, task_instance.executor, team_name)
+
+            # Only directly enqueue if the executor is in the configured allowlist
+            if executor is not None and executor.name is not None:
+                executor_identifiers = {
+                    executor.name.alias,
+                    executor.name.module_path,
+                    executor.name.module_path.split(".")[-1],
+                }
+                if executor_identifiers & set(direct_queueing_allowlist):
+                    task_instance.state = TaskInstanceState.QUEUED
+                    workload = workloads.ExecuteTask.make(ti=task_instance, generator=executor.jwt_generator)
+                    executor.queue_workload(workload, session=session)
+                    executor.trigger_tasks(1)  # Flush all == 1 tasks
+                    return
+
+        # Fall back to SCHEDULED so the scheduler picks it up via the normal scheduling loop
+        task_instance.state = TaskInstanceState.SCHEDULED
+
+    @classmethod
+    @provide_session
     def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
@@ -315,11 +373,7 @@ class Trigger(Base):
                 "error": TriggerFailureReason.TRIGGER_FAILURE,
                 "traceback": traceback,
             }
-            # Remove ourselves as its trigger
-            task_instance.trigger_id = None
-            # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = TaskInstanceState.SCHEDULED
-            task_instance.scheduled_dttm = timezone.utcnow()
+            cls.return_to_worker(task_instance, session)
 
     @classmethod
     @provide_session
@@ -464,7 +518,6 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     :param session: The session to be used for the database callback sink.
     """
     from airflow.sdk.serde import deserialize, serialize
-    from airflow.utils.state import TaskInstanceState
 
     next_kwargs_raw = task_instance.next_kwargs or {}
 
@@ -486,12 +539,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     # re-serialize the entire dict using serde to ensure consistent structure
     task_instance.next_kwargs = serialize(next_kwargs)
 
-    # Remove ourselves as its trigger
-    task_instance.trigger_id = None
-
-    # Set the state of the task instance to scheduled
-    task_instance.state = TaskInstanceState.SCHEDULED
-    task_instance.scheduled_dttm = timezone.utcnow()
+    Trigger.return_to_worker(task_instance, session)
     session.flush()
 
 
