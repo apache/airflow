@@ -132,6 +132,7 @@ def patch_role(
     response_model=PermissionCollectionResponse,
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_400_BAD_REQUEST,
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
             status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -140,9 +141,10 @@ def patch_role(
     dependencies=[Depends(requires_fab_custom_view("GET", permissions.RESOURCE_ROLE))],
 )
 def get_permissions(
+    order_by: str = Query("id", description="Field to order by. Prefix with '-' for descending."),
     limit: int = Depends(get_effective_limit()),
     offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
-):
+) -> PermissionCollectionResponse:
     """List all action-resource (permission) pairs."""
     with get_application_builder():
-        return FABAuthManagerRoles.get_permissions(limit=limit, offset=offset)
+        return FABAuthManagerRoles.get_permissions(order_by=order_by, limit=limit, offset=offset)
