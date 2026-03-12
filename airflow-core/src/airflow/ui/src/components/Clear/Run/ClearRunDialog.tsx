@@ -22,7 +22,12 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
-import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  NewTaskCollectionResponse,
+  TaskInstanceCollectionResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -30,6 +35,11 @@ import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+/** Type guard to distinguish NewTaskCollectionResponse from TaskInstanceCollectionResponse. */
+const isNewTaskCollection = (
+  data: NewTaskCollectionResponse | TaskInstanceCollectionResponse,
+): data is NewTaskCollectionResponse => "new_tasks" in data;
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -55,15 +65,21 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
+  const { data: dryRunData } = useClearDagRunDryRun({
     dagId,
     dagRunId,
     options: {
-      refetchInterval: (query) =>
-        !onlyNew &&
-        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+      refetchInterval: (query) => {
+        const queryData = query.state.data;
+
+        if (!queryData || isNewTaskCollection(queryData)) {
+          return false;
+        }
+
+        return queryData.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
           ? refetchInterval
-          : false,
+          : false;
+      },
     },
     requestBody: {
       only_failed: onlyFailed,
@@ -71,6 +87,25 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
       run_on_latest_version: runOnLatestVersion,
     },
   });
+
+  // Normalise both response shapes into the format ActionAccordion expects.
+  const affectedTasks: TaskInstanceCollectionResponse = (() => {
+    const empty: TaskInstanceCollectionResponse = { task_instances: [], total_entries: 0 };
+
+    if (!dryRunData) {
+      return empty;
+    }
+    if (isNewTaskCollection(dryRunData)) {
+      return {
+        task_instances: dryRunData.new_tasks.map(
+          (task) => ({ task_id: task.task_id }) as TaskInstanceResponse,
+        ),
+        total_entries: dryRunData.total_entries,
+      };
+    }
+
+    return dryRunData;
+  })();
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
