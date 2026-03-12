@@ -42,6 +42,8 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
+from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -808,3 +810,59 @@ class TestSerializedDagModel:
         assert new_serdag_count == 2
         assert new_serdag.dag_hash != orig_serdag.dag_hash
         assert new_alert.interval == 600.0
+
+    def test_try_reuse_deadline_uuids_handles_string_and_dict_formats(self, testing_dag_bundle, session):
+        """After 3.1→3.2 migration, existing_deadline_uuids may be strings or dicts; both are handled."""
+        dag_id = "test_deadline_uuid_formats"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == serdag.id))
+        assert alert is not None
+
+        new_deadline_data = [
+            {
+                Encoding.VAR: {
+                    DeadlineAlertFields.REFERENCE: alert.reference,
+                    DeadlineAlertFields.INTERVAL: alert.interval,
+                    DeadlineAlertFields.CALLBACK: alert.callback_def,
+                }
+            }
+        ]
+
+        # All strings (current format): should reuse and return mapping.
+        result = SDM._try_reuse_deadline_uuids(
+            [str(alert.id)],
+            new_deadline_data,
+            session,
+        )
+        assert result is not None
+        assert str(alert.id) in result
+
+        # Dict with "uuid" key (e.g. migration wrapper): should reuse.
+        result_dict_uuid = SDM._try_reuse_deadline_uuids(
+            [{"uuid": str(alert.id)}],
+            new_deadline_data,
+            session,
+        )
+        assert result_dict_uuid is not None
+        assert str(alert.id) in result_dict_uuid
+
+        # Legacy dict without uuid/id (encoded alert only): cannot reuse, returns None.
+        result_legacy_dict = SDM._try_reuse_deadline_uuids(
+            [{"reference": alert.reference, "interval": alert.interval, "callback": alert.callback_def}],
+            new_deadline_data,
+            session,
+        )
+        assert result_legacy_dict is None

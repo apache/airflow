@@ -446,7 +446,16 @@ class SerializedDagModel(Base):
         if len(existing_deadline_uuids) != len(new_deadline_data):
             return None
 
-        existing_deadline_uuids_as_uuid = [UUID(uid) for uid in existing_deadline_uuids]
+        # After 3.1→3.2 migration, entries may be UUID strings or legacy dicts (e.g. encoded alert).
+        # Only string UUIDs can be reused; dicts cannot be resolved to a single UUID here.
+        existing_deadline_uuids_as_uuid = []
+        for uid in existing_deadline_uuids:
+            if isinstance(uid, str):
+                existing_deadline_uuids_as_uuid.append(UUID(uid))
+            elif isinstance(uid, dict) and (s := uid.get("uuid") or uid.get("id")) and isinstance(s, str):
+                existing_deadline_uuids_as_uuid.append(UUID(s))
+            else:
+                return None
         existing_alerts = session.scalars(
             select(DeadlineAlertModel).where(DeadlineAlertModel.id.in_(existing_deadline_uuids_as_uuid))
         ).all()
