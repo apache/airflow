@@ -289,10 +289,10 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             )
 
     # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import ErrorResponse
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    if SUPERVISOR_COMMS is None:
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
         raise AirflowRuntimeError(
             ErrorResponse(
                 error=ErrorType.VARIABLE_NOT_FOUND,
@@ -352,10 +352,10 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     import json
 
     from airflow.sdk.execution_time.cache import SecretCache
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
@@ -386,7 +386,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    if SUPERVISOR_COMMS is None:
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
         raise AirflowRuntimeError(
             ErrorResponse(
                 error=ErrorType.GENERIC_ERROR,
@@ -400,7 +400,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
             )
         )
 
-    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    task_runner.SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
     SecretCache.invalidate_variable(key)
@@ -413,10 +413,10 @@ def _delete_variable(key: str) -> None:
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
     from airflow.sdk.execution_time.cache import SecretCache
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import DeleteVariable, ErrorResponse
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    if SUPERVISOR_COMMS is None:
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
         raise AirflowRuntimeError(
             ErrorResponse(
                 error=ErrorType.GENERIC_ERROR,
@@ -430,7 +430,7 @@ def _delete_variable(key: str) -> None:
             )
         )
 
-    msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
+    msg = task_runner.SUPERVISOR_COMMS.send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
