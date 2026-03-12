@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from airflow.sdk.types import Context
 
 from airflow.providers.common.ai.operators.llm_data_quality import (
     LLMDataQualityOperator,
@@ -39,10 +42,10 @@ _PROMPTS = {
 }
 
 
-def _make_context() -> dict:
+def _make_context():
     """Return a minimal Airflow context with a mock TaskInstance."""
     mock_ti = MagicMock()
-    return {"ti": mock_ti}
+    return cast("Context", {"ti": mock_ti})
 
 
 def _make_plan() -> DQPlan:
