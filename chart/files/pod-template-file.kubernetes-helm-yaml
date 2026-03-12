@@ -131,7 +131,7 @@ spec:
       {{- if or .Values.workers.kubernetes.command .Values.workers.command }}
       command: {{ tpl (toYaml (.Values.workers.kubernetes.command | default .Values.workers.command)) . | nindent 8 }}
       {{- end }}
-      resources: {{- toYaml .Values.workers.resources | nindent 8 }}
+      resources: {{- toYaml (.Values.workers.kubernetes.resources | default .Values.workers.resources) | nindent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
