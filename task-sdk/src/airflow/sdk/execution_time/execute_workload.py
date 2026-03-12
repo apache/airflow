@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from airflow.executors import workloads
+    from airflow.executors.workloads import ExecutorWorkload
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(workload: workloads.All) -> None:
+def execute_workload(workload: ExecutorWorkload) -> None:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
@@ -79,9 +79,9 @@ def main():
 
     from pydantic import TypeAdapter
 
-    from airflow.executors import workloads
+    from airflow.executors.workloads import ExecutorWorkload
 
-    decoder = TypeAdapter[workloads.All](workloads.All)
+    decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
     if args.json_path:
         try:
             with open(args.json_path) as file:

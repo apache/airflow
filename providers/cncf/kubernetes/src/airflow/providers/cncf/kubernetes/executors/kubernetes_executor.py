@@ -327,13 +327,16 @@ class KubernetesExecutor(BaseExecutor):
                 try:
                     key = task.key
                     self.kube_scheduler.run_next(task)
-                    self.task_publish_retries.pop(key, None)
+                    if not isinstance(key, str):
+                        self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
                     self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
                     )
-                    self.fail(task[0], e)
+                    task_key = task.key
+                    if not isinstance(task_key, str):
+                        self.fail(task_key, e)
                 except ApiException as e:
                     try:
                         if e.body:
@@ -385,7 +388,6 @@ class KubernetesExecutor(BaseExecutor):
                             break
                     else:
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
-                        key = task.key
                         self.fail(key, e)
                         self.task_publish_retries.pop(key, None)
                 except PodMutationHookException as e:
@@ -395,7 +397,8 @@ class KubernetesExecutor(BaseExecutor):
                         key,
                         e.__cause__,
                     )
-                    self.fail(key, e)
+                    if not isinstance(key, str):
+                        self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
 
