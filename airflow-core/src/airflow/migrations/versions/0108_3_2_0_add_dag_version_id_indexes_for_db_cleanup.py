@@ -55,5 +55,5 @@ def upgrade():
 
 def downgrade():
     """Remove dag_version cleanup indexes."""
-    op.drop_index("idx_dag_run_created_dag_version_id", table_name="dag_run", if_exists=True)
-    op.drop_index("idx_task_instance_dag_version_id", table_name="task_instance", if_exists=True)
+    op.drop_index("idx_dag_run_created_dag_version_id", table_name="dag_run")
+    op.drop_index("idx_task_instance_dag_version_id", table_name="task_instance")

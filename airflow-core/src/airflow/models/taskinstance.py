@@ -497,6 +497,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
         Index("ti_dag_run", dag_id, run_id),
+        Index("idx_task_instance_dag_version_id", dag_version_id),
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
