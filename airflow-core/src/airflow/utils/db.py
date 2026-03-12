@@ -949,7 +949,7 @@ def check_and_run_migrations():
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
         print_fn = log.info if conf.getboolean("logging", "json_logs", fallback=False) else print
         try:
-            answer = helpers.prompt_with_timeout(question, timeout=4, default=False, print=print_fn)
+            answer = helpers.prompt_with_timeout(question, timeout=4, default=False, output_fn=print_fn)
             if answer:
                 try:
                     db_command()
