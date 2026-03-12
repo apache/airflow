@@ -230,7 +230,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
             key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = (
+                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+            )
             self.log.warning(
                 "Event: %s failed to start with reason ProviderFailed, task: %s, annotations: %s",
                 pod_name,
@@ -275,7 +277,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 continue
                             key = annotations_to_key(annotations=annotations)
                             task_key_str = (
-                                f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+                                f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                                if not isinstance(key, str)
+                                else "unknown"
                             )
                             self.log.warning(
                                 "Event: %s has container %s with fatal reason %s, task: %s",
@@ -309,7 +313,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 )
 
             key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = (
+                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+            )
             self.log.warning(
                 "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
             )

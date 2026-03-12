@@ -323,13 +323,16 @@ class KubernetesExecutor(BaseExecutor):
                 try:
                     key = task.key
                     self.kube_scheduler.run_next(task)
-                    self.task_publish_retries.pop(key, None)
+                    if not isinstance(key, str):
+                        self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
                     self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
                     )
-                    self.fail(task[0], e)
+                    task_key = task.key
+                    if not isinstance(task_key, str):
+                        self.fail(task_key, e)
                 except ApiException as e:
                     try:
                         if e.body:
@@ -342,30 +345,34 @@ class KubernetesExecutor(BaseExecutor):
                         # Use the body directly as the message instead.
                         body = {"message": e.body}
 
-                    retries = self.task_publish_retries[key]
-                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
-                    message = body.get("message", "")
-                    if (
-                        (str(e.status) == "403" and "exceeded quota" in message)
-                        or (str(e.status) == "409" and "object has been modified" in message)
-                        or (str(e.status) == "410" and "too old resource version" in message)
-                        or str(e.status) == "500"
-                    ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
-                        self.log.warning(
-                            "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
-                            self.task_publish_retries[key] + 1,
-                            self.task_publish_max_retries,
-                            key,
-                            e.reason,
-                            message,
-                        )
-                        self.task_queue.put(task)
-                        self.task_publish_retries[key] = retries + 1
+                    if not isinstance(key, str):
+                        retries = self.task_publish_retries[key]
+                        # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                        message = body.get("message", "")
+                        if (
+                            (str(e.status) == "403" and "exceeded quota" in message)
+                            or (str(e.status) == "409" and "object has been modified" in message)
+                            or (str(e.status) == "410" and "too old resource version" in message)
+                            or str(e.status) == "500"
+                        ) and (
+                            self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
+                        ):
+                            self.log.warning(
+                                "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
+                                self.task_publish_retries[key] + 1,
+                                self.task_publish_max_retries,
+                                key,
+                                e.reason,
+                                message,
+                            )
+                            self.task_queue.put(task)
+                            self.task_publish_retries[key] = retries + 1
+                        else:
+                            self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
+                            self.fail(key, e)
+                            self.task_publish_retries.pop(key, None)
                     else:
-                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
-                        key = task.key
-                        self.fail(key, e)
-                        self.task_publish_retries.pop(key, None)
+                        self.log.error("Pod creation failed with reason %r.", e.reason)
                 except PodMutationHookException as e:
                     key = task.key
                     self.log.error(
@@ -373,7 +380,8 @@ class KubernetesExecutor(BaseExecutor):
                         key,
                         e.__cause__,
                     )
-                    self.fail(key, e)
+                    if not isinstance(key, str):
+                        self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
 
