@@ -483,6 +483,7 @@ class BatchClientHook(AwsBaseHook):
                 container_stream = attempt.get("container", {}).get("logStreamName")
                 if container_stream:
                     stream_names.append(container_stream)
+                    continue
                 # Multi-node: attempts[].taskProperties[].containers[].logStreamName
                 for task_prop in attempt.get("taskProperties", []):
                     for container in task_prop.get("containers", []):
