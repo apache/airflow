@@ -20,11 +20,7 @@
 Add connection_test table for async connection testing.
 
 Revision ID: a7e6d4c3b2f1
-<<<<<<<< HEAD:airflow-core/src/airflow/migrations/versions/0109_3_2_0_add_connection_test_table.py
 Revises: 888b59e02a5b
-========
-Revises: 6222ce48e289
->>>>>>>> 189776ee4f (clean ups):airflow-core/src/airflow/migrations/versions/0108_3_2_0_add_connection_test_table.py
 Create Date: 2026-02-22 00:00:00.000000
 
 """
@@ -38,11 +34,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "a7e6d4c3b2f1"
-<<<<<<<< HEAD:airflow-core/src/airflow/migrations/versions/0109_3_2_0_add_connection_test_table.py
 down_revision = "888b59e02a5b"
-========
-down_revision = "6222ce48e289"
->>>>>>>> 189776ee4f (clean ups):airflow-core/src/airflow/migrations/versions/0108_3_2_0_add_connection_test_table.py
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
