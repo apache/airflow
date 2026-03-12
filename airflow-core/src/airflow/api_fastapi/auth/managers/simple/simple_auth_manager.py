@@ -433,8 +433,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _print_output(output: str):
-        from airflow.configuration import conf
-
         if conf.getboolean("logging", "json_logs", fallback=False):
             for line in output.splitlines():
                 log.info(line.strip())
