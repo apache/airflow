@@ -204,9 +204,7 @@ export const Nav = () => {
           version={data?.version}
         />
         <Tooltip content={tooltipLabel}>
-          <Box>
-            <NavButton icon={FiClock} onClick={onOpenTimezone} title={offset} />
-          </Box>
+          <NavButton icon={FiClock} onClick={onOpenTimezone} title={offset} />
         </Tooltip>
         <UserSettingsButton externalViews={userItems} />
         {hasCustomLogo ? (
