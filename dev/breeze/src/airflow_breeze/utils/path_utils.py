@@ -305,6 +305,23 @@ FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH = FAB_AUTH_MANAGER_WWW_PATH / "node_modul
 FAB_AUTH_MANAGER_WWW_DIST_PATH = FAB_AUTH_MANAGER_WWW_PATH / "static" / "dist"
 FAB_AUTH_MANAGER_WWW_PREK_HOOK = "compile-fab-assets"
 
+COMMON_AI_PLUGIN_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH
+    / "common"
+    / "ai"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "common"
+    / "ai"
+    / "plugins"
+    / "www"
+)
+COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH = COMMON_AI_PLUGIN_PATH / "node_modules"
+COMMON_AI_UI_PLUGIN_DIST_PATH = COMMON_AI_PLUGIN_PATH / "dist"
+COMMON_AI_PLUGIN_PREK_HOOK = "compile-common-ai-provider-assets"
+
+
 DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
 FILES_PATH = AIRFLOW_ROOT_PATH / "files"
 FILES_SBOM_PATH = FILES_PATH / "sbom"

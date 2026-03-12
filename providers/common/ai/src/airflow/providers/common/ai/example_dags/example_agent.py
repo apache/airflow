@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -34,7 +36,7 @@ def example_agent_operator_sql():
     AgentOperator(
         task_id="analyst",
         prompt="What are the top 5 customers by order count?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt=(
             "You are a SQL analyst. Use the available tools to explore "
             "the schema and answer the question with data."
@@ -69,7 +71,7 @@ def example_agent_operator_hook():
     AgentOperator(
         task_id="api_explorer",
         prompt="What endpoints are available and what does /status return?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are an API explorer. Use the tools to discover and call endpoints.",
         toolsets=[
             HookToolset(
@@ -95,7 +97,7 @@ example_agent_operator_hook()
 @dag
 def example_agent_decorator():
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a data analyst. Use tools to answer questions.",
         toolsets=[
             SQLToolset(
@@ -131,7 +133,7 @@ def example_agent_structured_output():
         row_count: int
 
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a data analyst. Return structured results.",
         output_type=Analysis,
         toolsets=[SQLToolset(db_conn_id="postgres_default")],
@@ -156,7 +158,7 @@ example_agent_structured_output()
 @dag
 def example_agent_chain():
     @task.agent(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt="You are a SQL analyst.",
         toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["orders"])],
     )
@@ -176,3 +178,29 @@ def example_agent_chain():
 # [END howto_agent_chain]
 
 example_agent_chain()
+
+
+# ---------------------------------------------------------------------------
+# 6. HITL Review: human approves/rejects agent output before downstream runs
+# ---------------------------------------------------------------------------
+
+
+# [START howto_operator_agent_hitl_review]
+@dag
+def example_agent_operator_hitl_review():
+    """AgentOperator with HITL review — a human approves output via hitl-review plugin UI."""
+    AgentOperator(
+        task_id="summarize_with_review",
+        prompt="Summarize the Q4 sales report in 3 bullet points.",
+        llm_conn_id="pydantic_ai_default",
+        system_prompt="You are a concise business analyst.",
+        enable_hitl_review=True,
+        max_hitl_iterations=5,
+        hitl_timeout=timedelta(minutes=30),
+        hitl_poll_interval=10.0,
+    )
+
+
+# [END howto_operator_agent_hitl_review]
+
+example_agent_operator_hitl_review()

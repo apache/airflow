@@ -42,9 +42,11 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--updated-after",
                 "--updated-before",
                 "--include-collaborators",
+                "--include-drafts",
                 "--pending-approval-only",
                 "--checks-state",
                 "--min-commits-behind",
+                "--review-requested",
             ],
         },
         {

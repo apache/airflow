@@ -49,9 +49,6 @@ PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent
 PYPI_PACKAGE_JSON_URL = "https://pypi.org/pypi/{package_name}/json"
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 AIRFLOW_PROVIDER_DOCS_URL = "https://airflow.apache.org/docs/{package_name}/stable/"
-AIRFLOW_PROVIDER_CONNECTIONS_URL = (
-    "https://airflow.apache.org/docs/{package_name}/stable/connections/index.html"
-)
 AIRFLOW_PROVIDER_SOURCE_URL = (
     "https://github.com/apache/airflow/tree/providers-{provider_id}/{version}/providers/{provider_path}"
 )
@@ -103,15 +100,18 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
         return {"first_released": "", "last_updated": ""}
 
 
-def read_inventory(inv_path: Path) -> dict[str, str]:
-    """Parse a Sphinx objects.inv file and return {qualified_name: url_path} for py:class entries."""
+def _parse_inventory_lines(inv_path: Path) -> list[str]:
+    """Read and decompress the body of a Sphinx objects.inv file."""
     with inv_path.open("rb") as f:
-        # Skip the 4 header lines
         for _ in range(4):
             f.readline()
-        data = zlib.decompress(f.read()).decode("utf-8").splitlines()
+        return zlib.decompress(f.read()).decode("utf-8").splitlines()
+
+
+def read_inventory(inv_path: Path) -> dict[str, str]:
+    """Parse a Sphinx objects.inv file and return {qualified_name: url_path} for py:class entries."""
     result: dict[str, str] = {}
-    for line in data:
+    for line in _parse_inventory_lines(inv_path):
         parts = line.split(None, 4)
         if len(parts) != 5:
             continue
@@ -119,6 +119,39 @@ def read_inventory(inv_path: Path) -> dict[str, str]:
         if domain_role == "py:class":
             # "$" in location means "use the name as anchor"
             result[name] = location.replace("$", name)
+    return result
+
+
+def read_connection_urls(inv_path: Path) -> dict[str, str]:
+    """Parse a Sphinx objects.inv and return {conn_type: relative_url} for connection pages.
+
+    Uses two inventory entry types:
+    - ``std:label howto/connection:{conn_type}`` — maps conn_type directly to a page
+    - ``std:doc connections/{name}`` — fallback by matching conn_type to doc name
+    """
+    label_map: dict[str, str] = {}  # conn_type -> page URL (from std:label)
+    doc_map: dict[str, str] = {}  # doc_name -> page URL (from std:doc)
+    for line in _parse_inventory_lines(inv_path):
+        parts = line.split(None, 4)
+        if len(parts) != 5:
+            continue
+        name, domain_role, _prio, location, _dispname = parts
+        if domain_role == "std:label" and name.startswith("howto/connection:"):
+            label_key = name[len("howto/connection:") :]
+            # Skip sub-section labels like "gcp:configuring_the_connection"
+            if ":" not in label_key:
+                label_map[label_key] = location.split("#")[0]
+        elif domain_role == "std:doc" and name.startswith("connections/"):
+            doc_name = name[len("connections/") :]
+            if doc_name != "index":
+                doc_map[doc_name] = location
+
+    # Merge: label_map takes precedence, doc_map fills gaps
+    result: dict[str, str] = {}
+    result.update(label_map)
+    for doc_name, url in doc_map.items():
+        if doc_name not in result:
+            result[doc_name] = url
     return result
 
 
@@ -158,6 +191,18 @@ def fetch_provider_inventory(package_name: str, cache_dir: Path = INVENTORY_CACH
             print(f"    Using stale cache for {package_name}")
             return cache_path
         return None
+
+
+def resolve_connection_docs_url(conn_type: str, conn_url_map: dict[str, str], base_docs_url: str) -> str:
+    """Resolve the docs URL for a connection type using the inventory map.
+
+    Lookup order:
+    1. Exact match on conn_type in the inventory map
+    2. Fallback to connections/ directory listing
+    """
+    if conn_type in conn_url_map:
+        return f"{base_docs_url}/{conn_url_map[conn_type]}"
+    return f"{base_docs_url}/connections/"
 
 
 # Base paths
@@ -271,49 +316,6 @@ def extract_integrations_as_categories(provider_yaml: dict[str, Any]) -> list[Ca
             categories[cat_id] = Category(id=cat_id, name=name, module_count=0)
 
     return list(categories.values())
-
-
-def count_modules_by_type(provider_yaml: dict[str, Any]) -> dict[str, int]:
-    """Count modules by type from provider.yaml."""
-    counts = {
-        "operator": 0,
-        "hook": 0,
-        "sensor": 0,
-        "trigger": 0,
-        "transfer": 0,
-        "notifier": 0,
-        "secret": 0,
-        "logging": 0,
-        "executor": 0,
-        "bundle": 0,
-        "decorator": 0,
-    }
-
-    # Sections where each entry has a python-modules list
-    MODULE_LEVEL = {
-        "operators": "operator",
-        "hooks": "hook",
-        "sensors": "sensor",
-        "triggers": "trigger",
-        "bundles": "bundle",
-    }
-    for yaml_key, count_key in MODULE_LEVEL.items():
-        for group in provider_yaml.get(yaml_key, []):
-            counts[count_key] += len(group.get("python-modules", []))
-
-    # Sections where each entry is a single item (flat list or class path)
-    FLAT_LEVEL = {
-        "transfers": "transfer",
-        "notifications": "notifier",
-        "secrets-backends": "secret",
-        "logging": "logging",
-        "executors": "executor",
-        "task-decorators": "decorator",
-    }
-    for yaml_key, count_key in FLAT_LEVEL.items():
-        counts[count_key] = len(provider_yaml.get(yaml_key, []))
-
-    return counts
 
 
 def module_path_to_file_path(module_path: str, provider_path: Path) -> Path:
@@ -448,9 +450,6 @@ def main():
         versions = provider_yaml.get("versions", [])
         version = versions[0] if versions else "0.0.0"
 
-        # Count modules
-        module_counts = count_modules_by_type(provider_yaml)
-
         # Extract categories from integrations
         categories = extract_integrations_as_categories(provider_yaml)
 
@@ -483,8 +482,11 @@ def main():
 
         # Write logos to dev/registry/logos/ — this directory is mounted in
         # breeze (unlike registry/public/) so copies survive the container.
+        # Also copy to registry/public/logos/ for local dev convenience.
         logos_dest_dir = SCRIPT_DIR / "logos"
         logos_dest_dir.mkdir(parents=True, exist_ok=True)
+        registry_logos_dir = SCRIPT_DIR.parent.parent / "registry" / "public" / "logos"
+        registry_logos_dir.mkdir(parents=True, exist_ok=True)
 
         if integration_logos_dir.exists():
             # First, check for priority logos for known providers
@@ -529,10 +531,22 @@ def main():
                     shutil.copy2(logo_source, logo_dest)
                     logo = f"/logos/{provider_id}-{logo_source.name}"
 
+        # Also copy to registry/public/logos/ so local `pnpm dev` works without
+        # the extra CI copy step.
+        if logo:
+            logo_filename = logo.split("/")[-1]
+            src = logos_dest_dir / logo_filename
+            if src.exists():
+                shutil.copy2(src, registry_logos_dir / logo_filename)
+
         # Extract connection types from provider.yaml
-        # Link to the connections index page since individual connection pages might not exist
+        # Resolve per-connection docs URLs from Sphinx inventory when available
         connection_types = []
-        connections_index_url = AIRFLOW_PROVIDER_CONNECTIONS_URL.format(package_name=package_name)
+        base_docs_url = AIRFLOW_PROVIDER_DOCS_URL.format(package_name=package_name).rstrip("/")
+        conn_url_map: dict[str, str] = {}
+        inv_path = fetch_provider_inventory(package_name)
+        if inv_path:
+            conn_url_map = read_connection_urls(inv_path)
         for conn in provider_yaml.get("connection-types", []):
             conn_type = conn.get("connection-type", "")
             hook_class = conn.get("hook-class-name", "")
@@ -541,7 +555,7 @@ def main():
                     {
                         "conn_type": conn_type,
                         "hook_class": hook_class,
-                        "docs_url": connections_index_url,
+                        "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
                     }
                 )
 
@@ -568,7 +582,6 @@ def main():
             versions=versions,
             airflow_versions=airflow_versions,
             pypi_downloads=pypi_downloads,
-            module_counts=module_counts,
             categories=[asdict(c) for c in categories],
             connection_types=connection_types,
             requires_python=pyproject_data["requires_python"],
@@ -590,11 +603,30 @@ def main():
     for provider in all_providers:
         provider.related_providers = find_related_providers(provider.id, all_provider_yamls)
 
-    # Sort providers alphabetically by name
-    all_providers.sort(key=lambda p: p.name.lower())
-
     # Convert to JSON-serializable format
-    providers_json = {"providers": [asdict(p) for p in all_providers]}
+    new_providers = [asdict(p) for p in all_providers]
+
+    # In incremental mode, merge new providers into existing providers.json
+    # so parallel runs for different providers don't clobber each other.
+    if requested_providers:
+        new_by_id = {p["id"]: p for p in new_providers}
+        for out_dir in [SCRIPT_DIR, OUTPUT_DIR]:
+            existing_path = out_dir / "providers.json"
+            if existing_path.exists():
+                try:
+                    existing = json.loads(existing_path.read_text())
+                    merged = [new_by_id.pop(p["id"], p) for p in existing["providers"]]
+                    merged.extend(new_by_id.values())
+                    new_providers = merged
+                    print(
+                        f"Merged {len(all_providers)} updated + {len(merged) - len(all_providers)} existing providers"
+                    )
+                except (json.JSONDecodeError, KeyError):
+                    pass
+                break
+
+    new_providers.sort(key=lambda p: p["name"].lower())
+    providers_json = {"providers": new_providers}
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
@@ -608,7 +640,7 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "providers.json", "w") as f:
             json.dump(providers_json, f, indent=2)
-        print(f"\nWrote {len(all_providers)} providers to {out_dir}")
+        print(f"\nWrote {len(new_providers)} providers to {out_dir}")
 
     print("\nDone!")
 
