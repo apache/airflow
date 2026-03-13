@@ -106,7 +106,9 @@ def is_airflow_package(pkg_name: str) -> bool:
     return pkg_name.startswith("apache-airflow") or pkg_name in ["helm-chart", "docker-stack", "task-sdk"]
 
 
-def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = False) -> list[str]:
+def fetch_inventories(
+    clean_build: bool, exclude_inventory_urls: list[str], refresh_airflow_inventories: bool = False
+) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     if clean_build:
         shutil.rmtree(CACHE_PATH)
@@ -152,7 +154,9 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
     to_download = [
         (pkg_name, url, path)
         for pkg_name, url, path in to_download
-        if _is_outdated(path) or should_be_refreshed(pkg_name, refresh_airflow_inventories)
+        if _is_outdated(path)
+        or should_be_refreshed(pkg_name, refresh_airflow_inventories)
+        and url not in exclude_inventory_urls
     ]
     if not to_download:
         print("Nothing to do")

@@ -346,3 +346,13 @@ def get_available_packages(include_suspended: bool = False, short_form: bool = F
         "helm-chart",
         "docker-stack",
     ]
+
+
+def get_excluded_inventory_urls_for_availability() -> list[str]:
+    """Get list of inventory URLs that should be excluded from availability check."""
+    # Ideally this list should be empty and in case of any issues with third-party inventories,
+    # it gives flexibility to exclude them from availability checks without affecting the main Airflow inventories.
+    # Please add related issue or explain the reason above exclusion in the code comment for each excluded URL.
+    # Pandas exclusion https://github.com/pandas-dev/pandas/issues/64584
+
+    return ["https://pandas.pydata.org/docs/"]

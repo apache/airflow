@@ -42,6 +42,7 @@ from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH, GENERATED_PATH
 from sphinx_exts.docs_build.docs_builder import (
     AirflowDocsBuilder,
     get_available_packages,
+    get_excluded_inventory_urls_for_availability,
     get_long_form,
     get_short_form,
 )
@@ -551,6 +552,11 @@ click.rich_click.OPTION_GROUPS = {
     nargs=-1,
     type=BetterChoice(get_available_packages(short_form=True)),
 )
+@click.argument(
+    "--exclude-inventory-urls",
+    nargs=-1,
+    type=BetterChoice(get_excluded_inventory_urls_for_availability()),
+)
 def build_docs(
     autobuild,
     one_pass_only,
@@ -564,6 +570,7 @@ def build_docs(
     refresh_airflow_inventories,
     verbose,
     packages,
+    exclude_inventory_urls,
 ):
     """Builds documentation and runs spell checking for all distribution packages of airflow.."""
     if list_packages:
@@ -605,7 +612,9 @@ def build_docs(
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.
         packages_without_inventories = fetch_inventories(
-            clean_build=clean_build, refresh_airflow_inventories=refresh_airflow_inventories
+            clean_build=clean_build,
+            refresh_airflow_inventories=refresh_airflow_inventories,
+            exclude_inventory_urls=exclude_inventory_urls,
         )
     normal_packages, priority_packages = partition(
         lambda d: d in packages_without_inventories, packages_to_build
