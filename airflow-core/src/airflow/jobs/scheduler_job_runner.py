@@ -33,7 +33,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CTE, and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -96,6 +96,7 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Load, Query, Session
+    from sqlalchemy.sql.selectable import CTE
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
