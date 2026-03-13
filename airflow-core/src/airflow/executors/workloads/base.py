@@ -34,10 +34,9 @@ class WorkloadType(str, Enum):
 
     EXECUTE_TASK = "ExecuteTask"
     EXECUTE_CALLBACK = "ExecuteCallback"
-    RUN_TRIGGER = "RunTrigger"
 
 
-# Central priority registry: Tuple is ordered from highest priority to lowest.
+# Central executor priority registry: Tuple is ordered from highest priority to lowest.
 _workload_type_priority_order = (
     WorkloadType.EXECUTE_CALLBACK,
     WorkloadType.EXECUTE_TASK,

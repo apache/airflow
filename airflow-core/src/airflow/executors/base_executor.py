@@ -259,7 +259,7 @@ class BaseExecutor(LoggingMixin):
                 f"Add {workload.type!r} to supported_workload_types and implement handling "
                 f"in _process_workloads()."
             )
-        self.executor_queues[workload.type][workload.queue_key] = workload
+        self.executor_queues[workload.type][workload.queue_key] = workload  # type: ignore[union-attr]
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
         """
@@ -274,7 +274,7 @@ class BaseExecutor(LoggingMixin):
         all_workloads: list[tuple[WorkloadKey, workloads.All]] = [
             (key, workload) for queue in self.executor_queues.values() for key, workload in queue.items()
         ]
-        all_workloads.sort(key=lambda item: (workloads.WORKLOAD_TYPE_TIER[item[1].type], item[1].sort_key))
+        all_workloads.sort(key=lambda item: (workloads.WORKLOAD_TYPE_TIER[item[1].type], item[1].sort_key))  # type: ignore[union-attr]
         return all_workloads[:open_slots]
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
