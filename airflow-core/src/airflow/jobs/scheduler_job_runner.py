@@ -2673,7 +2673,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             ),
-            execution_options={"synchronize_session":"fetch"}
+            execution_options={"synchronize_session":"fetch"},
         )
 
         Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
