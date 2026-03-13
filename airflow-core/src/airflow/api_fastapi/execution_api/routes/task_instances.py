@@ -134,6 +134,9 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.queued_dttm,
+            TI.end_date,
+            TI.queue,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -226,6 +229,19 @@ def ti_run(
     try:
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
+
+        # Emit queued_duration metric (time spent in QUEUED state before RUNNING).
+        # Only on the first attempt (no end_date yet) and when queued_dttm is set.
+        if not ti.end_date and ti.queued_dttm:
+            from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+            queued_duration = timezone.utcnow() - ti.queued_dttm
+            DualStatsManager.timing(
+                "task.queued_duration",
+                queued_duration,
+                tags={},
+                extra_tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue or ""},
+            )
 
         dr = (
             session.scalars(
