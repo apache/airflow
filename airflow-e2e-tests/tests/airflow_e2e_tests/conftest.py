@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree
 
 import pytest
 from rich.console import Console
+from rich.text import Text
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
@@ -33,6 +35,7 @@ from airflow_e2e_tests.constants import (
     DOCKER_IMAGE,
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
+    ELASTICSEARCH_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
@@ -47,6 +50,7 @@ console = Console(width=400, color_system="standard")
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
     airflow_logs_path: Path | None = None
+    compose_project_dir: Path | None = None
 
 
 def _copy_localstack_files(tmp_dir):
@@ -56,6 +60,11 @@ def _copy_localstack_files(tmp_dir):
     copyfile(AWS_INIT_PATH, tmp_dir / "init-aws.sh")
     current_permissions = os.stat(tmp_dir / "init-aws.sh").st_mode
     os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
+
+
+def _copy_elasticsearch_files(tmp_dir):
+    """Copy Elasticsearch compose file into the temp directory."""
+    copyfile(ELASTICSEARCH_PATH, tmp_dir / "elasticsearch.yml")
 
 
 def _setup_s3_integration(dot_env_file, tmp_dir):
@@ -70,6 +79,21 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
         "AIRFLOW__LOGGING__DELETE_LOCAL_LOGS=true\n"
         "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://test-airflow-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_elasticsearch_integration(dot_env_file, tmp_dir):
+    _copy_elasticsearch_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW__ELASTICSEARCH__HOST=http://elasticsearch:9200\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_STDOUT=false\n"
+        "AIRFLOW__ELASTICSEARCH__JSON_FORMAT=true\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_TO_ES=true\n"
+        "AIRFLOW__ELASTICSEARCH__TARGET_INDEX=airflow-e2e-logs\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -97,6 +121,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
 
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
+    _E2ETestState.compose_project_dir = tmp_dir
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
     copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")
@@ -124,6 +149,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "remote_log_elasticsearch":
+        compose_file_names.append("elasticsearch.yml")
+        _setup_elasticsearch_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "xcom_object_storage":
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
@@ -155,8 +183,30 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         console.print("[red]Failed to start docker compose")
         if _E2ETestState.compose_instance:
             _print_logs(_E2ETestState.compose_instance)
+            # TO BE REMOVED: startup failures often happen in init/exited services that are missing
+            # from compose_instance.get_containers(), so print logs for expected services explicitly.
+            _print_expected_service_logs(
+                _E2ETestState.compose_instance,
+                [
+                    "airflow-init",
+                    "airflow-apiserver",
+                    "airflow-webserver",
+                    "airflow-scheduler",
+                    "airflow-dag-processor",
+                    "airflow-triggerer",
+                    "postgres",
+                    "redis",
+                    "elasticsearch",
+                ],
+            )
+            _print_compose_diagnostics(_E2ETestState.compose_instance)
             _E2ETestState.compose_instance.stop()
         raise
+
+
+def _print_plain_text(text: str, style: str = "red") -> None:
+    """Print docker output without Rich markup parsing."""
+    console.print(Text(text, style=style), soft_wrap=True)
 
 
 def _print_logs(compose_instance: DockerCompose):
@@ -166,8 +216,50 @@ def _print_logs(compose_instance: DockerCompose):
         if service:
             stdout, _ = compose_instance.get_logs(service)
             console.print(f"::group:: {service} Logs")
-            console.print(f"[red]{stdout}")
+            _print_plain_text(stdout)
             console.print("::endgroup::")
+
+
+def _print_expected_service_logs(compose_instance: DockerCompose, service_names: list[str]):
+    """TO BE REMOVED: print logs for expected compose services, including init/exited services."""
+    for service in service_names:
+        try:
+            stdout, _ = compose_instance.get_logs(service)
+        except Exception as exc:
+            console.print(f"[yellow]TO BE REMOVED: could not get logs for service {service}: {exc}")
+            continue
+        if stdout:
+            console.print(f"::group:: {service} Logs (expected service)")
+            _print_plain_text(stdout)
+            console.print("::endgroup::")
+
+
+def _print_compose_diagnostics(compose_instance: DockerCompose):
+    """TO BE REMOVED: print full docker compose diagnostics for startup failures."""
+    compose_cmd = compose_instance.compose_command_property or []
+    cwd = _E2ETestState.compose_project_dir
+    for title, suffix in (
+        ("docker compose config", ["config"]),
+        ("docker compose ps -a", ["ps", "-a"]),
+        ("docker compose logs --no-color", ["logs", "--no-color"]),
+    ):
+        try:
+            result = subprocess.run(
+                [*compose_cmd, *suffix],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=cwd,
+            )
+        except Exception as exc:
+            console.print(f"[yellow]TO BE REMOVED: could not run {title}: {exc}")
+            continue
+        console.print(f"::group:: TO BE REMOVED {title}")
+        if result.stdout:
+            _print_plain_text(result.stdout)
+        if result.stderr:
+            _print_plain_text(result.stderr)
+        console.print("::endgroup::")
 
 
 def pytest_sessionstart(session: pytest.Session):
