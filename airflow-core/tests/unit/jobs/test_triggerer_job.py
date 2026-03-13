@@ -45,6 +45,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
+    _prepare_span,
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
@@ -498,6 +499,151 @@ class TestTriggerRunner:
 
         assert len(first_call.events) == 3
         assert len(second_call.events) == 2
+
+
+class TestPrepareSpan:
+    """Tests for _prepare_span which creates OTel spans for trigger execution."""
+
+    def _make_ti(self, **overrides):
+        from airflow.executors.workloads.task import TaskInstanceDTO
+
+        defaults = {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "dag_version_id": "00000000-0000-0000-0000-000000000002",
+            "task_id": "my_task",
+            "dag_id": "my_dag",
+            "run_id": "run_1",
+            "try_number": 1,
+            "map_index": -1,
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
+            "context_carrier": None,
+        }
+        defaults.update(overrides)
+        return TaskInstanceDTO(**defaults)
+
+    def test_span_name_from_task_id(self):
+        """Span name should be derived from task_id when TI is provided."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        test_tracer = provider.get_tracer("test")
+
+        ti = self._make_ti()
+        with patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            with _prepare_span(ti=ti, trigger_id=99, name="test_trigger"):
+                pass
+
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].name == "trigger_run.my_task"
+
+    def test_span_name_includes_map_index(self):
+        """Span name should include map_index suffix for mapped tasks."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        test_tracer = provider.get_tracer("test")
+
+        ti = self._make_ti(map_index=3)
+        with patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            with _prepare_span(ti=ti, trigger_id=99, name="test_trigger"):
+                pass
+
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].name == "trigger_run.my_task_3"
+
+    def test_span_attributes(self):
+        """Span should have correct airflow attributes."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        test_tracer = provider.get_tracer("test")
+
+        ti = self._make_ti()
+        with patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            with _prepare_span(ti=ti, trigger_id=99, name="my_dag/run_1/my_task/-1/1 (ID 5)"):
+                pass
+
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        attrs = dict(spans[0].attributes)
+        assert attrs == {
+            "airflow.dag_id": "my_dag",
+            "airflow.task_id": "my_task",
+            "airflow.dag_run.run_id": "run_1",
+            "airflow.task_instance.try_number": 1,
+            "airflow.task_instance.map_index": -1,
+            "airflow.trigger.name": "my_dag/run_1/my_task/-1/1 (ID 5)",
+        }
+
+    def test_span_inherits_parent_trace_from_context_carrier(self):
+        """When context_carrier is set, the span should be a child of that trace."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        test_tracer = provider.get_tracer("test")
+
+        # Create a parent span and extract its context_carrier
+        parent_carrier: dict[str, str] = {}
+        with test_tracer.start_as_current_span("parent_dag_run") as parent_span:
+            TraceContextTextMapPropagator().inject(parent_carrier)
+            parent_trace_id = parent_span.get_span_context().trace_id
+
+        exporter.clear()
+
+        ti = self._make_ti(context_carrier=parent_carrier)
+        with patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            with _prepare_span(ti=ti, trigger_id=99, name="test_trigger"):
+                pass
+
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].context.trace_id == parent_trace_id
+
+    def test_span_without_context_carrier_starts_new_trace(self):
+        """When context_carrier is None, a new trace should be started."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        test_tracer = provider.get_tracer("test")
+
+        # Create a span with a known trace_id to ensure the trigger span is different
+        with test_tracer.start_as_current_span("other_trace") as other_span:
+            other_trace_id = other_span.get_span_context().trace_id
+        exporter.clear()
+
+        ti = self._make_ti(context_carrier=None)
+        with patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            with _prepare_span(ti=ti, trigger_id=99, name="test_trigger"):
+                pass
+
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].context.trace_id != other_trace_id
 
 
 @pytest.mark.asyncio
