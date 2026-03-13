@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
@@ -37,9 +38,18 @@ class IBMMQHook(BaseHook):
     conn_type = "mq"
     hook_name = "IBM MQ"
 
-    def __init__(self, conn_id: str = default_conn_name):
+    def __init__(
+        self,
+        conn_id: str = default_conn_name,
+        queue_manager: str | None = None,
+        channel: str | None = None,
+        open_options: int | None = None,
+    ):
         super().__init__()
         self.conn_id = conn_id
+        self.queue_manager = queue_manager
+        self.channel = channel
+        self.open_options = open_options
         self._conn = None
 
     @classmethod
@@ -55,6 +65,7 @@ class IBMMQHook(BaseHook):
                     {
                         "queue_manager": "QM1",
                         "channel": "DEV.APP.SVRCONN",
+                        "open_options": "MQOO_INPUT_EXCLUSIVE",
                     },
                     indent=2,
                 ),
@@ -62,7 +73,32 @@ class IBMMQHook(BaseHook):
         }
 
     @classmethod
-    def _connect(cls, conn: Connection):
+    def get_open_options_flags(cls, open_options: int) -> list[str]:
+        """
+        Return the symbolic MQ open option flags set in a given bitmask.
+
+        Each flag corresponds to a constant in `ibmmq.CMQC` that starts with 'MQOO_'.
+
+        :param open_options: The integer bitmask used when opening an MQ queue
+                             (e.g., `MQOO_INPUT_EXCLUSIVE | MQOO_FAIL_IF_QUIESCING`).
+
+        :return: A list of the names of the MQ open flags that are set in the bitmask.
+                 For example, ['MQOO_INPUT_EXCLUSIVE', 'MQOO_FAIL_IF_QUIESCING'].
+
+        Example:
+            >>> open_options = ibmmq.CMQC.MQOO_INPUT_SHARED | ibmmq.CMQC.MQOO_FAIL_IF_QUIESCING
+            >>> cls.get_open_options_flags(open_options)
+            ['MQOO_INPUT_SHARED', 'MQOO_FAIL_IF_QUIESCING']
+        """
+        import ibmmq
+
+        return [
+            name
+            for name, value in vars(ibmmq.CMQC).items()
+            if name.startswith("MQOO_") and (open_options & value)
+        ]
+
+    def _connect(self, conn: Connection):
         import ibmmq
 
         csp = ibmmq.CSP()
@@ -71,9 +107,20 @@ class IBMMQHook(BaseHook):
 
         config = conn.extra_dejson
 
+        if not self.queue_manager:
+            self.queue_manager = config["queue_manager"]
+        if not self.channel:
+            self.channel = config["channel"]
+        if not self.open_options:
+            self.open_options = getattr(
+                ibmmq.CMQC,
+                config.get("open_options", "MQOO_INPUT_EXCLUSIVE"),
+                ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
+            )
+
         return ibmmq.connect(
-            config["queue_manager"],
-            config["channel"],
+            self.queue_manager,
+            self.channel,
             f"{conn.host}({conn.port})",
             csp=csp,
         )
@@ -147,21 +194,27 @@ class IBMMQHook(BaseHook):
 
         try:
             async with self.get_conn() as qmgr:
+                if self.log.isEnabledFor(logging.INFO):
+                    flag_names = self.get_open_options_flags(self.open_options)
+                    self.log.info(
+                        "Opening MQ queue '%s' with open_options=%s (%s)",
+                        queue_name,
+                        self.open_options,
+                        ", ".join(flag_names),
+                    )
+
                 q = ibmmq.Queue(
                     qmgr,
                     od,
-                    ibmmq.CMQC.MQOO_INPUT_AS_Q_DEF,
+                    self.open_options,
                 )
 
-                async_get = sync_to_async(q.get)
+                async_get = sync_to_async(q.get, thread_sensitive=False)
 
                 try:
                     while True:
                         try:
-                            message = await asyncio.wait_for(
-                                async_get(None, md, gmo),
-                                timeout=poll_interval + 1,
-                            )
+                            message = await async_get(None, md, gmo)
 
                             if message:
                                 return self._process_message(message)
@@ -173,9 +226,16 @@ class IBMMQHook(BaseHook):
                                 continue
                             if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
                                 self.log.warning(
-                                    "MQ connection broken, will exit consume; next trigger instance will reconnect"
+                                    "MQ connection broken on queue '%s', will exit consume; next trigger instance will reconnect",
+                                    queue_name,
                                 )
                                 return None
+                            self.log.error(
+                                "IBM MQ error on queue '%s': completion_code=%s reason_code=%s",
+                                queue_name,
+                                e.comp,
+                                e.reason,
+                            )
                             raise
 
                 finally:
@@ -185,7 +245,10 @@ class IBMMQHook(BaseHook):
         except asyncio.CancelledError:
             raise
         except Exception:
-            self.log.exception("MQ consume failed, exiting; next trigger instance will retry")
+            self.log.exception(
+                "MQ consume failed on queue '%s', exiting; next trigger instance will retry",
+                queue_name,
+            )
             return None
 
     async def produce(self, queue_name: str, payload: str) -> None:
@@ -217,7 +280,7 @@ class IBMMQHook(BaseHook):
                 ibmmq.CMQC.MQOO_OUTPUT,
             )
 
-            async_put = sync_to_async(q.put)
+            async_put = sync_to_async(q.put, thread_sensitive=False)
 
             try:
                 await async_put(payload.encode("utf-8"), md)
