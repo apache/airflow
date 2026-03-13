@@ -1044,7 +1044,7 @@ class DagRun(Base, LoggingMixin):
             span.add_event(
                 "airflow.dag_run.start_time",
                 attributes=attributes,
-                timestamp=int(self.start_date.timestamp() * 1e9),
+                timestamp=int((self.start_date.timestamp() or timezone.utcnow()) * 1e9),
             )
             span.end()
 
