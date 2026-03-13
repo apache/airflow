@@ -21,16 +21,17 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap, TaskMapVariant
 from airflow.providers.standard.operators.empty import EmptyOperator
+
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
 
 def test_task_map_from_task_instance_xcom():
     task = EmptyOperator(task_id="test_task")
-    ti = TaskInstance(task=task, run_id="test_run", map_index=0, dag_version_id=mock.MagicMock())
+    ti = create_task_instance(task=task, run_id="test_run", map_index=0, dag_version_id=mock.MagicMock())
     ti.dag_id = "test_dag"
     value = {"key1": "value1", "key2": "value2"}
 
@@ -51,7 +52,7 @@ def test_task_map_from_task_instance_xcom():
 
 def test_task_map_with_invalid_task_instance():
     task = EmptyOperator(task_id="test_task")
-    ti = TaskInstance(task=task, run_id=None, map_index=0, dag_version_id=mock.MagicMock())
+    ti = create_task_instance(task=task, run_id=None, map_index=0, dag_version_id=mock.MagicMock())
     ti.dag_id = "test_dag"
 
     # Define some arbitrary XCom-like value data

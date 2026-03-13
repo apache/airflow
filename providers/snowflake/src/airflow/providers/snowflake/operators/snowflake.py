@@ -23,8 +23,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -35,11 +34,7 @@ from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiH
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):
@@ -76,8 +71,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         Template references are recognized by str ending in '.sql'
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :param autocommit: if True, each command is automatically committed.
-        (default value: True)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
@@ -109,8 +102,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         sql: str,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -179,8 +170,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         tolerance: Any = None,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -202,7 +191,12 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
                 **hook_params,
             }
         super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+            sql=sql,
+            pass_value=pass_value,
+            tolerance=tolerance,
+            conn_id=snowflake_conn_id,
+            parameters=parameters,
+            **kwargs,
         )
         self.query_ids: list[str] = []
 
@@ -259,9 +253,6 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -301,12 +292,17 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
-    This Operator currently uses key pair authentication, so you need to provide private key raw content or
-    private key file path in the snowflake connection along with other details
+
+    The operator supports the following authentication methods via the Snowflake connection:
+
+    - **Key pair**: provide ``private_key_file`` or ``private_key_content`` in the connection extras.
+    - **OAuth**: provide ``refresh_token``, ``client_id``, and ``client_secret`` in the connection extras.
+    - **Programmatic Access Token (PAT)**: set ``authenticator`` to ``programmatic_access_token`` in
+      the connection extras and put the PAT value in the connection ``password`` field.
 
     .. seealso::
 
-        `Snowflake SQL API key pair Authentication <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating.html#label-sql-api-authenticating-key-pair>`_
+        `Snowflake SQL API Authentication <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating>`_
 
     Where can this operator fit in?
          - To execute multiple SQL statements in a single request
@@ -521,3 +517,10 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                     self._hook.query_ids = self.query_ids
         else:
             self.log.info("%s completed successfully.", self.task_id)
+
+    def on_kill(self) -> None:
+        """Cancel the running query."""
+        if self.query_ids:
+            self.log.info("Cancelling the query ids %s", self.query_ids)
+            self._hook.cancel_queries(self.query_ids)
+            self.log.info("Query ids %s cancelled successfully", self.query_ids)

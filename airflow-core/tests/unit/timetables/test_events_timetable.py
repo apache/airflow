@@ -21,9 +21,9 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import utc
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
-from airflow.utils.timezone import utc
 
 BEFORE_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # Precedes all events
 START_DATE = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
@@ -65,11 +65,13 @@ def restricted_timetable():
 
 
 @pytest.mark.parametrize(
-    "start, end",
+    ("start", "end"),
     list(zip(EVENT_DATES, EVENT_DATES)),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
-    expected_info = DagRunInfo(run_after=end, data_interval=DataInterval(start, end))
+    expected_info = DagRunInfo(
+        run_after=end, data_interval=DataInterval(start, end), partition_date=None, partition_key=None
+    )
     assert DagRunInfo.interval(start, end) == expected_info
 
 
@@ -101,7 +103,7 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, expected_next_info",
+    ("last_automated_data_interval", "expected_next_info"),
     [
         pytest.param(None, DagRunInfo.interval(START_DATE, START_DATE)),
         pytest.param(
@@ -212,8 +214,8 @@ def test_timetable_after_serialization_is_the_same():
 
 def test_timetable_without_description_after_serialization_is_the_same():
     timetable = EventsTimetable(event_dates=EVENT_DATES, presorted=True)
-    summary = f"{timetable.summary}"
-    description = f"{timetable.description}"
+    summary = timetable.summary
+    description = timetable.description
     assert timetable.event_dates == EVENT_DATES
 
     deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())

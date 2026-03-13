@@ -39,6 +39,7 @@ TEST_ENVIRONMENT_DB: dict[str, str | list[str]] = {
     "name": "Test environment",
     "options": [
         "--backend",
+        "--custom-db-url",
         "--no-db-cleanup",
         "--python",
         "--postgres-version",
@@ -148,15 +149,25 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Task SDK Tests",
-        "commands": ["task-sdk-tests"],
+        "commands": ["task-sdk-tests", "task-sdk-integration-tests"],
     },
     {
-        "name": "Airflow CTL Tests",
-        "commands": ["airflow-ctl-tests"],
+        "name": "airflowctl Tests",
+        "commands": ["airflow-ctl-tests", "airflow-ctl-integration-tests"],
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
+        "commands": [
+            "system-tests",
+            "helm-tests",
+            "docker-compose-tests",
+            "python-api-client-tests",
+            "airflow-e2e-tests",
+        ],
+    },
+    {
+        "name": "UI Tests",
+        "commands": ["ui-e2e-tests"],
     },
 ]
 
@@ -184,12 +195,50 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         TEST_ADVANCED_FLAGS,
     ],
+    "breeze testing task-sdk-integration-tests": [
+        {
+            "name": "Docker-compose tests flag",
+            "options": [
+                "--image-name",
+                "--python",
+                "--task-sdk-version",
+                "--skip-docker-compose-deletion",
+                "--skip-mounting-local-volumes",
+                "--down",
+            ],
+        },
+        {
+            "name": "Common CI options",
+            "options": [
+                "--include-success-outputs",
+                "--github-repository",
+            ],
+        },
+    ],
     "breeze testing airflow-ctl-tests": [
         {
             "name": "Test environment",
             "options": [
                 "--python",
                 "--parallelism",
+            ],
+        },
+    ],
+    "breeze testing airflow-ctl-integration-tests": [
+        {
+            "name": "Docker-compose tests flag",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--airflow-ctl-version",
+            ],
+        },
+        {
+            "name": "Common CI options",
+            "options": [
+                "--include-success-outputs",
+                "--github-repository",
             ],
         },
     ],
@@ -217,6 +266,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--test-type",
                 "--test-timeout",
+                "--kubernetes-version",
                 "--use-xdist",
                 "--parallelism",
             ],
@@ -252,5 +302,55 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
+    ],
+    "breeze testing airflow-e2e-tests": [
+        {
+            "name": "Airflow E2E tests flags",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--include-success-outputs",
+                "--github-repository",
+                "--e2e-test-mode",
+            ],
+        }
+    ],
+    "breeze testing ui-e2e-tests": [
+        {
+            "name": "Docker image options",
+            "options": [
+                "--python",
+                "--image-name",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "UI End-to-End test options",
+            "options": [
+                "--browser",
+                "--headed",
+                "--debug-e2e",
+                "--ui-mode",
+                "--test-pattern",
+                "--workers",
+                "--timeout",
+                "--reporter",
+            ],
+        },
+        {
+            "name": "Test environment for UI tests",
+            "options": [
+                "--airflow-ui-base-url",
+                "--test-admin-username",
+                "--test-admin-password",
+            ],
+        },
+        {
+            "name": "Advanced flags for UI e2e tests",
+            "options": [
+                "--force-reinstall-deps",
+            ],
+        },
     ],
 }

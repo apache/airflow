@@ -19,20 +19,18 @@
 
 from __future__ import annotations
 
-import uuid
+import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from sqlalchemy import (
-    Column,
     ForeignKey,
+    Index,
     Integer,
-    String,
-    asc,
-    desc,
+    Uuid,
     select,
 )
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -49,16 +47,18 @@ class TaskReschedule(Base):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
-    id = Column(Integer, primary_key=True)
-    ti_id = Column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         ForeignKey("task_instance.id", ondelete="CASCADE", name="task_reschedule_ti_fkey"),
         nullable=False,
     )
-    start_date = Column(UtcDateTime, nullable=False)
-    end_date = Column(UtcDateTime, nullable=False)
-    duration = Column(Integer, nullable=False)
-    reschedule_date = Column(UtcDateTime, nullable=False)
+    start_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+    duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    reschedule_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+
+    __table_args__ = (Index("idx_task_reschedule_ti_id_id_desc", ti_id, id.desc()),)
 
     task_instance = relationship(
         "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
@@ -66,7 +66,7 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        ti_id: uuid.UUID,
+        ti_id: UUID,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
@@ -75,7 +75,7 @@ class TaskReschedule(Base):
         self.start_date = start_date
         self.end_date = end_date
         self.reschedule_date = reschedule_date
-        self.duration = (self.end_date - self.start_date).total_seconds()
+        self.duration = int((self.end_date - self.start_date).total_seconds())
 
     @classmethod
     def stmt_for_task_instance(
@@ -91,4 +91,4 @@ class TaskReschedule(Base):
         :param descending: If True then records are returned in descending order
         :meta private:
         """
-        return select(cls).where(cls.ti_id == ti.id).order_by(desc(cls.id) if descending else asc(cls.id))
+        return select(cls).where(cls.ti_id == ti.id).order_by(cls.id.desc() if descending else cls.id.asc())

@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 import boto3
 
@@ -36,19 +36,18 @@ from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2.10 compat
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -59,6 +58,7 @@ ROLE_ARN_KEY = "ROLE_ARN"
 JOB_ROLE_ARN_KEY = "JOB_ROLE_ARN"
 JOB_ROLE_NAME_KEY = "JOB_ROLE_NAME"
 SUBNETS_KEY = "SUBNETS"
+UPDATE_TRUST_POLICY_WAIT_TIME_KEY = "UPDATE_TRUST_POLICY_WAIT_TIME"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -66,6 +66,7 @@ sys_test_context_task = (
     .add_variable(JOB_ROLE_ARN_KEY)
     .add_variable(JOB_ROLE_NAME_KEY)
     .add_variable(SUBNETS_KEY, split_string=True)
+    .add_variable(UPDATE_TRUST_POLICY_WAIT_TIME_KEY, optional=True, default_value="10")
     .build()
 )
 
@@ -125,7 +126,7 @@ def run_eksctl_commands(cluster_name, ns):
         raise RuntimeError(err)
 
 
-@task
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_iam_oidc_identity_provider(cluster_name):
     oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
         name=cluster_name,
@@ -139,7 +140,7 @@ def delete_iam_oidc_identity_provider(cluster_name):
 
 
 @task
-def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name):
+def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name, wait_time):
     # Remove any already existing trusted entities added with "update-role-trust-policy"
     # Prevent getting an error "Cannot exceed quota for ACLSizePerRole"
     client = boto3.client("iam")
@@ -175,6 +176,9 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     if build.returncode != 0:
         raise RuntimeError(err)
 
+    # Wait for IAM changes to propagate to avoid authentication failures
+    time.sleep(int(wait_time))
+
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_virtual_cluster(virtual_cluster_id):
@@ -187,7 +191,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -196,6 +199,7 @@ with DAG(
     subnets = test_context[SUBNETS_KEY]
     job_role_arn = test_context[JOB_ROLE_ARN_KEY]
     job_role_name = test_context[JOB_ROLE_NAME_KEY]
+    update_trust_policy_wait_time = test_context[UPDATE_TRUST_POLICY_WAIT_TIME_KEY]
 
     s3_bucket_name = f"{env_id}-bucket"
     eks_cluster_name = f"{env_id}-cluster"
@@ -319,7 +323,9 @@ with DAG(
         create_cluster_and_nodegroup,
         await_create_nodegroup,
         run_eksctl_commands(eks_cluster_name, eks_namespace),
-        update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
+        update_trust_policy_execution_role(
+            eks_cluster_name, eks_namespace, job_role_name, update_trust_policy_wait_time
+        ),
         # TEST BODY
         create_emr_eks_cluster,
         job_starter,

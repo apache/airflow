@@ -42,10 +42,10 @@ export const useEditVariable = (
     });
 
     toaster.create({
-      description: translate("toaster.edit.success.description", {
+      description: translate("toaster.update.success.description", {
         resourceName: translate("admin:variables.variable_one"),
       }),
-      title: translate("toaster.edit.success.title", {
+      title: translate("toaster.update.success.title", {
         resourceName: translate("admin:variables.variable_one"),
       }),
       type: "success",
@@ -63,24 +63,28 @@ export const useEditVariable = (
     onSuccess,
   });
 
-  const editVariable = (addVariableRequestBody: VariableBody) => {
+  const editVariable = (editVariableRequestBody: VariableBody) => {
     const updateMask: Array<string> = [];
 
-    if (addVariableRequestBody.value !== initialVariable.value) {
+    if (editVariableRequestBody.value !== initialVariable.value) {
       updateMask.push("value");
     }
-    if (addVariableRequestBody.description !== initialVariable.description) {
+    if (editVariableRequestBody.description !== initialVariable.description) {
       updateMask.push("description");
+    }
+    if (editVariableRequestBody.team_name !== initialVariable.team_name) {
+      updateMask.push("team_name");
     }
 
     const parsedDescription =
-      addVariableRequestBody.description === "" ? undefined : addVariableRequestBody.description;
+      editVariableRequestBody.description === "" ? undefined : editVariableRequestBody.description;
 
     mutate({
       requestBody: {
         description: parsedDescription,
-        key: addVariableRequestBody.key,
-        value: addVariableRequestBody.value,
+        key: editVariableRequestBody.key,
+        team_name: editVariableRequestBody.team_name,
+        value: editVariableRequestBody.value,
       },
       updateMask,
       variableKey: initialVariable.key,

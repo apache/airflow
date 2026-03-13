@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from functools import cached_property
 
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.notifier import BaseNotifier
 
 
@@ -60,8 +61,13 @@ class SnsNotifier(BaseNotifier):
         subject: str | None = None,
         message_attributes: dict | None = None,
         region_name: str | None = None,
+        **kwargs,
     ):
-        super().__init__()
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.target_arn = target_arn
@@ -77,6 +83,15 @@ class SnsNotifier(BaseNotifier):
     def notify(self, context):
         """Publish the notification message to Amazon SNS."""
         self.hook.publish_to_target(
+            target_arn=self.target_arn,
+            message=self.message,
+            subject=self.subject,
+            message_attributes=self.message_attributes,
+        )
+
+    async def async_notify(self, context):
+        """Publish the notification message to Amazon SNS (async)."""
+        await self.hook.apublish_to_target(
             target_arn=self.target_arn,
             message=self.message,
             subject=self.subject,

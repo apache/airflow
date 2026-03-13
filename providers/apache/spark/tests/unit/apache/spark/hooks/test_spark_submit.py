@@ -25,9 +25,9 @@ from unittest.mock import call, mock_open, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSparkSubmitHook:
@@ -167,12 +167,43 @@ class TestSparkSubmitHook:
                 extra='{"keytab": "privileged_user.keytab"}',
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_with_protocol",
+                uri="spark://spark-master:7077",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_yarn",
+                uri="yarn://yarn-master",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="mesos_uri",
+                uri="mesos://mesos-host:5050",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="k8s_uri",
+                uri="k8s://https://k8s-host:443",
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
+                conn_id="local_uri",
+                uri="spark://local",
+            )
+        )
 
     @pytest.mark.db_test
     @patch(
         "airflow.providers.apache.spark.hooks.spark_submit.os.getenv", return_value="/tmp/airflow_krb5_ccache"
     )
-    def test_build_spark_submit_command(self, mock_get_env):
+    def test_build_spark_submit_command(self, mock_get_env, sdk_connection_not_found):
         # Given
         hook = SparkSubmitHook(**self._config)
 
@@ -291,13 +322,14 @@ class TestSparkSubmitHook:
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
-    def test_spark_process_runcmd(self, mock_popen):
+    def test_spark_process_runcmd(self, mock_popen, sdk_connection_not_found):
         # Given
         mock_popen.return_value.stdout = StringIO("stdout")
         mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When
+
         hook = SparkSubmitHook(conn_id="")
         hook.submit()
 
@@ -311,7 +343,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.db_test
-    def test_resolve_should_track_driver_status(self):
+    def test_resolve_should_track_driver_status(self, sdk_connection_not_found):
         # Given
         hook_default = SparkSubmitHook(conn_id="")
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
@@ -347,7 +379,7 @@ class TestSparkSubmitHook:
         assert should_track_driver_status_spark_standalone_cluster is True
 
     @pytest.mark.db_test
-    def test_resolve_connection_yarn_default(self):
+    def test_resolve_connection_yarn_default(self, sdk_connection_not_found):
         # Given
         hook = SparkSubmitHook(conn_id="")
 
@@ -531,15 +563,43 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
 
+    def test_resolve_connection_spark_uri_with_protocol(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_with_protocol")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "spark://spark-master:7077"
+
+    def test_resolve_connection_spark_uri_yarn(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_yarn")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "yarn://yarn-master"
+
+    def test_resolve_connection_mesos_uri(self):
+        hook = SparkSubmitHook(conn_id="mesos_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "mesos://mesos-host:5050"
+
+    def test_resolve_connection_k8s_uri(self):
+        hook = SparkSubmitHook(conn_id="k8s_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "k8s://https://k8s-host:443"
+
+    def test_resolve_connection_local_uri(self):
+        hook = SparkSubmitHook(conn_id="local_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "local"
+
     def test_resolve_connection_custom_spark_binary_allowed_in_hook(self):
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
 
     def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(
+            ValueError,
+            match="Please make sure your spark binary is one of the allowed ones and that it is available on the PATH",
+        ):
             SparkSubmitHook(conn_id="spark_custom_binary_set")
 
     def test_resolve_connection_spark_home_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError, match="The `spark-home` extra is not allowed any more"):
             SparkSubmitHook(conn_id="spark_home_set")
 
     def test_resolve_connection_spark_binary_default_value_override(self):
@@ -1012,7 +1072,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.parametrize(
-        "command, expected",
+        ("command", "expected"),
         [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),

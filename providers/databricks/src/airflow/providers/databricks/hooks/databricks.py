@@ -20,9 +20,9 @@ Databricks hook.
 
 This hook enable the submitting and running of jobs to the Databricks platform. Internally the
 operators talk to the
-``api/2.1/jobs/run-now``
+``api/2.2/jobs/run-now``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>_`
-or the ``api/2.1/jobs/runs/submit``
+or the ``api/2.2/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
 
@@ -34,25 +34,26 @@ from typing import Any
 
 from requests import exceptions as requests_exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-GET_CLUSTER_ENDPOINT = ("GET", "2.0/clusters/get")
-RESTART_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/delete")
+GET_CLUSTER_ENDPOINT = ("GET", "2.1/clusters/get")
+RESTART_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/delete")
 
-CREATE_ENDPOINT = ("POST", "2.1/jobs/create")
-RESET_ENDPOINT = ("POST", "2.1/jobs/reset")
-UPDATE_ENDPOINT = ("POST", "2.1/jobs/update")
-RUN_NOW_ENDPOINT = ("POST", "2.1/jobs/run-now")
-SUBMIT_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/submit")
-GET_RUN_ENDPOINT = ("GET", "2.1/jobs/runs/get")
-CANCEL_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/cancel")
-DELETE_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/delete")
-REPAIR_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/repair")
-OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.1/jobs/runs/get-output")
-CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.1/jobs/runs/cancel-all")
+CREATE_ENDPOINT = ("POST", "2.2/jobs/create")
+RESET_ENDPOINT = ("POST", "2.2/jobs/reset")
+UPDATE_ENDPOINT = ("POST", "2.2/jobs/update")
+RUN_NOW_ENDPOINT = ("POST", "2.2/jobs/run-now")
+SUBMIT_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/submit")
+GET_RUN_ENDPOINT = ("GET", "2.2/jobs/runs/get")
+CANCEL_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/cancel")
+DELETE_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/delete")
+REPAIR_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/repair")
+OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.2/jobs/runs/get-output")
+CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.2/jobs/runs/cancel-all")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
@@ -60,13 +61,13 @@ UPDATE_REPO_ENDPOINT = ("PATCH", "2.0/repos/")
 DELETE_REPO_ENDPOINT = ("DELETE", "2.0/repos/")
 CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
-LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
+LIST_JOBS_ENDPOINT = ("GET", "2.2/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/warehouses")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
-SPARK_VERSIONS_ENDPOINT = ("GET", "2.0/clusters/spark-versions")
+SPARK_VERSIONS_ENDPOINT = ("GET", "2.1/clusters/spark-versions")
 SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
 
 
@@ -134,6 +135,9 @@ class RunState:
             and self.state_message == other.state_message
         )
 
+    def __hash__(self):
+        return hash((self.life_cycle_state, self.result_state, self.state_message))
+
     def __repr__(self) -> str:
         return str(self.__dict__)
 
@@ -182,6 +186,9 @@ class ClusterState:
 
     def __eq__(self, other) -> bool:
         return self.state == other.state and self.state_message == other.state_message
+
+    def __hash__(self):
+        return hash((self.state, self.state_message))
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -244,6 +251,9 @@ class SQLStatementState:
             and self.error_message == other.error_message
         )
 
+    def __hash__(self):
+        return hash((self.state, self.error_code, self.error_message))
+
     def __repr__(self) -> str:
         return str(self.__dict__)
 
@@ -284,7 +294,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def create_job(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/create`` endpoint.
+        Call the ``api/2.2/jobs/create`` endpoint.
 
         :param json: The data used in the body of the request to the ``create`` endpoint.
         :return: the job_id as an int
@@ -294,15 +304,25 @@ class DatabricksHook(BaseDatabricksHook):
 
     def reset_job(self, job_id: str, json: dict) -> None:
         """
-        Call the ``api/2.1/jobs/reset`` endpoint.
+        Call the ``api/2.2/jobs/reset`` endpoint.
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
+        access_control_list = json.get("access_control_list", None)
+        if access_control_list:
+            self.log.info(
+                "Updating job permission for Databricks workflow job id %s with access_control_list %s",
+                job_id,
+                access_control_list,
+            )
+            acl_json = {"access_control_list": access_control_list}
+            self.update_job_permission(job_id=int(job_id), json=acl_json)
+
         self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def update_job(self, job_id: str, json: dict) -> None:
         """
-        Call the ``api/2.1/jobs/update`` endpoint.
+        Call the ``api/2.2/jobs/update`` endpoint.
 
         :param job_id: The id of the job to update.
         :param json: The data used in the new_settings of the request to the ``update`` endpoint.
@@ -311,7 +331,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/run-now`` endpoint.
+        Call the ``api/2.2/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -321,7 +341,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/runs/submit`` endpoint.
+        Call the ``api/2.2/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
@@ -366,9 +386,9 @@ class DatabricksHook(BaseDatabricksHook):
                 all_jobs += [j for j in jobs if j["settings"]["name"] == job_name]
             else:
                 all_jobs += jobs
-            has_more = response.get("has_more", False)
-            if has_more:
-                page_token = response.get("next_page_token", "")
+            # issue-59189: API v2.2 removes "has_more" field
+            page_token = response.get("next_page_token", "")
+            has_more = bool(page_token)
 
         return all_jobs
 
@@ -514,6 +534,31 @@ class DatabricksHook(BaseDatabricksHook):
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         state = response["state"]
         return RunState(**state)
+
+    def get_run_tasks(self, run_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieve list of tasks performed by the run.
+
+        :param run_id: id of the run
+        :return: A list of tasks
+        """
+        has_more = True
+        all_tasks = []
+        page_token = ""
+        json: dict[str, Any] = {"run_id": run_id}
+
+        while has_more:
+            if page_token:
+                json = {**json, "page_token": page_token}
+            response = self._do_api_call(GET_RUN_ENDPOINT, json)
+            tasks = response.get("tasks", [])
+            all_tasks += tasks
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+
+        return all_tasks
 
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
@@ -771,7 +816,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
-        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
+        return self._do_api_call(("PATCH", f"2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
         """
@@ -781,7 +826,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: The statement_id as a string.
         """
         response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
-        return response["statement_id"]
+        statement_id = response["statement_id"]
+        if (sql_statement := json.get("statement")) is not None:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql_statement,
+                sql_parameters=json.get("parameters"),
+                job_id=statement_id,
+                default_db=json.get("catalog"),
+                default_schema=json.get("schema"),
+            )
+        return statement_id
 
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """
@@ -833,3 +888,29 @@ class DatabricksHook(BaseDatabricksHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, _):
+        """Return Databricks-specific database info for OpenLineage namespace resolution."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=f"{self.host}{port}",
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "databricks"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return "default"

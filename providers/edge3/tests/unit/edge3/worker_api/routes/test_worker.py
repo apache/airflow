@@ -16,22 +16,28 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
+from sqlalchemy import delete, select
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    EdgeWorkerState,
+    set_worker_concurrency,
+)
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
-from airflow.providers.edge3.worker_api.routes._v2_compat import HTTPException
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
     register,
     set_state,
     update_queues,
 )
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -47,7 +53,7 @@ class TestWorkerApiRoutes:
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
-        session.query(EdgeWorkerModel).delete()
+        session.execute(delete(EdgeWorkerModel))
 
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
@@ -87,7 +93,7 @@ class TestWorkerApiRoutes:
         register("test_worker", body, session)
         session.commit()
 
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test_worker"
         if input_queues:
@@ -96,7 +102,57 @@ class TestWorkerApiRoutes:
             assert worker[0].queues is None
 
     @pytest.mark.parametrize(
-        "worker_state, body_state, expected_state",
+        ("existing_state", "should_raise"),
+        [
+            pytest.param(EdgeWorkerState.RUNNING, True, id="duplicate-running"),
+            pytest.param(EdgeWorkerState.IDLE, True, id="duplicate-idle"),
+            pytest.param(EdgeWorkerState.STARTING, True, id="duplicate-starting"),
+            pytest.param(EdgeWorkerState.TERMINATING, True, id="duplicate-terminating"),
+            pytest.param(EdgeWorkerState.MAINTENANCE_MODE, True, id="duplicate-maintenance"),
+            pytest.param(EdgeWorkerState.OFFLINE, False, id="reuse-offline"),
+            pytest.param(EdgeWorkerState.UNKNOWN, False, id="reuse-unknown"),
+            pytest.param(EdgeWorkerState.OFFLINE_MAINTENANCE, False, id="reuse-offline-maintenance"),
+        ],
+    )
+    def test_register_duplicate_worker(
+        self, session: Session, existing_state: EdgeWorkerState, should_raise: bool, cli_worker: EdgeWorker
+    ):
+        # Create an existing worker
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=existing_state,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        # Try to register a new worker with the same name
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+
+        if should_raise:
+            with pytest.raises(HTTPException) as exc_info:
+                register("test_worker", body, session)
+            assert exc_info.value.status_code == 409
+            assert "already active" in str(exc_info.value.detail).lower()
+        else:
+            # Should succeed for offline/unknown states
+            register("test_worker", body, session)
+            session.commit()
+            worker = session.execute(
+                select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
+            ).scalar_one_or_none()
+            assert worker is not None
+            # State should be updated (or redefined based on redefine_state logic)
+            assert worker.state is not None
+
+    @pytest.mark.parametrize(
+        ("worker_state", "body_state", "expected_state"),
         [
             pytest.param(
                 EdgeWorkerState.MAINTENANCE_REQUEST,
@@ -189,15 +245,99 @@ class TestWorkerApiRoutes:
         )
         return_queues = set_state("test2_worker", body, session).queues
 
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert worker[0].state == EdgeWorkerState.RUNNING
         assert worker[0].queues == queues
         assert return_queues == ["default", "default2"]
 
+    def test_set_state_returns_concurrency(self, session: Session, cli_worker: EdgeWorker):
+        """set_state includes the DB-stored concurrency override in its response."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        rwm.concurrency = 16
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency == 16
+
+    def test_set_state_returns_none_concurrency_when_not_overridden(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """set_state returns None for concurrency when no override is set."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency is None
+
+    def test_set_worker_concurrency(self, session: Session):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        set_worker_concurrency("test2_worker", 16, session=session)
+        session.commit()
+
+        worker = session.scalars(select(EdgeWorkerModel)).one()
+        assert worker.concurrency == 16
+
     @pytest.mark.parametrize(
-        "add_queues, remove_queues, expected_queues",
+        "offline_state",
+        [
+            pytest.param(EdgeWorkerState.OFFLINE, id="offline"),
+            pytest.param(EdgeWorkerState.OFFLINE_MAINTENANCE, id="offline-maintenance"),
+            pytest.param(EdgeWorkerState.UNKNOWN, id="unknown"),
+        ],
+    )
+    def test_set_worker_concurrency_rejects_offline(self, session: Session, offline_state: EdgeWorkerState):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=offline_state,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        with pytest.raises(TypeError, match="Cannot set concurrency"):
+            set_worker_concurrency("test2_worker", 8, session=session)
+
+    def test_set_worker_concurrency_raises_for_unknown_worker(self, session: Session):
+        with pytest.raises(ValueError, match="not found"):
+            set_worker_concurrency("nonexistent", 8, session=session)
+
+    @pytest.mark.parametrize(
+        ("add_queues", "remove_queues", "expected_queues"),
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(
@@ -223,7 +363,7 @@ class TestWorkerApiRoutes:
         session.commit()
         body = WorkerQueueUpdateBody(new_queues=add_queues, remove_queues=remove_queues)
         update_queues("test2_worker", body, session)
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert len(expected_queues) == len(worker[0].queues or [])

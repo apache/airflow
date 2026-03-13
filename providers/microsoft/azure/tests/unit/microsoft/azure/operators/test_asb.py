@@ -39,11 +39,7 @@ from airflow.providers.microsoft.azure.operators.asb import (
     AzureServiceBusUpdateSubscriptionOperator,
 )
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 QUEUE_NAME = "test_queue"
 MESSAGE = "Test Message"
@@ -57,7 +53,7 @@ SUBSCRIPTION_NAME = "sb_mgmt_subscription"
 
 class TestAzureServiceBusCreateQueueOperator:
     @pytest.mark.parametrize(
-        "mock_dl_msg_expiration, mock_batched_operation",
+        ("mock_dl_msg_expiration", "mock_batched_operation"),
         [
             (True, True),
             (True, False),
@@ -131,7 +127,7 @@ class TestAzureServiceBusDeleteQueueOperator:
 
 class TestAzureServiceBusSendMessageOperator:
     @pytest.mark.parametrize(
-        "mock_message, mock_batch_flag, mock_message_id, mock_reply_to, mock_headers",
+        ("mock_message", "mock_batch_flag", "mock_message_id", "mock_reply_to", "mock_headers"),
         [
             (MESSAGE, True, None, None, None),
             (MESSAGE, False, "test_message_id", "test_reply_to", {"test_header": "test_value"}),
@@ -372,7 +368,7 @@ class TestASBCreateSubscriptionOperator:
         mock_log_info.assert_called_with("Created subscription %s", SUBSCRIPTION_NAME)
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name",
+        ("mock_subscription_name", "mock_topic_name"),
         [("subscription_1", None), (None, "topic_1")],
     )
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook")

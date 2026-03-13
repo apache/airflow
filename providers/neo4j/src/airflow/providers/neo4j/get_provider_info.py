@@ -30,7 +30,11 @@ def get_provider_info():
             {
                 "integration-name": "Neo4j",
                 "external-doc-url": "https://neo4j.com/",
-                "how-to-guide": ["/docs/apache-airflow-providers-neo4j/operators/neo4j.rst"],
+                "logo": "/docs/integration-logos/Neo4j.svg",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-neo4j/operators/neo4j.rst",
+                    "/docs/apache-airflow-providers-neo4j/sensors/neo4j.rst",
+                ],
                 "tags": ["software"],
             }
         ],
@@ -38,6 +42,9 @@ def get_provider_info():
             {"integration-name": "Neo4j", "python-modules": ["airflow.providers.neo4j.operators.neo4j"]}
         ],
         "hooks": [{"integration-name": "Neo4j", "python-modules": ["airflow.providers.neo4j.hooks.neo4j"]}],
+        "sensors": [
+            {"integration-name": "Neo4j", "python-modules": ["airflow.providers.neo4j.sensors.neo4j"]}
+        ],
         "connection-types": [
             {"hook-class-name": "airflow.providers.neo4j.hooks.neo4j.Neo4jHook", "connection-type": "neo4j"}
         ],

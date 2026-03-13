@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.utils.helpers import prune_dict
 
 
 def _get_message_attribute(o):
@@ -36,6 +37,33 @@ def _get_message_attribute(o):
     raise TypeError(
         f"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}"
     )
+
+
+def _build_publish_kwargs(
+    target_arn: str,
+    message: str,
+    subject: str | None = None,
+    message_attributes: dict | None = None,
+    message_deduplication_id: str | None = None,
+    message_group_id: str | None = None,
+) -> dict[str, str | dict]:
+    publish_kwargs: dict[str, str | dict] = prune_dict(
+        {
+            "TargetArn": target_arn,
+            "MessageStructure": "json",
+            "Message": json.dumps({"default": message}),
+            "Subject": subject,
+            "MessageDeduplicationId": message_deduplication_id,
+            "MessageGroupId": message_group_id,
+        }
+    )
+
+    if message_attributes:
+        publish_kwargs["MessageAttributes"] = {
+            key: _get_message_attribute(val) for key, val in message_attributes.items()
+        }
+
+    return publish_kwargs
 
 
 class SnsHook(AwsBaseHook):
@@ -84,22 +112,50 @@ class SnsHook(AwsBaseHook):
         :param message_group_id: Tag that specifies that a message belongs to a specific message group.
             This parameter applies only to FIFO (first-in-first-out) topics.
         """
-        publish_kwargs: dict[str, str | dict] = {
-            "TargetArn": target_arn,
-            "MessageStructure": "json",
-            "Message": json.dumps({"default": message}),
-        }
+        return self.get_conn().publish(
+            **_build_publish_kwargs(
+                target_arn, message, subject, message_attributes, message_deduplication_id, message_group_id
+            )
+        )
 
-        # Construct args this way because boto3 distinguishes from missing args and those set to None
-        if subject:
-            publish_kwargs["Subject"] = subject
-        if message_deduplication_id:
-            publish_kwargs["MessageDeduplicationId"] = message_deduplication_id
-        if message_group_id:
-            publish_kwargs["MessageGroupId"] = message_group_id
-        if message_attributes:
-            publish_kwargs["MessageAttributes"] = {
-                key: _get_message_attribute(val) for key, val in message_attributes.items()
-            }
+    async def apublish_to_target(
+        self,
+        target_arn: str,
+        message: str,
+        subject: str | None = None,
+        message_attributes: dict | None = None,
+        message_deduplication_id: str | None = None,
+        message_group_id: str | None = None,
+    ):
+        """
+        Publish a message to a SNS topic or an endpoint.
 
-        return self.get_conn().publish(**publish_kwargs)
+        .. seealso::
+            - :external+boto3:py:meth:`SNS.Client.publish`
+
+        :param target_arn: either a TopicArn or an EndpointArn
+        :param message: the default message you want to send
+        :param subject: subject of message
+        :param message_attributes: additional attributes to publish for message filtering. This should be
+            a flat dict; the DataType to be sent depends on the type of the value:
+
+            - bytes = Binary
+            - str = String
+            - int, float = Number
+            - iterable = String.Array
+        :param message_deduplication_id: Every message must have a unique message_deduplication_id.
+            This parameter applies only to FIFO (first-in-first-out) topics.
+        :param message_group_id: Tag that specifies that a message belongs to a specific message group.
+            This parameter applies only to FIFO (first-in-first-out) topics.
+        """
+        async with await self.get_async_conn() as async_client:
+            return await async_client.publish(
+                **_build_publish_kwargs(
+                    target_arn,
+                    message,
+                    subject,
+                    message_attributes,
+                    message_deduplication_id,
+                    message_group_id,
+                )
+            )

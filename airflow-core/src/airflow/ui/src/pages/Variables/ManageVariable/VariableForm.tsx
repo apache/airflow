@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea, Text } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type VariableBody = {
   description: string | undefined;
   key: string;
+  team_name: string;
   value: string;
 };
 
@@ -49,7 +51,7 @@ type VariableFormProps = {
 };
 
 const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -59,6 +61,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
     defaultValues: initialVariable,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: VariableBody) => {
     manageMutate(data);
@@ -127,18 +130,20 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         )}
       />
 
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
+
       <ErrorAlert error={error} />
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

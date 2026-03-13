@@ -21,15 +21,9 @@ from unittest.mock import Mock
 import pytest
 from openai.types.batch import Batch
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import Context, TaskDeferred
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
-
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
 
 openai = pytest.importorskip("openai")
 TASK_ID = "TaskId"
@@ -72,7 +66,10 @@ def test_execute_with_invalid_input(invalid_input):
         task_id=TASK_ID, conn_id=CONN_ID, model="test_model", input_text=invalid_input
     )
     context = Context()
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers.",
+    ):
         operator.execute(context)
 
 

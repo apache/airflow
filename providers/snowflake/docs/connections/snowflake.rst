@@ -60,9 +60,11 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
     * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
+    * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
+    * ``azure_conn_id``: Azure Connection ID to be used for retrieving the OAuth token using Azure Entra authentication. Login and Password fields aren't required when using this method. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
     * ``private_key_file``: Specify the path to the private key file.
-    * ``private_key_content``: Specify the content of the private key file in base64 encoded format. You can use the following Python code to encode the private key:
+    * ``private_key_content``: Specify the content of the private key file, either in plain text or base64 encoded. When using the Airflow UI to manage the Snowflake connection, you should base64 encode the ``private_key_content``. You can use the following Python code to encode the private key:
 
       .. code-block:: python
 
@@ -76,6 +78,10 @@ Extra (optional)
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
     * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
     * ``ocsp_fail_open``: Specify `ocsp_fail_open <https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect#label-python-ocsp-choosing-fail-open-or-fail-close-mode>`_.
+    * ``proxy_host``: Proxy hostname to use for connecting to Snowflake.
+    * ``proxy_port``: Proxy port to use for connecting to Snowflake.
+    * ``proxy_user``: Proxy username for authentication with the proxy server.
+    * ``proxy_password``: Proxy password for authentication with the proxy server.
 
 URI format example
 ^^^^^^^^^^^^^^^^^^

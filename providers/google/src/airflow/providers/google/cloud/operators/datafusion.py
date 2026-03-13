@@ -25,8 +25,7 @@ from typing import TYPE_CHECKING, Any
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -40,7 +39,8 @@ from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
@@ -777,6 +777,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         self.pipeline_timeout = pipeline_timeout
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.pipeline_id: str | None = None
 
         if success_states:
             self.success_states = success_states
@@ -796,14 +797,14 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
-        pipeline_id = hook.start_pipeline(
+        self.pipeline_id = hook.start_pipeline(
             pipeline_name=self.pipeline_name,
             pipeline_type=self.pipeline_type,
             instance_url=api_url,
             namespace=self.namespace,
             runtime_args=self.runtime_args,
         )
-        self.log.info("Pipeline %s submitted successfully.", pipeline_id)
+        self.log.info("Pipeline %s submitted successfully.", self.pipeline_id)
 
         DataFusionPipelineLink.persist(
             context=context,
@@ -824,7 +825,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
                     namespace=self.namespace,
                     pipeline_name=self.pipeline_name,
                     pipeline_type=self.pipeline_type.value,
-                    pipeline_id=pipeline_id,
+                    pipeline_id=self.pipeline_id,
                     poll_interval=self.poll_interval,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
@@ -834,19 +835,21 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         else:
             if not self.asynchronous:
                 # when NOT using asynchronous mode it will just wait for pipeline to finish and print message
-                self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
+                self.log.info(
+                    "Waiting when pipeline %s will be in one of the success states", self.pipeline_id
+                )
                 hook.wait_for_pipeline_state(
                     success_states=self.success_states,
-                    pipeline_id=pipeline_id,
+                    pipeline_id=self.pipeline_id,
                     pipeline_name=self.pipeline_name,
                     pipeline_type=self.pipeline_type,
                     namespace=self.namespace,
                     instance_url=api_url,
                     timeout=self.pipeline_timeout,
                 )
-                self.log.info("Pipeline %s discovered success state.", pipeline_id)
+                self.log.info("Pipeline %s discovered success state.", self.pipeline_id)
             #  otherwise, return pipeline_id so that sensor can use it later to check the pipeline state
-        return pipeline_id
+        return self.pipeline_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
@@ -863,6 +866,31 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         )
         return event["pipeline_id"]
 
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        """Build and return OpenLineage facets and datasets for the completed pipeline start."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        pipeline_resource = f"{self.project_id}:{self.location}:{self.instance_name}:{self.pipeline_name}"
+
+        inputs = [Dataset(namespace="datafusion", name=pipeline_resource)]
+
+        if self.pipeline_id:
+            output_name = f"{pipeline_resource}:{self.pipeline_id}"
+        else:
+            output_name = f"{pipeline_resource}:unknown"
+        outputs = [Dataset(namespace="datafusion", name=output_name)]
+
+        run_facets = {
+            "dataFusionRun": DataFusionRunFacet(
+                runId=self.pipeline_id,
+                runtimeArgs=self.runtime_args,
+            )
+        }
+
+        return OperatorLineage(inputs=inputs, outputs=outputs, run_facets=run_facets, job_facets={})
+
 
 class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
     """
@@ -874,6 +902,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
 
     :param pipeline_name: Your pipeline name.
     :param instance_name: The name of the instance.
+    :param pipeline_type: Can be either BATCH or STREAM.
     :param location: The Cloud Data Fusion location in which to handle the request.
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
@@ -888,13 +917,10 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param run_id: The specific run_id to stop execution if available; when absent it will stop all runs under pipeline_name.
     """
 
-    template_fields: Sequence[str] = (
-        "instance_name",
-        "pipeline_name",
-        "impersonation_chain",
-    )
+    template_fields: Sequence[str] = ("instance_name", "pipeline_name", "impersonation_chain", "run_id")
     operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
@@ -902,12 +928,14 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         *,
         pipeline_name: str,
         instance_name: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         location: str,
         namespace: str = "default",
         project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        run_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -919,6 +947,8 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.run_id = run_id
+        self.pipeline_type = pipeline_type
 
     def execute(self, context: Context) -> None:
         hook = DataFusionHook(
@@ -942,7 +972,23 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
             instance_url=api_url,
             namespace=self.namespace,
+            run_id=self.run_id,
         )
-        self.log.info("Pipeline stopped")
+        if self.run_id:
+            self.log.info(
+                "Stopped Cloud Data Fusion pipeline '%s' (namespace: '%s') on instance '%s'. Terminated run id: '%s'.",
+                self.pipeline_name,
+                self.namespace,
+                self.instance_name,
+                self.run_id,
+            )
+        else:
+            self.log.info(
+                "Stopped Cloud Data Fusion pipeline '%s' (namespace: '%s') on instance '%s'.",
+                self.pipeline_name,
+                self.namespace,
+                self.instance_name,
+            )

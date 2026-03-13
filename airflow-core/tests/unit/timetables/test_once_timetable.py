@@ -23,9 +23,9 @@ import datetime
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, TimeRestriction
 from airflow.timetables.simple import OnceTimetable
-from airflow.utils import timezone
 
 FROZEN_NOW = timezone.coerce_datetime(datetime.datetime(2025, 3, 4, 5, 6, 7, 8))
 
@@ -33,7 +33,7 @@ PREVIOUS_INFO = DagRunInfo.exact(FROZEN_NOW - datetime.timedelta(days=1))
 
 
 @pytest.mark.parametrize(
-    "prev_info, end_date, expected_next_info",
+    ("prev_info", "end_date", "expected_next_info"),
     [
         (None, None, DagRunInfo.exact(FROZEN_NOW)),
         (None, FROZEN_NOW + datetime.timedelta(days=1), DagRunInfo.exact(FROZEN_NOW)),

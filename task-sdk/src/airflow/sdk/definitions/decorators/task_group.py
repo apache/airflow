@@ -19,8 +19,8 @@
 Implements the ``@task_group`` function decorator.
 
 When the decorated function is called, a task group will be created to represent
-a collection of closely related tasks on the same DAG that should be grouped
-together when the DAG is displayed graphically.
+a collection of closely related tasks on the same Dag that should be grouped
+together when the Dag is displayed graphically.
 """
 
 from __future__ import annotations
@@ -40,10 +40,9 @@ from airflow.sdk.definitions._internal.expandinput import (
     MappedArgument,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
-from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
+from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value, prevent_duplicates
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (

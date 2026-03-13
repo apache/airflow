@@ -34,10 +34,9 @@ if AIRFLOW_V_3_0_PLUS:
 
 from flask import url_for
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowException, AirflowPlugin
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
     RepairDatabricksTasks,
@@ -51,7 +50,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
@@ -82,7 +80,7 @@ def test_get_dagrun_airflow2():
 
     session = MagicMock()
     dag = MagicMock(dag_id=DAG_ID)
-    session.query.return_value.filter.return_value.first.return_value = DagRun()
+    session.scalars.return_value.one.return_value = DagRun()
 
     result = _get_dagrun(dag, RUN_ID, session=session)
 
@@ -168,7 +166,7 @@ def test_get_task_instance_airflow2():
         dttm = "2022-01-01T00:00:00Z"
         session = Mock()
         dag_run = Mock()
-        session.query().filter().one_or_none.return_value = dag_run
+        session.scalars().one_or_none.return_value = dag_run
 
         with patch(
             "airflow.providers.databricks.plugins.databricks_workflow.DagRun.find", return_value=[dag_run]
@@ -217,7 +215,7 @@ def test_workflow_job_run_link_airflow2():
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
                 ) as mock_get_dag:
                     mock_connection = Mock()
                     mock_connection.extra_dejson = {"host": "mockhost"}
@@ -448,15 +446,15 @@ class TestDatabricksWorkflowPluginAirflow2:
             with patch(
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom:
-                with patch("airflow.providers.databricks.plugins.databricks_workflow.DagBag") as mock_dag_bag:
+                with patch(
+                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
+                ) as mock_get_dag:
                     with patch(
                         "airflow.providers.databricks.plugins.databricks_workflow.DatabricksHook"
                     ) as mock_hook:
                         mock_get_ti.return_value = Mock(key=ti_key)
                         mock_get_xcom.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
-                        mock_dag_bag.return_value.get_dag.return_value.get_task.return_value = Mock(
-                            task_id="test_task"
-                        )
+                        mock_get_dag.return_value.get_task.return_value = Mock(task_id="test_task")
 
                         mock_hook_instance = Mock()
                         mock_hook_instance.host = "test-host"

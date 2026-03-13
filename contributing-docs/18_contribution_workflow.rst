@@ -18,7 +18,9 @@
 Contribution Workflow
 =====================
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
@@ -40,7 +42,7 @@ In general, your contribution includes the following stages:
 
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
    initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
-   install `pre-commit framework <08_static_code_checks.rst#pre-commit-hooks>`__.
+   install `prek tool <08_static_code_checks.rst#prek-hooks>`__.
    If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
@@ -176,9 +178,9 @@ Step 4: Prepare PR
    * Modify the class and add necessary code and unit tests.
 
    * Run and fix all the `static checks <08_static_code_checks.rst>`__. If you have
-     `pre-commits installed <08_static_code_checks.rst#pre-commit-hooks>`__,
+     `prek installed <08_static_code_checks.rst#prek-hooks>`__,
      this step is automatically run while you are committing your code. If not, you can do it manually
-     via ``git add`` and then ``pre-commit run``.
+     via ``git add`` and then ``prek``.
 
    * Run the appropriate tests as described in `Testing documentation <09_testing.rst>`__.
 
@@ -196,14 +198,8 @@ Step 4: Prepare PR
      and place in either `airflow-core/newsfragments </airflow-core/newsfragments>`__ for core newsfragments,
      or `chart/newsfragments </chart/newsfragments>`__ for helm chart newsfragments.
 
-     In general newsfragments must be one line.  For newsfragment type ``significant``,
-     you should follow the template in ``airflow-core/newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
-     One thing to note here is that a ``significant`` newsfragment always doesn't have to be a breaking change, i.e. it can not have a change type and migration rules.
-     This can also be done by the following command.
-
-     .. code-block:: bash
-
-        uv tool run towncrier create --dir airflow-core --config newsfragments/config.toml --content "`cat airflow-core/newsfragments/template.significant.rst`"
+     In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
+     One thing to note here is that a ``significant`` newsfragment doesn't have to be a breaking change, it can be something that is notable but not breaking.
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <10_working_with_git.rst#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

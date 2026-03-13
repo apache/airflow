@@ -24,10 +24,10 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import utc
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.utils.timezone import utc
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -145,7 +145,7 @@ def test_validate_success(timetable: Timetable) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, error_message",
+    ("timetable", "error_message"),
     [
         pytest.param(
             CronDataIntervalTimetable("0 0 1 13 0", utc),
@@ -191,7 +191,7 @@ def test_cron_interval_serialize():
 
 
 @pytest.mark.parametrize(
-    "timetable, expected_data",
+    ("timetable", "expected_data"),
     [
         (HOURLY_RELATIVEDELTA_TIMETABLE, {"delta": {"hours": 1}}),
         (HOURLY_TIMEDELTA_TIMETABLE, {"delta": 3600.0}),
@@ -206,7 +206,7 @@ def test_delta_interval_serialize(timetable, expected_data):
 
 
 @pytest.mark.parametrize(
-    "trigger_at, expected_interval",
+    ("trigger_at", "expected_interval"),
     [
         # Arbitrary trigger time.
         pytest.param(
@@ -237,7 +237,7 @@ def test_cron_infer_manual_data_interval_alignment(
 
 
 @pytest.mark.parametrize(
-    "last_data_interval, expected_info",
+    ("last_data_interval", "expected_info"),
     [
         pytest.param(
             DataInterval(

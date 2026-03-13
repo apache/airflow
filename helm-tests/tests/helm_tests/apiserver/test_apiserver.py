@@ -28,7 +28,7 @@ class TestAPIServerDeployment:
         API Server only supports Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert len(docs) == 0
@@ -38,7 +38,7 @@ class TestAPIServerDeployment:
         API Server configmap is only created for Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/configmaps/api-server-configmap.yaml"],
         )
         assert len(docs) == 0
@@ -106,3 +106,49 @@ class TestApiSecretKeySecret:
 
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
+
+class TestApiserverConfigmap:
+    """Tests apiserver configmap."""
+
+    def test_no_apiserver_config_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/api-server-configmap.yaml"])
+        assert len(docs) == 0
+
+    def test_no_apiserver_config_configmap_with_configmap_name(self):
+        docs = render_chart(
+            values={
+                "apiServer": {
+                    "apiServerConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "apiServerConfigConfigMapName": "my-configmap",
+                }
+            },
+            show_only=["templates/configmaps/api-server-configmap.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_apiserver_with_custom_configmap_name(self):
+        docs = render_chart(
+            values={
+                "apiServer": {
+                    "apiServerConfigConfigMapName": "my-custom-configmap",
+                }
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.spec.volumes[1].configMap.name", docs[0]) == "my-custom-configmap"
+        )
+
+    def test_apiserver_config_configmap(self):
+        docs = render_chart(
+            values={"apiServer": {"apiServerConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            show_only=["templates/configmaps/api-server-configmap.yaml"],
+        )
+
+        assert docs[0]["kind"] == "ConfigMap"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-api-server-config"
+        assert (
+            jmespath.search('data."webserver_config.py"', docs[0]).strip()
+            == "CSRF_ENABLED = True  # release-name"
+        )

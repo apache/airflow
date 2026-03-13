@@ -53,6 +53,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.http.hooks.http"],
             }
         ],
+        "notifications": ["airflow.providers.http.notifications.HttpNotifier"],
         "triggers": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",
@@ -60,6 +61,11 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.http.hooks.http.HttpHook", "connection-type": "http"}
+            {
+                "hook-class-name": "airflow.providers.http.hooks.http.HttpHook",
+                "connection-type": "http",
+                "ui-field-behaviour": {"hidden-fields": [], "relabeling": {}, "placeholders": {}},
+                "conn-fields": {},
+            }
         ],
     }

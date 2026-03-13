@@ -35,7 +35,13 @@ from typing import Any
 
 from googleapiclient import discovery
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
@@ -45,10 +51,15 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -250,7 +261,6 @@ os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL"] = (
 )
 # [END howto_operator_cloudsql_query_connections_env]
 
-
 log = logging.getLogger(__name__)
 
 with DAG(
@@ -331,6 +341,7 @@ with DAG(
             create_airflow_connection(
                 connection_id=connection_id,
                 connection_conf=connection,
+                is_composer=run_in_composer(),
             )
             return connection_id
 
@@ -451,7 +462,7 @@ with DAG(
 
         @task(task_id=f"delete_connection_{database_type}")
         def delete_connection(connection_id: str) -> None:
-            delete_airflow_connection(connection_id=connection_id)
+            delete_airflow_connection(connection_id=connection_id, is_composer=run_in_composer())
 
         delete_connection_task = delete_connection(connection_id=conn_id)
 

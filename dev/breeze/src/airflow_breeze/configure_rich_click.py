@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.commands.issues_commands_config import ISSUES_COMMANDS, ISSUES_PARAMETERS
+from airflow_breeze.commands.pr_commands_config import PR_COMMANDS, PR_PARAMETERS
+from airflow_breeze.commands.registry_commands_config import REGISTRY_COMMANDS, REGISTRY_PARAMETERS
 from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
+from airflow_breeze.commands.ui_commands_config import UI_COMMANDS, UI_PARAMETERS
 from airflow_breeze.commands.workflow_commands_config import WORKFLOW_RUN_COMMANDS, WORKFLOW_RUN_PARAMETERS
 
 from airflow_breeze.utils import recording  # isort:skip  # noqa: F401
@@ -49,6 +53,8 @@ else:
     )
     from airflow_breeze.commands.release_management_commands_config import (
         RELEASE_AIRFLOW_COMMANDS,
+        RELEASE_AIRFLOW_CTL_COMMANDS,
+        RELEASE_AIRFLOW_TASK_SDK_COMMANDS,
         RELEASE_HELM_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
         RELEASE_OTHER_COMMANDS,
@@ -75,9 +81,13 @@ else:
         **CI_IMAGE_TOOLS_PARAMETERS,
         **PRODUCTION_IMAGE_TOOLS_PARAMETERS,
         **CI_PARAMETERS,
+        **REGISTRY_PARAMETERS,
         **RELEASE_MANAGEMENT_PARAMETERS,
         **SBOM_PARAMETERS,
         **WORKFLOW_RUN_PARAMETERS,
+        **UI_PARAMETERS,
+        **ISSUES_PARAMETERS,
+        **PR_PARAMETERS,
     }
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
@@ -95,8 +105,28 @@ else:
                 "commands": ["release-management", "sbom", "workflow-run"],
             },
             {
-                "name": "Other commands",
-                "commands": ["setup", "ci"],
+                "name": "CI commands",
+                "commands": ["ci"],
+            },
+            {
+                "name": "Registry commands",
+                "commands": ["registry"],
+            },
+            {
+                "name": "UI commands",
+                "commands": ["ui"],
+            },
+            {
+                "name": "Issues commands",
+                "commands": ["issues"],
+            },
+            {
+                "name": "PR commands",
+                "commands": ["pr"],
+            },
+            {
+                "name": "Setup commands",
+                "commands": ["setup"],
             },
         ],
         "breeze testing": TESTING_COMMANDS,
@@ -112,9 +142,15 @@ else:
             RELEASE_AIRFLOW_COMMANDS,
             RELEASE_HELM_COMMANDS,
             RELEASE_PROVIDERS_COMMANDS,
+            RELEASE_AIRFLOW_TASK_SDK_COMMANDS,
+            RELEASE_AIRFLOW_CTL_COMMANDS,
             RELEASE_OTHER_COMMANDS,
         ],
         "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
         "breeze workflow-run": [WORKFLOW_RUN_COMMANDS],
+        "breeze registry": [REGISTRY_COMMANDS],
+        "breeze ui": [UI_COMMANDS],
+        "breeze issues": [ISSUES_COMMANDS],
+        "breeze pr": [PR_COMMANDS],
     }

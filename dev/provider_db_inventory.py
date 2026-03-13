@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# PEP 723 compliant inline script metadata
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "rich",
-#   "pyyaml",
+#   "rich>=13.6.0",
+#   "pyyaml>=6.0.3",
 # ]
 # ///
 from __future__ import annotations

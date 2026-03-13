@@ -22,12 +22,22 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 state: ready
-source-date-epoch: 1751472677
+lifecycle: production
+source-date-epoch: 1773070302
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.6.0
+  - 5.5.1
+  - 5.5.0
+  - 5.4.2
+  - 5.4.1
+  - 5.4.0
+  - 5.3.4
+  - 5.3.3
+  - 5.3.2
   - 5.3.1
   - 5.3.0
   - 5.2.1
@@ -86,8 +96,10 @@ operators:
   - integration-name: Apache Spark
     python-modules:
       - airflow.providers.apache.spark.operators.spark_jdbc
+      - airflow.providers.apache.spark.operators.spark_pipelines
       - airflow.providers.apache.spark.operators.spark_sql
       - airflow.providers.apache.spark.operators.spark_submit
+      - airflow.providers.apache.spark.operators.spark_pyspark
 
 hooks:
   - integration-name: Apache Spark
@@ -95,6 +107,7 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_connect
       - airflow.providers.apache.spark.hooks.spark_jdbc
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
+      - airflow.providers.apache.spark.hooks.spark_pipelines
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
 
@@ -102,12 +115,94 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook
     connection-type: spark_connect
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        password: Token
+        login: User ID
+    conn-fields:
+      use_ssl:
+        label: Use SSL
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
     connection-type: spark_jdbc
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
     connection-type: spark_sql
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - login
+        - password
+        - extra
+      relabeling: {}
+    conn-fields:
+      queue:
+        label: YARN queue
+        description: Default YARN queue to use
+        schema:
+          type:
+            - string
+            - 'null'
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
     connection-type: spark
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - login
+        - password
+        - extra
+      relabeling: {}
+      placeholders:
+        keytab: '<base64 encoded Keytab Content>'
+    conn-fields:
+      queue:
+        label: YARN queue
+        description: Default YARN queue to use
+        schema:
+          type:
+            - string
+            - 'null'
+      deploy-mode:
+        label: Deploy mode
+        description: Must be client or cluster
+        schema:
+          type:
+            - string
+            - 'null'
+          default: client
+      spark-binary:
+        label: Spark binary
+        description: 'Must be one of: spark-submit, spark2-submit, spark3-submit'
+        schema:
+          type:
+            - string
+            - 'null'
+          default: spark-submit
+      namespace:
+        label: Kubernetes namespace
+        schema:
+          type:
+            - string
+            - 'null'
+      principal:
+        label: Principal
+        schema:
+          type:
+            - string
+            - 'null'
+      keytab:
+        label: Keytab
+        description: Run the command `base64 <your-keytab-path>` and use its output.
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
 
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task

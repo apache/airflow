@@ -31,8 +31,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
+    {{- if or .Values.labels .Values.statsd.labels }}
+      {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
     prometheus.io/scrape: "true"

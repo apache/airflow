@@ -36,8 +36,7 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -49,7 +48,7 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 ALLOWED_FORMATS = [
     "CSV",
@@ -144,6 +143,9 @@ class GCSToBigQueryOperator(BaseOperator):
         partition by field, type and  expiration as per API specifications.
         Note that 'field' is not available in concurrency with
         dataset.table$partition.
+        Ignored if 'range_partitioning' is set.
+    :param range_partitioning: configure optional range partitioning fields i.e.
+        partition by field and integer interval as per API specifications.
     :param cluster_fields: Request that the result of this load be stored sorted
         by one or more columns. BigQuery supports clustering for both partitioned and
         non-partitioned tables. The order of columns given determines the sort order.
@@ -219,6 +221,7 @@ class GCSToBigQueryOperator(BaseOperator):
         src_fmt_configs=None,
         external_table=False,
         time_partitioning=None,
+        range_partitioning=None,
         cluster_fields=None,
         autodetect=True,
         encryption_configuration=None,
@@ -246,6 +249,10 @@ class GCSToBigQueryOperator(BaseOperator):
             src_fmt_configs = {}
         if time_partitioning is None:
             time_partitioning = {}
+        if range_partitioning is None:
+            range_partitioning = {}
+        if range_partitioning and time_partitioning:
+            raise ValueError("Only one of time_partitioning or range_partitioning can be set.")
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
@@ -283,6 +290,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
+        self.range_partitioning = range_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
@@ -337,8 +345,9 @@ class GCSToBigQueryOperator(BaseOperator):
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            logical_date=context["logical_date"],
+            logical_date=None,
             configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
             force_rerun=self.force_rerun,
         )
 
@@ -535,7 +544,11 @@ class GCSToBigQueryOperator(BaseOperator):
             "allowJaggedRows": self.allow_jagged_rows,
             "encoding": self.encoding,
         }
-        src_fmt_to_param_mapping = {"CSV": "csvOptions", "GOOGLE_SHEETS": "googleSheetsOptions"}
+        src_fmt_to_param_mapping = {
+            "CSV": "csvOptions",
+            "GOOGLE_SHEETS": "googleSheetsOptions",
+            "PARQUET": "parquetOptions",
+        }
         src_fmt_to_configs_mapping = {
             "csvOptions": [
                 "allowJaggedRows",
@@ -548,6 +561,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "columnNameCharacterMap",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
+            "parquetOptions": ["enumAsString", "enableListInference", "mapTargetType"],
         }
         if self.source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
@@ -583,6 +597,8 @@ class GCSToBigQueryOperator(BaseOperator):
         self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
+            dataset_id=table.dataset_id,
+            table_id=table.table_id,
             location=self.location,
             exists_ok=True,
         )
@@ -627,6 +643,8 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         if self.time_partitioning:
             self.configuration["load"].update({"timePartitioning": self.time_partitioning})
+        if self.range_partitioning:
+            self.configuration["load"].update({"rangePartitioning": self.range_partitioning})
 
         if self.cluster_fields:
             self.configuration["load"].update({"clustering": {"fields": self.cluster_fields}})
@@ -635,12 +653,6 @@ class GCSToBigQueryOperator(BaseOperator):
             self.configuration["load"]["schema"] = {"fields": self.schema_fields}
 
         if self.schema_update_options:
-            if self.write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
             # To provide backward compatibility
             self.schema_update_options = list(self.schema_update_options or [])
             self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
@@ -680,7 +692,17 @@ class GCSToBigQueryOperator(BaseOperator):
             "ORC": ["autodetect"],
         }
 
+        # Some source formats have nested configuration options which are not available
+        # at the top level of the load configuration.
+        src_fmt_to_param_mapping = {"PARQUET": "parquetOptions"}
+        src_fmt_to_nested_configs_mapping = {
+            "parquetOptions": ["enumAsString", "enableListInference", "mapTargetType"],
+        }
+
         valid_configs = src_fmt_to_configs_mapping[self.source_format]
+
+        src_fmt_param = src_fmt_to_param_mapping.get(self.source_format)
+        valid_nested_configs = src_fmt_to_nested_configs_mapping[src_fmt_param] if src_fmt_param else None
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
@@ -694,7 +716,12 @@ class GCSToBigQueryOperator(BaseOperator):
         }
 
         self.src_fmt_configs = self._validate_src_fmt_configs(
-            self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs
+            self.source_format,
+            self.src_fmt_configs,
+            valid_configs,
+            backward_compatibility_configs,
+            src_fmt_param,
+            valid_nested_configs,
         )
 
         self.configuration["load"].update(self.src_fmt_configs)
@@ -709,29 +736,51 @@ class GCSToBigQueryOperator(BaseOperator):
         src_fmt_configs: dict,
         valid_configs: list[str],
         backward_compatibility_configs: dict | None = None,
+        src_fmt_param: str | None = None,
+        valid_nested_configs: list[str] | None = None,
     ) -> dict:
         """
-        Validate the given src_fmt_configs against a valid configuration for the source format.
+        Validate and format the given src_fmt_configs against a valid configuration for the source format.
 
         Adds the backward compatibility config to the src_fmt_configs.
+
+        Adds nested source format configurations if valid_nested_configs is provided.
 
         :param source_format: File format to export.
         :param src_fmt_configs: Configure optional fields specific to the source format.
         :param valid_configs: Valid configuration specific to the source format
         :param backward_compatibility_configs: The top-level params for backward-compatibility
+        :param src_fmt_param: The source format parameter for nested configurations.
+        Required when valid_nested_configs is provided.
+        :param valid_nested_configs: Valid nested configuration specific to the source format.
         """
+        valid_src_fmt_configs = {}
+
         if backward_compatibility_configs is None:
             backward_compatibility_configs = {}
 
         for k, v in backward_compatibility_configs.items():
             if k not in src_fmt_configs and k in valid_configs:
-                src_fmt_configs[k] = v
+                valid_src_fmt_configs[k] = v
 
-        for k in src_fmt_configs:
-            if k not in valid_configs:
+        if valid_nested_configs is None:
+            valid_nested_configs = []
+
+        if valid_nested_configs:
+            if src_fmt_param is None:
+                raise ValueError("src_fmt_param is required when valid_nested_configs is provided.")
+
+            valid_src_fmt_configs[src_fmt_param] = {}
+
+        for k, v in src_fmt_configs.items():
+            if k in valid_configs:
+                valid_src_fmt_configs[k] = v
+            elif k in valid_nested_configs:
+                valid_src_fmt_configs[src_fmt_param][k] = v
+            else:
                 raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
-        return src_fmt_configs
+        return valid_src_fmt_configs
 
     def _cleanse_time_partitioning(
         self, destination_dataset_table: str | None, time_partitioning_in: dict | None

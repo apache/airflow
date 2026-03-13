@@ -25,6 +25,182 @@
 
 
 Changelog
+---------
+
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make hive cli 'zooKeeperNamespace' and 'ssl' parameters configurable (#63193)``
+
+Misc
+~~~~
+
+* ``Made sqlalchemy dependency optional for hive (#62329)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``change to owner airflow in example dag (#62957)``
+
+9.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HiveServer2Hook password handling for PLAIN auth (#62364)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Fix mypy type error in MsSqlToHiveOperator (#61902)``
+   * ``Migrate apache/hive connection UI metadata to YAML (#62380)``
+
+9.2.5
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.4
+.....
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.3
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Source conf from 'airflow.sdk.configuration.conf' for apache providers (#59966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix apache hive server2 hook for sqlalchemy URL (#59878)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+9.1.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Remove direct dependency on thrift (#57423)``
+* ``Add Kerberos dependency to hive provider (#55773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+
+
+9.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: incorrect access of logical_date in google bigquery operator and google workflow operator (#55110)``
+* ``Replace sasl with pyhive.get_installed_sasl for pure-sasl compatibility (#55772)``
+
+Misc
+~~~~
+
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56608)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+9.1.2
+.....
+
+Misc
+~~~~
+
+* ``Fix hive changelog (#53665)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Bump mypy to 1.17.0 (#53523)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in apache/hive provider (#53302)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace 'BaseHook' to Task SDK for 'apache/hive' (#52685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 9.1.1
 .....
@@ -175,8 +351,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 8.2.1
@@ -273,7 +447,8 @@ Features
 
 * ``Adding support to hive hook for high availability Hive installations (#38651)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix TRY002 for apache hive provider (#38781)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Fix D105 for Apache Hive Provider (#38042)``
@@ -310,7 +485,8 @@ Misc
 
 * ``Fix pyhive hive_pure_sasl extra name (#37323)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``D401 Support in Providers (simple) (#37258)``
 
 6.4.2
@@ -585,7 +761,6 @@ of ``apache.hive`` the hive macros are provided by the Provider.
 * ``Move Hive macros to the provider (#28538)``
 * ``Make pandas dependency optional for Amazon Provider (#28505)``
 
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....
@@ -646,7 +821,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 4.0.0

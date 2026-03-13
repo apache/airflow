@@ -17,35 +17,30 @@
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import delete, inspect, text
-from sqlalchemy.exc import NoSuchTableError
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
 
-from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
+from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import argparse
+    from sqlalchemy.orm import Session
 
-    from sqlalchemy.engine.base import Engine
-
+    from airflow.cli.cli_config import GroupCommand
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
@@ -64,53 +59,16 @@ class EdgeExecutor(BaseExecutor):
         super().__init__(parallelism=parallelism)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
-    def _check_db_schema(self, engine: Engine) -> None:
-        """
-        Check if already existing table matches the newest table schema.
-
-        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider distributions.
-        """
-        inspector = inspect(engine)
-        edge_job_columns = None
-        edge_job_command_len = None
-        with contextlib.suppress(NoSuchTableError):
-            edge_job_schema = inspector.get_columns("edge_job")
-            edge_job_columns = [column["name"] for column in edge_job_schema]
-            for column in edge_job_schema:
-                if column["name"] == "command":
-                    edge_job_command_len = column["type"].length
-
-        # version 0.6.0rc1 added new column concurrency_slots
-        if edge_job_columns and "concurrency_slots" not in edge_job_columns:
-            EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
-
-        # version 1.1.0 the command column was changed to VARCHAR(2048)
-        elif edge_job_command_len and edge_job_command_len != 2048:
-            with Session(engine) as session:
-                query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
-                session.execute(text(query))
-                session.commit()
-
-        edge_worker_columns = None
-        with contextlib.suppress(NoSuchTableError):
-            edge_worker_columns = [column["name"] for column in inspector.get_columns("edge_worker")]
-
-        # version 0.14.0pre0 added new column maintenance_comment
-        if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
-            with Session(engine) as session:
-                query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
-                session.execute(text(query))
-                session.commit()
-
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
+        check_db_manager_config()
+        edge_db_manager = EdgeDBManager(session)
+        if edge_db_manager.check_migration():
+            return
+
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-            engine = session.get_bind().engine
-            self._check_db_schema(engine)
-            EdgeJobModel.metadata.create_all(engine)
-            EdgeLogsModel.metadata.create_all(engine)
-            EdgeWorkerModel.metadata.create_all(engine)
+            edge_db_manager.initdb()
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
@@ -124,72 +82,57 @@ class EdgeExecutor(BaseExecutor):
         super()._process_tasks(task_tuples)  # type: ignore[misc]
 
     @provide_session
-    def execute_async(
-        self,
-        key: TaskInstanceKey,
-        command: CommandType,
-        queue: str | None = None,
-        executor_config: Any | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """Execute asynchronously. Airflow 2.10 entry point to execute a task."""
-        # Use of a temporary trick to get task instance, will be changed with Airflow 3.0.0
-        # code works together with _process_tasks overwrite to get task instance.
-        # TaskInstance in fourth element
-        task_instance = self.edge_queued_tasks[key][3]  # type: ignore[index]
-        del self.edge_queued_tasks[key]
-
-        self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
-        session.add(
-            EdgeJobModel(
-                dag_id=key.dag_id,
-                task_id=key.task_id,
-                run_id=key.run_id,
-                map_index=key.map_index,
-                try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=queue or DEFAULT_QUEUE,
-                concurrency_slots=task_instance.pool_slots,
-                command=str(command),
-            )
-        )
-
-    @provide_session
     def queue_workload(
         self,
-        workload: Any,  # Note actually "airflow.executors.workloads.All" but not existing in Airflow 2.10
+        workload: workloads.All,
         session: Session = NEW_SESSION,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
-        from airflow.executors import workloads
-
         if not isinstance(workload, workloads.ExecuteTask):
             raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
         task_instance = workload.ti
         key = task_instance.key
-        session.add(
-            EdgeJobModel(
-                dag_id=key.dag_id,
-                task_id=key.task_id,
-                run_id=key.run_id,
-                map_index=key.map_index,
-                try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=task_instance.queue,
-                concurrency_slots=task_instance.pool_slots,
-                command=workload.model_dump_json(),
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = session.scalars(
+            select(EdgeJobModel).where(
+                EdgeJobModel.dag_id == key.dag_id,
+                EdgeJobModel.task_id == key.task_id,
+                EdgeJobModel.run_id == key.run_id,
+                EdgeJobModel.map_index == key.map_index,
+                EdgeJobModel.try_number == key.try_number,
             )
-        )
+        ).first()
+
+        if existing_job:
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = task_instance.queue
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = workload.model_dump_json()
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=task_instance.queue,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=workload.model_dump_json(),
+                )
+            )
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
         changed = False
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
-        lifeless_workers: list[EdgeWorkerModel] = (
-            session.query(EdgeWorkerModel)
+        lifeless_workers: Sequence[EdgeWorkerModel] = session.scalars(
+            select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeWorkerModel.state.not_in(
                     [
                         EdgeWorkerState.UNKNOWN,
@@ -199,8 +142,7 @@ class EdgeExecutor(BaseExecutor):
                 ),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
             )
-            .all()
-        )
+        ).all()
 
         for worker in lifeless_workers:
             changed = True
@@ -221,20 +163,15 @@ class EdgeExecutor(BaseExecutor):
 
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
-        if AIRFLOW_V_3_0_PLUS:
-            heartbeat_interval_config_name = "task_instance_heartbeat_timeout"
-        else:
-            heartbeat_interval_config_name = "scheduler_zombie_task_threshold"
-        heartbeat_interval: int = conf.getint("scheduler", heartbeat_interval_config_name)
-        lifeless_jobs: list[EdgeJobModel] = (
-            session.query(EdgeJobModel)
+        heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
+        lifeless_jobs: Sequence[EdgeJobModel] = session.scalars(
+            select(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
             )
-            .all()
-        )
+        ).all()
 
         for job in lifeless_jobs:
             ti = TaskInstance.get_task_instance(
@@ -244,7 +181,7 @@ class EdgeExecutor(BaseExecutor):
                 map_index=job.map_index,
                 session=session,
             )
-            job.state = ti.state if ti else TaskInstanceState.REMOVED
+            job.state = ti.state if ti and ti.state else TaskInstanceState.REMOVED
 
             if job.state != TaskInstanceState.RUNNING:
                 # Edge worker does not backport emitted Airflow metrics, so export some metrics
@@ -268,10 +205,10 @@ class EdgeExecutor(BaseExecutor):
         purged_marker = False
         job_success_purge = conf.getint("edge", "job_success_purge")
         job_fail_purge = conf.getint("edge", "job_fail_purge")
-        jobs: list[EdgeJobModel] = (
-            session.query(EdgeJobModel)
+        jobs: Sequence[EdgeJobModel] = session.scalars(
+            select(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeJobModel.state.in_(
                     [
                         TaskInstanceState.RUNNING,
@@ -283,8 +220,7 @@ class EdgeExecutor(BaseExecutor):
                     ]
                 )
             )
-            .all()
-        )
+        ).all()
 
         # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
         already_removed = self.running - set(job.key for job in jobs)
@@ -312,7 +248,7 @@ class EdgeExecutor(BaseExecutor):
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
-                    self.last_reported_state[job.key] = job.state
+                    self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
@@ -359,6 +295,35 @@ class EdgeExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
+    @provide_session
+    def revoke_task(self, *, ti: TaskInstance, session: Session = NEW_SESSION):
+        """
+        Revoke a task instance from the executor.
+
+        This method removes the task from the executor's internal state and deletes
+        the corresponding EdgeJobModel record to prevent edge workers from picking it up.
+
+        :param ti: Task instance to revoke
+        :param session: Database session
+        """
+        # Remove from executor's internal state
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
+        if ti.key in self.last_reported_state:
+            del self.last_reported_state[ti.key]
+
+        # Delete the job from the database to prevent edge workers from picking it up
+        session.execute(
+            delete(EdgeJobModel).where(
+                EdgeJobModel.dag_id == ti.dag_id,
+                EdgeJobModel.task_id == ti.task_id,
+                EdgeJobModel.run_id == ti.run_id,
+                EdgeJobModel.map_index == ti.map_index,
+                EdgeJobModel.try_number == ti.try_number,
+            )
+        )
+        self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
+
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
@@ -373,23 +338,6 @@ class EdgeExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        return [
-            GroupCommand(
-                name="edge",
-                help="Edge Worker components",
-                description=(
-                    "Start and manage Edge Worker. Works only when using EdgeExecutor. For more information, "
-                    "see https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/edge_executor.html"
-                ),
-                subcommands=EDGE_COMMANDS,
-            ),
-        ]
+        from airflow.providers.edge3.cli.definition import get_edge_cli_commands
 
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return EdgeExecutor._get_parser()
+        return get_edge_cli_commands()

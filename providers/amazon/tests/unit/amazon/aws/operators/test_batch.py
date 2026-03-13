@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import botocore.client
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
@@ -32,6 +31,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -542,6 +542,67 @@ class TestBatchOperator:
         job_queue_persist_mock.assert_called_once()
         wait_mock.assert_called_once()
         assert len(wait_mock.call_args) == 2
+
+    @patch.object(BatchOperator, "log", new_callable=MagicMock)
+    @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
+    @patch.object(BatchOperator, "monitor_job")
+    def test_execute_complete_success_with_logs(self, mock_monitor_job, mock_validate, mock_log):
+        # Setup
+        mock_validate.return_value = {"status": "success", "job_id": "12345"}
+        batch = BatchOperator(
+            task_id="test_task",
+            job_name=JOB_NAME,
+            job_queue="dummy_queue",
+            job_definition="dummy_definition",
+            deferrable=True,
+            awslogs_enabled=True,
+        )
+
+        result = batch.execute_complete(context={}, event={"dummy": "event"})
+
+        # Assertion
+        assert result == "12345"
+        mock_monitor_job.assert_called_once_with({})
+        mock_log.info.assert_called_with("Job completed successfully for job_id: %s", "12345")
+
+    @patch.object(BatchOperator, "log", new_callable=MagicMock)
+    @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
+    @patch.object(BatchOperator, "monitor_job")
+    def test_execute_complete_success_without_logs(self, mock_monitor_job, mock_validate, mock_log):
+        # Setup
+        mock_validate.return_value = {"status": "success", "job_id": "12345"}
+        batch = BatchOperator(
+            task_id="test_task",
+            job_name=JOB_NAME,
+            job_queue="dummy_queue",
+            job_definition="dummy_definition",
+            deferrable=True,
+            awslogs_enabled=False,
+        )
+
+        result = batch.execute_complete(context={}, event={"dummy": "event"})
+
+        # Assertions
+        assert result == "12345"
+        mock_monitor_job.assert_not_called()
+        mock_log.info.assert_called_with("Job completed successfully for job_id: %s", "12345")
+
+    @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
+    def test_execute_complete_failure(self, mock_validate):
+        # Setup
+        mock_validate.return_value = {"status": "failed", "job_id": "12345"}
+        batch = BatchOperator(
+            task_id="test_task",
+            job_name=JOB_NAME,
+            job_queue="dummy_queue",
+            job_definition="dummy_definition",
+            deferrable=True,
+            awslogs_enabled=True,
+        )
+
+        # Assertions
+        with pytest.raises(AirflowException, match="Error while running job"):
+            batch.execute_complete(context={}, event={"dummy": "event"})
 
 
 class TestBatchCreateComputeEnvironmentOperator:

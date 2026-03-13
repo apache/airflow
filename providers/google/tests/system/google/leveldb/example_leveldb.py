@@ -26,15 +26,19 @@ from datetime import datetime
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
 except AirflowOptionalProviderFeatureException:
     pytest.skip("LevelDB not available", allow_module_level=True)
 
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_leveldb"

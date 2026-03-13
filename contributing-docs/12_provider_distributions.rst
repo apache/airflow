@@ -25,7 +25,9 @@ Airflow is split into core and providers. They are delivered as separate distrib
 * ``apache-airflow-task-sdk`` - task-sdk distribution that are imported by the providers
 * ``apache-airflow-providers-*`` - More than 90 providers to communicate with external services
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Where providers are kept in our repository
 ------------------------------------------
@@ -107,9 +109,9 @@ needs to be updated after you change dependencies:
 
 .. code:: bash
 
-    breeze static-checks --type update-providers-dependencies --all-files
+    prek update-providers-dependencies --all-files
 
-If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
+If you have ``prek`` installed, this will be done automatically for you when you commit the changes and
 you should do it before you make a PR with such changed dependency changes
 
 Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
@@ -121,7 +123,7 @@ Provider's cross-dependencies
 Some of the providers have cross-dependencies with other providers distributions.
 This typically happens for transfer operators where operators use hooks from the other providers
 in case they are transferring data between the providers. The list of dependencies is maintained
-(automatically with the ``update-providers-dependencies`` pre-commit) in the
+(automatically with the ``update-providers-dependencies`` prek hook) in the
 ``generated/provider_dependencies.json``.
 
 Cross-dependencies between providers are converted into optional dependencies (extras) - if
@@ -140,7 +142,7 @@ The ``tests_common`` module is installed automatically by uv in the uv workspace
 Developing community managed providers
 --------------------------------------
 
-While you can develop your own providers, Apache Airflow has 60+ providers that are managed by the community.
+While you can develop your own providers, Apache Airflow has 90+ providers that are managed by the community.
 They are part of the same repository as Apache Airflow (we use monorepo approach where different
 parts of the system are developed in the same repository but then they are packaged and released separately).
 All the community-managed providers are in ``providers`` folder and their code is placed as sub-directories of
@@ -165,7 +167,7 @@ in the previous chapter. However when they are locally developed, together with 
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
 the provider. The ``provider.yaml`` is the single source of truth for the provider metadata and it is
 there where you should add and remove dependencies for providers (following by running
-``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
+``update-providers-dependencies`` prek hook to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
 The ``provider.yaml`` file is compliant with the schema that is available in
@@ -235,7 +237,7 @@ The rules are as follows:
        * PROVIDER
     * system
       * PROVIDER
-          * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+          * example_dags -> example Dags are stored here (used for documentation and System Tests)
 
 * Module names do not contain word "hooks", "operators" etc. The right type comes from
   the python package. For example 'hooks.datastore' module contains DataStore hook and
@@ -278,7 +280,7 @@ and documented. Part of the documentation is ``provider.yaml`` file ``integratio
 ``version`` information. This information is stripped-out from provider info available at runtime,
 however it is used to automatically generate documentation for the provider.
 
-If you have pre-commits installed, pre-commit will warn you and let you know what changes need to be
+If you have prek installed, it will warn you and let you know what changes need to be
 done in the ``provider.yaml`` file when you add a new Operator, Hooks, Sensor or Transfer. You can
 also take a look at the other ``provider.yaml`` files as examples.
 
@@ -293,7 +295,7 @@ Well documented provider contains those:
 You can see for example ``google`` provider which has very comprehensive documentation:
 
 * `Documentation <../../providers/google/docs>`_
-* `System tests/Example DAGs <../providers/google/tests/system/google/>`_
+* `System tests/Example Dags <../providers/google/tests/system/google/>`_
 
 Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:
@@ -314,7 +316,7 @@ providers.
   not only "green path"
 
 * Integration tests where 'local' integration with a component is possible (for example tests with
-  MySQL/Postgres DB/Trino/Kerberos all have integration tests which run with real, dockerized components
+  MySQL/Postgres DB/Trino/Kerberos all have integration tests which run with real, dockerized components)
 
 * System Tests which provide end-to-end testing, usually testing together several operators, sensors,
   transfers connecting to a real external system

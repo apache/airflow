@@ -19,18 +19,16 @@ from __future__ import annotations
 
 import json
 import logging
-import logging.config
 from unittest import mock
 
 import pytest
 from pyodbc import Cursor
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -71,14 +69,13 @@ class TestDbApiHook:
             def get_db_log_messages(self, conn) -> None:
                 return conn.get_messages()
 
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = True
 
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
         self.db_hook.supports_executemany = False
-        self.db_hook.log.setLevel(logging.DEBUG)
+        # self.db_hook.log.setLevel(logging.DEBUG)
 
     def test_get_records(self):
         statement = "SQL"
@@ -228,7 +225,7 @@ class TestDbApiHook:
         table = "table"
         rows = [("What's",), ("up",), ("world",)]
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, logger="airflow.task"):
             self.db_hook.insert_rows(table, iter(rows))
 
         assert self.conn.close.call_count == 1
@@ -249,7 +246,7 @@ class TestDbApiHook:
         table = "table"
         rows = [("What's",), ("up",), ("world",)]
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, "airflow.task"):
             self.db_hook.supports_executemany = True
             self.db_hook.insert_rows(table, iter(rows))
 
@@ -579,9 +576,8 @@ class TestDbApiHook:
         assert result == [obj, obj]
 
     def test_run_no_queries(self):
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_run_and_log_db_messages(self):
         statement = "SQL"
@@ -641,3 +637,58 @@ class TestDbApiHook:
         assert any(f"Loaded 3 rows into {table} so far" in message for message in caplog.messages)
         assert any(f"Loaded 6 rows into {table} so far" in message for message in caplog.messages)
         assert any(f"Loaded 9 rows into {table} so far" in message for message in caplog.messages)
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_calls_send_sql_hook_lineage(self, mock_send_lineage):
+        statement = "SQL"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_calls_send_sql_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_calls_send_sql_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        params = ("x",)
+
+        self.db_hook.get_df(sql, parameters=params)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == params
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_calls_send_sql_hook_lineage(self, mock_get_pandas_df_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        params = ("x",)
+
+        self.db_hook.get_df_by_chunks(sql, parameters=params, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == params

@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDagDetails } from "openapi/queries";
+import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog } from "src/components/ui";
+import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -43,11 +45,25 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+
+  // Get current DAG's bundle version to compare with DAG run's bundle version
+  const { data: dagDetails } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
     dagId,
     dagRunId,
-    requestBody: { only_failed: onlyFailed },
+    options: {
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+          ? refetchInterval
+          : false,
+    },
+    requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
   });
 
   const { isPending, mutate } = useClearDagRun({
@@ -61,6 +77,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     onSuccess: onClose,
   });
+
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const dagRunBundleVersion = dagRun.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
+  const shouldShowBundleVersionOption =
+    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -101,16 +124,32 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
+          <Flex
+            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+            mt={3}
+          >
+            {shouldShowBundleVersionOption ? (
+              <Checkbox
+                checked={runOnLatestVersion}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+              </Checkbox>
+            ) : undefined}
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({
                   dagId,
                   dagRunId,
-                  requestBody: { dry_run: false, only_failed: onlyFailed },
+                  requestBody: {
+                    dry_run: false,
+                    only_failed: onlyFailed,
+                    run_on_latest_version: runOnLatestVersion,
+                  },
                 });
                 if (note !== dagRun.note) {
                   mutatePatchDagRun({

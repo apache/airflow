@@ -19,13 +19,17 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
 from airflow.utils.state import State
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_0_1:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
 pytestmark = pytest.mark.db_test
 
@@ -36,7 +40,7 @@ class TestBranchPythonDecoratedOperator:
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
     @pytest.mark.execution_timeout(180)
     @pytest.mark.parametrize(
-        ["branch_task_name", "skipped_task_name"], [("task_1", "task_2"), ("task_2", "task_1")]
+        ("branch_task_name", "skipped_task_name"), [("task_1", "task_2"), ("task_2", "task_1")]
     )
     def test_branch_one(self, dag_maker, branch_task_name, skipped_task_name):
         @task

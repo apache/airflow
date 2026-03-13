@@ -23,6 +23,185 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.19.0 (2026-02-17)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+StatsD metrics aggregation now supports configurable TTL-enabled LRU cache to prevent memory growth in long-running daemons (#60933)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The Helm Chart now includes new configuration options for StatsD aggregation management:
+
+* ``statsd.cache.type`` - Enable TTL-enabled ``lru`` cache or ``random`` cache for metrics aggregation (default: ``lru``)
+* ``statsd.cache.size`` - Maximum number of metrics to cache (default: 1000)
+* ``statsd.cache.ttl`` - Time-to-live for cached metrics in seconds (``0s`` is TTL disabled) (default: ``0s``)
+
+This feature addresses uncontrolled memory growth in StatsD daemons by automatically cleaning up stale or unused metric entries. When enabled, the cache uses both LRU (Least Recently Used) eviction and TTL (Time To Live) expiration to manage memory usage effectively.
+
+To maintain backward compatibility, the default behaviour remains unchanged. Users experiencing memory growth issues with StatsD can enable this feature by setting ``statsd.cache.ttl`` to value higher than ``0`` in their Helm values.
+
+Support for Multiple Celery Worker Sets in the Helm Chart (#58547)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+This change introduces support for advanced Celery Workers topologies to Apache Airflow Helm Chart, enabling more flexible resource allocation and precise autoscaling configurations.
+
+**Flexible Worker Topologies**: The new ``workers.celery.enableDefault`` flag allows users to configure a deployment consisting only of specialized worker sets defined in ``workers.celery.sets`` section.
+
+**Multi-Queue Autoscaling Support**: Updates the KEDA ScaledObject generation to support comma-separated queue lists. By using the ``SQL IN (...)`` clause, we ensure that KEDA scales worker sets based on the precise aggregate workload of all their assigned queues.
+
+**Granular Configuration Overrides**: This change allows for overwrite of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
+
+Options to create a default user have been moved under the ``createUserJob`` section
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Please update your configuration accordingly:
+
+* ``webserver.defaultUser`` section is now deprecated in favor of ``createUserJob`` (#59767)
+
+The previous configuration options are still working but are deprecated and will be removed in a future version.
+
+Note that the previous documentation described also the option ``apiServer.defaultUser``, which was never implemented in the chart. The only supported option is now ``createUserJob``. Using ``apiServer.defaultUser`` will raise an error.
+
+Celery specific config options have been moved under the ``celery`` section in ``workers``
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Please update your configuration accordingly:
+
+* ``workers.replicas`` command is now deprecated in favor of ``workers.celery.replicas`` (#59730)
+* ``workers.revisionHistoryLimit`` command is now deprecated in favor of ``workers.celery.revisionHistoryLimit`` (#60056)
+* ``workers.args`` command is now deprecated in favor of ``workers.celery.args`` (#60163)
+* ``workers.livenessProbe`` section is now deprecated in favor of ``workers.celery.livenessProbe`` (#60186)
+* ``workers.updateStrategy`` section is now deprecated in favor of ``workers.celery.updateStrategy`` (#60351)
+* ``workers.strategy`` section is now deprecated in favor of ``workers.celery.strategy`` (#60354)
+* ``workers.podManagementPolicy`` section is now deprecated in favor of ``workers.celery.podManagementPolicy`` (#60359)
+* ``workers.persistence`` section is now deprecated in favor of ``workers.celery.persistence`` (#60238)
+
+The previous configuration options are still working but are deprecated and will be removed in a future version.
+
+Manual Service Account Token Volume configuration for pod-launching executors (#59156)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Added support for manual Service Account Token Volume configuration when using pod-launching executors
+(``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``).
+This implements defense-in-depth security with both ServiceAccount and Pod-level controls, providing
+compatibility with security policies like Kyverno and enabling container-specific privilege assignment
+following the Principle of Least Privilege.
+
+
+Add ``imagePullSecrets`` option (#58094)
+""""""""""""""""""""""""""""""""""""""""
+
+Add ``.Values.imagePullSecrets`` as the new mechanism for configuring registry credentials,
+deprecating both ``.Values.registry.secretName`` and the automatic creation of the ``<RELEASE_NAME>-registry`` secret from ``.Values.registry.connection``.
+
+
+Default Airflow image is updated to ``3.1.7`` (#61447)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``3.1.7``, previously it was ``3.0.2``.
+
+Default git-sync image is updated to ``4.4.2`` (#54085)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default git-sync image that is used with the Chart is now ``4.4.2``, previously it was ``4.3.0``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add ``PodDisruptionBudget`` for Dag Processor (#60294)
+- Add ``PodDisruptionBudget`` for Triggerer and Workers (#59068)
+- Add ``HorizontalPodAutoscaler`` (HPA) for API Server (#52392)
+- Add support for launching jobs with ``KubernetesJobOperator`` (#52024)
+- Add ``CronJob`` to clean old records in the database (#58155)
+
+
+Improvements
+^^^^^^^^^^^^
+
+- Improve dag_bundle_config_list Configuration (#60645)
+- Add ``workers.celery.kerberosInitContainer`` & ``workers.kubernetes.kerberosInitContainer`` (#60751, #60427)
+- Add ``workers.celery.securityContexts`` & ``workers.kubernetes.securityContexts`` (#60396)
+- Add ``workers.celery.podManagementPolicy`` field (#60359)
+- Add ``workers.celery.strategy`` field (#60354)
+- Add ``workers.celery.updateStrategy`` field (#60351)
+- Add ``workers.celery.persistence`` section (#60238)
+- Add ``workers.celery.livenessProbe`` section (#60186)
+- Add ``workers.celery.args`` field (#60163)
+- Add ``workers.celery.command`` & ``workers.kubernetes.command`` (#60067)
+- Allow custom ``volumeClaimTemplates`` when ``logs.persistence.enabled`` is true (#60118)
+- Add checksum for JWT secret in API server and scheduler deployments (#60111)
+- Add ``workers.celery.revisionHistoryLimit`` field (#60056)
+- Add Redis StatefulSet ``persistentVolumeClaimRetentionPolicy`` support (#59955)
+- Add ``workers.celery.replicas`` field (#59730)
+- Add custom envs to database cleanup (#59804)
+- Extend ``airflow_ti_running`` metrics by scheduled, queued and deferred (#58819)
+- Create an explicit control for ``createUserJob`` (#56057)
+- Make cleanup cronjob conditional on kubernetes executor (#58695)
+- Add database cleanup options and remove deprecated ``securityContext`` field (#58663)
+- Add ability to disable API Server (#56493)
+- Add ``registry.secretNames`` and ``registry.connections`` options (#58094)
+- Allow custom labels in StatsD, redis and Dag Processor (#55832)
+- Allow setting ``restartPolicy`` for batch jobs in chart (#54354)
+- Add readiness and liveliness support for git sync relay sidecars (#50218)
+- Allow overriding ``schedulerName`` on worker/tasks pods (#53983)
+- Allow additional ``PodDisruptionBudget`` config properties (#58864)
+- Add EdgeExecutor to KEDA query (#55560)
+- Allow ``revisionHistoryLimit`` to be set to 0 (#60340)
+- Allow optional ``subPath`` for logs volume mount (#52350)
+- Move triggerer from ``pod-log-reader-role`` to ``pod-launcher-role`` (#56872)
+
+Bug Fixes
+^^^^^^^^^
+
+- Remove ``kedaNetworkPolicySelector`` from helpers (#61564)
+- Use the ``bitnamilegacy/postgresql`` image (#61156)
+- Fix Compatibility of Celery Worker Sets with Workers Separation (#60420)
+- Fix database cleanup cronjob ImagePullSecrets (#58626)
+- Remove ``workers.celery`` breaking change (#61049)
+- Fix missing templating in API Server ``extraInitContainers`` (#60812)
+- Fix ``securityContext.containers``/``ingress.apiServer`` in values.schema.json (#60575)
+- Remove unused ``containerLifecycleHooks`` field (#60239)
+- Remove unneeded logic in api-server (#60147)
+- Remove ``defaultUser`` from API Server in values.schema.json (#59762)
+- Isolate ``defaultUser`` handling in ``createUserJob`` (#59767)
+- Fix rendering condition of ``git_sync_ssh_key_volume`` (#59418)
+- Add watch for events to the Pod launcher role (#59080)
+- Ensure that git-sync actually runs when ``dags.gitSync.enabled=true`` and ``dags.persistence.enabled=true`` (#59123)
+- Don't add labels to non-existent configuration options (#59213)
+- Add log volume to init container for scheduler, triggerer and worker (#56418)
+- Correctly derive celery sync_parallelism from scheduler CPU limits (#58733)
+- Fix ingress notes (#59122)
+- Fix Liveness / Readiness / Startup probe path for Airflow 3.x (#58734)
+- Fix flower network policy condition when multiple executors (#58635)
+- Missing SCC Role bindings for redis and api-server (#57985)
+- Ensure graceful Redis shutdown(#58432)
+- Start Redis directly, not via shell (#58790)
+- Add missing ``airflow.fullname`` on kubernetes objects (#52953)
+- StatsD deployment volume mount without subpath for live reloading (#54986)
+- Fix KEDA query for Kubernetes Executor (#55559)
+- Add API Server config in k8s pod template (#53533)
+- Fix helm schema validation for executor value (#54682)
+- Correct watch verb quoting in Airflow Job Launcher Role (#53822)
+- Trim non-alphanumeric characters from the executor label (#53534)
+- Fix KEDA Query to Use executor Field Instead of queue for Multiple Executors (#52840)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Document how to run the API server behind a reverse proxy (#61095)
+- Clarify ingress settings for Airflow 2 vs 3 in values.yaml (#60434)
+- Add database cleanup docs to Helm productions docs (#58707)
+- KEDA best practices + better documentation (#58246)
+- Update chart info about built-in secrets and environment variables (#58317)
+- Fix typo in PgBouncer section of the Production Guide (#56754)
+- Update webserver secret note in NOTES.txt and Production Guide (#55106)
+- Make term Dag consistent in docs v2 (#55099)
+- Add API Server to container resources docs (#54698)
+- Fix YAML block scalar when providing SSH key for git-sync (#56716)
+
+
 Airflow Helm Chart 1.18.0 (2025-07-12)
 --------------------------------------
 

@@ -27,6 +27,7 @@ from datetime import datetime
 
 from airflow.models import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
+from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
 from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
@@ -74,6 +75,16 @@ with DAG(
         sql="SELECT COUNT(1) as cnt FROM temp_table", master="local", task_id="spark_sql_job"
     )
     # [END howto_operator_spark_sql]
+
+    # [START howto_operator_spark_pyspark]
+    def my_pyspark_job(spark):
+        df = spark.range(100).filter("id % 2 = 0")
+        print(df.count())
+
+    spark_pyspark_job = PySparkOperator(
+        python_callable=my_pyspark_job, conn_id="spark_connect", task_id="spark_pyspark_job"
+    )
+    # [END howto_operator_spark_pyspark]
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

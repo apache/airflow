@@ -26,17 +26,15 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
-import aiohttp.client_exceptions
 import azure.identity
-import azure.identity.aio
 import pytest
 import tenacity
 from azure.core.credentials import AccessToken
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
@@ -53,16 +51,18 @@ from airflow.providers.databricks.hooks.databricks_base import (
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
+from airflow.providers.databricks.utils import databricks as utils
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
 NOTEBOOK_TASK = {"notebook_path": "/test"}
 SPARK_PYTHON_TASK = {"python_file": "test.py", "parameters": ["--param", "123"]}
-NEW_CLUSTER = {"spark_version": "2.0.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
+NEW_CLUSTER = {"spark_version": "2.2.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
 CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = "job-name"
+TASK_KEY = "task-key"
 PIPELINE_NAME = "some pipeline name"
 PIPELINE_ID = "its-a-pipeline-id"
 STATEMENT_ID = "statement_id"
@@ -88,6 +88,7 @@ GET_RUN_RESPONSE = {
     "job_id": JOB_ID,
     "run_page_url": RUN_PAGE_URL,
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
+    "tasks": [{"task_key": TASK_KEY}],
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 CLUSTER_STATE = "TERMINATED"
@@ -130,111 +131,115 @@ LIST_SPARK_VERSIONS_RESPONSE = {
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
 }
+ACCESS_CONTROL_DICT = {
+    "user_name": "jsmith@example.com",
+    "permission_level": "CAN_MANAGE",
+}
 
 
 def create_endpoint(host):
     """
     Utility function to generate the create endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/create"
+    return f"https://{host}/api/2.2/jobs/create"
 
 
 def reset_endpoint(host):
     """
     Utility function to generate the reset endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/reset"
+    return f"https://{host}/api/2.2/jobs/reset"
 
 
 def update_endpoint(host):
     """
     Utility function to generate the update endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/update"
+    return f"https://{host}/api/2.2/jobs/update"
 
 
 def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/run-now"
+    return f"https://{host}/api/2.2/jobs/run-now"
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/submit"
+    return f"https://{host}/api/2.2/jobs/runs/submit"
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get"
+    return f"https://{host}/api/2.2/jobs/runs/get"
 
 
 def get_run_output_endpoint(host):
     """
     Utility function to generate the get run output endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get-output"
+    return f"https://{host}/api/2.2/jobs/runs/get-output"
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the cancel run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel"
+    return f"https://{host}/api/2.2/jobs/runs/cancel"
 
 
 def cancel_all_runs_endpoint(host):
     """
     Utility function to generate the cancel all runs endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel-all"
+    return f"https://{host}/api/2.2/jobs/runs/cancel-all"
 
 
 def delete_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/delete"
+    return f"https://{host}/api/2.2/jobs/runs/delete"
 
 
 def repair_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/repair"
+    return f"https://{host}/api/2.2/jobs/runs/repair"
 
 
 def get_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/get"
+    return f"https://{host}/api/2.1/clusters/get"
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/start"
+    return f"https://{host}/api/2.1/clusters/start"
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/restart"
+    return f"https://{host}/api/2.1/clusters/restart"
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/delete"
+    return f"https://{host}/api/2.1/clusters/delete"
 
 
 def install_endpoint(host):
@@ -255,7 +260,7 @@ def list_jobs_endpoint(host):
     """
     Utility function to generate the list jobs endpoint given the host
     """
-    return f"https://{host}/api/2.1/jobs/list"
+    return f"https://{host}/api/2.2/jobs/list"
 
 
 def list_pipelines_endpoint(host):
@@ -267,7 +272,14 @@ def list_pipelines_endpoint(host):
 
 def list_spark_versions_endpoint(host):
     """Utility function to generate the list spark versions endpoint given the host"""
-    return f"https://{host}/api/2.0/clusters/spark-versions"
+    return f"https://{host}/api/2.1/clusters/spark-versions"
+
+
+def permissions_endpoint(host, job_id):
+    """
+    Utility function to generate the permissions endpoint given the host
+    """
+    return f"https://{host}/api/2.0/permissions/jobs/{job_id}"
 
 
 def create_valid_response_mock(content):
@@ -346,7 +358,7 @@ class TestDatabricksHook:
         assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -436,7 +448,7 @@ class TestDatabricksHook:
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {"cluster_name": "new_name"}
         data = {"cluster_name": "new_name"}
-        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_requests.patch.assert_called_once_with(
@@ -469,7 +481,7 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
-    def test_reset(self, mock_requests):
+    def test_reset_with_no_acl(self, mock_requests):
         mock_requests.codes.ok = 200
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
@@ -479,6 +491,40 @@ class TestDatabricksHook:
         mock_requests.post.assert_called_once_with(
             reset_endpoint(HOST),
             json={"job_id": JOB_ID, "new_settings": {"name": "test"}},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_reset_with_acl(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        ACCESS_CONTROL_LIST = [{"permission_level": "CAN_MANAGE", "user_name": "test_user"}]
+        json = {
+            "access_control_list": ACCESS_CONTROL_LIST,
+            "name": "test",
+        }
+
+        self.hook.reset_job(JOB_ID, json)
+
+        mock_requests.post.assert_called_once_with(
+            reset_endpoint(HOST),
+            json={
+                "job_id": JOB_ID,
+                "new_settings": json,
+            },
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        mock_requests.patch.assert_called_once_with(
+            permissions_endpoint(HOST, JOB_ID),
+            json={"access_control_list": ACCESS_CONTROL_LIST},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -647,6 +693,29 @@ class TestDatabricksHook:
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
         state_message = self.hook.get_run_state_message(RUN_ID)
         assert state_message == STATE_MESSAGE
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_run_tasks_success_multiple_pages(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({**GET_RUN_RESPONSE, "next_page_token": "PAGETOKEN"}),
+            create_successful_response_mock(GET_RUN_RESPONSE),
+        ]
+
+        tasks = self.hook.get_run_tasks(RUN_ID)
+
+        assert mock_requests.get.call_count == 2
+
+        first_call_args = mock_requests.method_calls[0]
+        assert first_call_args[1][0] == get_run_endpoint(HOST)
+        assert first_call_args[2]["params"] == {"run_id": RUN_ID}
+
+        second_call_args = mock_requests.method_calls[1]
+        assert second_call_args[1][0] == get_run_endpoint(HOST)
+        assert second_call_args[2]["params"] == {"run_id": RUN_ID, "page_token": "PAGETOKEN"}
+
+        assert len(tasks) == 2
+        assert tasks == GET_RUN_RESPONSE["tasks"] * 2
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
@@ -929,7 +998,7 @@ class TestDatabricksHook:
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({})
 
-    @pytest.mark.parametrize("access_token, token_type", [("my_token", None), ("my_token", "not bearer")])
+    @pytest.mark.parametrize(("access_token", "token_type"), [("my_token", None), ("my_token", "not bearer")])
     def test_is_oauth_token_valid_raises_invalid_type(self, access_token, token_type):
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({"access_token": access_token, "token_type": token_type})
@@ -1182,6 +1251,31 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_post_sql_statement_hook_lineage(self, mock_requests, mock_send_lineage):
+        mock_requests.post.return_value.json.return_value = {
+            "statement_id": "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        }
+        json_payload = {
+            "statement": "select * from test.test;",
+            "warehouse_id": WAREHOUSE_ID,
+            "catalog": "some_catalog",
+            "schema": "some_schema",
+            "parameters": {"a": 1},
+            "wait_timeout": "0s",
+        }
+        self.hook.post_sql_statement(json_payload)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == "select * from test.test;"
+        assert call_kw["job_id"] == "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        assert call_kw["sql_parameters"] == {"a": 1}
+        assert call_kw["default_db"] == "some_catalog"
+        assert call_kw["default_schema"] == "some_schema"
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_get_sql_statement_state(self, mock_requests):
         mock_requests.codes.ok = 200
@@ -1247,6 +1341,36 @@ class TestDatabricksHook:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_update_job_permission(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.patch.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.patch.return_value).status_code = status_code_mock
+
+        self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
+
+        mock_requests.patch.assert_called_once_with(
+            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    def test_openlineage_methods(self):
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        db_info = self.hook.get_openlineage_database_info(None)
+        assert isinstance(db_info, DatabaseInfo)
+        assert db_info.scheme == "databricks"
+        assert db_info.authority == HOST
+        assert db_info.is_information_schema_cross_db is True
+
+        assert self.hook.get_openlineage_database_dialect(None) == "databricks"
+        assert self.hook.get_openlineage_default_schema() == "default"
 
 
 @pytest.mark.db_test
@@ -1385,7 +1509,6 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
-        self.hook.log.setLevel("DEBUG")
         response = mock_get.return_value.__aenter__.return_value
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})
@@ -1779,7 +1902,7 @@ class TestDatabricksHookAsyncMethods:
         )
         data = {"cluster_name": "new_name"}
         async with self.hook:
-            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_patch.assert_called_once_with(
@@ -2130,7 +2253,7 @@ class TestDatabricksHookSpToken:
         run_id = self.hook.submit_run(data)
 
         ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(HOST)
+        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(f"https://{HOST}")
         assert ad_call_args[2]["data"] == "grant_type=client_credentials&scope=all-apis"
 
         assert run_id == "1"

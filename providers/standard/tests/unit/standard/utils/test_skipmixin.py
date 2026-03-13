@@ -18,31 +18,35 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
+from sqlalchemy import select
 
-from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException, SkipMixin
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.providers.common.compat.sdk import timezone
+except ImportError:  # Fallback for Airflow < 3.1
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.sdk import task, task_group
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 else:
-    from airflow.decorators import task, task_group
-    from airflow.models.skipmixin import SkipMixin
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_DAG_RUN_ID = "test1"
@@ -60,10 +64,9 @@ class TestSkipMixin:
     def teardown_method(self):
         self.clean_db()
 
-    @patch("airflow.utils.timezone.utcnow")
-    def test_skip(self, mock_now, dag_maker, session):
+    def test_skip(self, dag_maker, session, time_machine):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
-        mock_now.return_value = now
+        time_machine.move_to(now, tick=False)
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
 
@@ -89,13 +92,15 @@ class TestSkipMixin:
             session = settings.Session()
             SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks)
 
-            session.query(TI).filter(
-                TI.dag_id == "dag",
-                TI.task_id == "task",
-                TI.state == State.SKIPPED,
-                TI.start_date == now,
-                TI.end_date == now,
-            ).one()
+            session.scalar(
+                select(TI).where(
+                    TI.dag_id == "dag",
+                    TI.task_id == "task",
+                    TI.state == State.SKIPPED,
+                    TI.start_date == now,
+                    TI.end_date == now,
+                )
+            )
 
     def test_skip_none_tasks(self):
         if AIRFLOW_V_3_0_PLUS:
@@ -103,32 +108,27 @@ class TestSkipMixin:
         else:
             session = Mock()
             assert SkipMixin().skip(dag_run=None, execution_date=None, tasks=[]) is None
-            assert not session.query.called
+            assert not session.scalars.called
             assert not session.commit.called
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=2)
-        assert (
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator)],
-            )
-            is None
-        )
+        assert SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator)]) is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_none_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=-1)
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
-            )
+            SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator, task_id="task")])
         assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
@@ -141,7 +141,7 @@ class TestSkipMixin:
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
-        ) as dag:
+        ):
             task1 = EmptyOperator(task_id="task1")
             task2 = EmptyOperator(task_id="task2")
             task3 = EmptyOperator(task_id="task3")
@@ -149,8 +149,13 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
         if AIRFLOW_V_3_0_PLUS:
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+            ti1 = RuntimeTaskInstance.model_construct(
+                dag_id=task1.dag_id,
+                task_id=task1.task_id,
+                task=task1,
+                run_id=DEFAULT_DAG_RUN_ID,
+            )
+            ti1.__dict__["xcom_push"] = MagicMock()
         else:
             ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
 
@@ -176,7 +181,7 @@ class TestSkipMixin:
             assert executed_states == expected_states
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
             (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
@@ -196,8 +201,13 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
         if AIRFLOW_V_3_0_PLUS:
-            dag_version = DagVersion.get_latest_version(task1.dag_id)
-            ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+            ti1 = RuntimeTaskInstance.model_construct(
+                dag_id=task1.dag_id,
+                task_id=task1.task_id,
+                task=task1,
+                run_id=DEFAULT_DAG_RUN_ID,
+            )
+            ti1.__dict__["xcom_push"] = MagicMock()
         else:
             ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
 
@@ -225,7 +235,6 @@ class TestSkipMixin:
     @pytest.mark.skipif(
         AIRFLOW_V_3_0_PLUS, reason="In Airflow 3, `NotPreviouslySkippedDep` is used for this case"
     )
-    @pytest.mark.need_serialized_dag
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:
 
@@ -240,56 +249,27 @@ class TestSkipMixin:
 
             task_group_op.expand(k=[0, 1])
 
+        def _create_task_instance(task_id, map_index):
+            task = dag.get_task(task_id)
+            if not AIRFLOW_V_3_0_PLUS:
+                return TI(task, run_id=DEFAULT_DAG_RUN_ID, map_index=map_index)
+            ti = RuntimeTaskInstance.model_construct(
+                dag_id=dag.dag_id,
+                task_id=task_id,
+                task=task,
+                run_id=DEFAULT_DAG_RUN_ID,
+                map_index=map_index,
+            )
+            ti.__dict__["xcom_push"] = MagicMock()
+            return ti
+
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
-        if AIRFLOW_V_3_0_PLUS:
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
-            branch_op_ti_0 = TI(
-                dag.get_task("task_group_op.branch_op"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=0,
-                dag_version_id=dag_version.id,
-            )
-            branch_op_ti_1 = TI(
-                dag.get_task("task_group_op.branch_op"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=1,
-                dag_version_id=dag_version.id,
-            )
-            branch_a_ti_0 = TI(
-                dag.get_task("task_group_op.branch_a"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=0,
-                dag_version_id=dag_version.id,
-            )
-            branch_a_ti_1 = TI(
-                dag.get_task("task_group_op.branch_a"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=1,
-                dag_version_id=dag_version.id,
-            )
-            branch_b_ti_0 = TI(
-                dag.get_task("task_group_op.branch_b"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=0,
-                dag_version_id=dag_version.id,
-            )
-            branch_b_ti_1 = TI(
-                dag.get_task("task_group_op.branch_b"),
-                run_id=DEFAULT_DAG_RUN_ID,
-                map_index=1,
-                dag_version_id=dag_version.id,
-            )
-        else:
-            branch_op_ti_0 = TI(
-                dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=0
-            )
-            branch_op_ti_1 = TI(
-                dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=1
-            )
-            branch_a_ti_0 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
-            branch_a_ti_1 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
-            branch_b_ti_0 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
-            branch_b_ti_1 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
+        branch_op_ti_0 = _create_task_instance("task_group_op.branch_op", map_index=0)
+        branch_op_ti_1 = _create_task_instance("task_group_op.branch_op", map_index=1)
+        branch_a_ti_0 = _create_task_instance("task_group_op.branch_a", map_index=0)
+        branch_a_ti_1 = _create_task_instance("task_group_op.branch_a", map_index=1)
+        branch_b_ti_0 = _create_task_instance("task_group_op.branch_b", map_index=0)
+        branch_b_ti_1 = _create_task_instance("task_group_op.branch_b", map_index=1)
 
         SkipMixin().skip_all_except(ti=branch_op_ti_0, branch_task_ids="task_group_op.branch_a")
         SkipMixin().skip_all_except(ti=branch_op_ti_1, branch_task_ids="task_group_op.branch_b")
@@ -309,7 +289,7 @@ class TestSkipMixin:
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
         if AIRFLOW_V_3_0_PLUS:
             dag_version = DagVersion.get_latest_version(task.dag_id)
-            ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+            ti1 = create_task_instance(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
         error_message = (
@@ -324,13 +304,24 @@ class TestSkipMixin:
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
         if AIRFLOW_V_3_0_PLUS:
             dag_version = DagVersion.get_latest_version(task.dag_id)
-            ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+            ti1 = create_task_instance(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
-        error_message = (
-            r"'branch_task_ids' expected all task IDs are strings. "
-            r"Invalid tasks found: \{\(42, 'int'\)\}\."
-        )
+
+        if AIRFLOW_V_3_0_PLUS:
+            # Improved error message for Airflow 3.0+
+            error_message = (
+                r"Unable to branch to the specified tasks\. "
+                r"The branching function returned invalid 'branch_task_ids': \{\(42, 'int'\)\}\. "
+                r"Please check that your function returns an Iterable of valid task IDs that exist in your DAG\."
+            )
+        else:
+            # Old error message for Airflow 2.x
+            error_message = (
+                r"'branch_task_ids' expected all task IDs are strings\. "
+                r"Invalid tasks found: \{\(42, 'int'\)\}\."
+            )
+
         with pytest.raises(AirflowException, match=error_message):
             SkipMixin().skip_all_except(ti=ti1, branch_task_ids=["task", 42])
 
@@ -352,7 +343,7 @@ class TestSkipMixin:
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
         if AIRFLOW_V_3_0_PLUS:
             dag_version = DagVersion.get_latest_version(task1.dag_id)
-            ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+            ti1 = create_task_instance(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
 
@@ -414,7 +405,7 @@ class TestSkipMixin:
             def poke(self, context):
                 return True
 
-        with dag_maker("dag_test_branch_sensor_skipping"):
+        with dag_maker("dag_test_branch_sensor_skipping") as dag:
             branch_task = EmptyOperator(task_id="branch_task")
             regular_task = EmptyOperator(task_id="regular_task")
             sensor_task = DummySensor(task_id="sensor_task")
@@ -422,8 +413,13 @@ class TestSkipMixin:
 
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        dag_version = DagVersion.get_latest_version(branch_task.dag_id)
-        ti_branch = TI(branch_task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
+        ti_branch = RuntimeTaskInstance.model_construct(
+            dag_id=dag.dag_id,
+            task_id="branch_task",
+            task=branch_task,
+            run_id=DEFAULT_DAG_RUN_ID,
+        )
+        ti_branch.__dict__["xcom_push"] = MagicMock()
 
         # Test skipping the sensor (follow regular_task branch)
         with pytest.raises(DownstreamTasksSkipped) as exc_info:

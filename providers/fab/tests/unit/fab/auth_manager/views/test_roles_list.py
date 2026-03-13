@@ -23,7 +23,7 @@ from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_user, delete_user
 from unit.fab.auth_manager.views import _assert_dataset_deprecation_warning
 from unit.fab.utils import client_with_login
 
@@ -43,17 +43,18 @@ def fab_app():
 
 @pytest.fixture(scope="module")
 def user_roles_reader(fab_app):
-    yield create_user(
-        fab_app,
-        username="user_roles",
-        role_name="role_roles",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        ],
-    )
+    with fab_app.app_context():
+        yield create_user(
+            fab_app,
+            username="user_roles",
+            role_name="role_roles",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
 
-    delete_user(fab_app, "user_roles")
+        delete_user(fab_app, "user_roles")
 
 
 @pytest.fixture

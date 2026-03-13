@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-docker``
 
-Release: ``4.4.1``
+Release: ``4.5.3``
 
 
 `Docker <https://www.docker.com/>`__
@@ -36,12 +36,12 @@ This is a provider package for ``docker`` provider. All classes for this provide
 are in ``airflow.providers.docker`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-docker``
 
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.10.0``
-``docker``          ``>=7.1.0``
-``python-dotenv``   ``>=0.21.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``docker``                                  ``>=7.1.0``
+``python-dotenv``                           ``>=0.21.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -78,4 +79,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.3/changelog.html>`_.

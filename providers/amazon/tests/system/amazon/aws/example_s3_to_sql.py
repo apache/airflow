@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
@@ -37,19 +36,19 @@ from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
@@ -100,7 +99,6 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
@@ -118,7 +116,7 @@ with DAG(
         vpc_security_group_ids=[security_group_id],
         cluster_subnet_group_name=cluster_subnet_group_name,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )
@@ -127,7 +125,7 @@ with DAG(
         task_id="wait_cluster_available",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=5,
+        poke_interval=100,
         timeout=60 * 30,
     )
 
@@ -171,6 +169,14 @@ with DAG(
 
         with open(filepath, newline="") as file:
             return list(csv.reader(file))
+
+    wait_cluster_available_before_transfer = RedshiftClusterSensor(
+        task_id="wait_cluster_available_before_transfer",
+        cluster_identifier=redshift_cluster_identifier,
+        target_status="available",
+        poke_interval=100,
+        timeout=60 * 30,
+    )
 
     transfer_s3_to_sql = S3ToSqlOperator(
         task_id="transfer_s3_to_sql",
@@ -243,6 +249,7 @@ with DAG(
         task_id="delete_cluster",
         cluster_identifier=redshift_cluster_identifier,
         trigger_rule=TriggerRule.ALL_DONE,
+        max_attempts=50,
     )
 
     chain(
@@ -255,6 +262,7 @@ with DAG(
         create_object,
         create_table,
         # TEST BODY
+        wait_cluster_available_before_transfer,
         transfer_s3_to_sql,
         transfer_s3_to_sql_generator,
         check_table,

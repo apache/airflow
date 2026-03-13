@@ -19,7 +19,7 @@ from __future__ import annotations
 import packaging.version
 
 from airflow import __version__ as airflow_version
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 base_version = packaging.version.parse(airflow_version).base_version
 

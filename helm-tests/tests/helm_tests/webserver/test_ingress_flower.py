@@ -26,18 +26,11 @@ from chart_utils.helm_template_generator import render_chart
 class TestIngressFlower:
     """Tests ingress flower."""
 
-    def test_should_pass_validation_with_just_ingress_enabled_v1(self):
+    def test_should_pass_validation_with_just_ingress_enabled(self):
         render_chart(
             values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
             show_only=["templates/flower/flower-ingress.yaml"],
-        )  # checks that no validation exception is raised
-
-    def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
-        render_chart(
-            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
-            show_only=["templates/flower/flower-ingress.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
+        )
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
@@ -142,7 +135,7 @@ class TestIngressFlower:
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
     @pytest.mark.parametrize(
-        "global_value, flower_value, expected",
+        ("global_value", "flower_value", "expected"),
         [
             (None, None, False),
             (None, False, False),
@@ -205,8 +198,14 @@ class TestIngressFlower:
                     "flower": {
                         "enabled": True,
                         "hosts": [
-                            {"name": "*.{{ .Release.Namespace }}.example.com"},
-                            {"name": "{{ .Values.testValues.scalar }}.example.com"},
+                            {
+                                "name": "*.{{ .Release.Namespace }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret1"},
+                            },
+                            {
+                                "name": "{{ .Values.testValues.scalar }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret2"},
+                            },
                             {"name": "{{ index .Values.testValues.list 1 }}.example.com"},
                             {"name": "{{ .Values.testValues.dict.key }}.example.com"},
                         ],
@@ -222,6 +221,10 @@ class TestIngressFlower:
             "aa.example.com",
             "cc.example.com",
             "dd.example.com",
+        ]
+        assert jmespath.search("spec.tls[*]", docs[0]) == [
+            {"hosts": ["*.airflow.example.com"], "secretName": "secret1"},
+            {"hosts": ["aa.example.com"], "secretName": "secret2"},
         ]
 
     def test_backend_service_name(self):

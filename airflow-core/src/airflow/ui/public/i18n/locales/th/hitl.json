@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "ทั้งหมด",
+      "pending": "รอดำเนินการ",
+      "received": "ตรวจสอบแล้ว"
+    }
+  },
+  "requiredAction_one": "การดำเนินการที่จำเป็น",
+  "requiredAction_other": "การดำเนินการที่จำเป็น",
+  "requiredActionCount_one": "การดำเนินการที่จำเป็น ({{count}})",
+  "requiredActionCount_other": "การดำเนินการที่จำเป็น ({{count}})",
+  "requiredActionState": "สถานะการดำเนินการที่จำเป็น",
+  "response": {
+    "error": "การตอบสนองล้มเหลว",
+    "optionsDescription": "เลือกตัวเลือกของคุณสำหรับ Task Instance นี้",
+    "optionsLabel": "ตัวเลือก",
+    "received": "ได้รับการตอบสนองเมื่อ ",
+    "respond": "ตอบสนอง",
+    "success": "การตอบสนองของ {{taskId}} สำเร็จ",
+    "title": "Human Task Instance - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "ได้รับการอนุมัติแล้ว",
+    "approvalRequired": "ต้องการการอนุมัติ",
+    "choiceReceived": "ได้รับตัวเลือกแล้ว",
+    "choiceRequired": "ต้องการตัวเลือก",
+    "noResponseReceived": "ไม่ได้รับการตอบสนอง",
+    "rejectionReceived": "ได้รับการปฏิเสธแล้ว",
+    "responseReceived": "ได้รับการตอบสนองแล้ว",
+    "responseRequired": "ต้องการการตอบสนอง"
+  },
+  "subject": "หัวเรื่อง"
+}

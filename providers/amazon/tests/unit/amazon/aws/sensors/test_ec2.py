@@ -20,9 +20,9 @@ from __future__ import annotations
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 
 class TestEC2InstanceStateSensor:
@@ -42,7 +42,7 @@ class TestEC2InstanceStateSensor:
 
     def test_init_invalid_target_state(self):
         invalid_target_state = "target_state_test"
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match=f"Invalid target_state: {invalid_target_state}") as ctx:
             EC2InstanceStateSensor(
                 task_id="task_test",
                 target_state=invalid_target_state,

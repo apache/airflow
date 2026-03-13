@@ -22,31 +22,38 @@ import copy
 import datetime
 import logging
 from collections.abc import Generator
-from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
+from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
 
 
 log = logging.getLogger(__name__)
+
+
+def get_dialect_name(session: Session) -> str | None:
+    """Safely get the name of the dialect associated with the given session."""
+    if (bind := session.get_bind()) is None:
+        raise ValueError("No bind/engine is associated with the provided Session")
+    return getattr(bind.dialect, "name", None)
 
 
 class UtcDateTime(TypeDecorator):
@@ -295,7 +302,7 @@ class ExecutorConfigType(PickleType):
             return False
 
 
-def nulls_first(col, session: Session) -> dict[str, Any]:
+def nulls_first(col: ColumnElement, session: Session) -> ColumnElement:
     """
     Specify *NULLS FIRST* to the column ordering.
 
@@ -303,7 +310,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     Other databases do not need it since NULL values are considered lower than
     any other values, and appear first when the order is ASC (ascending).
     """
-    if session.bind.dialect.name == "postgresql":
+    if get_dialect_name(session) == "postgresql":
         return nullsfirst(col)
     return col
 
@@ -312,14 +319,14 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Query,
+    query: Select,
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
     **kwargs,
-) -> Query:
+) -> Select:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
@@ -339,12 +346,19 @@ def with_row_locks(
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    dialect = session.bind.dialect
+    try:
+        dialect_name = get_dialect_name(session)
+    except ValueError:
+        return query
+    if not dialect_name:
+        return query
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
-    if dialect.name == "mysql" and not dialect.supports_for_update_of:
+    if dialect_name == "mysql" and not getattr(
+        session.bind.dialect if session.bind else None, "supports_for_update_of", False
+    ):
         return query
     if nowait:
         kwargs["nowait"] = True
@@ -356,7 +370,7 @@ def with_row_locks(
 
 
 @contextlib.contextmanager
-def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+def lock_rows(query: Select, session: Session) -> Generator[None, None, None]:
     """
     Lock database rows during the context manager block.
 
@@ -431,7 +445,9 @@ def is_lock_not_available_error(error: OperationalError):
     #               is set.'
     # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
     #              (when NOWAIT isn't available)
-    db_err_code = getattr(error.orig, "pgcode", None) or error.orig.args[0]
+    db_err_code = getattr(error.orig, "pgcode", None) or (
+        error.orig.args[0] if error.orig and error.orig.args else None
+    )
 
     # We could test if error.orig is an instance of
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
@@ -441,17 +457,6 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
-def get_orm_mapper():
-    """Get the correct ORM mapper for the installed SQLAlchemy version."""
-    import sqlalchemy.orm.mapper
-
-    return sqlalchemy.orm.mapper if is_sqlalchemy_v1() else sqlalchemy.orm.Mapper
-
-
-def is_sqlalchemy_v1() -> bool:
-    return version.parse(metadata.version("sqlalchemy")).major == 1
-
-
 def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
     """Create an SQLAlchemy-version-aware dialect keyword argument."""
-    return {"dialect_name": dialect} if is_sqlalchemy_v1() else {"dialect_names": (dialect,)}
+    return {"dialect_names": (dialect,)}

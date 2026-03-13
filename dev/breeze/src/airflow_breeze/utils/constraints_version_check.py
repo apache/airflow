@@ -88,10 +88,14 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
     if current == latest:
         return 0
 
-    valid_versions = [
-        v for v in releases.keys() if releases[v] and is_valid_version(version_str=v, latest_version=latest)
+    versions_between = [
+        v
+        for v in releases.keys()
+        if releases[v]
+        and is_valid_version(version_str=v, latest_version=latest)
+        and current < version.parse(v) <= latest
     ]
-    return max(len(valid_versions), 1) if current < latest else 0
+    return len(versions_between)
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):
@@ -240,8 +244,8 @@ def constraints_version_check(
 def parse_packages_from_lines(lines: list[str], selected_packages: set[str] | None) -> list[tuple[str, str]]:
     remaining_packages: set[str] = selected_packages.copy() if selected_packages else set()
     packages = []
-    for line in lines:
-        line = line.strip()
+    for line_raw in lines:
+        line = line_raw.strip()
         if line and not line.startswith("#") and "@" not in line:
             match = re.match(r"^([a-zA-Z0-9_.\-]+)==([\w.\-]+)$", line)
             if match:
@@ -314,21 +318,22 @@ def print_explanations(explanations: list[str]):
         get_console().print(explanation)
 
 
-def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str):
+def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str, python_version: str):
     lines = pyproject_path.read_text().splitlines()
     new_lines = []
     in_deps = False
     dep_added = False
+    dep_string = f"    \"{pkg}=={latest_version}; python_version=='{python_version}'\","
     for line in lines:
         new_lines.append(line)
         if line.strip() == "dependencies = [":
             in_deps = True
         elif in_deps and line.strip().startswith("]") and not dep_added:
-            new_lines.insert(-1, f'    "{pkg}=={latest_version}",')
+            new_lines.insert(-1, dep_string)
             dep_added = True
             in_deps = False
     if not dep_added:
-        new_lines.append(f'    "{pkg}=={latest_version}",')
+        new_lines.append(dep_string)
     pyproject_path.write_text("\n".join(new_lines) + "\n")
     if get_verbose():
         get_console().print(
@@ -511,7 +516,7 @@ def explain_package_upgrade(
             output=output_before,
             signal_error=False,
         )
-        update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
+        update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False

@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunCreateServiceOperator,
@@ -46,7 +46,6 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
-SERVICE = Service()
 SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
@@ -88,7 +87,11 @@ class TestCloudRunCreateJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.create_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, job=JOB
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            job=JOB,
+            use_regional_endpoint=False,
         )
 
 
@@ -103,6 +106,28 @@ class TestCloudRunExecuteJobOperator:
         assert "overrides" in operator.template_fields
         assert "polling_period_seconds" in operator.template_fields
         assert "timeout_seconds" in operator.template_fields
+        assert "transport" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_with_transport(self, hook_mock):
+        """Test that transport parameter is passed to CloudRunHook."""
+        hook_mock.return_value.get_job.return_value = JOB
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            transport="rest",
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        # Verify that CloudRunHook was instantiated with transport parameter
+        hook_mock.assert_called_once()
+        call_kwargs = hook_mock.call_args[1]
+        assert call_kwargs["transport"] == "rest"
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
@@ -116,11 +141,18 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            overrides=None,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -233,7 +265,10 @@ class TestCloudRunExecuteJobOperator:
         result = operator.execute_complete(mock.MagicMock(), event)
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
         assert result["name"] == JOB_NAME
 
@@ -255,11 +290,18 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=overrides
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            overrides=overrides,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -342,7 +384,10 @@ class TestCloudRunDeleteJobOperator:
         assert deleted_job["name"] == JOB.name
 
         hook_mock.return_value.delete_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
 
@@ -368,7 +413,11 @@ class TestCloudRunUpdateJobOperator:
         assert updated_job["name"] == JOB.name
 
         hook_mock.return_value.update_job.assert_called_once_with(
-            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+            job_name=JOB_NAME,
+            job=JOB,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
 
@@ -391,7 +440,11 @@ class TestCloudRunListJobsOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.list_jobs.assert_called_once_with(
-            region=REGION, project_id=PROJECT_ID, limit=limit, show_deleted=show_deleted
+            region=REGION,
+            project_id=PROJECT_ID,
+            limit=limit,
+            show_deleted=show_deleted,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -433,6 +486,7 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
@@ -448,21 +502,21 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
         )
 
-        result = operator.execute(context=mock.MagicMock())
+        operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.create_service.assert_called_once_with(
             service=SERVICE,
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
         hook_mock.return_value.get_service.assert_called_once_with(
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
-
-        assert result == SERVICE
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_when_other_error(self, hook_mock):
@@ -487,6 +541,7 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )
 
 
@@ -519,4 +574,5 @@ class TestCloudRunDeleteServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=False,
         )

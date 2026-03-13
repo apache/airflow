@@ -25,16 +25,12 @@ from collections.abc import Iterable, Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.trino.hooks.trino import TrinoHook
-from airflow.providers.trino.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GCSToTrinoOperator(BaseOperator):

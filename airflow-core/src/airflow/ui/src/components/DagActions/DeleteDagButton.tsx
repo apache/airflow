@@ -16,44 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeleteDag } from "src/queries/useDeleteDag";
 
 type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly withText?: boolean;
 };
 
-const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagButtonProps) => {
+export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t: translate } = useTranslation("dags");
+
+  const isOnDagDetailPage = location.pathname.includes(`/dags/${dagId}`);
+
   const { isPending, mutate: deleteDag } = useDeleteDag({
     dagId,
     onSuccessConfirm: () => {
       onClose();
-      navigate("/dags");
+      if (isOnDagDetailPage) {
+        void Promise.resolve(navigate("/dags"));
+      }
     },
   });
 
   return (
     <>
-      <ActionButton
-        actionName={translate("dagActions.delete.button")}
-        colorPalette="red"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-        text={translate("dagActions.delete.button")}
-        variant="solid"
-        withText={withText}
-      />
+      <Tooltip content={translate("dagActions.delete.button")}>
+        <IconButton
+          aria-label={translate("dagActions.delete.button")}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}
@@ -67,5 +74,3 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
     </>
   );
 };
-
-export default DeleteDagButton;

@@ -1,0 +1,557 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+metrics:
+  # ==========
+  # Counters
+  # ==========
+  - name: "{job_name}_start"
+    description: "Number of started ``{job_name}`` job, ex. ``SchedulerJob``, ``LocalTaskJob``"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["job_name"]
+
+  - name: "{job_name}_end"
+    description: "Number of ended ``{job_name}`` job, ex. ``SchedulerJob``, ``LocalTaskJob``"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["job_name"]
+
+  - name: "{job_name}_heartbeat_failure"
+    description: "Number of failed Heartbeats for a ``{job_name}`` job,
+    ex. ``SchedulerJob``, ``LocalTaskJob``"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["job_name"]
+
+  - name: "local_task_job.task_exit"
+    description: "Number of ``LocalTaskJob`` terminations with a ``{return_code}`` while
+    running a task ``{task_id}`` of a Dag  ``{dag_id}``.
+    Metric with job_id, dag_id, task_id and return_code tagging."
+    type: "counter"
+    legacy_name: "local_task_job.task_exit.{job_id}.{dag_id}.{task_id}.{return_code}"
+    name_variables: ["job_id", "dag_id", "task_id", "return_code"]
+
+  - name: "operator_failures"
+    description: "Operator ``{operator_name}`` failures."
+    type: "counter"
+    legacy_name: "operator_failures_{operator_name}"
+    name_variables: ["operator_name"]
+
+  - name: "operator_successes"
+    description: "Operator ``{operator_name}`` successes."
+    type: "counter"
+    legacy_name: "operator_successes_{operator_name}"
+    name_variables: ["operator_name"]
+
+  - name: "ti_failures"
+    description: "Overall task instances failures. Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "ti_successes"
+    description: "Overall task instances successes. Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "previously_succeeded"
+    description: "Number of previously succeeded task instances. Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_instances_without_heartbeats_killed"
+    description: "Task instances without heartbeats killed. Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler_heartbeat"
+    description: "Scheduler heartbeats"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processor_heartbeat"
+    description: "Standalone Dag processor heartbeats"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.processes"
+    description: "Relative number of currently running Dag parsing processes (ie this delta is negative when,
+    since the last metric was sent, processes have completed). Metric with file_path and action tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.processor_timeouts"
+    description: "Number of file processors that have been killed due to taking too long.
+    Metric with file_path tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.other_callback_count"
+    description: "Number of non-SLA callbacks received"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.file_path_queue_update_count"
+    description: "Number of times we've scanned the filesystem and queued all existing Dags"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_file_processor_timeouts"
+    description: "(DEPRECATED) same behavior as ``dag_processing.processor_timeouts``"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.manager_stalls"
+    description: "Number of stalled ``DagFileProcessorManager``"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_file_refresh_error"
+    description: "Number of failures loading any Dag files"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.tasks.killed_externally"
+    description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.orphaned_tasks.cleared"
+    description: "Number of Orphaned tasks cleared by the Scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.orphaned_tasks.adopted"
+    description: "Number of Orphaned tasks adopted by the Scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.critical_section_busy"
+    description: "Count of times a scheduler process tried to get a lock on the critical
+    section (needed to send tasks to the executor) and found it locked by another process."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "ti.start"
+    description: "Number of started task in a given Dag. Similar to {job_name}_start but for task.
+    Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "ti.start.{dag_id}.{task_id}"
+    name_variables: ["dag_id", "task_id"]
+
+  - name: "ti.finish"
+    description: "Number of completed task in a given Dag. Similar to {job_name}_end but for task.
+    Metric with dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "ti.finish.{dag_id}.{task_id}.{state}"
+    name_variables: ["dag_id", "task_id", "state"]
+
+  - name: "dag.callback_exceptions"
+    description: "Number of exceptions raised from Dag callbacks. When this happens,
+    it means Dag callback is not working. Metric with dag_id tagging"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "celery.task_timeout_error"
+    description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "celery.execute_command.failure"
+    description: "Number of non-zero exit code from Celery task."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_removed_from_dag"
+    description: "Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
+    Metric with dag_id and run_type tagging."
+    type: "counter"
+    legacy_name: "task_removed_from_dag.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "task_restored_to_dag"
+    description: "Number of tasks restored for a given Dag (i.e. task instance which was previously in
+    REMOVED state in the DB is added to Dag file). Metric with dag_id and run_type tagging."
+    type: "counter"
+    legacy_name: "task_restored_to_dag.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "task_instance_created"
+    description: "Number of tasks instances created for a given Operator.
+    Metric with dag_id and run_type tagging."
+    type: "counter"
+    legacy_name: "task_instance_created_{task_type}"
+    name_variables: ["task_type"]
+
+  - name: "triggerer_heartbeat"
+    description: "Triggerer heartbeats"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggers.blocked_main_thread"
+    description: "Number of triggers that blocked the main
+    thread (likely due to not being fully asynchronous)"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggers.failed"
+    description: "Number of triggers that errored before they could fire an event"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggers.succeeded"
+    description: "Number of triggers that have fired at least one event"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.updates"
+    description: "Number of updated assets"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.orphaned"
+    description: "Number of assets marked as orphans because they are no longer referenced
+    in Dag schedule parameters or task outlets"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.triggered_dagruns"
+    description: "Number of Dag runs triggered by an asset update"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  # ==========
+  # Gauges
+  # ==========
+  - name: "dagbag_size"
+    description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.import_errors"
+    description: "Number of errors from trying to parse Dag files"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.total_parse_time"
+    description: "Seconds taken to scan and import ``dag_processing.file_path_queue_size`` Dag files"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.file_path_queue_size"
+    description: "Number of Dag files to be considered for the next scan"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.last_run.seconds_ago.{dag_file}"
+    description: "Seconds since ``{dag_file}`` was last processed"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: ["dag_file"]
+
+  - name: "dag_processing.last_num_of_db_queries.{dag_file}"
+    description: "Number of queries to Airflow database during parsing per ``{dag_file}``"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: ["dag_file"]
+
+  - name: "scheduler.tasks.starving"
+    description: "Number of tasks that cannot be scheduled because of no open slot in pool"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.tasks.executable"
+    description: "Number of tasks that are ready for execution (set to queued) with respect to pool limits,
+    Dag concurrency, executor state, and priority."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dagruns.running"
+    description: "Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "executor.open_slots"
+    description: "Number of open slots on executor. Legacy metric only emitted
+    when multiple executors are configured."
+    type: "gauge"
+    legacy_name: "executor.open_slots.{executor_class_name}"
+    name_variables: ["executor_class_name"]
+
+  - name: "executor.queued_tasks"
+    description: "Number of queued tasks on executor. Legacy metric only emitted
+    when multiple executors are configured."
+    type: "gauge"
+    legacy_name: "executor.queued_tasks.{executor_class_name}"
+    name_variables: ["executor_class_name"]
+
+  - name: "executor.running_tasks"
+    description: "Number of running tasks on executor. Legacy metric only emitted
+    when multiple executors are configured."
+    type: "gauge"
+    legacy_name: "executor.running_tasks.{executor_class_name}"
+    name_variables: ["executor_class_name"]
+
+  - name: "pool.open_slots"
+    description: "Number of open slots in the pool."
+    type: "gauge"
+    legacy_name: "pool.open_slots.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.queued_slots"
+    description: "Number of queued slots in the pool."
+    type: "gauge"
+    legacy_name: "pool.queued_slots.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.running_slots"
+    description: "Number of running slots in the pool."
+    type: "gauge"
+    legacy_name: "pool.running_slots.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.deferred_slots"
+    description: "Number of deferred slots in the pool."
+    type: "gauge"
+    legacy_name: "pool.deferred_slots.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.scheduled_slots"
+    description: "Number of scheduled slots in the pool."
+    type: "gauge"
+    legacy_name: "pool.scheduled_slots.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "pool.starving_tasks"
+    description: "Number of starving tasks in the pool."
+    type: "gauge"
+    legacy_name: "pool.starving_tasks.{pool_name}"
+    name_variables: ["pool_name"]
+
+  - name: "triggers.running"
+    description: "Number of triggers currently running for a triggerer (described by hostname)."
+    type: "gauge"
+    legacy_name: "triggers.running.{hostname}"
+    name_variables: ["hostname"]
+
+  - name: "triggerer.capacity_left"
+    description: "Capacity left on a triggerer to run triggers (described by hostname)."
+    type: "gauge"
+    legacy_name: "triggerer.capacity_left.{hostname}"
+    name_variables: ["hostname"]
+
+  - name: "ti.scheduled"
+    description: "Number of scheduled tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.scheduled.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.queued"
+    description: "Number of queued tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.queued.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.running"
+    description: "Number of running tasks in a given Dag. As ti.start and ti.finish can run
+    out of sync this metric shows all running tis."
+    type: "gauge"
+    legacy_name: "ti.running.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.deferred"
+    description: "Number of deferred tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "edge_worker.connected"
+    description: "Edge worker in state connected."
+    type: "gauge"
+    legacy_name: "edge_worker.connected.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.maintenance"
+    description: "Edge worker in state maintenance."
+    type: "gauge"
+    legacy_name: "edge_worker.maintenance.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.jobs_active"
+    description: "Number of active jobs in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.jobs_active.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.concurrency"
+    description: "Concurrency capacity in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.concurrency.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.free_concurrency"
+    description: "Available concurrency in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.free_concurrency.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.num_queues"
+    description: "Number of queues in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.num_queues.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.heartbeat_count"
+    description: "Number heartbeats in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.heartbeat_count.{worker_name}"
+    name_variables: ["worker_name"]
+
+  # ==========
+  # Timers
+  # ==========
+  - name: "dagrun.dependency-check"
+    description: "Milliseconds taken to check Dag dependencies"
+    type: "timer"
+    legacy_name: "dagrun.dependency-check.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "task.duration"
+    description: "Milliseconds taken to run a task"
+    type: "timer"
+    legacy_name: "dag.{dag_id}.{task_id}.duration"
+    name_variables: ["dag_id", "task_id"]
+
+  - name: "task.scheduled_duration"
+    description: "Milliseconds a task spends in the Scheduled state, before being Queued"
+    type: "timer"
+    legacy_name: "dag.{dag_id}.{task_id}.scheduled_duration"
+    name_variables: ["dag_id", "task_id"]
+
+  - name: "task.queued_duration"
+    description: "Milliseconds a task spends in the Queued state, before being Running"
+    type: "timer"
+    legacy_name: "dag.{dag_id}.{task_id}.queued_duration"
+    name_variables: ["dag_id", "task_id"]
+
+  - name: "dag_processing.last_duration"
+    description: "Milliseconds taken to load the given Dag file"
+    type: "timer"
+    legacy_name: "dag_processing.last_duration.{dag_file}"
+    name_variables: ["dag_file"]
+
+  - name: "dagrun.duration.success"
+    description: "Milliseconds taken for a DagRun to reach success state"
+    type: "timer"
+    legacy_name: "dagrun.duration.success.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "dagrun.duration.failed"
+    description: "Milliseconds taken for a DagRun to reach failed state"
+    type: "timer"
+    legacy_name: "dagrun.duration.failed.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "dagrun.schedule_delay"
+    description: "Milliseconds of delay between the scheduled DagRun
+    start date and the actual DagRun start date"
+    type: "timer"
+    legacy_name: "dagrun.schedule_delay.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "scheduler.critical_section_duration"
+    description: "Milliseconds spent in the critical section of scheduler loop"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.critical_section_query_duration"
+    description: "Milliseconds spent running the critical section task instance query"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.scheduler_loop_duration"
+    description: "Milliseconds spent running one scheduler loop"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dagrun.first_task_scheduling_delay"
+    description: "Milliseconds elapsed between first task start_date and dagrun expected start"
+    type: "timer"
+    legacy_name: "dagrun.{dag_id}.first_task_scheduling_delay"
+    name_variables: ["dag_id"]
+
+  - name: "collect_db_dags"
+    description: "Milliseconds taken for fetching all Serialized Dags from DB"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.clear_not_launched_queued_tasks.duration"
+    description: "Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.adopt_task_instances.duration"
+    description: "Milliseconds taken to adopt the task instances in Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "ol.emit.attempts"
+    description: "Milliseconds taken by an attempt to emit an OpenLineage event."
+    type: "timer"
+    legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
+    name_variables: ["event_type", "transport_type"]

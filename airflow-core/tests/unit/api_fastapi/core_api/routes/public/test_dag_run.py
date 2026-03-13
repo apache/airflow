@@ -23,23 +23,25 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, DagRun
+from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
-from airflow.utils import timezone
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -49,8 +51,42 @@ from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
+    from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
+
+
+class CustomTimetable(CronDataIntervalTimetable):
+    """Custom timetable that generates custom run IDs."""
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        run_after,
+        data_interval: DataInterval | None,
+        **kwargs,
+    ) -> str:
+        if data_interval:
+            return f"custom_{data_interval.start.strftime('%Y%m%d%H%M%S')}"
+        return f"custom_manual_{run_after.strftime('%Y%m%d%H%M%S')}"
+
+
+@pytest.fixture
+def custom_timetable_plugin(monkeypatch):
+    """Fixture to register CustomTimetable for serialization."""
+    from airflow import plugins_manager
+    from airflow._shared.module_loading import qualname
+
+    timetable_class_name = qualname(CustomTimetable)
+    existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
+
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_timetables_plugins",
+        lambda: {**existing_timetables, timetable_class_name: CustomTimetable},
+    )
+
 
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "test_dag1"
@@ -91,6 +127,7 @@ def setup(request, dag_maker, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -108,8 +145,13 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE1,
     )
-
+    # Set triggering_user_name for testing
+    dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
+    # Set end_date for testing duration filter
+    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
+    # Set conf for testing conf_contains filter (values ordered for predictable sorting)
+    dag_run1.conf = {"env": "development", "version": "1.0"}
 
     for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -125,6 +167,12 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+    # Set triggering_user_name for testing
+    dag_run2.triggering_user_name = "bob_service"
+    # Set end_date for testing duration filter
+    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
+    # Set conf for testing conf_contains filter
+    dag_run2.conf = {"env": "production", "debug": True}
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -137,20 +185,33 @@ def setup(request, dag_maker, session=None):
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
         EmptyOperator(task_id="task_2")
 
-    dag_maker.create_dagrun(
+    dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE3,
     )
-    dag_maker.create_dagrun(
+    # Set triggering_user_name for testing
+    dag_run3.triggering_user_name = "service_account"
+    # Set end_date for testing duration filter
+    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
+    # Set conf for testing conf_contains filter
+    dag_run3.conf = {"env": "staging", "test_mode": True}
+
+    dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE4,
     )
+    # Leave triggering_user_name as None for testing
+    dag_run4.triggering_user_name = None
+    # Set end_date for testing duration filter
+    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
+    # Set conf for testing conf_contains filter
+    dag_run4.conf = {"env": "testing", "mode": "ci"}
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -174,30 +235,35 @@ def get_dag_run_dict(run: DagRun):
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
-        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date) if run.logical_date else None,
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
-        "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu(run.end_date),
+        "start_date": from_datetime_to_zulu_without_ms(run.start_date) if run.start_date else None,
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date) if run.end_date else None,
         "duration": run.duration,
-        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
-        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start)
+        if run.data_interval_start
+        else None,
+        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end)
+        if run.data_interval_end
+        else None,
         "last_scheduling_decision": (
             from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
         ),
         "run_type": run.run_type,
         "state": run.state,
-        "triggered_by": run.triggered_by.value,
+        "triggered_by": run.triggered_by.value if run.triggered_by else None,
         "triggering_user_name": run.triggering_user_name,
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
+        "partition_key": None,
     }
 
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
         [
             (
                 DAG1_ID,
@@ -261,7 +327,10 @@ class TestGetDagRun:
 
 
 class TestGetDagRuns:
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    @pytest.mark.parametrize(
+        ("dag_id", "total_entries"),
+        [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
+    )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/dags/{dag_id}/dagRuns")
@@ -269,11 +338,9 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == total_entries
         for each in body["dag_runs"]:
-            run = (
-                session.query(DagRun)
-                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
-                .one()
-            )
+            run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
+            ).one()
             assert each == get_dag_run_dict(run)
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -281,7 +348,7 @@ class TestGetDagRuns:
         response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+        assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
@@ -301,7 +368,7 @@ class TestGetDagRuns:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_id"),
             pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
@@ -318,7 +385,10 @@ class TestGetDagRuns:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
-        response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
+        with assert_queries_count(7):
+            response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
@@ -332,7 +402,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_id_order",
+        ("query_params", "expected_dag_id_order"),
         [
             ({}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ({"limit": 1}, [DAG1_RUN1_ID]),
@@ -352,7 +422,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "query_params, expected_detail",
+        ("query_params", "expected_detail"),
         [
             (
                 {"limit": 1, "offset": -1},
@@ -405,7 +475,7 @@ class TestGetDagRuns:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "dag_id, query_params, expected_dag_id_list",
+        ("dag_id", "query_params", "expected_dag_id_list"),
         [
             (
                 DAG1_ID,
@@ -422,12 +492,48 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
             (
-                DAG1_ID,
+                "~",
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
-                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "start_date_gt": START_DATE1.isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                "~",
+                {
+                    "start_date_gt": (START_DATE1 - timedelta(hours=1)).isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": START_DATE2.isoformat(),  # 2024-04-15
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": (
+                        START_DATE1 + timedelta(seconds=50)
+                    ).isoformat(),  # Between the two end dates
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],  # Both should match as their end_date > start + 50s
             ),
             (
                 DAG1_ID,
@@ -440,8 +546,40 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
+                    "logical_date_gt": LOGICAL_DATE1.isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "logical_date_gt": (LOGICAL_DATE1 - timedelta(hours=1)).isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {
                     "run_after_gte": RUN_AFTER1.isoformat(),
                     "run_after_lte": RUN_AFTER2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": RUN_AFTER1.isoformat(),
+                    "run_after_lt": RUN_AFTER2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": (RUN_AFTER1 - timedelta(hours=1)).isoformat(),
+                    "run_after_lt": (RUN_AFTER2 + timedelta(hours=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
@@ -450,6 +588,22 @@ class TestGetDagRuns:
                 {
                     "start_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": START_DATE2.isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": (START_DATE2 - timedelta(hours=1)).isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
                 [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
@@ -486,6 +640,76 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # Test triggering_user_name_pattern filter
+            (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
+            (DAG2_ID, {"triggering_user_name_pattern": "service_account"}, [DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "alice%"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "%service%"}, [DAG1_RUN2_ID, DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "nonexistent"}, []),
+            (
+                DAG1_ID,
+                {
+                    "triggering_user_name_pattern": "alice%",
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            # Test dag_id_pattern filter
+            ("~", {"dag_id_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_%"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_dag_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "nonexistent"}, []),
+            (
+                "~",
+                {
+                    "dag_id_pattern": "test_dag1",
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            # Test dag_version filter
+            (
+                DAG1_ID,
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Version 1 should match all DAG1 runs
+            (
+                DAG2_ID,
+                {"dag_version": [1]},
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all DAG2 runs
+            (
+                "~",
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all runs
+            ("~", {"dag_version": [999]}, []),  # Non-existent version should match no runs
+            (
+                DAG1_ID,
+                {"dag_version": [1, 999]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Multiple versions, only existing ones match
+            # Test duration filters
+            ("~", {"duration_gte": 200}, [DAG1_RUN2_ID]),  # Test >= 200 seconds
+            ("~", {"duration_lt": 100}, [DAG2_RUN1_ID]),  # Test < 100 seconds
+            (
+                "~",
+                {"duration_gte": 100, "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Test between 100 and 150 (inclusive)
+            # Test conf_contains filter
+            ("~", {"conf_contains": "development"}, [DAG1_RUN1_ID]),  # Test for "development" env
+            (
+                "~",
+                {"conf_contains": "debug"},
+                [DAG1_RUN2_ID],
+            ),  # Test for debug key
+            ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
+            ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -569,6 +793,23 @@ class TestGetDagRuns:
         body = response.json()
         assert body["detail"] == expected_detail
 
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @pytest.mark.parametrize(
+        ("dag_id", "query_params", "expected_dag_run_ids"),
+        [
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash1"}, ["run1"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash3"}, ["run3"]),
+            ("~", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("~", {"bundle_version": "does_not_exist"}, []),
+        ],
+    )
+    def test_filter_by_bundle_version(self, test_client, dag_id, query_params, expected_dag_run_ids):
+        response = test_client.get(f"/dags/{dag_id}/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_run_ids
+
     def test_invalid_state(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
         assert response.status_code == 422
@@ -576,16 +817,24 @@ class TestGetDagRuns:
             response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
         )
 
+    def test_invalid_dag_version(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"dag_version": ["invalid"]})
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["type"] == "int_parsing"
+        assert "dag_version" in body["detail"][0]["loc"]
+
 
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        response = test_client.post("/dags/~/dagRuns/list", json={})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
         for each in body["dag_runs"]:
-            run = session.query(DagRun).where(DagRun.run_id == each["dag_run_id"]).one()
+            run = session.scalars(select(DagRun).where(DagRun.run_id == each["dag_run_id"])).one()
             expected = get_dag_run_dict(run)
             assert each == expected
 
@@ -612,7 +861,7 @@ class TestListDagRunsBatch:
         ]
 
     @pytest.mark.parametrize(
-        "dag_ids, status_code, expected_dag_id_list",
+        ("dag_ids", "status_code", "expected_dag_id_list"),
         [
             ([], 200, DAG_RUNS_LIST),
             ([DAG1_ID], 200, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
@@ -621,7 +870,8 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
@@ -635,7 +885,7 @@ class TestListDagRunsBatch:
         )
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", DAG_RUNS_LIST, id="order_by_id"),
             pytest.param(
@@ -668,7 +918,7 @@ class TestListDagRunsBatch:
         assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_order",
+        ("post_body", "expected_dag_id_order"),
         [
             ({}, DAG_RUNS_LIST),
             ({"page_limit": 1}, DAG_RUNS_LIST[:1]),
@@ -688,7 +938,7 @@ class TestListDagRunsBatch:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             (
                 {"page_limit": 1, "page_offset": -1},
@@ -741,7 +991,7 @@ class TestListDagRunsBatch:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_list",
+        ("post_body", "expected_dag_id_list"),
         [
             (
                 {"logical_date_gte": LOGICAL_DATE1.isoformat()},
@@ -757,10 +1007,12 @@ class TestListDagRunsBatch:
             ),
             (
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                # Only DAG2 runs match: their start_date is 2024-04-15, so end_date >= 2024-04-15
+                # DAG1 runs have start_date 2024-01-15, so end_date < 2024-04-15
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
             (
                 {
@@ -870,7 +1122,7 @@ class TestListDagRunsBatch:
         assert body["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_response",
+        ("post_body", "expected_response"),
         [
             (
                 {"states": ["invalid"]},
@@ -905,7 +1157,7 @@ class TestListDagRunsBatch:
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, patch_body, response_body, note_data",
+        ("dag_id", "run_id", "patch_body", "response_body", "note_data"),
         [
             (
                 DAG1_ID,
@@ -973,7 +1225,7 @@ class TestPatchDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, response_body, expected_status_code, note_data",
+        ("query_params", "patch_body", "response_body", "expected_status_code", "note_data"),
         [
             (
                 {"update_mask": ["state"]},
@@ -1049,14 +1301,8 @@ class TestPatchDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
     @pytest.mark.parametrize(
-        "state, listener_state",
+        ("state", "listener_state"),
         [
             ("queued", []),
             ("success", [DagRunState.SUCCESS]),
@@ -1064,11 +1310,11 @@ class TestPatchDagRun:
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state):
+    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
         from unit.listeners.class_listener import ClassBasedListener
 
         listener = ClassBasedListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
@@ -1086,6 +1332,23 @@ class TestDeleteDagRun:
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
+    def test_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_running_dag"):
+            EmptyOperator(task_id="t1")
+
+        dag_maker.create_dagrun(
+            run_id="test_running",
+            state=DagRunState.RUNNING,
+        )
+        session.commit()
+        response = test_client.delete("/dags/test_running_dag/dagRuns/test_running")
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == (
+            "The DagRun with dag_id: `test_running_dag` and run_id: `test_running` "
+            "cannot be deleted in running state"
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
@@ -1097,35 +1360,46 @@ class TestDeleteDagRun:
 
 class TestGetDagRunAssetTriggerEvents:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_respond_200(self, test_client, dag_maker, session):
+    @pytest.mark.parametrize(
+        "partition_key",
+        ["test_partition_key", None],
+        ids=["partitioned", "non-partitioned"],
+    )
+    def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
         with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
-        dr = dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(partition_key=partition_key)
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
             source_map_index=ti.map_index,
+            partition_key=partition_key,
         )
         session.add(event)
 
         with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
             pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dr = dag_maker.create_dagrun(
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            partition_key=partition_key,
+        )
         dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
 
-        response = test_client.get(
-            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
-        )
+        with assert_queries_count(3):
+            response = test_client.get(
+                "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+            )
         assert response.status_code == 200
         expected_response = {
             "asset_events": [
@@ -1151,8 +1425,10 @@ class TestGetDagRunAssetTriggerEvents:
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
                             "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
                             "state": "running",
+                            "partition_key": partition_key,
                         }
                     ],
+                    "partition_key": partition_key,
                 }
             ],
             "total_entries": 1,
@@ -1216,7 +1492,7 @@ class TestClearDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body, dag_run_id, expected_state",
+        ("body", "dag_run_id", "expected_state"),
         [
             [{"dry_run": True}, DAG1_RUN1_ID, ["success", "success"]],
             [{}, DAG1_RUN1_ID, ["success", "success"]],
@@ -1232,8 +1508,17 @@ class TestClearDagRun:
         assert body["total_entries"] == len(expected_state)
         for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
             assert each["state"] == expected_state[index]
-        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
         assert dag_run.state == DAG1_RUN1_STATE
+
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
+        )
+        assert logs == 0
 
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
@@ -1253,6 +1538,7 @@ class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
             dag_id="inactive",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -1263,6 +1549,7 @@ class TestTriggerDagRun:
 
         import_errors_dag = DagModel(
             dag_id="import_errors",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
             is_stale=False,
@@ -1271,13 +1558,25 @@ class TestTriggerDagRun:
         )
         import_errors_dag.has_import_errors = True
 
+        allowed_scheduled_dag = DagModel(
+            dag_id="allowed_scheduled",
+            bundle_name="testing",
+            fileloc="/tmp/dag_del_3.py",
+            timetable_summary="2 2 * * *",
+            is_stale=False,
+            owners="test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_run_types=["scheduled"],
+        )
+
         session.add(inactive_dag)
         session.add(import_errors_dag)
+        session.add(allowed_scheduled_dag)
         session.commit()
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, note, data_interval_start, data_interval_end, note_data",
+        ("dag_run_id", "note", "data_interval_start", "data_interval_end", "note_data"),
         [
             ("dag_run_5", "test-note", None, None, {"user_id": "test", "content": "test-note"}),
             (
@@ -1322,9 +1621,10 @@ class TestTriggerDagRun:
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
         expected_logical_date = fixed_now.replace("+00:00", "Z")
 
-        run = (
-            session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
-        )
+        run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id)
+        ).one()
+
         expected_response_json = {
             "bundle_version": None,
             "conf": {},
@@ -1346,6 +1646,7 @@ class TestTriggerDagRun:
             "note": note,
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
+            "partition_key": None,
         }
 
         assert response.json() == expected_response_json
@@ -1369,7 +1670,7 @@ class TestTriggerDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             (
                 {"executiondate": "2020-11-10T08:25:56Z"},
@@ -1449,11 +1750,25 @@ class TestTriggerDagRun:
                     ]
                 },
             ),
+            (
+                [],
+                {
+                    "detail": [
+                        {
+                            "type": "model_attributes_type",
+                            "loc": ["body"],
+                            "msg": "Input should be a valid dictionary or object to extract fields from",
+                            "input": [],
+                        }
+                    ]
+                },
+            ),
         ],
     )
     def test_invalid_data(self, test_client, post_body, expected_detail):
-        now = timezone.utcnow().isoformat()
-        post_body["logical_date"] = now
+        if isinstance(post_body, dict):
+            now = timezone.utcnow().isoformat()
+            post_body["logical_date"] = now
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
@@ -1473,7 +1788,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.models.DAG.create_dagrun")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"
@@ -1484,14 +1799,14 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
 
-    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
+    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/inactive/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
 
-    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
+    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/import_errors/dagRuns", json={"logical_date": now})
@@ -1500,6 +1815,13 @@ class TestTriggerDagRun:
             response.json()["detail"]
             == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
+
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+        now = timezone.utcnow().isoformat()
+        self._dags_for_trigger_tests(session)
+        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1539,12 +1861,13 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": note,
+            "partition_key": None,
         }
 
         assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
-        "data_interval_start, data_interval_end",
+        ("data_interval_start", "data_interval_end"),
         [
             (
                 LOGICAL_DATE1.isoformat(),
@@ -1627,7 +1950,81 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "partition_key": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_generate_unique_run_id_for_scheduled_dag(self, dag_maker, test_client, session):
+        "Ensure manual triggers on scheduled DAGs don't conflict on run_id"
+        scheduled_dag_id = "test_scheduled_dag"
+        with dag_maker(
+            dag_id=scheduled_dag_id,
+            schedule="@daily",
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response_1 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:00:00+00:00",
+                "run_after": "2025-12-11T16:00:00+00:00",
+            },
+        )
+        assert response_1.status_code == 200
+
+        response_2 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:01:00+00:00",
+                "run_after": "2025-12-11T16:01:00+00:00",
+            },
+        )
+        assert response_2.status_code == 200
+
+        assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
+
+    @time_machine.travel("2025-10-02 12:00:00", tick=False)
+    @pytest.mark.usefixtures("custom_timetable_plugin")
+    def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
+        """Test that custom timetable's generate_run_id is used for manual triggers (issue #55908)."""
+        custom_dag_id = "test_custom_timetable_dag"
+        with dag_maker(
+            dag_id=custom_dag_id,
+            schedule=CustomTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        logical_date = datetime(2025, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": logical_date.isoformat()},
+        )
+        assert response.status_code == 200
+        run_id_with_logical_date = response.json()["dag_run_id"]
+        assert run_id_with_logical_date.startswith("custom_")
+
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_with_logical_date)).one()
+        assert run.dag_id == custom_dag_id
+
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": None},
+        )
+        assert response.status_code == 200
+        run_id_without_logical_date = response.json()["dag_run_id"]
+        assert run_id_without_logical_date.startswith("custom_manual_")
+
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
+        assert run.dag_id == custom_dag_id
 
 
 class TestWaitDagRun:
@@ -1666,7 +2063,7 @@ class TestWaitDagRun:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        "run_id, state",
+        ("run_id", "state"),
         [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
     )
     def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):

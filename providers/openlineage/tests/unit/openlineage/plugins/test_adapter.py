@@ -57,11 +57,19 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+try:
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+
+    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
+except ImportError:
+    stats_reference = "airflow.providers.openlineage.plugins.adapter.Stats"
 
 
 @pytest.mark.parametrize(
-    "env_vars, expected_logging",
+    ("env_vars", "expected_logging"),
     [
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG"}, "DEBUG"),
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "INFO"}, None),
@@ -140,8 +148,8 @@ def test_create_client_overrides_env_vars():
         assert client.transport.kind == "console"
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -197,11 +205,16 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -310,11 +323,16 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -368,11 +386,16 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -483,11 +506,16 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -541,11 +569,16 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -657,14 +690,19 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
-@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
+@mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, build_ol_id, mock_debug_mode):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -702,7 +740,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             data_interval=(event_time, event_time),
         )
     dag_run.dag = dag
-    generate_static_uuid.return_value = random_uuid
+    build_ol_id.return_value = random_uuid
 
     job_facets = {**get_airflow_job_facet(dag_run)}
 
@@ -735,6 +773,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     )
     adapter.dag_started(
         dag_id=dag_id,
+        run_id=run_id,
         start_date=event_time,
         logical_date=event_time,
         clear_number=0,
@@ -744,6 +783,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         job_description=dag.description,
         job_description_type="text/plain",
         tags=["tag1", "tag2"],
+        is_asset_triggered=False,
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -828,16 +868,21 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         )
     )
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch.object(DagRun, "fetch_task_instances")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_dag_complete_event(
-    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
+    mock_stats_incr, mock_stats_timer, build_ol_id, mocked_fetch_tis, mock_debug_mode
 ):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
@@ -870,24 +915,32 @@ def test_emit_dag_complete_event(
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
     if AIRFLOW_V_3_0_PLUS:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(
-                task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
-            ),
-        ]
+        ti0 = create_task_instance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = create_task_instance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = create_task_instance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
     else:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-            TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-            TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-        ]
-    generate_static_uuid.return_value = random_uuid
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
+    build_ol_id.return_value = random_uuid
 
     adapter.dag_success(
         dag_id=dag_id,
@@ -903,6 +956,7 @@ def test_emit_dag_complete_event(
         job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
+        is_asset_triggered=False,
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -942,160 +996,10 @@ def test_emit_dag_complete_event(
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
                         },
-                    ),
-                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
-                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
-                    ),
-                    "debug": AirflowDebugRunFacet(packages=ANY),
-                    "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
-                },
-            ),
-            job=Job(
-                namespace=namespace(),
-                name=dag_id,
-                facets={
-                    "documentation": documentation_job.DocumentationJobFacet(
-                        description="dag desc", contentType="text/plain"
-                    ),
-                    "ownership": ownership_job.OwnershipJobFacet(
-                        owners=[
-                            ownership_job.Owner(name="owner1", type=None),
-                            ownership_job.Owner(name="owner2", type=None),
-                        ]
-                    ),
-                    "tags": tags_job.TagsJobFacet(
-                        tags=[
-                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
-                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
-                        ]
-                    ),
-                    "jobType": job_type_job.JobTypeJobFacet(
-                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                    ),
-                },
-            ),
-            producer=_PRODUCER,
-            inputs=[],
-            outputs=[],
-        )
-    )
-
-    mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
-
-
-@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
-@mock.patch.object(DagRun, "fetch_task_instances")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_failed_event(
-    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
-):
-    random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
-    client = MagicMock()
-    adapter = OpenLineageAdapter(client)
-    event_time = datetime.datetime.now()
-    dag_id = "dag_id"
-    run_id = str(uuid.uuid4())
-
-    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
-        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
-        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
-        task_2 = EmptyOperator(task_id="task_2.test")
-
-    if AIRFLOW_V_3_0_PLUS:
-        dag_run = DagRun(
-            dag_id=dag_id,
-            run_id=run_id,
-            start_date=event_time,
-            logical_date=event_time,
-        )
-    else:
-        dag_run = DagRun(
-            dag_id=dag_id,
-            run_id=run_id,
-            start_date=event_time,
-            execution_date=event_time,
-        )
-    dag_run._state = DagRunState.FAILED
-    dag_run.end_date = event_time
-    if AIRFLOW_V_3_0_PLUS:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(
-                task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
-            ),
-        ]
-    else:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-            TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-            TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-        ]
-    generate_static_uuid.return_value = random_uuid
-
-    adapter.dag_failed(
-        dag_id=dag_id,
-        run_id=run_id,
-        end_date=event_time,
-        logical_date=event_time,
-        clear_number=0,
-        dag_run_state=DagRunState.FAILED,
-        task_ids=["task_0", "task_1", "task_2.test"],
-        tags=["tag1", "tag2"],
-        msg="error msg",
-        owners=["owner1", "owner2"],
-        job_description="dag desc",
-        job_description_type="text/plain",
-        nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
-        nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
-        run_facets={
-            "parent": parent_run.ParentRunFacet(
-                run=parent_run.Run(runId=random_uuid),
-                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
-                root=parent_run.Root(
-                    run=parent_run.RootRun(runId=random_uuid),
-                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
-                ),
-            ),
-            "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
-        },
-    )
-
-    client.emit.assert_called_once_with(
-        RunEvent(
-            eventType=RunState.FAIL,
-            eventTime=event_time.isoformat(),
-            run=Run(
-                runId=random_uuid,
-                facets={
-                    "parent": parent_run.ParentRunFacet(
-                        run=parent_run.Run(runId=random_uuid),
-                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
-                        root=parent_run.Root(
-                            run=parent_run.RootRun(runId=random_uuid),
-                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
-                        ),
-                    ),
-                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
-                        nominalStartTime="2022-01-01T00:00:00",
-                        nominalEndTime="2022-01-01T00:00:00",
-                    ),
-                    "errorMessage": error_message_run.ErrorMessageRunFacet(
-                        message="error msg", programmingLanguage="python"
-                    ),
-                    "airflowState": AirflowStateRunFacet(
-                        dagRunState=DagRunState.FAILED,
-                        tasksState={
-                            task_0.task_id: TaskInstanceState.SUCCESS,
-                            task_1.task_id: TaskInstanceState.SKIPPED,
-                            task_2.task_id: TaskInstanceState.FAILED,
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
                         },
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
@@ -1136,13 +1040,194 @@ def test_emit_dag_failed_event(
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
+
+
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+@mock.patch.object(DagRun, "fetch_task_instances")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
+def test_emit_dag_failed_event(
+    mock_stats_incr, mock_stats_timer, build_ol_id, mocked_fetch_tis, mock_debug_mode
+):
+    random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+    client = MagicMock()
+    adapter = OpenLineageAdapter(client)
+    event_time = datetime.datetime.now()
+    dag_id = "dag_id"
+    run_id = str(uuid.uuid4())
+
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
+        task_2 = EmptyOperator(task_id="task_2.test")
+
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            logical_date=event_time,
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            execution_date=event_time,
+        )
+    dag_run._state = DagRunState.FAILED
+    dag_run.end_date = event_time
+
+    if AIRFLOW_V_3_0_PLUS:
+        ti0 = create_task_instance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = create_task_instance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = create_task_instance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
+    else:
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
+
+    build_ol_id.return_value = random_uuid
+
+    adapter.dag_failed(
+        dag_id=dag_id,
+        run_id=run_id,
+        end_date=event_time,
+        logical_date=event_time,
+        clear_number=0,
+        dag_run_state=DagRunState.FAILED,
+        task_ids=["task_0", "task_1", "task_2.test"],
+        tags=["tag1", "tag2"],
+        msg="error msg",
+        owners=["owner1", "owner2"],
+        job_description="dag desc",
+        job_description_type="text/plain",
+        nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
+        nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
+        run_facets={
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=random_uuid),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=random_uuid),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
+        },
+        is_asset_triggered=False,
+    )
+
+    client.emit.assert_called_once_with(
+        RunEvent(
+            eventType=RunState.FAIL,
+            eventTime=event_time.isoformat(),
+            run=Run(
+                runId=random_uuid,
+                facets={
+                    "parent": parent_run.ParentRunFacet(
+                        run=parent_run.Run(runId=random_uuid),
+                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                        root=parent_run.Root(
+                            run=parent_run.RootRun(runId=random_uuid),
+                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                        ),
+                    ),
+                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                        nominalStartTime="2022-01-01T00:00:00",
+                        nominalEndTime="2022-01-01T00:00:00",
+                    ),
+                    "errorMessage": error_message_run.ErrorMessageRunFacet(
+                        message="error msg", programmingLanguage="python"
+                    ),
+                    "airflowState": AirflowStateRunFacet(
+                        dagRunState=DagRunState.FAILED,
+                        tasksState={
+                            task_0.task_id: TaskInstanceState.SUCCESS,
+                            task_1.task_id: TaskInstanceState.SKIPPED,
+                            task_2.task_id: TaskInstanceState.FAILED,
+                        },
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
+                        },
+                    ),
+                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                    ),
+                    "debug": AirflowDebugRunFacet(packages=ANY),
+                    "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
+                },
+            ),
+            job=Job(
+                namespace=namespace(),
+                name=dag_id,
+                facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                        ]
+                    ),
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                    ),
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[],
+            outputs=[],
+        )
+    )
+
+    mock_stats_incr.assert_not_called()
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageRedactor")
-@patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@patch(f"{stats_reference}.timer")
+@patch("airflow.providers.common.compat.sdk.Stats.incr")
 def test_openlineage_adapter_stats_emit_failed(
     mock_stats_incr, mock_stats_timer, mock_redact, mock_get_client
 ):
@@ -1151,7 +1236,12 @@ def test_openlineage_adapter_stats_emit_failed(
 
     adapter.emit(MagicMock())
 
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
     mock_stats_incr.assert_has_calls([mock.call("ol.emit.failed")])
 
 

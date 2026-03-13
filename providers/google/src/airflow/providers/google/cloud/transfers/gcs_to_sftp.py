@@ -25,7 +25,7 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
@@ -33,7 +33,7 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 WILDCARD = "*"
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GCSToSFTPOperator(BaseOperator):
@@ -80,7 +80,9 @@ class GCSToSFTPOperator(BaseOperator):
     :param destination_path: The sftp remote path. This is the specified directory path for
         uploading to the SFTP server.
     :param keep_directory_structure: (Optional) When set to False the path of the file
-         on the bucket is recreated within path passed in destination_path.
+        on the bucket is recreated within path passed in destination_path.
+    :param create_intermediate_dirs: (Optional) When set to True the intermediate directories
+        in the specified file path will be created.
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -112,6 +114,7 @@ class GCSToSFTPOperator(BaseOperator):
         source_object: str,
         destination_path: str,
         keep_directory_structure: bool = True,
+        create_intermediate_dirs: bool = True,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
@@ -124,6 +127,7 @@ class GCSToSFTPOperator(BaseOperator):
         self.source_object = source_object
         self.destination_path = destination_path
         self.keep_directory_structure = keep_directory_structure
+        self.create_intermediate_dirs = create_intermediate_dirs
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
@@ -190,7 +194,9 @@ class GCSToSFTPOperator(BaseOperator):
         )
 
         dir_path = os.path.dirname(destination_path)
-        sftp_hook.create_directory(dir_path)
+
+        if self.create_intermediate_dirs:
+            sftp_hook.create_directory(dir_path)
 
         with NamedTemporaryFile("w") as tmp:
             gcs_hook.download(

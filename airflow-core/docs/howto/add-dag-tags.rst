@@ -18,17 +18,17 @@
 
 
 
-Add tags to dags and use it for filtering in the UI
+Add tags to Dags and use it for filtering in the UI
 ===================================================
 
 .. versionadded:: 1.10.8
 
-In order to filter dags (e.g by team), you can add tags in each DAG.
+In order to filter Dags (e.g by team), you can add tags in each Dag.
 The filter is saved in a cookie and can be reset by the reset button.
 
 For example:
 
-In your DAG file, pass a list of tags you want to add to the DAG object:
+In your Dag file, pass a list of tags you want to add to the Dag object:
 
 .. code-block:: python
 
@@ -39,6 +39,6 @@ In your DAG file, pass a list of tags you want to add to the DAG object:
 
 .. image:: ../img/ui-dark/add-dag-tags.png
 
-Tags are registered as part of DAG parsing.
+Tags are registered as part of Dag parsing.
 In case of stale tags, you can purge old data with the Airflow CLI command ``airflow db clean``.
 See :ref:`db clean usage<cli-db-clean>` for more details.

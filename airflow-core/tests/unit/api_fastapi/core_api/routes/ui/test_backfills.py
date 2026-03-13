@@ -20,13 +20,15 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.backfill import Backfill
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -46,6 +48,7 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture(autouse=True)
@@ -62,6 +65,7 @@ class TestBackfillEndpoint:
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name="testing",
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",
@@ -74,7 +78,7 @@ class TestBackfillEndpoint:
 
 class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "test_params, response_params, total_entries",
+        ("test_params", "response_params", "total_entries"),
         [
             ({}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"active": True}, ["backfill2", "backfill3"], 2),
@@ -87,7 +91,9 @@ class TestListBackfills(TestBackfillEndpoint):
             ({"dag_id": "TEST_DAG_1"}, ["backfill1"], 1),
         ],
     )
-    def test_should_response_200(self, test_params, response_params, total_entries, test_client, session):
+    def test_should_response_200(
+        self, test_params, response_params, total_entries, test_client, session, testing_dag_bundle
+    ):
         dags = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -147,7 +153,8 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        response = test_client.get("/backfills", params=test_params)
+        with assert_queries_count(3 if test_params.get("dag_id") is None else 4):
+            response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
             "backfills": expected_response,
@@ -161,3 +168,27 @@ class TestListBackfills(TestBackfillEndpoint):
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/backfills", params={})
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_only_return_authorized_dag_backfills(
+        self, mock_get_authorized_dag_ids, test_client, session, testing_dag_bundle
+    ):
+        dags = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfills = [
+            Backfill(dag_id=dags[0].dag_id, from_date=from_date, to_date=to_date),
+            Backfill(dag_id=dags[1].dag_id, from_date=from_date, to_date=to_date),
+            Backfill(dag_id=dags[2].dag_id, from_date=from_date, to_date=to_date),
+        ]
+        session.add_all(backfills)
+        session.commit()
+
+        mock_get_authorized_dag_ids.return_value = {"TEST_DAG_2", "TEST_DAG_3"}
+        response = test_client.get("/backfills")
+
+        mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert {b["dag_id"] for b in body["backfills"]} == {"TEST_DAG_2", "TEST_DAG_3"}

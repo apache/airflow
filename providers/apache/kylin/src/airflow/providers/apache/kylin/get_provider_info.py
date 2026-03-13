@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Kylin",
                 "external-doc-url": "https://kylin.apache.org/",
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-kylin/operators.rst"],
                 "logo": "/docs/integration-logos/kylin.png",
                 "tags": ["apache"],
             }

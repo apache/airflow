@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import configuration, models
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 
 
@@ -108,6 +108,17 @@ class TestTableauHook:
                 login="user",
                 password="password",
                 extra='{"auth": "jwt", "jwt_token": "fake_jwt_token", "site_id": ""}',
+            )
+        )
+        create_connection_without_db(
+            models.Connection(
+                conn_id="tableau_test_with_schema",
+                conn_type="tableau",
+                host="tableau",
+                schema="https",
+                login="user",
+                password="password",
+                extra='{"site_id": "my_site"}',
             )
         )
 
@@ -329,6 +340,26 @@ class TestTableauHook:
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_conn_uses_schema_when_configured(self, mock_server, mock_tableau_auth):
+        """
+        Test that Server is constructed with the schema prepended to the host when schema is configured.
+        """
+        with TableauHook(tableau_conn_id="tableau_test_with_schema") as tableau_hook:
+            mock_server.assert_called_once_with(f"{tableau_hook.conn.schema}://{tableau_hook.conn.host}")
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_conn_uses_host_only_without_schema(self, mock_server, mock_tableau_auth):
+        """
+        Test that Server is constructed with the host only when no schema is configured (backward compatibility).
+        """
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
     @patch("airflow.providers.tableau.hooks.tableau.Pager", return_value=[1, 2, 3])
     def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):
         """
@@ -341,7 +372,7 @@ class TestTableauHook:
         mock_pager.assert_called_once_with(mock_server.return_value.jobs.get)
 
     @pytest.mark.parametrize(
-        "finish_code, expected_status",
+        ("finish_code", "expected_status"),
         [
             pytest.param(0, TableauJobFinishCode.SUCCESS, id="SUCCESS"),
             pytest.param(1, TableauJobFinishCode.ERROR, id="ERROR"),

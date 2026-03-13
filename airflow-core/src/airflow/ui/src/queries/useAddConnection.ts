@@ -35,10 +35,10 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
     });
 
     toaster.create({
-      description: translate("toaster.success.description", {
+      description: translate("toaster.create.success.description", {
         resourceName: translate("admin:connections.connection_one"),
       }),
-      title: translate("toaster.success.title", {
+      title: translate("toaster.create.success.title", {
         action: translate("toaster.create"),
         resourceName: translate("admin:connections.connection_one"),
       }),
@@ -66,6 +66,7 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
     const port = requestBody.port === "" ? undefined : Number(requestBody.port);
     const schema = requestBody.schema === "" ? undefined : requestBody.schema;
     const extra = requestBody.extra === "{}" ? undefined : requestBody.extra;
+    const teamName = requestBody.team_name === "" ? undefined : requestBody.team_name;
 
     mutate({
       requestBody: {
@@ -78,6 +79,7 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
         password,
         port,
         schema,
+        team_name: teamName,
       },
     });
   };

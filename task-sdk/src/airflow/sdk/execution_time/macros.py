@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 import dateutil  # noqa: F401
 
-import airflow.utils.yaml as yaml  # noqa: F401
+import airflow.sdk.yaml as yaml  # noqa: F401
 
 if TYPE_CHECKING:
     from babel import Locale

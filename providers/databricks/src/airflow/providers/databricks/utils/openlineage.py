@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -37,60 +36,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _get_logical_date(task_instance):
-    # todo: remove when min airflow version >= 3.0
-    if AIRFLOW_V_3_0_PLUS:
-        dagrun = task_instance.get_template_context()["dag_run"]
-        return dagrun.logical_date or dagrun.run_after
-
-    if hasattr(task_instance, "logical_date"):
-        date = task_instance.logical_date
-    else:
-        date = task_instance.execution_date
-
-    return date
-
-
-def _get_dag_run_clear_number(task_instance):
-    # todo: remove when min airflow version >= 3.0
-    if AIRFLOW_V_3_0_PLUS:
-        dagrun = task_instance.get_template_context()["dag_run"]
-        return dagrun.clear_number
-    return task_instance.dag_run.clear_number
-
-
-# todo: move this run_id logic into OpenLineage's listener to avoid differences
-def _get_ol_run_id(task_instance) -> str:
-    """
-    Get OpenLineage run_id from TaskInstance.
-
-    It's crucial that the task_instance's run_id creation logic matches OpenLineage's listener implementation.
-    Only then can we ensure that the generated run_id aligns with the Airflow task,
-    enabling a proper connection between events.
-    """
-    from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-
-    # Generate same OL run id as is generated for current task instance
-    return OpenLineageAdapter.build_task_instance_run_id(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task_id,
-        logical_date=_get_logical_date(task_instance),
-        try_number=task_instance.try_number,
-        map_index=task_instance.map_index,
-    )
-
-
-# todo: move this run_id logic into OpenLineage's listener to avoid differences
-def _get_ol_dag_run_id(task_instance) -> str:
-    from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-
-    return OpenLineageAdapter.build_dag_run_id(
-        dag_id=task_instance.dag_id,
-        logical_date=_get_logical_date(task_instance),
-        clear_number=_get_dag_run_clear_number(task_instance),
-    )
-
-
 def _get_parent_run_facet(task_instance):
     """
     Retrieve the ParentRunFacet associated with a specific Airflow task instance.
@@ -101,22 +46,39 @@ def _get_parent_run_facet(task_instance):
     """
     from openlineage.client.facet_v2 import parent_run
 
-    from airflow.providers.openlineage.conf import namespace
+    from airflow.providers.openlineage.plugins.macros import (
+        lineage_job_name,
+        lineage_job_namespace,
+        lineage_root_job_name,
+        lineage_root_run_id,
+        lineage_run_id,
+    )
 
-    parent_run_id = _get_ol_run_id(task_instance)
-    root_parent_run_id = _get_ol_dag_run_id(task_instance)
+    parent_run_id = lineage_run_id(task_instance)
+    parent_job_name = lineage_job_name(task_instance)
+    parent_job_namespace = lineage_job_namespace()
+
+    root_parent_run_id = lineage_root_run_id(task_instance)
+    rot_parent_job_name = lineage_root_job_name(task_instance)
+
+    try:  # Added in OL provider 2.9.0, try to use it if possible
+        from airflow.providers.openlineage.plugins.macros import lineage_root_job_namespace
+
+        root_parent_job_namespace = lineage_root_job_namespace(task_instance)
+    except ImportError:
+        root_parent_job_namespace = lineage_job_namespace()
 
     return parent_run.ParentRunFacet(
         run=parent_run.Run(runId=parent_run_id),
         job=parent_run.Job(
-            namespace=namespace(),
-            name=f"{task_instance.dag_id}.{task_instance.task_id}",
+            namespace=parent_job_namespace,
+            name=parent_job_name,
         ),
         root=parent_run.Root(
             run=parent_run.RootRun(runId=root_parent_run_id),
             job=parent_run.RootJob(
-                name=task_instance.dag_id,
-                namespace=namespace(),
+                name=rot_parent_job_name,
+                namespace=root_parent_job_namespace,
             ),
         ),
     )
@@ -209,7 +171,7 @@ def _create_ol_event_pair(
     return start, end
 
 
-@require_openlineage_version(provider_min_version="2.3.0")
+@require_openlineage_version(provider_min_version="2.5.0")
 def emit_openlineage_events_for_databricks_queries(
     task_instance,
     hook: DatabricksSqlHook | DatabricksHook | None = None,

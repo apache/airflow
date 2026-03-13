@@ -24,7 +24,7 @@ import pytest
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
 
-@pytest.mark.parametrize("host, expect_error", [("host_with?", True), ("good_host", False)])
+@pytest.mark.parametrize(("host", "expect_error"), [("host_with?", True), ("good_host", False)])
 def test_get_host(host, expect_error):
     with (
         patch("airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection") as mock_get_connection,
@@ -39,7 +39,7 @@ def test_get_host(host, expect_error):
             "storage_plugin": "dfs",
         }
         if expect_error:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=r"Drill database_url should not contain a '\?'"):
                 DrillHook().get_conn()
         else:
             assert DrillHook().get_conn()
@@ -66,9 +66,68 @@ class TestDrillHook:
 
         self.db_hook = TestDrillHook
 
-    def test_get_uri(self):
+    @pytest.mark.parametrize(
+        ("host", "port", "conn_type", "extra_dejson", "expected_uri"),
+        [
+            (
+                "host",
+                "8047",
+                "drill",
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                None,
+                "drill",
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                None,
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {},  # no extra_dejson fields
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "myhost",
+                1234,
+                "custom",
+                {"dialect_driver": "mydriver", "storage_plugin": "myplugin"},
+                "custom://myhost:1234/myplugin?dialect_driver=mydriver",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {"storage_plugin": "myplugin"},
+                "drill://host:8047/myplugin?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {"dialect_driver": "mydriver"},
+                "drill://host:8047/dfs?dialect_driver=mydriver",
+            ),
+        ],
+    )
+    def test_get_uri(self, host, port, conn_type, extra_dejson, expected_uri):
+        self.conn.host = host
+        self.conn.port = port
+        self.conn.conn_type = conn_type
+        self.conn.extra_dejson = extra_dejson
+
         db_hook = self.db_hook()
-        assert db_hook.get_uri() == "drill://host:8047/dfs?dialect_driver=drill+sadrill"
+        assert db_hook.get_uri() == expected_uri
 
     def test_get_first_record(self):
         statement = "SQL"
@@ -120,3 +179,52 @@ class TestDrillHook:
         assert column == df.columns[0]
         assert result_sets[0][0] == df.row(0)[0]
         assert result_sets[1][0] == df.row(1)[0]
+
+    def test_set_autocommit_raises_not_implemented(self):
+        db_hook = self.db_hook()
+        conn = db_hook.get_conn()
+
+        with pytest.raises(NotImplementedError, match=r"There are no transactions in Drill."):
+            db_hook.set_autocommit(conn=conn, autocommit=True)
+
+    def test_insert_rows_raises_not_implemented(self):
+        db_hook = self.db_hook()
+        with pytest.raises(NotImplementedError, match=r"There is no INSERT statement in Drill."):
+            db_hook.insert_rows(table="my_table", rows=[("a",)])
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook().get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 import os
 import subprocess
@@ -23,37 +24,47 @@ from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import jmespath
 import jsonschema
-import requests
 import yaml
-from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.github import log_github_rate_limit_error
 from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-CHART_DIR = Path(__file__).resolve().parents[3] / "chart"
+AIRFLOW_ROOT = Path(__file__).resolve().parents[3]
+CHART_DIR = AIRFLOW_ROOT / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.30.13"
-BASE_URL_SPEC = (
-    f"https://api.github.com/repos/yannh/kubernetes-json-schema/contents/"
-    f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
+SCHEMA_URL_TEMPLATE = (
+    "https://airflow.apache.org/k8s-schemas/v{kubernetes_version}-standalone-strict/{filename}"
+)
+
+
+def _read_default_kubernetes_version() -> str:
+    """Read the first ALLOWED_KUBERNETES_VERSIONS entry from global_constants.py."""
+    gc_path = AIRFLOW_ROOT / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+    tree = ast.parse(gc_path.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
+                    versions: list[str] = ast.literal_eval(node.value)
+                    return versions[0].lstrip("v")
+    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+
+
+DEFAULT_KUBERNETES_VERSION = os.environ.get(
+    "HELM_TEST_KUBERNETES_VERSION", _read_default_kubernetes_version()
 )
 
 MY_DIR = Path(__file__).parent.resolve()
 
 crd_lookup = {
     # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
-    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
-    # This object type was removed in k8s v1.22.0
-    # Retrieved from https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json
-    "networking.k8s.io/v1beta1::Ingress": f"{MY_DIR.as_posix()}/ingress-networking-v1beta1.json",
+    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml"
 }
-
-
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 
 @cache
@@ -64,27 +75,21 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     if "/" in api_version:
         ext, _, api_version = api_version.partition("/")
         ext = ext.split(".")[0]
-        url = f"{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json"
+        filename = f"{kind}-{ext}-{api_version}.json"
     else:
-        url = f"{BASE_URL_SPEC}/{kind}-{api_version}.json"
+        filename = f"{kind}-{api_version}.json"
 
-    headers = {
-        "Accept": "application/vnd.github.v3.raw",
-    }
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
-        headers["X-GitHub-Api-Version"] = "2022-11-28"
-    else:
-        get_console().print("[info] No GITHUB_TOKEN found. Using unauthenticated requests.")
-
-    response = requests.get(url, headers=headers)
-    log_github_rate_limit_error(response)
-    response.raise_for_status()
-    schema = json.loads(
-        response.text.replace(
-            "kubernetesjsonschema.dev", "raw.githubusercontent.com/yannh/kubernetes-json-schema/master"
-        )
-    )
+    url = SCHEMA_URL_TEMPLATE.format(kubernetes_version=kubernetes_version, filename=filename)
+    try:
+        resp = urlopen(url, timeout=30)
+        schema = json.loads(resp.read())
+    except HTTPError as e:
+        if e.code == 404:
+            raise FileNotFoundError(
+                f"K8s JSON schema not found at {url}\n"
+                f"Ensure schemas for K8s v{kubernetes_version} are published to airflow-site."
+            ) from e
+        raise
     return schema
 
 
@@ -160,7 +165,7 @@ def render_chart(
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
-        result = subprocess.run(command, capture_output=True, cwd=chart_dir)
+        result = subprocess.run(command, check=False, capture_output=True, cwd=chart_dir)
         if result.returncode:
             raise HelmFailedError(result.returncode, result.args, result.stdout, result.stderr)
         templates = result.stdout

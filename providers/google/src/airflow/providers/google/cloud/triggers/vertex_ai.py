@@ -28,7 +28,7 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (

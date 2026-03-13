@@ -19,6 +19,7 @@
 
 export type FlexibleFormElementProps = {
   readonly name: string;
+  readonly namespace?: string;
   readonly onUpdate: (value?: string, error?: unknown) => void;
 };
 

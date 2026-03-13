@@ -147,7 +147,7 @@ option_repository = click.option(
 option_title = click.option(
     "--title",
     type=str,
-    required="true",
+    required=True,
     help="Title of the issues to create (might contain {{ name }} to indicate the name of the group)",
 )
 

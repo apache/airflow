@@ -27,7 +27,7 @@
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
   - [Configure PyPI uploads](#configure-pypi-uploads)
-  - [Setup and authorize Github client](#setup-and-authorize-github-client)
+  - [Setup and authorize GitHub client](#setup-and-authorize-github-client)
   - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -160,7 +160,6 @@ http://www.apache.org/dev/release-signing.html#basic-facts
 In order to not reveal your password in plain text, it's best if you create and configure API Upload tokens.
 You can add and copy the tokens here:
 
-* [Test PyPI](https://test.pypi.org/manage/account/token/)
 * [Prod PyPI](https://pypi.org/manage/account/token/)
 
 
@@ -170,14 +169,8 @@ Create a `~/.pypirc` file:
 [distutils]
 index-servers =
   pypi
-  pypitest
 
 [pypi]
-username=__token__
-password=<API Upload Token>
-
-[pypitest]
-repository=https://test.pypi.org/legacy/
 username=__token__
 password=<API Upload Token>
 ```
@@ -199,9 +192,9 @@ uv tool install twine
 `$ chmod 600 ~/.pypirc`
 
 
-## Setup and authorize Github client
+## Setup and authorize GitHub client
 
-Breeze can not install Github client for you thus it is required to set it manually.
+Breeze can not install GitHub client for you thus it is required to set it manually.
 Follow instructions listed in `Prerequisites <dev/breeze/doc/01_installation.rst#The ``gh`` cli needed for release managers>`_ to install GitHub client.
 
 ## Hardware used to prepare and verify the packages

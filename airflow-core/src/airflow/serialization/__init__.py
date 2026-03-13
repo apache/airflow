@@ -16,3 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG serialization."""
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "serde": {
+        "*": "airflow.sdk.serde",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)

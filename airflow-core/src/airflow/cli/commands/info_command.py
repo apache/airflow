@@ -33,6 +33,7 @@ import tenacity
 
 from airflow import configuration
 from airflow.cli.simple_table import AirflowConsole
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.platform import getuser
@@ -229,9 +230,7 @@ class AirflowInfo:
         sql_alchemy_conn = self.anonymizer.process_url(
             configuration.conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
         )
-        dags_folder = self.anonymizer.process_path(
-            configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
-        )
+        bundle_names = DagBundlesManager().get_all_bundle_names()
         plugins_folder = self.anonymizer.process_path(
             configuration.conf.get("core", "plugins_folder", fallback="NOT AVAILABLE")
         )
@@ -247,7 +246,7 @@ class AirflowInfo:
             ("executor", executor),
             ("task_logging_handler", self._task_logging_handler()),
             ("sql_alchemy_conn", sql_alchemy_conn),
-            ("dags_folder", dags_folder),
+            ("dag_bundle_names", bundle_names),
             ("plugins_folder", plugins_folder),
             ("base_log_folder", base_log_folder),
             ("remote_base_log_folder", remote_base_log_folder),

@@ -56,7 +56,7 @@ When a task is queued to run with the Lambda executor a Lambda function is async
 invoked with a payload containing the task key being run and the Airflow CLI
 command/workload to run. The Lambda function executes the task and then must
 publish a message to the SQS results queue with the same task key it received as well as
-the return code of the airflow task execution process. The Lambda executor periodically
+the return code of the Airflow task execution process. The Lambda executor periodically
 polls this SQS results queue for messages and updates its internal state with the results
 it receives. The Lambda function must also be configured with a Dead Letter Queue (DLQ) to
 which Lambda will automatically send messages to for invocations that fail to be processed,
@@ -64,6 +64,13 @@ for example due to the 15 minute max timeout of Lambda functions. The Lambda exe
 also poll this DLQ for messages and update the internal state with the results it receives.
 
 .. image:: ../img/lambda_executor.png
+
+Quotas
+------
+
+When working with the Lambda Executor it is important to be familiar with the AWS Lambda quotas
+as they may affect performance and scalability. For more information,
+please refer to the `official AWS Lambda documentation on quotas <http://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html>`__.
 
 .. _lambda_config-options:
 
@@ -87,6 +94,9 @@ In the case of conflicts, the order of precedence from lowest to highest is:
 2. Load any values explicitly provided through airflow.cfg or
    environment variables. These are checked with Airflow's config
    precedence.
+
+.. note::
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Lambda Executor it is passed to each Lambda invocation as part of the payload. This allows you to pass additional context to the Lambda function for any particular task execution. The Lambda function can then access this configuration via the ``executor_config`` key in the payload within the Lambda handler code.
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,7 +129,7 @@ provider package.
 The most secure method is to use IAM roles. When creating a Lambda Function
 Definition, you are able to select an execution role. This role needs
 permissions to publish messages to the SQS queues and to write to CloudWatchLogs
-or S3 if using AWS remote logging and/or using S3 to synchronize dags
+or S3 if using AWS remote logging and/or using S3 to synchronize Dags
 (e.g. ``CloudWatchLogsFullAccess`` or ``CloudWatchLogsFullAccessV2``).
 The AWS credentials used on the Scheduler need permissions to
 describe and invoke Lambda functions as well as to describe and read/delete
@@ -167,12 +177,12 @@ From S3 Bucket
 ^^^^^^^^^^^^^^
 
 Dags can be loaded from S3 when using the provided example app.py, which
-contains logic to synchronize the DAGs from S3 to the local filesystem of
+contains logic to synchronize the Dags from S3 to the local filesystem of
 the Lambda function (see the app.py code |appHandlerLink|).
 
 To load Dags from an S3 bucket add ``--build-arg s3_uri=YOUR_S3_URI`` in
 the docker build command. Replace ``YOUR_S3_URI`` with the URI of your S3
-bucket/path containing your dags. Make sure you have the appropriate
+bucket/path containing your Dags. Make sure you have the appropriate
 permissions to read from the bucket.
 
 .. code-block:: bash
@@ -355,4 +365,3 @@ To configure Airflow to utilize the Lambda Executor and leverage the resources w
 
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
-  :end-before: .. END INIT_DB

@@ -22,11 +22,11 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FTPToS3Operator(BaseOperator):

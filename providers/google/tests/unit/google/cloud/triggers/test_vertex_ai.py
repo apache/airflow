@@ -20,6 +20,7 @@ import asyncio
 from unittest import mock
 
 import pytest
+import pytest_asyncio
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -33,7 +34,7 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobAsyncHook
 from airflow.providers.google.cloud.triggers.vertex_ai import (
@@ -112,24 +113,24 @@ def custom_training_job_trigger():
     )
 
 
-@pytest.fixture
-def custom_job_async_hook():
+@pytest_asyncio.fixture
+async def custom_job_async_hook():
     return CustomJobAsyncHook(
         gcp_conn_id=TEST_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
-@pytest.fixture
-def pipeline_job_async_hook():
+@pytest_asyncio.fixture
+async def pipeline_job_async_hook():
     return PipelineJobAsyncHook(
         gcp_conn_id=TEST_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
-@pytest.fixture
-def pipeline_service_async_client():
+@pytest_asyncio.fixture
+async def pipeline_service_async_client():
     return PipelineServiceAsyncClient(
         credentials=mock.MagicMock(),
     )
@@ -178,7 +179,7 @@ class TestBaseVertexAIJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "job_state, job_name, status, message",
+        ("job_state", "job_name", "status", "message"),
         [
             (
                 JobState.JOB_STATE_CANCELLED,

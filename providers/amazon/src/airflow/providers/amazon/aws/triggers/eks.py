@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 if TYPE_CHECKING:

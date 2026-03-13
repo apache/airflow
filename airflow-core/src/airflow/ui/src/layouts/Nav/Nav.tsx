@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiDatabase, FiHome } from "react-icons/fi";
-import { NavLink } from "react-router-dom";
+import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 import {
   useAuthLinksServiceGetAuthMenus,
@@ -27,16 +27,21 @@ import {
   usePluginServiceGetPlugins,
 } from "openapi/queries";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
-import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import { Logo } from "src/components/Logo";
+import { useTimezone } from "src/context/timezone";
+import { useConfig } from "src/queries/useConfig";
+import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
+import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
+import TimezoneModal from "./TimezoneModal";
 import { UserSettingsButton } from "./UserSettingsButton";
 
 // Define existing button categories to filter out
@@ -92,6 +97,12 @@ export const Nav = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const { t: translate } = useTranslation("common");
+  const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
+  const { selectedTimezone } = useTimezone();
+  const offset = getTimezoneOffsetString(selectedTimezone);
+  const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
+  const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+  const hasCustomLogo = Boolean(theme?.icon) || Boolean(theme?.icon_dark_mode);
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
@@ -136,31 +147,42 @@ export const Nav = () => {
         right: 0,
       }}
       alignItems="center"
-      bg="blue.muted"
+      bg="brand.muted"
+      data-testid="nav-sidebar"
       height="100%"
       justifyContent="space-between"
       position="fixed"
-      py={3}
+      py={1}
       top={0}
-      width={20}
-      zIndex={2}
+      width={16}
+      zIndex="docked"
     >
-      <Flex alignItems="center" flexDir="column" width="100%">
-        <Box mb={3}>
-          <NavLink to="/">
-            <AirflowPin height="35px" width="35px" />
-          </NavLink>
+      <Flex alignItems="center" flexDir="column" gap={1} width="100%">
+        <Box alignItems="center" asChild boxSize={14} display="flex" justifyContent="center">
+          <Link title={translate("nav.home")} to="/">
+            <Logo
+              _motionSafe={{
+                _hover: {
+                  transform: "rotate(360deg)",
+                  transition: "transform 0.8s ease-in-out",
+                },
+              }}
+              boxSize={8}
+            />
+          </Link>
         </Box>
-        <NavButton icon={<FiHome size="1.75rem" />} title={translate("nav.home")} to="/" />
+        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />
         <NavButton
+          data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
-          icon={<DagIcon height="1.75rem" width="1.75rem" />}
+          icon={DagIcon}
           title={translate("nav.dags")}
           to="dags"
         />
         <NavButton
+          data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
-          icon={<FiDatabase size="1.75rem" />}
+          icon={FiDatabase}
           title={translate("nav.assets")}
           to="assets"
         />
@@ -175,14 +197,26 @@ export const Nav = () => {
         <SecurityButton />
         <PluginMenus navItems={navItemsWithLegacy} />
       </Flex>
-      <Flex flexDir="column">
+      <Flex alignItems="center" flexDir="column" gap={1}>
         <DocsButton
           externalViews={docsItems}
           showAPI={authLinks?.authorized_menu_items.includes("Docs")}
           version={data?.version}
         />
+        <Tooltip content={tooltipLabel}>
+          <NavButton icon={FiClock} onClick={onOpenTimezone} title={offset} />
+        </Tooltip>
         <UserSettingsButton externalViews={userItems} />
+        {hasCustomLogo ? (
+          <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
+            {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
+            <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
+              Apache Airflow®
+            </a>
+          </Text>
+        ) : undefined}
       </Flex>
+      <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
     </VStack>
   );
 };

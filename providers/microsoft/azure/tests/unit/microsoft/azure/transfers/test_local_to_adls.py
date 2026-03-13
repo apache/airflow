@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
 
 TASK_ID = "test-adls-upload-operator"

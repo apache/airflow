@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
@@ -80,8 +80,8 @@ class TestSqlSensor:
         op2 = SqlSensor(
             task_id="sql_sensor_check_2",
             conn_id="postgres_default",
-            sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
-            parameters=["table_name"],
+            sql="SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = %s",
+            parameters=["information_schema"],
             dag=self.dag,
         )
         op2.execute({})

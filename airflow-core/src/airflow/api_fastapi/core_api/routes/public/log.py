@@ -139,7 +139,7 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(ti.dag_run, session=session)
     if dag:
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
@@ -170,7 +170,7 @@ def get_log(
 @task_instances_log_router.get(
     "/{task_id}/externalLogUrl/{try_number}",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
 )
 def get_external_log_url(
     dag_id: str,

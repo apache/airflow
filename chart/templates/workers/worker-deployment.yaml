@@ -20,30 +20,46 @@
 ################################
 ## Airflow Worker Deployment
 #################################
-{{- $persistence := .Values.workers.persistence.enabled }}
+{{- $globals := deepCopy . -}}
+{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
+{{- $_ := unset $mergedWorkers "celery" -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.celery.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
+  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- with $globals -}}
+{{- $persistence := or .Values.workers.persistence.enabled }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+---
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
-{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
-{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers .Values) }}
+{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list .Values.workers.persistence .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.waitForMigrations .Values) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.logGroomerSidecar .Values) }}
+{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
+{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kerberosInitContainer .Values) }}
+{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -58,29 +74,32 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ include "airflow.fullname" . }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
   replicas: {{ .Values.workers.replicas }}
   {{- end }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
   {{- end }}
   selector:
     matchLabels:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- if and $persistence .Values.workers.podManagementPolicy }}
   podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
   {{- end }}
   {{- if and $persistence .Values.workers.updateStrategy }}
   updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and (not $persistence) (.Values.workers.strategy) }}
+  {{- if and (not $persistence) .Values.workers.strategy }}
   strategy: {{- toYaml .Values.workers.strategy | nindent 4 }}
   {{- end }}
   template:
@@ -89,6 +108,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
+        {{- if ne .Values.workers.name "default" }}
+        worker-set: {{ .Values.workers.name }}
+        {{- end }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -102,7 +124,7 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if $podAnnotations }}
-          {{- toYaml $podAnnotations | nindent 8 }}
+          {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}
@@ -111,8 +133,8 @@ spec:
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}
-      {{- if .Values.schedulerName }}
-      schedulerName: {{ .Values.schedulerName }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
@@ -135,16 +157,9 @@ spec:
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
-      {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
-      serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
-      {{- else }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      {{- end }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if and $persistence .Values.workers.persistence.fixPermissions }}
         - name: volume-permissions
@@ -160,16 +175,26 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
         {{- end }}
-        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+        {{- if .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
+          securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
+          {{- if $containerLifecycleHooksKerberosInitContainer }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
+          {{- end }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos", "-o"]
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -207,6 +232,11 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
+            - name: logs
+              mountPath: "/opt/airflow/logs"
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
@@ -237,7 +267,7 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- if $containerLifecycleHooks  }}
+          {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
           {{- if .Values.workers.command }}
@@ -256,7 +286,7 @@ spec:
             exec:
               command:
                 {{- if .Values.workers.livenessProbe.command }}
-                  {{- toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                  {{- toYaml .Values.workers.livenessProbe.command | nindent 16 }}
                 {{- else }}
                 - sh
                 - -c
@@ -278,6 +308,9 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.kerberos.enabled }}
             - name: kerberos-keytab
@@ -334,9 +367,21 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.retentionMinutes }}"
+          {{- end }}
           {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.maxSizeBytes }}
+            - name: AIRFLOW__LOG_MAX_SIZE_BYTES
+              value: "{{ .Values.workers.logGroomerSidecar.maxSizeBytes | int64 }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.maxSizePercent }}
+            - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
+              value: "{{ .Values.workers.logGroomerSidecar.maxSizePercent }}"
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
@@ -347,6 +392,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -370,6 +418,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -443,8 +494,10 @@ spec:
   {{- else if not $persistence }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
-  {{- else }}
+  {{- end }}
+  {{- if and $persistence (or (not .Values.logs.persistence.enabled) .Values.workers.volumeClaimTemplates) }}
   volumeClaimTemplates:
+    {{- if not .Values.logs.persistence.enabled }}
     - apiVersion: v1
       kind: PersistentVolumeClaim
       metadata:
@@ -460,8 +513,11 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+    {{- end }}
     {{- with .Values.workers.volumeClaimTemplates }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

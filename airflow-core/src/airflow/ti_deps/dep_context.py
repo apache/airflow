@@ -95,10 +95,10 @@ class DepContext:
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
             for ti in finished_tis:
-                if not getattr(ti, "task", None) is not None and dag_run.dag:
-                    with contextlib.suppress(TaskNotFound):
-                        ti.task = dag_run.dag.get_task(ti.task_id)
-
+                if getattr(ti, "task", None) is not None or (dag := dag_run.dag) is None:
+                    continue
+                with contextlib.suppress(TaskNotFound):
+                    ti.task = dag.get_task(ti.task_id)
             self.finished_tis = finished_tis
         else:
             finished_tis = self.finished_tis

@@ -32,13 +32,13 @@ __deprecated_classes = {
         "PokeReturnValue": "airflow.sdk.bases.sensor.PokeReturnValue",
         "poke_mode_only": "airflow.sdk.bases.sensor.poke_mode_only",
     },
-    "python":{
+    "python": {
         "PythonSensor": "airflow.providers.standard.sensors.python.PythonSensor",
     },
-    "bash":{
+    "bash": {
         "BashSensor": "airflow.providers.standard.sensors.bash.BashSensor",
     },
-    "date_time":{
+    "date_time": {
         "DateTimeSensor": "airflow.providers.standard.sensors.date_time.DateTimeSensor",
         "DateTimeSensorAsync": "airflow.providers.standard.sensors.date_time.DateTimeSensorAsync",
     },

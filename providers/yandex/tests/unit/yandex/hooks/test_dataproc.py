@@ -23,18 +23,11 @@ import pytest
 
 pytest.importorskip("yandexcloud")
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 from airflow.models import Connection
 from airflow.providers.yandex.hooks.dataproc import DataprocHook
+
+BASEHOOK_PATCH_PATH = "airflow.providers.common.compat.sdk.BaseHook"
 
 # Airflow connection with type "yandexcloud" must be created
 CONNECTION_ID = "yandexcloud_default"

@@ -90,7 +90,7 @@ class TestOpenSearchSecret:
         assert f"{scheme}://username:password@opensearchhostname:9200" == connection
 
     @pytest.mark.parametrize(
-        "extra_conn_kwargs, expected_user_info",
+        ("extra_conn_kwargs", "expected_user_info"),
         [
             # When both user and password are empty.
             ({}, ""),

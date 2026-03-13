@@ -17,7 +17,7 @@
 #
 # This is automatically generated stub for the `common.sql` provider
 #
-# This file is generated automatically by the `update-common-sql-api stubs` pre-commit
+# This file is generated automatically by the `update-common-sql-api stubs` prek hook
 # and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
@@ -28,8 +28,8 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.handlers
-isort:skip_file
+Definition of the public interface for
+airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.handlers.
 """
 
 from collections.abc import Iterable
@@ -37,5 +37,6 @@ from collections.abc import Iterable
 def return_single_query_results(
     sql: str | Iterable[str], return_last: bool, split_statements: bool | None
 ): ...
+def get_row_count(cursor) -> int | None: ...
 def fetch_all_handler(cursor) -> list[tuple] | None: ...
-def fetch_one_handler(cursor) -> list[tuple] | None: ...
+def fetch_one_handler(cursor) -> tuple | None: ...

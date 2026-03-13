@@ -23,6 +23,7 @@ from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -35,7 +36,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         pytest.param(None, {"dags-folder"}, id="default"),
         pytest.param("{}", set(), id="empty dict"),
@@ -56,6 +57,20 @@ from tests_common.test_utils.db import clear_db_dag_bundles
             ),
             {"my-bundle"},
             id="remove_dags_folder_default_add_bundle",
+        ),
+        pytest.param(
+            json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/tmp/hihi", "refresh_interval": 1},
+                        "team_name": "test",
+                    }
+                ]
+            ),
+            "cannot have a team name when multi-team mode is disabled.",
+            id="add_bundle_with_team",
         ),
         pytest.param(
             "[]",
@@ -141,7 +156,9 @@ def clear_db():
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db, session):
     def _get_bundle_names_and_active():
-        return session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
+        return session.execute(
+            select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
+        ).all()
 
     # Initial add
     with patch.dict(
@@ -168,7 +185,7 @@ def test_sync_bundles_to_db(clear_db, session):
         ("my-test-bundle", False),
     ]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
-    assert session.query(ParseImportError).count() == 0
+    assert session.scalar(select(func.count(ParseImportError.id))) == 0
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -188,8 +205,181 @@ def test_view_url(version):
     """Test that view_url calls the bundle's view_url method."""
     bundle_manager = DagBundlesManager()
     with patch.object(BaseDagBundle, "view_url") as view_url_mock:
-        bundle_manager.view_url("my-test-bundle", version=version)
+        # Test that deprecation warning is raised
+        with pytest.warns(DeprecationWarning, match="'view_url' method is deprecated"):
+            bundle_manager.view_url("my-test-bundle", version=version)
     view_url_mock.assert_called_once_with(version=version)
+
+
+class BundleWithTemplate(BaseDagBundle):
+    """Test bundle that provides a URL template."""
+
+    def __init__(self, *, subdir: str | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.subdir = subdir
+
+    def refresh(self):
+        pass
+
+    def get_current_version(self):
+        return "v1.0"
+
+    @property
+    def path(self):
+        return "/tmp/test"
+
+
+TEMPLATE_BUNDLE_CONFIG = [
+    {
+        "name": "template-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BundleWithTemplate",
+        "kwargs": {
+            "view_url_template": "https://github.com/example/repo/tree/{version}/{subdir}",
+            "subdir": "dags",
+            "refresh_interval": 1,
+        },
+    }
+]
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_with_template(clear_db, session):
+    """Test that URL templates and parameters are stored in the database during sync."""
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Check that the template and parameters were stored
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
+
+    session.merge(bundle_model)
+
+    assert bundle_model is not None
+    assert bundle_model.render_url(version="v1.0") == "https://github.com/example/repo/tree/v1.0/dags"
+    assert bundle_model.template_params == {"subdir": "dags"}
+    assert bundle_model.active is True
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_bundle_model_render_url(clear_db, session):
+    """Test the DagBundleModel render_url method."""
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+        bundle_model = session.scalars(
+            select(DagBundleModel).filter_by(name="template-bundle").limit(1)
+        ).first()
+
+        session.merge(bundle_model)
+        assert bundle_model is not None
+
+        url = bundle_model.render_url(version="main")
+        assert url == "https://github.com/example/repo/tree/main/dags"
+        url = bundle_model.render_url()
+        assert url == "https://github.com/example/repo/tree/None/dags"
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_template_params_update_on_sync(clear_db, session):
+    """Test that template parameters are updated when bundle configuration changes."""
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Verify initial template and parameters
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
+    url = bundle_model._unsign_url()
+    assert url == "https://github.com/example/repo/tree/{version}/{subdir}"
+    assert bundle_model.template_params == {"subdir": "dags"}
+
+    # Update the bundle config with different parameters
+    updated_config = [
+        {
+            "name": "template-bundle",
+            "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BundleWithTemplate",
+            "kwargs": {
+                "view_url_template": "https://gitlab.com/example/repo/-/tree/{version}/{subdir}",
+                "subdir": "workflows",
+                "refresh_interval": 1,
+            },
+        }
+    ]
+
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(updated_config)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Verify the template and parameters were updated
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
+    url = bundle_model._unsign_url()
+    assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
+    assert bundle_model.template_params == {"subdir": "workflows"}
+    assert bundle_model.render_url(version="v1") == "https://gitlab.com/example/repo/-/tree/v1/workflows"
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_template_update_on_sync(clear_db, session):
+    """Test that templates are updated when bundle configuration changes."""
+    # First, sync with initial template
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(TEMPLATE_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Verify initial template
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
+    url = bundle_model._unsign_url()
+    assert url == "https://github.com/example/repo/tree/{version}/{subdir}"
+    assert bundle_model.render_url(version="v1") == "https://github.com/example/repo/tree/v1/dags"
+
+    # Update the bundle config with a different template
+    updated_config = [
+        {
+            "name": "template-bundle",
+            "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BundleWithTemplate",
+            "kwargs": {
+                "view_url_template": "https://gitlab.com/example/repo/-/tree/{version}/{subdir}",
+                "subdir": "dags",
+                "refresh_interval": 1,
+            },
+        }
+    ]
+
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(updated_config)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Verify the template was updated
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
+    url = bundle_model._unsign_url()
+    assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
+    assert bundle_model.render_url("v1") == "https://gitlab.com/example/repo/-/tree/v1/dags"
+
+
+def test_dag_bundle_model_render_url_with_invalid_template():
+    """Test that DagBundleModel.render_url handles invalid templates gracefully."""
+    bundle_model = DagBundleModel(name="test-bundle")
+    bundle_model.signed_url_template = "https://github.com/example/repo/tree/{invalid_placeholder}"
+    bundle_model.template_params = {"subdir": "dags"}
+
+    # Should return None if rendering fails
+    url = bundle_model.render_url("v1")
+    assert url is None
 
 
 def test_example_dags_bundle_added():
@@ -208,3 +398,54 @@ def test_example_dags_name_is_reserved():
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
             DagBundlesManager().parse_config()
+
+
+class FailingBundle(BaseDagBundle):
+    """Test bundle that raises an exception during initialization."""
+
+    def __init__(self, *, should_fail: bool = True, **kwargs):
+        super().__init__(**kwargs)
+        if should_fail:
+            raise ValueError("Bundle creation failed for testing")
+
+    def refresh(self):
+        pass
+
+    def get_current_version(self):
+        return None
+
+    @property
+    def path(self):
+        return "/tmp/failing"
+
+
+FAILING_BUNDLE_CONFIG = [
+    {
+        "name": "failing-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.FailingBundle",
+        "kwargs": {"should_fail": True, "refresh_interval": 1},
+    }
+]
+
+
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+@pytest.mark.db_test
+def test_multiple_bundles_one_fails(clear_db, session):
+    """Test that when one bundle fails to create, other bundles still load successfully."""
+    mix_config = BASIC_BUNDLE_CONFIG + FAILING_BUNDLE_CONFIG
+
+    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(mix_config)}):
+        manager = DagBundlesManager()
+
+        bundles = list(manager.get_all_dag_bundles())
+        assert len(bundles) == 1
+        assert bundles[0].name == "my-test-bundle"
+        assert isinstance(bundles[0], BasicBundle)
+
+        manager.sync_bundles_to_db()
+        bundle_names = {b.name for b in session.scalars(select(DagBundleModel)).all()}
+        assert bundle_names == {"my-test-bundle"}
+
+
+def test_get_all_bundle_names():
+    assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]

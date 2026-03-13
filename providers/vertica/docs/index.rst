@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
+    Example Dags <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-vertica/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,7 +78,7 @@ apache-airflow-providers-vertica package
 `Vertica <https://www.vertica.com/>`__
 
 
-Release: 4.1.1
+Release: 4.3.0
 
 Provider package
 ----------------
@@ -89,22 +89,23 @@ All classes for this package are included in the ``airflow.providers.vertica`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-vertica``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``vertica-python``                       ``>=0.6.0``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
+``vertica-python``                          ``>=1.3.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -116,14 +117,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-vertica[common.sql]
+    pip install apache-airflow-providers-vertica[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -131,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-vertica 4.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-vertica 4.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-vertica 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-vertica 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vertica-4.3.0-py3-none-any.whl.sha512>`__)

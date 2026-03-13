@@ -20,7 +20,9 @@ Airflow Docker Compose Tests
 
 This document describes how to run tests for Airflow Docker Compose deployment.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Running Docker Compose Tests with Breeze
 ----------------------------------------
@@ -34,8 +36,8 @@ The way the tests work:
 
 1. They first build the Airflow production image
 2. Then they take the Docker Compose file of ours and use the image to start it
-3. Then they perform some simple DAG trigger tests which checks whether Airflow is up and can process
-   an example DAG
+3. Then they perform some simple Dag trigger tests which checks whether Airflow is up and can process
+   an example Dag
 
 This is done in a local environment, not in the Breeze CI image. It uses ``COMPOSE_PROJECT_NAME`` set to
 ``quick-start`` to avoid conflicts with other docker compose deployments you might have.
@@ -95,7 +97,7 @@ but make sure to use the docker-compose file from the sources in
 ``docs/apache-airflow/stable/howto/docker-compose/`` folder.
 
 Then, the usual ``docker compose`` and ``docker`` commands can be used to debug such running instances.
-The test performs a simple API call to trigger a DAG and wait for it, but you can follow our
+The test performs a simple API call to trigger a Dag and wait for it, but you can follow our
 documentation to connect to such running docker compose instances and test it manually.
 
 -----

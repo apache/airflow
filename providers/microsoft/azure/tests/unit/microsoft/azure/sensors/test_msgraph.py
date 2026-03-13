@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from os.path import dirname
+from unittest.mock import patch
 
 import pytest
 
@@ -28,16 +29,15 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response
+from unit.microsoft.azure.test_utils import mock_json_response, patch_hook_and_request_adapter
 
 
-class TestMSGraphSensor(Base):
+class TestMSGraphSensor:
     def test_execute_with_result_processor_with_old_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -73,7 +73,7 @@ class TestMSGraphSensor(Base):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -105,7 +105,7 @@ class TestMSGraphSensor(Base):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -142,3 +142,18 @@ class TestMSGraphSensor(Base):
 
         for template_field in MSGraphSensor.template_fields:
             getattr(sensor, template_field)
+
+    def test_execute_complete_passes_timeout_to_defer(self):
+        sensor = MSGraphSensor(
+            task_id="check_timeout",
+            conn_id="powerbi",
+            url="myorg/admin/workspaces/scanStatus/{scanId}",
+            timeout=10,
+        )
+
+        with patch.object(sensor, "defer") as mock_defer:
+            sensor.execute_complete(
+                context={}, event={"status": "success", "response": json.dumps({"status": "running"})}
+            )
+            mock_defer.assert_called_once()
+            assert mock_defer.call_args.kwargs["timeout"] == timedelta(seconds=10)

@@ -25,6 +25,7 @@ from typing import Any
 import click
 from click import Context, Parameter, ParamType
 
+from airflow_breeze.global_constants import GITHUB_REPO_BRANCH_PATTERN, PR_NUMBER_PATTERN
 from airflow_breeze.utils.cache import (
     check_if_values_allowed,
     read_and_validate_value_from_cache,
@@ -62,6 +63,22 @@ class BetterChoice(click.Choice):
 
         # Use square braces to indicate an option or optional argument.
         return f"[{choices_str}]"
+
+
+class HiddenChoiceWithCompletion(BetterChoice):
+    """
+    Like NotVerifiedBetterChoice, but hides the choices list from --help output.
+    Autocomplete still works in the shell, and any value is accepted (not just
+    the listed choices).
+    """
+
+    name = "TEXT"
+
+    def get_metavar(self, param, ctx=None) -> str:
+        return "TEXT"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        return value
 
 
 class NotVerifiedBetterChoice(BetterChoice):
@@ -236,19 +253,19 @@ class MySQLBackendVersionChoice(BackendVersionChoice):
         return super().convert(value, param, ctx)
 
 
-ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
-
-
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.all_choices = [*self.choices, "<airflow_version>"]
+        self.all_choices = [*self.choices, "<airflow_version>", "<owner/repo:branch>", "<pr_number>"]
 
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
-        if value.startswith(ALLOWED_VCS_PROTOCOLS):
+        if re.match(GITHUB_REPO_BRANCH_PATTERN, value):
+            return value
+        # Check if it's a PR number (digits only)
+        if re.match(PR_NUMBER_PATTERN, value):
             return value
         return super().convert(value, param, ctx)

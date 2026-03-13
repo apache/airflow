@@ -19,7 +19,7 @@ FAB auth manager API authentication
 ===================================
 
 .. note::
-    This guide only applies to :doc:`FAB auth manager API </api-ref/fab-public-api-ref>`.
+    This guide only applies to :doc:`FAB auth manager API </api-ref/fab-api-ref>`.
 
 Authentication for the APIs is handled by what is called an authentication backend. The default is to check the user session:
 
@@ -38,9 +38,9 @@ command as in the example below.
 
 .. versionchanged:: 3.0.0
 
-    In Airflow, the default setting is using token based authentication.
-    This approach is independent from which ``auth_backend`` is used.
-    The default setting is using Airflow public API to create a token (JWT) first and use this token in the requests to access the API.
+    Airflow now uses token-based authentication for the public API.
+    This mechanism is independent of the configured ``auth_backend``.
+    Clients must first obtain a JWT token using :doc:`token`, then include that token in subsequent API requests.
 
 Kerberos authentication
 '''''''''''''''''''''''
@@ -66,7 +66,7 @@ work. This means that your user name should be ``user_name@REALM``.
 .. code-block:: bash
 
     kinit user_name@REALM
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --negotiate \  # enables Negotiate (SPNEGO) authentication
         --service airflow \  # matches the `airflow` service name in the `airflow/fully.qualified.domainname@REALM` principal
@@ -106,7 +106,7 @@ Here is a sample curl command you can use to validate the setup:
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --user "username:password" \
         "${ENDPOINT_URL}/api/v1/pools"

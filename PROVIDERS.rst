@@ -19,7 +19,9 @@
 Apache Airflow Providers
 ************************
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 What is a provider?
 ===================
@@ -48,6 +50,9 @@ You can read more about it in the
 `Installation and upgrade scenarios <https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-pypi.html#installation-and-upgrade-scenarios>`_
 chapter of our user documentation.
 
+List of all available community providers is available at the `Providers index <https://airflow.apache.org/docs/>`_.
+
+
 Community managed providers
 ===========================
 
@@ -70,10 +75,34 @@ Because of the constraint and potential conflicting dependencies, the community 
 updated and the community might decide to suspend releases of a provider if we find out that we have trouble
 with updating the dependencies, or if we find out that the provider is not compatible with other more
 popular providers and when the popular providers are limited by the constraints of the less popular ones.
-See the section below for more details on suspending releases of the community providers.
+See `Suspending releases for providers`_ below for more details.
 
-List of all available community providers is available at the `Providers index <https://airflow.apache.org/docs/>`_.
 
+Detailed documents
+==================
+
+The following documents provide detailed information about specific aspects of provider management:
+
+.. list-table::
+   :widths: 30 70
+
+   * - `Provider Governance <providers/PROVIDER_GOVERNANCE.rst>`_
+     - Governance framework, stewardship model, lifecycle stages (incubation, production,
+       attic/deprecation), health metrics, and periodic reviews
+   * - `3rd-Party Providers <providers/THIRD_PARTY_PROVIDERS.rst>`_
+     - Relation to community providers, system test dashboards, and mixed governance model
+   * - `Accepting New Providers <providers/ACCEPTING_PROVIDERS.rst>`_
+     - Prerequisites, approval process, and historical examples for proposing new community providers
+   * - `Provider Releases and Versioning <providers/PROVIDER_RELEASES.rst>`_
+     - Release process, SEMVER versioning, provider distribution states, and minimum Airflow
+       version policy
+   * - `Suspending and Removing Providers <providers/SUSPENDING_AND_REMOVING_PROVIDERS.rst>`_
+     - Criteria and process for suspending or removing community providers
+   * - `Managing Provider's Lifecycle <providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
+     - Technical how-to for creating, suspending, resuming, and removing providers
+
+
+.. _provider-governance-framework:
 
 Community providers lifecycle
 =============================
@@ -81,272 +110,58 @@ Community providers lifecycle
 This document describes the complete life-cycle of community providers - from inception and approval to
 Airflow main branch to being decommissioned and removed from the main branch in Airflow repository.
 
-.. note::
+For full details, see `Provider Governance <providers/PROVIDER_GOVERNANCE.rst>`_.
 
-   Technical details on how to manage lifecycle of providers are described in the document:
+Governance framework
+--------------------
 
-   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
+See `Provider Governance: Governance framework <providers/PROVIDER_GOVERNANCE.rst#governance-framework>`_.
 
 
 Accepting new community providers
----------------------------------
+----------------------------------
 
-Accepting new community providers should be a deliberate process that requires ``[DISCUSSION]``
-followed by ``[VOTE]`` thread at the Airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
+See `Accepting New Community Providers <providers/ACCEPTING_PROVIDERS.rst>`_.
 
-In case the provider is integration with an open-source software rather than service we can relax the vote
-procedure a bit. Particularly if the open-source software is an Apache Software Foundation,
-Linux Software Foundation or similar organisation with well established governance processes that are not
-strictly vendor-controlled, and when the software is well established an popular, it might be enough to
-have a good and complete PR of the provider, ideally with a great test coverage, including integration tests,
-and documentation. Then it should be enough to request the provider acceptance by a ``[LAZY CONSENSUS]`` mail
-on the devlist and assuming such lazy consensus is not objected by anyone in the community, the provider
-might be merged.
 
-For service providers, the ``[DISCUSSION]`` thread is aimed to gather information about the reasons why
-the one who proposes the new provider thinks it should be accepted by the community. Maintaining the provider
-in the community is a burden. Contrary to many people's beliefs, code is often liability rather than asset,
-and accepting the code to be managed by the community, especially when it involves significant effort on
-maintenance is often undesired, especially that the community consists of volunteers. There must be a really
-good reason why we would believe that the provider is better to be maintained by the community if there
-are 3rd-party teams that can be paid to manage it on their own. We have to believe that the current
-community interest is in managing the provider and that enough volunteers in the community will be
-willing to maintain it in the future in order to accept the provider.
+Releases and versioning
+=======================
 
-The ``[VOTE]`` thread is aimed to gather votes from the community on whether the provider should be accepted
-or not and it follows the usual Apache Software Foundation voting rules concerning
-`Votes on Code Modification <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_
+See `Provider Releases and Versioning <providers/PROVIDER_RELEASES.rst>`_.
 
-The Ecosystem page and registries, and own resources of the 3rd-party teams are the best places to increase
-visibility that such providers exist, so there is no "great" visibility achieved by getting the provider in
-the community. Also it is often easier to advertise and promote usage of the provider by the service providers
-themselves when they own, manage and release their provider, especially when they can synchronize releases
-of their provider with new feature, the service might get added.
+Release process
+---------------
 
-Examples:
+See `Provider Releases: Release process <providers/PROVIDER_RELEASES.rst#release-process>`_.
 
-Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
-Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_
-PgVector / Weaviate/ OpenAI provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Lazy Consensus vote <https://lists.apache.org/thread/zrq6554lwobhngtwyzp7tpgnyfsxxybh>`_
-Pinecone / OpenAI / Cohere provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Vote <https://lists.apache.org/thread/skh32jksvcf4yx4fhhsfz8lq6w5nhfjc>`_, `VOTE Result <https://lists.apache.org/thread/oq7h2n88zfo3dzldy5w8xlp9kyngs7x8>`_
+Versioning scheme
+-----------------
 
-Note that some providers have regular vote and some lazy consensus, please refer to the above sections for explanation why it's not the same for all providers
+See `Provider Releases: Versioning scheme <providers/PROVIDER_RELEASES.rst#versioning-scheme>`_.
 
-Community providers release process
------------------------------------
+Provider distribution states
+-----------------------------
 
-The community providers are released regularly (usually every 2 weeks) in batches consisting of any providers
-that need to be released because they changed since last release. The release manager decides which providers
-to include and whether some or all providers should be released (see the next chapter about upgrading the
-minimum version of Airflow for example the case where we release all active meaning non-suspended providers,
-together in a single batch). Also Release Manager decides on the version bump of the provider (depending on
-classification, whether there are breaking changes, new features or just bugs comparing to previous version).
+See `Provider Releases: Provider distribution states <providers/PROVIDER_RELEASES.rst#provider-distribution-states>`_.
 
-Upgrading Minimum supported version of Airflow
-----------------------------------------------
+Upgrading minimum supported version of Airflow
+-----------------------------------------------
 
-.. note::
+See `Provider Releases: Upgrading minimum supported version of Airflow <providers/PROVIDER_RELEASES.rst#upgrading-minimum-supported-version-of-airflow>`_.
 
-   The following policy applies for Airflow 2. It has not yet been finalized for Airflow 3 and is subject to changes.
-
-One of the important limitations of the Providers released by the community is that we introduce the limit
-of a minimum supported version of Airflow. The minimum version of Airflow is the ``MINOR`` version (2.4, 2.5 etc.)
-indicating that the providers might use features that appeared in this release. The default support timespan
-for the minimum version of Airflow (there could be justified exceptions) is that we increase the minimum
-Airflow version to the next MINOR release, when 12 months passed since the first release for the
-MINOR version of Airflow.
-
-For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 3.0.0 in the first Provider's release after 22nd of April 2026. 22nd of April 2025 is the date when the
-first ``PATCHLEVEL``  version of 3.0 (3.0.0) was released.
-
-When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
-(unless there are other breaking changes in the provider). The reason for that is that people who use
-older version of Airflow will not be able to use that provider (so it is not a breaking change for them)
-and for people who are using supported version of Airflow this is not a breaking change on its own - they
-will be able to use the new version without breaking their workflows. When we upgraded min-version to
-2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump ``MINOR`` version of the
-provider when we increase minimum Airflow version.
-
-Increasing the minimum version of the Providers is one of the reasons why 3rd-party provider maintainers
-might want to maintain their own providers - as they can decide to support older versions of Airflow.
-
-3rd-parties relation to community providers
--------------------------------------------
-
-Providers, can (and it is recommended for 3rd-party services) also be maintained and released by 3rd parties,
-but for multiple reasons we might decide to keep those providers as community managed providers - mostly
-due to prevalence and popularity of the 3rd-party services and use cases they serve among our community. There
-are however certain conditions and expectations we have in order.
-
-There is no difference between the community and 3rd party providers - they have all the same capabilities
-and limitations. The consensus in the Airflow community is that usually it is better for the community and
-for the health of the provider to be managed by the 3rd party team, rather than by the Airflow community.
-This is especially in case the provider concerns 3rd-party service that has a team that can manage provider
-on their own. For the Airflow community, managing and releasing a 3rd-party provider that we cannot test
-and verify is a lot of effort and uncertainty, especially including the cases where the external service is
-live and going to evolve in the future, and it is better to let the 3rd party team manage it,
-as they can better keep pace with the changes in the service.
-
-Information about such 3rd-party providers are usually published at the
-`Ecosystem: plugins and providers <https://airflow.apache.org/ecosystem/#third-party-airflow-plugins-and-providers>`_
-page of the Airflow website and we encourage the service providers to publish their providers there. You can also
-find a 3rd-party registries of such providers, that you can use if you search for existing providers (they
-are also listed at the "Ecosystem" page in the same chapter)
-
-While we already have - historically - a number of 3rd-party service providers managed by the community,
-most of those services have dedicated teams that keep an eye on the community providers and not only take
-active part in managing them (see mixed-governance model below), but also provide a way that we can
-verify whether the provider works with the latest version of the service via dashboards that show
-status of System Tests for the provider. This allows us to have a high level of confidence that when we
-release the provider it works with the latest version of the service. System Tests are part of the Airflow
-code, but they are executed and verified by those 3rd party service teams. We are working with the 3rd
-party service teams (who are often important stakeholders of the Apache Airflow project) to add dashboards
-for the historical providers that are managed by the community, and current set of Dashboards can be also
-found at the
-`Ecosystem: system test dashboards <https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards>`_
-
-Mixed governance model for 3rd-party related community providers
-----------------------------------------------------------------
-
-Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
-compatibilities in their integrations (for example cloud providers, or specific service providers). But,
-we are also bound with the `Apache Software Foundation release policy <https://www.apache.org/legal/release-policy.html>`_
-which describes who releases, and how to release the ASF software. The provider's governance model is something we name
-``mixed governance`` - where we follow the release policies, while the burden of maintaining and testing
-the cherry-picked versions is on those who commit to perform the cherry-picks and make PRs to older
-branches.
-
-The "mixed governance" (optional, per-provider) means that:
-
-* The Airflow Community and release manager decide when to release those providers.
-  This is fully managed by the community and the usual release-management process following the
-  `Apache Software Foundation release policy <https://www.apache.org/legal/release-policy.html>`_
-* The contributors (who might or might not be direct stakeholders in the provider) will carry the burden
-  of cherry-picking and testing the older versions of providers.
-* There is no "selection" and acceptance process to determine which version of the provider is released.
-  It is determined by the actions of contributors raising the PR with cherry-picked changes and it follows
-  the usual PR review process where maintainer approves (or not) and merges (or not) such PR. Simply
-  speaking - the completed action of cherry-picking and testing the older version of the provider make
-  it eligible to be released. Unless there is someone who volunteers and perform the cherry-picking and
-  testing, the provider is not released.
-* Branches to raise PR against are created when a contributor commits to perform the cherry-picking
-  (as a comment in PR to cherry-pick for example)
-
-Usually, community effort is focused on the most recent version of each provider. The community approach is
-that we should rather aggressively remove deprecations in "major" versions of the providers - whenever
-there is an opportunity to increase major version of a provider, we attempt to remove all deprecations.
-However, sometimes there is a contributor (who might or might not represent stakeholder),
-willing to make their effort on cherry-picking and testing the non-breaking changes to a selected,
-previous major branch of the provider. This results in releasing at most two versions of a
-provider at a time:
-
-* potentially breaking "latest" major version
-* selected past major version with non-breaking changes applied by the contributor
-
-Cherry-picking such changes follows the same process for releasing Airflow
-patch-level releases for a previous minor Airflow version. Usually such cherry-picking is done when
-there is an important bugfix and the latest version contains breaking changes that are not
-coupled with the bugfix. Releasing them together in the latest version of the provider effectively couples
-them, and therefore they're released separately. The cherry-picked changes have to be merged by the committer following the usual rules of the
-community.
-
-There is no obligation to cherry-pick and release older versions of the providers.
-The community continues to release such older versions of the providers for as long as there is an effort
-of the contributors to perform the cherry-picks and carry-on testing of the older provider version.
-
-The availability of stakeholder that can manage "service-oriented" maintenance and agrees to such a
-responsibility, will also drive our willingness to accept future, new providers to become community managed.
 
 Suspending releases for providers
----------------------------------
+----------------------------------
 
-In case a provider is found to require old dependencies that are not compatible with upcoming versions of
-the Apache Airflow or with newer dependencies required by other providers, the provider's release
-process can be suspended.
+See `Suspending and Removing Providers: Suspending releases <providers/SUSPENDING_AND_REMOVING_PROVIDERS.rst#suspending-releases-for-providers>`_.
 
-This means:
-
-* The provider's state in ``provider.yaml`` is set to "suspended"
-* No new releases of the provider will be made until the problem with dependencies is solved
-* Sources of the provider remain in the repository for now (in the future we might add process to remove them)
-* No new changes will be accepted for the provider (other than the ones that fix the dependencies)
-* The provider will be removed from the list of Apache Airflow extras in the next Airflow release
-  (including patch-level release if it is possible/easy to cherry-pick the suspension change)
-* Tests of the provider will not be run on our CI (in main branch)
-* Dependencies of the provider will not be installed in our main branch CI image nor included in constraints
-* We can still decide to apply security fixes to released providers - by adding fixes to the main branch
-  but cherry-picking, testing and releasing them in the patch-level branch of the provider similar to the
-  mixed governance model described above.
-
-The suspension may be triggered by any committer after the following criteria are met:
-
-* The maintainers of dependencies of the provider are notified about the issue and are given a reasonable
-  time to resolve it (at least 1 week)
-* Other options to resolve the issue have been exhausted and there are good reasons for upgrading
-  the old dependencies in question
-* Explanation why we need to suspend the provider is stated in a public discussion in the devlist. Followed
-  by ``[LAZY CONSENSUS]`` or ``[VOTE]`` discussion at the devlist (with the majority of the binding votes
-  agreeing that we should suspend the provider)
-
-The suspension will be lifted when the dependencies of the provider are made compatible with the Apache
-Airflow and with other providers - by merging a PR that removes the suspension and succeeds.
 
 Removing community providers
-----------------------------
+------------------------------
 
-The providers can be removed from main branch of Airflow when the community agrees that there should be no
-more updates to the providers done by the community - except maybe potentially security fixes found. There
-might be various reasons for the providers to be removed:
+See `Suspending and Removing Providers: Removing providers <providers/SUSPENDING_AND_REMOVING_PROVIDERS.rst#removing-community-providers>`_.
 
-* the service they connect to is no longer available
-* the dependencies for the provider are not maintained anymore and there is no viable alternative
-* there is another, more popular provider that supersedes community provider
-* etc. etc.
+3rd-party providers
+===================
 
-Each case of removing provider should be discussed individually and separate ``[VOTE]`` thread should start,
-where regular rules for code modification apply (following the
-`Apache Software Foundation voting rules <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_).
-In cases where the reasons for removal are ``obvious``, and discussed before, also ``[LAZY CONSENSUS]`` thread
-can be started. Generally speaking a discussion thread ``[DISCUSS]`` is advised before such removal and
-sufficient time should pass (at least a week) to give a chance for community members to express their
-opinion on the removal.
-
-There are the following consequences (or lack of them) of removing the provider:
-
-* One last release of the provider is done with documentation updated informing that the provider is no
-  longer maintained by the Apache Airflow community - linking to this page. This information should also
-  find its way to the package documentation and consequently - to the description of the package in PyPI.
-* An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
-* The released providers remain available on PyPI and in the
-   `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
-   Software Foundation, while they are removed from the
-   `Downloads <https://downloads.apache.org/airflow/providers/>`_ .
-   Also it remains in the Index of the Apache Airflow Providers documentation at
-   `Airflow Documentation <https://airflow.apache.org/docs/>`_ with note ``(not maintained)`` next to it.
-* The code of the provider is removed from ``main`` branch of the Apache Airflow repository - including
-  the tests and documentation. It is no longer built in CI and dependencies of the provider no longer
-  contribute to the CI image/constraints of Apache Airflow for development and future ``MINOR`` release.
-* The provider is removed from the list of Apache Airflow extras in the next ``MINOR`` Airflow release
-* The dependencies of the provider are removed from the constraints of the Apache Airflow
-  (and the constraints are updated in the next ``MINOR`` release of Airflow)
-* In case of confirmed security issues that need fixing that are reported to the provider after it has been
-  removed, there are two options:
-  * in case there is a viable alternative or in case the provider is anyhow not useful to be installed, we
-    might issue advisory to the users to remove the provider (and use alternatives if applicable)
-  * in case the users might still need the provider, we still might decide to release new version of the
-    provider with security issue fixed, starting from the source code in Git history where the provider was
-    last released. This however, should only be done in case there are no viable alternatives for the users.
-* Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
-  of accepting new provider described above.
-
-Provider Dependencies
-=====================
-
-The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
-
-All provider dependencies, including versions and constraints, are listed in this file.
-When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
-
-To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
-Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.
+See `3rd-Party Providers <providers/THIRD_PARTY_PROVIDERS.rst>`_.

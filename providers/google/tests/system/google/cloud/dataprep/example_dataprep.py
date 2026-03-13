@@ -32,7 +32,14 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.decorators import task
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.operators.dataprep import (
@@ -45,13 +52,20 @@ from airflow.providers.google.cloud.operators.dataprep import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataprep"
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATAPREP_TOKEN = os.environ.get("SYSTEM_TESTS_DATAPREP_TOKEN", "")
@@ -77,9 +91,7 @@ WRITE_SETTINGS = {
     ],
 }
 
-
 log = logging.getLogger(__name__)
-
 
 with models.DAG(
     DAG_ID,
@@ -104,6 +116,7 @@ with models.DAG(
                 "conn_type": "dataprep",
                 "extra": json.dumps({"token": DATAPREP_TOKEN}),
             },
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
@@ -275,7 +288,7 @@ with models.DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
@@ -303,7 +316,6 @@ with models.DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

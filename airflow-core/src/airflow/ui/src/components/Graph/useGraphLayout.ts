@@ -164,11 +164,14 @@ const generateElkGraph = ({
         label: node.label,
         layoutOptions: {
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
+          ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
       };
     }
 
     if (!Boolean(isOpen) && node.children !== undefined) {
+      const seenEdges = new Set<string>();
+
       filteredEdges = filteredEdges
         // Filter out internal group edges
         .filter((fe) => !(childIds.includes(fe.source_id) && childIds.includes(fe.target_id)))
@@ -177,13 +180,25 @@ const generateElkGraph = ({
           ...fe,
           source_id: childIds.includes(fe.source_id) ? node.id : fe.source_id,
           target_id: childIds.includes(fe.target_id) ? node.id : fe.target_id,
-        }));
+        }))
+        // Deduplicate edges based on source_id and target_id composite
+        .filter((fe) => {
+          const edgeKey = `${fe.source_id}-${fe.target_id}`;
+
+          if (seenEdges.has(edgeKey)) {
+            return false;
+          }
+          seenEdges.add(edgeKey);
+
+          return true;
+        });
       closedGroupIds.push(node.id);
     }
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
     let width = getTextWidth(label, font);
-    let height = 80;
+    const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
+    let height = hasStateBar ? 90 : 80;
 
     if (node.type === "join") {
       width = 10;
@@ -201,8 +216,10 @@ const generateElkGraph = ({
       isGroup: Boolean(node.children),
       isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
+      layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
+      tooltip: node.tooltip,
       type: node.type,
       width,
     };

@@ -22,15 +22,21 @@ import operator
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
@@ -53,13 +59,12 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 def get_task_instances(task_id):
     session = settings.Session()
     logical_date = DagRun.logical_date if AIRFLOW_V_3_0_PLUS else DagRun.execution_date
-    return (
-        session.query(TaskInstance)
+    return session.scalars(
+        select(TaskInstance)
         .join(TaskInstance.dag_run)
-        .filter(TaskInstance.task_id == task_id)
+        .where(TaskInstance.task_id == task_id)
         .order_by(logical_date)
-        .all()
-    )
+    ).all()
 
 
 class TestLatestOnlyOperator:
@@ -130,7 +135,7 @@ class TestLatestOnlyOperator:
         )
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             # AIP-72
             # Running the "latest" task for each of the DAG runs to test the skipping of downstream tasks
@@ -254,7 +259,7 @@ class TestLatestOnlyOperator:
         )
 
         # Get all created dag runs and run tasks for each
-        all_drs = dag_maker.session.query(DagRun).filter_by(dag_id=dag_maker.dag.dag_id).all()
+        all_drs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == dag_maker.dag.dag_id)).all()
         for dr in all_drs:
             dag_maker.run_ti("latest", dr)
             dag_maker.run_ti("downstream", dr)
@@ -312,3 +317,21 @@ class TestLatestOnlyOperator:
 
         # The task will raise DownstreamTasksSkipped exception if it is not the latest run
         assert run_task.state == State.SUCCESS
+
+    def test_regular_latest_only_run(self, dag_maker):
+        """Test latest_only running in normal mode."""
+        with dag_maker(
+            "test_dag",
+            start_date=DEFAULT_DATE,
+            schedule="* * * * *",
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        dag_maker.run_ti("latest", dr)

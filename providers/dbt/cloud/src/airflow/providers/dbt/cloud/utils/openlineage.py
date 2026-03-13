@@ -56,7 +56,48 @@ def _get_dag_run_clear_number(task_instance):
     return task_instance.dag_run.clear_number
 
 
-@require_openlineage_version(provider_min_version="2.3.0")
+def _get_parent_run_metadata(task_instance):
+    """
+    Retrieve the ParentRunMetadata associated with a specific Airflow task instance.
+
+    This metadata helps link OpenLineage events of child jobs to the original Airflow task execution.
+    Establishing this connection enables better lineage tracking and observability.
+    """
+    from openlineage.common.provider.dbt import ParentRunMetadata
+
+    from airflow.providers.openlineage.plugins.macros import (
+        lineage_job_name,
+        lineage_job_namespace,
+        lineage_root_job_name,
+        lineage_root_run_id,
+        lineage_run_id,
+    )
+
+    parent_run_id = lineage_run_id(task_instance)
+    parent_job_name = lineage_job_name(task_instance)
+    parent_job_namespace = lineage_job_namespace()
+
+    root_parent_run_id = lineage_root_run_id(task_instance)
+    rot_parent_job_name = lineage_root_job_name(task_instance)
+
+    try:  # Added in OL provider 2.9.0, try to use it if possible
+        from airflow.providers.openlineage.plugins.macros import lineage_root_job_namespace
+
+        root_parent_job_namespace = lineage_root_job_namespace(task_instance)
+    except ImportError:
+        root_parent_job_namespace = lineage_job_namespace()
+
+    return ParentRunMetadata(
+        run_id=parent_run_id,
+        job_name=parent_job_name,
+        job_namespace=parent_job_namespace,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_name=rot_parent_job_name,
+        root_parent_job_namespace=root_parent_job_namespace,
+    )
+
+
+@require_openlineage_version(provider_min_version="2.5.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
@@ -74,14 +115,10 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     :return: An empty OperatorLineage object indicating the completion of events generation.
     """
-    from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
+    from openlineage.common.provider.dbt import DbtCloudArtifactProcessor
 
-    from airflow.providers.openlineage.conf import namespace
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.providers.openlineage.plugins.adapter import (
-        _PRODUCER,
-        OpenLineageAdapter,
-    )
+    from airflow.providers.openlineage.plugins.adapter import _PRODUCER
     from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 
     # if no account_id set this will fallback
@@ -140,29 +177,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     )
 
     log.debug("Preparing OpenLineage parent job information to be included in DBT events.")
-    # generate same run id of current task instance
-    parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id=task_instance.dag_id,
-        task_id=operator.task_id,
-        logical_date=_get_logical_date(task_instance),
-        try_number=task_instance.try_number,
-        map_index=task_instance.map_index,
-    )
-
-    root_parent_run_id = OpenLineageAdapter.build_dag_run_id(
-        dag_id=task_instance.dag_id,
-        logical_date=_get_logical_date(task_instance),
-        clear_number=_get_dag_run_clear_number(task_instance),
-    )
-
-    parent_job = ParentRunMetadata(
-        run_id=parent_run_id,
-        job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
-        job_namespace=namespace(),
-        root_parent_run_id=root_parent_run_id,
-        root_parent_job_name=task_instance.dag_id,
-        root_parent_job_namespace=namespace(),
-    )
+    parent_metadata = _get_parent_run_metadata(task_instance)
     adapter = get_openlineage_listener().adapter
 
     # process each step in loop, sending generated events in the same order as steps
@@ -178,7 +193,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
         processor = DbtCloudArtifactProcessor(
             producer=_PRODUCER,
-            job_namespace=namespace(),
+            job_namespace=parent_metadata.job_namespace,
             skip_errors=False,
             logger=operator.log,
             manifest=manifest,
@@ -187,7 +202,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
             catalog=catalog,
         )
 
-        processor.dbt_run_metadata = parent_job
+        processor.dbt_run_metadata = parent_metadata
 
         events = processor.parse().events()
         log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)

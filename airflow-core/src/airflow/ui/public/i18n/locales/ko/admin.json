@@ -3,6 +3,7 @@
     "description": "설명",
     "key": "키",
     "name": "이름",
+    "team": "팀",
     "value": "값"
   },
   "config": {
@@ -36,6 +37,7 @@
       "extraFields": "추가 필드",
       "extraFieldsJson": "추가 필드 JSON",
       "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
+      "helperTextForRedactedFields": "('***')로 마스킹된 필드는 수정하지 않으면 그대로 유지됩니다.",
       "selectConnectionType": "커넥션 유형 선택",
       "standardFields": "기본 필드"
     },
@@ -48,6 +50,12 @@
     "searchPlaceholder": "커넥션 검색",
     "test": "커넥션 테스트",
     "testDisabled": "커넥션 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",
+    "testError": {
+      "title": "커넥션 테스트 실패"
+    },
+    "testSuccess": {
+      "title": "커넥션 테스트 성공"
+    },
     "typeMeta": {
       "error": "커넥션 유형 메타 정보를 가져오지 못했습니다",
       "standardFields": {
@@ -71,8 +79,24 @@
     "tooltip": "선택된 커넥션들 삭제"
   },
   "formActions": {
-    "reset": "초기화",
     "save": "저장"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "실행기 클래스",
+      "hostname": "호스트 이름",
+      "id": "ID",
+      "jobType": "잡 유형",
+      "latestHeartbeat": "최신 Heartbeat",
+      "unixname": "유닉스 이름"
+    },
+    "filters": {
+      "allStates": "모든 상태",
+      "allTypes": "모든 유형",
+      "dagProcessorJob": "Dag 프로세서 잡",
+      "schedulerJob": "스케줄러 잡",
+      "triggererJob": "트리거러 잡"
+    }
   },
   "plugins": {
     "columns": {
@@ -128,8 +152,6 @@
       "tooltip": "선택된 변수들 삭제"
     },
     "edit": "변수 편집",
-    "export": "내보내기",
-    "exportTooltip": "선택된 변수들 내보내기",
     "form": {
       "invalidJson": "유효하지 않은 JSON입니다",
       "keyMaxLength": "키는 최대 250자까지 입력할 수 있습니다",

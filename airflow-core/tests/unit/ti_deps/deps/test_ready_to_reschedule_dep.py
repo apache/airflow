@@ -24,10 +24,10 @@ import pytest
 import time_machine
 from slugify import slugify
 
+from airflow._shared.timezones import timezone
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -103,13 +103,16 @@ class TestNotInReschedulePeriodDep:
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
 
-    def test_should_pass_if_not_reschedule_mode(self, not_expected_tr_db_call):
-        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
-        del ti.task.reschedule
-        assert ReadyToRescheduleDep().is_met(ti=ti)
-
     def test_should_pass_if_not_in_none_state(self, not_expected_tr_db_call):
         ti = self._get_task_instance(State.UP_FOR_RETRY)
+        assert ReadyToRescheduleDep().is_met(ti=ti)
+
+    def test_should_pass_without_db_query_for_non_reschedule_task_in_none_state(
+        self, not_expected_tr_db_call
+    ):
+        """Non-reschedule, non-mapped tasks in NONE state should short-circuit without a DB query."""
+        ti = self._get_task_instance(State.NONE)
+        ti.task.reschedule = False
         assert ReadyToRescheduleDep().is_met(ti=ti)
 
     def test_should_pass_if_no_reschedule_record_exists(self):
@@ -126,6 +129,17 @@ class TestNotInReschedulePeriodDep:
         self._create_task_reschedule(ti, [-21, -11, -1])
         assert ReadyToRescheduleDep().is_met(ti=ti)
 
+    def test_should_fail_before_reschedule_date_even_if_task_is_not_reschedule_mode(self):
+        """
+        When a task is in UP_FOR_RESCHEDULE state but the operator itself is not in reschedule mode
+        (i.e. reschedule was triggered by infrastructure/startup failure), we still must respect the
+        TaskReschedule.reschedule_date.
+        """
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
+        del ti.task.reschedule
+        self._create_task_reschedule(ti, 1)
+        assert not ReadyToRescheduleDep().is_met(ti=ti)
+
     def test_should_fail_before_reschedule_date_one(self):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self._create_task_reschedule(ti, 1)
@@ -141,11 +155,6 @@ class TestNotInReschedulePeriodDep:
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
-
-    def test_mapped_task_should_pass_if_not_reschedule_mode(self, not_expected_tr_db_call):
-        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
-        del ti.task.reschedule
-        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     def test_mapped_task_should_pass_if_not_in_none_state(self, not_expected_tr_db_call):
         ti = self._get_task_instance(State.UP_FOR_RETRY, map_index=42)

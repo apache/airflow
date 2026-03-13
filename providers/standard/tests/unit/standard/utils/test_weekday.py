@@ -43,7 +43,7 @@ class TestWeekDay:
             assert isinstance(weekday_enum, Enum)
 
     @pytest.mark.parametrize(
-        "weekday, expected",
+        ("weekday", "expected"),
         [
             ("Monday", 1),
             (WeekDay.MONDAY, 1),
@@ -61,7 +61,7 @@ class TestWeekDay:
             WeekDay.convert(invalid)
 
     @pytest.mark.parametrize(
-        "weekday, expected",
+        ("weekday", "expected"),
         [
             ("Monday", {WeekDay.MONDAY}),
             (WeekDay.MONDAY, {WeekDay.MONDAY}),

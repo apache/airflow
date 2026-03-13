@@ -19,42 +19,62 @@
 import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
-import { TaskInstancesColumn } from "./TaskInstancesColumn";
-import type { GridTask } from "./utils";
-
-const BAR_HEIGHT = 100;
+import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
+import { BAR_HEIGHT } from "./constants";
+import {
+  getBundleVersion,
+  getMaxVersionNumber,
+  type GridRunWithVersionFlags,
+} from "./useGridRunsWithVersionFlags";
 
 type Props = {
   readonly max: number;
-  readonly nodes: Array<GridTask>;
-  readonly run: GridRunsResponse;
+  readonly onClick?: () => void;
+  readonly run: GridRunWithVersionFlags;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
 };
 
-export const Bar = ({ max, nodes, run }: Props) => {
+export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
+  const { hoveredRunId, setHoveredRunId } = useHover();
 
   const isSelected = runId === run.run_id;
-
+  const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
+
+  const handleMouseEnter = () => setHoveredRunId(run.run_id);
+  const handleMouseLeave = () => setHoveredRunId(undefined);
 
   return (
     <Box
-      _hover={{ bg: "blue.subtle" }}
-      bg={isSelected ? "blue.muted" : undefined}
+      bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       position="relative"
       transition="background-color 0.2s"
     >
+      {run.isBundleVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.BUNDLE_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <BundleVersionIndicator bundleVersion={getBundleVersion(run)} />
+      ) : undefined}
+      {run.isDagVersionChange &&
+      (showVersionIndicatorMode === VersionIndicatorOptions.DAG_VERSION ||
+        showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (
+        <DagVersionIndicator dagVersionNumber={getMaxVersionNumber(run)} orientation="vertical" />
+      ) : undefined}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}
         justifyContent="center"
+        onClick={onClick}
         pb="2px"
         px="5px"
         width="18px"
@@ -62,7 +82,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
       >
         <GridButton
           alignItems="center"
-          color="white"
+          color="fg"
           dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
@@ -74,14 +94,9 @@ export const Bar = ({ max, nodes, run }: Props) => {
           state={run.state}
           zIndex={1}
         >
-          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
+          {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
-      <TaskInstancesColumn
-        nodes={nodes}
-        runId={run.run_id}
-        taskInstances={gridTISummaries?.task_instances ?? []}
-      />
     </Box>
   );
 };

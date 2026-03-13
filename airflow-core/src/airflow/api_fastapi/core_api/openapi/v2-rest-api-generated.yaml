@@ -16,6 +16,7 @@ paths:
       operationId: get_assets
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -41,10 +42,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: uri_pattern
         in: query
         required: false
@@ -53,10 +56,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Uri Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: dag_ids
         in: query
         required: false
@@ -76,9 +81,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name,
+            uri, created_at, updated_at`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name, uri, created_at,
+          updated_at`'
       responses:
         '200':
           description: Successful Response
@@ -119,6 +133,7 @@ paths:
       operationId: get_asset_aliases
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -144,17 +159,26 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: order_by
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name`'
       responses:
         '200':
           description: Successful Response
@@ -195,6 +219,7 @@ paths:
       operationId: get_asset_alias
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -241,6 +266,7 @@ paths:
       operationId: get_asset_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -262,9 +288,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: timestamp
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `source_task_id,
+            source_dag_id, source_run_id, source_map_index, timestamp`'
+          default:
+          - timestamp
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `source_task_id, source_dag_id,
+          source_run_id, source_map_index, timestamp`'
       - name: asset_id
         in: query
         required: false
@@ -305,6 +340,20 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: timestamp_gte
         in: query
         required: false
@@ -314,6 +363,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Gte
+      - name: timestamp_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Gt
       - name: timestamp_lte
         in: query
         required: false
@@ -323,6 +381,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Lte
+      - name: timestamp_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Lt
       responses:
         '200':
           description: Successful Response
@@ -362,6 +429,7 @@ paths:
       operationId: create_asset_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -408,6 +476,7 @@ paths:
       operationId: materialize_asset
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -434,6 +503,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -461,6 +536,7 @@ paths:
       operationId: get_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -495,12 +571,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -515,6 +585,7 @@ paths:
       operationId: delete_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -566,6 +637,7 @@ paths:
       operationId: get_asset
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -613,6 +685,7 @@ paths:
       operationId: get_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -647,12 +720,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -666,6 +733,7 @@ paths:
       operationId: delete_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -723,6 +791,7 @@ paths:
       operationId: get_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -783,6 +852,7 @@ paths:
       operationId: delete_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -845,6 +915,7 @@ paths:
       operationId: list_backfills
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -872,9 +943,16 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       responses:
         '200':
           description: Successful Response
@@ -907,6 +985,7 @@ paths:
       operationId: create_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -932,6 +1011,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -958,6 +1043,7 @@ paths:
       operationId: get_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1005,6 +1091,7 @@ paths:
       operationId: pause_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1058,6 +1145,7 @@ paths:
       operationId: unpause_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1111,6 +1199,7 @@ paths:
       operationId: cancel_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1207,6 +1296,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/connections/{connection_id}:
     delete:
       tags:
@@ -1216,6 +1306,7 @@ paths:
       operationId: delete_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1258,6 +1349,7 @@ paths:
       operationId: get_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1304,6 +1396,7 @@ paths:
       operationId: patch_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1373,6 +1466,7 @@ paths:
       operationId: get_connections
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -1394,9 +1488,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `conn_id,
+            conn_type, description, host, port, id, team_name, connection_id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `conn_id, conn_type,
+          description, host, port, id, team_name, connection_id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -1405,10 +1508,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Connection Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -1448,6 +1553,7 @@ paths:
       operationId: post_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -1493,6 +1599,7 @@ paths:
       operationId: bulk_connections
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -1573,6 +1680,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/connections/defaults:
     post:
       tags:
@@ -1597,6 +1705,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -1605,6 +1714,7 @@ paths:
       operationId: get_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1657,6 +1767,7 @@ paths:
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1711,6 +1822,7 @@ paths:
       operationId: patch_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1787,6 +1899,7 @@ paths:
       operationId: get_upstream_asset_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1839,6 +1952,7 @@ paths:
       operationId: clear_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1905,6 +2019,7 @@ paths:
       operationId: get_dag_runs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1937,6 +2052,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -1946,6 +2070,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -1955,6 +2088,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -1964,6 +2106,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -1973,6 +2124,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -1982,6 +2142,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -1991,6 +2160,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -2000,6 +2178,47 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2009,6 +2228,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -2018,6 +2246,21 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
+      - name: conf_contains
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Conf Contains
       - name: run_type
         in: query
         required: false
@@ -2034,13 +2277,40 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
+            conf, duration, dag_run_id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, dag_id,
+          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
+          duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
@@ -2049,10 +2319,54 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: triggering_user_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Triggering User Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: partition_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Partition Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -2092,6 +2406,7 @@ paths:
       operationId: trigger_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2155,10 +2470,12 @@ paths:
       summary: 'Experimental: Wait for a dag run to complete, and return task results
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice."
+        \ be removed without notice.Successful response are streamed as newline-delimited\
+        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2240,6 +2557,7 @@ paths:
       operationId: get_list_dag_runs_batch
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2294,6 +2612,7 @@ paths:
       operationId: get_dag_source
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2376,6 +2695,7 @@ paths:
       operationId: get_dag_stats
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_ids
         in: query
@@ -2422,52 +2742,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dagReports:
-    get:
-      tags:
-      - DagReport
-      summary: Get Dag Reports
-      description: Get DAG report.
-      operationId: get_dag_reports
-      security:
-      - OAuth2PasswordBearer: []
-      parameters:
-      - name: subdir
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Subdir
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/config:
     get:
       tags:
@@ -2476,6 +2750,7 @@ paths:
       operationId: get_config
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: section
         in: query
@@ -2558,6 +2833,7 @@ paths:
       operationId: get_config_value
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: section
         in: path
@@ -2638,6 +2914,7 @@ paths:
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -2675,9 +2952,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type,
+            message, timestamp`'
+          default:
+          - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, warning_type,
+          message, timestamp`'
       responses:
         '200':
           description: Successful Response
@@ -2712,6 +2998,7 @@ paths:
       operationId: get_dags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -2764,10 +3051,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -2776,10 +3065,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -2795,6 +3086,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -2803,6 +3106,42 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter Dags with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -2812,6 +3151,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Gte
+      - name: dag_run_start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Gt
       - name: dag_run_start_date_lte
         in: query
         required: false
@@ -2821,6 +3169,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Lte
+      - name: dag_run_start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Lt
       - name: dag_run_end_date_gte
         in: query
         required: false
@@ -2830,6 +3187,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Gte
+      - name: dag_run_end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Gt
       - name: dag_run_end_date_lte
         in: query
         required: false
@@ -2839,6 +3205,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Lte
+      - name: dag_run_end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Lt
       - name: dag_run_state
         in: query
         required: false
@@ -2851,9 +3226,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          default:
+          - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -2862,6 +3246,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Is Favorite
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
       responses:
         '200':
           description: Successful Response
@@ -2895,6 +3287,7 @@ paths:
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -2957,10 +3350,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -3028,6 +3423,7 @@ paths:
       operationId: get_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3080,6 +3476,7 @@ paths:
       operationId: patch_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3148,6 +3545,7 @@ paths:
       operationId: delete_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3200,6 +3598,7 @@ paths:
       operationId: get_dag_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3253,6 +3652,7 @@ paths:
       operationId: favorite_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3296,6 +3696,7 @@ paths:
       operationId: unfavorite_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3344,6 +3745,7 @@ paths:
       operationId: get_event_log
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3391,6 +3793,7 @@ paths:
       operationId: get_event_logs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3412,9 +3815,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dttm,
+            dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dttm, dag_id,
+          task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
       - name: dag_id
         in: query
         required: false
@@ -3509,6 +3921,76 @@ paths:
             format: date-time
           - type: 'null'
           title: After
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: owner_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Owner Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: event_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Event Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -3544,6 +4026,7 @@ paths:
       operationId: get_extra_links
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3610,6 +4093,7 @@ paths:
       operationId: get_import_error
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: import_error_id
         in: path
@@ -3657,6 +4141,7 @@ paths:
       operationId: get_import_errors
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3678,9 +4163,32 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, timestamp,
+            filename, bundle_name, stacktrace, import_error_id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, timestamp, filename,
+          bundle_name, stacktrace, import_error_id`'
+      - name: filename_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Filename Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -3715,6 +4223,7 @@ paths:
       operationId: get_jobs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -3733,6 +4242,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -3742,6 +4260,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -3751,6 +4278,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -3760,6 +4296,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: limit
         in: query
         required: false
@@ -3780,9 +4325,20 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dag_id,
+            state, job_type, start_date, end_date, latest_heartbeat, executor_class,
+            hostname, unixname`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dag_id, state,
+          job_type, start_date, end_date, latest_heartbeat, executor_class, hostname,
+          unixname`'
       - name: job_state
         in: query
         required: false
@@ -3854,6 +4410,7 @@ paths:
       operationId: get_plugins
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3923,6 +4480,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/pools/{pool_name}:
     delete:
       tags:
@@ -3932,6 +4490,7 @@ paths:
       operationId: delete_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3980,6 +4539,7 @@ paths:
       operationId: get_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4026,6 +4586,7 @@ paths:
       operationId: patch_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4095,6 +4656,7 @@ paths:
       operationId: get_pools
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -4116,9 +4678,17 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, pool,
+            name`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, pool, name`'
       - name: pool_name_pattern
         in: query
         required: false
@@ -4127,10 +4697,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -4170,6 +4742,7 @@ paths:
       operationId: post_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -4215,6 +4788,7 @@ paths:
       operationId: bulk_pools
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -4255,6 +4829,7 @@ paths:
       operationId: get_providers
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -4306,6 +4881,7 @@ paths:
       operationId: get_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4401,6 +4977,7 @@ paths:
       operationId: update_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4469,6 +5046,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - XCom
+      summary: Delete Xcom Entry
+      description: Delete an XCom entry.
+      operationId: delete_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     get:
       tags:
@@ -4482,6 +5134,7 @@ paths:
       operationId: get_xcom_entries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4534,6 +5187,142 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: xcom_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Xcom Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: map_index_filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index Filter
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       responses:
         '200':
           description: Successful Response
@@ -4579,6 +5368,7 @@ paths:
       operationId: create_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4650,6 +5440,7 @@ paths:
       operationId: get_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4708,6 +5499,7 @@ paths:
       operationId: patch_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4802,6 +5594,7 @@ paths:
       operationId: delete_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4833,9 +5626,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Task Instance
+              schema: {}
         '401':
           content:
             application/json:
@@ -4869,6 +5660,7 @@ paths:
       operationId: get_mapped_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4897,6 +5689,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -4906,6 +5707,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -4915,6 +5725,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -4924,6 +5743,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -4933,6 +5761,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -4942,6 +5779,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -4951,6 +5797,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -4960,6 +5815,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -4969,6 +5833,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -4978,6 +5851,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -4986,6 +5868,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -4994,6 +5884,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: state
         in: query
         required: false
@@ -5010,6 +5908,20 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5018,6 +5930,20 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5034,6 +5960,44 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -5054,9 +6018,22 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: map_index
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            run_after, logical_date, data_interval_start, data_interval_end`'
+          default:
+          - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator, run_after, logical_date,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -5097,6 +6074,7 @@ paths:
       operationId: get_task_instance_dependencies_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5162,6 +6140,7 @@ paths:
       operationId: get_task_instance_dependencies
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5228,6 +6207,7 @@ paths:
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5293,6 +6273,7 @@ paths:
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5358,6 +6339,7 @@ paths:
       operationId: get_mapped_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5422,6 +6404,7 @@ paths:
       operationId: patch_task_instance_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5523,6 +6506,7 @@ paths:
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5553,6 +6537,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -5562,6 +6555,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -5571,6 +6573,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -5580,6 +6591,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -5589,6 +6609,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -5598,6 +6627,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -5607,6 +6645,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -5616,6 +6663,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -5625,6 +6681,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -5634,6 +6699,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -5642,6 +6716,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -5650,6 +6732,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: task_display_name_pattern
         in: query
         required: false
@@ -5658,10 +6748,52 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: task_group_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by exact task group ID. Returns all tasks within the
+            specified task group.
+          title: Task Group Id
+        description: Filter by exact task group ID. Returns all tasks within the specified
+          task group.
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: state
         in: query
         required: false
@@ -5678,6 +6810,20 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5686,6 +6832,20 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5702,6 +6862,44 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -5722,9 +6920,22 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: map_index
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            logical_date, run_after, data_interval_start, data_interval_end`'
+          default:
+          - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator, logical_date, run_after,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -5744,6 +6955,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -5764,6 +6981,7 @@ paths:
       operationId: bulk_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5817,6 +7035,7 @@ paths:
       operationId: get_task_instances_batch
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5878,6 +7097,7 @@ paths:
       operationId: get_task_instance_try_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5949,6 +7169,7 @@ paths:
       operationId: get_mapped_task_instance_try_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6020,6 +7241,7 @@ paths:
       operationId: post_clear_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6058,6 +7280,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6073,6 +7301,7 @@ paths:
       operationId: patch_task_instance_dry_run_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6162,6 +7391,7 @@ paths:
       operationId: patch_task_instance_dry_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6251,6 +7481,7 @@ paths:
       operationId: get_tasks
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6311,6 +7542,7 @@ paths:
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6369,6 +7601,7 @@ paths:
       operationId: delete_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6411,6 +7644,7 @@ paths:
       operationId: get_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6457,6 +7691,7 @@ paths:
       operationId: patch_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6526,6 +7761,7 @@ paths:
       operationId: get_variables
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -6547,9 +7783,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, id,
+            _val, description, is_encrypted, team_name`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, id, _val, description,
+          is_encrypted, team_name`'
       - name: variable_key_pattern
         in: query
         required: false
@@ -6558,10 +7803,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Variable Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -6595,6 +7842,7 @@ paths:
       operationId: post_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -6640,6 +7888,7 @@ paths:
       operationId: bulk_variables
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -6680,6 +7929,7 @@ paths:
       operationId: get_log
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6787,6 +8037,7 @@ paths:
       operationId: get_external_log_url
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6866,6 +8117,7 @@ paths:
       operationId: reparse_dag_file
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: file_token
         in: path
@@ -6878,9 +8130,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Reparse Dag File
+              schema: {}
         '401':
           content:
             application/json:
@@ -6914,6 +8164,7 @@ paths:
       operationId: get_dag_tags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -6935,9 +8186,16 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: name
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `name`'
+          default:
+          - name
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `name`'
       - name: tag_name_pattern
         in: query
         required: false
@@ -6946,10 +8204,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Tag Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -6984,6 +8244,7 @@ paths:
       operationId: get_dag_version
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7041,6 +8302,7 @@ paths:
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7088,9 +8350,18 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, version_number,
+            bundle_name, bundle_version`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, version_number,
+          bundle_name, bundle_version`'
       responses:
         '200':
           description: Successful Response
@@ -7122,15 +8393,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7150,6 +8422,12 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
       requestBody:
         required: true
         content:
@@ -7195,12 +8473,13 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7220,6 +8499,12 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
       responses:
         '200':
           description: Successful Response
@@ -7251,91 +8536,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
-    patch:
-      tags:
-      - HumanInTheLoop
-      summary: Update Mapped Ti Hitl Detail
-      description: Update a Human-in-the-loop detail.
-      operationId: update_mapped_ti_hitl_detail
-      security:
-      - OAuth2PasswordBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
-      - name: map_index
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Map Index
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateHITLDetailPayload'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HITLDetailResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}:
     get:
       tags:
-      - HumanInTheLoop
-      summary: Get Mapped Ti Hitl Detail
+      - Task Instance
+      summary: Get Hitl Detail Try Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
-      operationId: get_mapped_ti_hitl_detail
+      operationId: get_hitl_detail_try_detail
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7361,13 +8571,21 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: try_number
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HITLDetail'
+                $ref: '#/components/schemas/HITLDetailHistory'
         '401':
           content:
             application/json:
@@ -7392,13 +8610,205 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-details/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
+            responded_at, created_at, responded_by_user_id, responded_by_user_name,
+            dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator,
+            task_instance_state`'
+          default:
+          - ti_id
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
+          created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id,
+          task_display_name, run_after, rendered_map_index, task_instance_operator,
+          task_instance_state`'
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: response_received
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Response Received
+      - name: responded_by_user_id
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded By User Id
+      - name: responded_by_user_name
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded By User Name
+      - name: subject_search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Subject Search
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: body_search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Body Search
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
       responses:
         '200':
           description: Successful Response
@@ -7407,19 +8817,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/HITLDetailCollection'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-      security:
-      - OAuth2PasswordBearer: []
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/monitor/health:
     get:
       tags:
@@ -7488,15 +8902,6 @@ paths:
       summary: Logout
       description: Logout the user.
       operationId: logout
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
       responses:
         '200':
           description: Successful Response
@@ -7504,17 +8909,11 @@ paths:
             application/json:
               schema: {}
         '307':
+          description: Temporary Redirect
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -7654,7 +9053,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -7685,6 +9085,11 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - id
@@ -7710,7 +9115,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -7742,6 +9148,11 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
         last_asset_event:
           anyOf:
           - $ref: '#/components/schemas/LastAssetEventResponse'
@@ -7758,8 +9169,28 @@ components:
       - producing_tasks
       - consuming_tasks
       - aliases
+      - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -7805,6 +9236,10 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          default: true
       additionalProperties: false
       type: object
       required:
@@ -8089,10 +9524,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8111,10 +9548,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8133,10 +9572,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/PoolBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8155,10 +9596,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/VariableBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8237,6 +9680,16 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
       additionalProperties: false
       type: object
       required:
@@ -8256,6 +9709,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8278,6 +9741,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8300,6 +9773,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8322,6 +9805,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8375,6 +9868,9 @@ components:
             type: array
           - type: 'null'
           title: Task Ids
+          description: A list of `task_id` or [`task_id`, `map_index`]. If only the
+            `task_id` is provided for a mapped task, all of its map indices will be
+            targeted.
         dag_run_id:
           anyOf:
           - type: string
@@ -8395,6 +9891,16 @@ components:
         include_past:
           type: boolean
           title: Include Past
+          default: false
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          description: (Experimental) Run on the latest bundle version of the dag
+            after clearing the task instances.
+          default: false
+        prevent_running_task:
+          type: boolean
+          title: Prevent Running Task
           default: false
       additionalProperties: false
       type: object
@@ -8497,6 +10003,12 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -8563,6 +10075,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - connection_id
@@ -8574,6 +10091,7 @@ components:
       - port
       - password
       - extra
+      - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
     ConnectionTestResponse:
@@ -8595,6 +10113,11 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
         extra:
           additionalProperties: true
           type: object
@@ -8641,6 +10164,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -8670,13 +10198,6 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        deadline:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DeadlineAlertResponse'
-            type: array
-          - type: 'null'
-          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8687,6 +10208,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -8733,6 +10257,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -8815,6 +10346,14 @@ components:
             type: object
           - type: 'null'
           title: Owner Links
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+          default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token
@@ -8823,7 +10362,11 @@ components:
         concurrency:
           type: integer
           title: Concurrency
-          description: Return max_active_tasks as concurrency.
+          description: 'Return max_active_tasks as concurrency.
+
+
+            Deprecated: Use max_active_tasks instead.'
+          deprecated: true
           readOnly: true
         latest_dag_version:
           anyOf:
@@ -8838,15 +10381,16 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
       - relative_fileloc
       - fileloc
       - description
-      - deadline
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -8857,6 +10401,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - catchup
       - dag_run_timeout
@@ -8907,6 +10452,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -8936,13 +10486,6 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        deadline:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DeadlineAlertResponse'
-            type: array
-          - type: 'null'
-          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8953,6 +10496,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -8999,6 +10545,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -9016,15 +10569,16 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
       - relative_fileloc
       - fileloc
       - description
-      - deadline
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -9035,6 +10589,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - file_token
       title: DAGResponse
@@ -9048,6 +10603,12 @@ components:
         only_failed:
           type: boolean
           title: Only Failed
+          default: false
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          description: (Experimental) Run on the latest bundle version of the Dag
+            after clearing the Dag Run.
           default: false
       additionalProperties: false
       type: object
@@ -9189,6 +10750,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - dag_run_id
@@ -9211,6 +10777,7 @@ components:
       - dag_versions
       - bundle_version
       - dag_display_name
+      - partition_key
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -9252,48 +10819,121 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
+        duration_gte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+        duration_lte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
+        conf_contains:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conf Contains
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
@@ -9386,12 +11026,16 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_id
       - warning_type
       - message
       - timestamp
+      - dag_display_name
       title: DAGWarningResponse
       description: DAG Warning serializer for responses.
     DagProcessorInfoResponse:
@@ -9451,6 +11095,11 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -9462,8 +11111,9 @@ components:
       - state
       - data_interval_start
       - data_interval_end
+      - partition_key
       title: DagRunAssetReference
-      description: DAGRun serializer for asset responses.
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:
@@ -9500,6 +11150,7 @@ components:
       - scheduled
       - manual
       - asset_triggered
+      - asset_materialization
       title: DagRunType
       description: Class with DagRun types.
     DagScheduleAssetReference:
@@ -9544,6 +11195,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         stats:
           items:
             $ref: '#/components/schemas/DagStatsStateResponse'
@@ -9552,6 +11206,7 @@ components:
       type: object
       required:
       - dag_id
+      - dag_display_name
       - stats
       title: DagStatsResponse
       description: DAG Stats serializer for responses.
@@ -9576,10 +11231,14 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - name
       - dag_id
+      - dag_display_name
       title: DagTagResponse
       description: DAG Tag serializer for responses.
     DagVersionResponse:
@@ -9616,7 +11275,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -9634,6 +11292,7 @@ components:
       enum:
       - asset conflict
       - non-existent pool
+      - runtime varying value
       title: DagWarningType
       description: 'Enum for DAG warning types.
 
@@ -9641,31 +11300,6 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
-    DeadlineAlertResponse:
-      properties:
-        reference:
-          type: string
-          title: Reference
-        interval:
-          type: string
-          format: duration
-          title: Interval
-        callback:
-          type: string
-          title: Callback
-        callback_kwargs:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Callback Kwargs
-      type: object
-      required:
-      - reference
-      - interval
-      - callback
-      title: DeadlineAlertResponse
-      description: Deadline alert serializer for responses.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -9685,12 +11319,27 @@ components:
     DryRunBackfillResponse:
       properties:
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        partition_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date
       type: object
       required:
       - logical_date
+      - partition_key
+      - partition_date
       title: DryRunBackfillResponse
       description: Backfill serializer for responses in dry-run mode.
     EventLogCollectionResponse:
@@ -9767,6 +11416,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -9817,6 +11471,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        href:
+          type: string
+          title: Href
         destination:
           type: string
           enum:
@@ -9825,11 +11482,9 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
           title: Destination
           default: nav
-        href:
-          type: string
-          title: Href
       additionalProperties: true
       type: object
       required:
@@ -9891,12 +11546,11 @@ components:
       description: Serializer for Plugin FastAPI root middleware responses.
     HITLDetail:
       properties:
-        task_instance:
-          $ref: '#/components/schemas/TaskInstanceResponse'
         options:
           items:
             type: string
           type: array
+          minItems: 1
           title: Options
         subject:
           type: string
@@ -9921,17 +11575,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        user_id:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: User Id
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -9947,11 +11609,14 @@ components:
           type: boolean
           title: Response Received
           default: false
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
       type: object
       required:
-      - task_instance
       - options
       - subject
+      - created_at
+      - task_instance
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:
@@ -9970,19 +11635,94 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailResponse:
+    HITLDetailHistory:
       properties:
-        user_id:
+        options:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Options
+        subject:
           type: string
-          title: User Id
-        response_at:
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
           type: string
           format: date-time
-          title: Response At
+          title: Created At
+        responded_by_user:
+          anyOf:
+          - $ref: '#/components/schemas/HITLUser'
+          - type: 'null'
+        responded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Responded At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceHistoryResponse'
+      type: object
+      required:
+      - options
+      - subject
+      - created_at
+      - task_instance
+      title: HITLDetailHistory
+      description: Schema for Human-in-the-loop detail history.
+    HITLDetailResponse:
+      properties:
+        responded_by:
+          $ref: '#/components/schemas/HITLUser'
+        responded_at:
+          type: string
+          format: date-time
+          title: Responded At
         chosen_options:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -9990,11 +11730,25 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
-      - response_at
+      - responded_by
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -10362,7 +12116,9 @@ components:
           title: Name
         slots:
           type: integer
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -10372,6 +12128,12 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -10405,6 +12167,8 @@ components:
         slots:
           anyOf:
           - type: integer
+            minimum: -1.0
+            description: Number of slots. Use -1 for unlimited.
           - type: 'null'
           title: Slots
         description:
@@ -10417,6 +12181,12 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       title: PoolPatchBody
@@ -10428,7 +12198,9 @@ components:
           title: Name
         slots:
           type: integer
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -10455,11 +12227,15 @@ components:
         deferred_slots:
           type: integer
           title: Deferred Slots
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots
@@ -10467,6 +12243,7 @@ components:
       - scheduled_slots
       - open_slots
       - deferred_slots
+      - team_name
       title: PoolResponse
       description: Pool serializer for responses.
     ProviderCollectionResponse:
@@ -10496,11 +12273,17 @@ components:
         version:
           type: string
           title: Version
+        documentation_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Documentation Url
       type: object
       required:
       - package_name
       - description
       - version
+      - documentation_url
       title: ProviderResponse
       description: Provider serializer for responses.
     QueuedEventCollectionResponse:
@@ -10567,6 +12350,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        bundle_url:
+          type: string
+          title: Bundle Url
         destination:
           type: string
           enum:
@@ -10575,11 +12361,10 @@ components:
           - dag_run
           - task
           - task_instance
+          - base
+          - dashboard
           title: Destination
           default: nav
-        bundle_url:
-          type: string
-          title: Bundle Url
       additionalProperties: true
       type: object
       required:
@@ -10808,6 +12593,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -10858,6 +12648,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
@@ -10870,6 +12661,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
         task_id:
           type: string
@@ -10877,8 +12669,6 @@ components:
         dag_id:
           type: string
           title: Dag Id
-        dag_version:
-          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -10959,6 +12749,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -11006,12 +12801,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
-      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -11031,6 +12829,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
@@ -11040,6 +12839,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -11100,58 +12900,116 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
         duration_gte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
         duration_lte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
         pool:
           anyOf:
           - items:
@@ -11308,7 +13166,7 @@ components:
           - $ref: '#/components/schemas/TimeDelta'
           - type: 'null'
         retry_exponential_backoff:
-          type: boolean
+          type: number
           title: Retry Exponential Backoff
         priority_weight:
           anyOf:
@@ -11463,14 +13321,21 @@ components:
           - type: 'null'
           title: Run After
         conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Conf
         note:
           anyOf:
           - type: string
           - type: 'null'
           title: Note
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -11492,6 +13357,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -11503,6 +13373,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
@@ -11530,6 +13401,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -11555,6 +13427,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
@@ -11574,6 +13451,12 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -11613,12 +13496,18 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - key
       - value
       - description
       - is_encrypted
+      - team_name
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:
@@ -11701,6 +13590,13 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
       type: object
       required:
       - key
@@ -11711,6 +13607,8 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
+      - run_after
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -11743,6 +13641,13 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           title: Value
       type: object
@@ -11755,6 +13660,8 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
+      - run_after
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -11788,6 +13695,13 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           anyOf:
           - type: string
@@ -11803,6 +13717,8 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
+      - run_after
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.
@@ -11835,3 +13751,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

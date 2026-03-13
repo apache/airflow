@@ -22,14 +22,23 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useGridTiSummaries = ({
   dagId,
+  enabled,
+  isSelected,
   runId,
   state,
 }: {
   dagId: string;
+  enabled?: boolean;
+  isSelected?: boolean;
   runId: string;
   state?: TaskInstanceState | null | undefined;
 }) => {
-  const refetchInterval = useAutoRefresh({ dagId });
+  const baseRefetchInterval = useAutoRefresh({ dagId });
+  const slowRefreshMultiplier = 5;
+  const refetchInterval =
+    typeof baseRefetchInterval === "number"
+      ? baseRefetchInterval * (isSelected ? 1 : slowRefreshMultiplier)
+      : baseRefetchInterval;
 
   const { data: gridTiSummaries, ...rest } = useGridServiceGetGridTiSummaries(
     {
@@ -38,7 +47,7 @@ export const useGridTiSummaries = ({
     },
     undefined,
     {
-      enabled: Boolean(runId) && Boolean(dagId),
+      enabled: Boolean(runId) && Boolean(dagId) && enabled,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         ((state !== undefined && isStatePending(state)) ||

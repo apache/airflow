@@ -21,10 +21,10 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
-from airflow.providers.atlassian.jira.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class JiraOperator(BaseOperator):

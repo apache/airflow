@@ -13,7 +13,7 @@ coverage
 deltalake
 diagrams
 duckdb
-eralchemy2
+eralchemy
 execnet
 gitdb
 gitpython

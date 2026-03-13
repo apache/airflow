@@ -17,9 +17,8 @@
 from __future__ import annotations
 
 from cadwyn import VersionedAPIRouter
-from fastapi import APIRouter
+from fastapi import APIRouter, Security
 
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTRefresherDep
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     assets,
@@ -32,12 +31,13 @@ from airflow.api_fastapi.execution_api.routes import (
     variables,
     xcoms,
 )
+from airflow.api_fastapi.execution_api.security import require_auth
 
 execution_api_router = APIRouter()
 execution_api_router.include_router(health.router, prefix="/health", tags=["Health"])
 
 # _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
-authenticated_router = VersionedAPIRouter(dependencies=[JWTBearerDep, JWTRefresherDep])  # type: ignore[list-item]
+authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])  # type: ignore[list-item]
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
@@ -49,6 +49,6 @@ authenticated_router.include_router(
 )
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
-authenticated_router.include_router(hitl.router, prefix="/hitl-details", tags=["Human in the Loop"])
+authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)

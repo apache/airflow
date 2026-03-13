@@ -22,7 +22,6 @@ import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
-from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import ClientError
@@ -53,19 +52,19 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
@@ -437,7 +436,7 @@ def set_up(env_id, role_arn):
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import get_current_context
     else:
-        from airflow.providers.standard.operators.python import get_current_context
+        from airflow.operators.python import get_current_context  # type: ignore[attr-defined,no-redef]
 
     ti = get_current_context()["ti"]
     ti.xcom_push(key="docker_image", value=ecr_repository_uri)
@@ -538,7 +537,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

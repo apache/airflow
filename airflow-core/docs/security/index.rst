@@ -26,6 +26,13 @@ the different user types of Apache Airflow®, what they have access to, and the 
 Also, if you want to understand how Airflow releases security patches and what to expect from them,
 head over to :doc:`Releasing security patches </security/releasing_security_patches>`.
 
+There are number of services where you can track security issues reported and announced by Airflow same as for
+any of the projects following the standard CVE databases.
+
+One such database is run by the MITRE corporation and you can search
+for `Airflow CVEs <https://www.cve.org/CVERecord/SearchResults?query=apache+airflow>`_
+there, however you might use whatever database you and your organization prefers to track security issues and CVEs.
+
 Follow the below topics as well to understand other aspects of Airflow security:
 
 .. toctree::

@@ -21,7 +21,8 @@ from functools import cached_property
 from typing import Any
 
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
+from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsAsyncHook, PagerdutyEventsHook
+from airflow.providers.pagerduty.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 class PagerdutyNotifier(BaseNotifier):
@@ -86,8 +87,13 @@ class PagerdutyNotifier(BaseNotifier):
         links: list[Any] | None = None,
         pagerduty_events_conn_id: str | None = "pagerduty_events_default",
         integration_key: str | None = None,
+        **kwargs,
     ):
-        super().__init__()
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.pagerduty_events_conn_id = pagerduty_events_conn_id
         self.integration_key = integration_key
         self.summary = summary
@@ -109,9 +115,32 @@ class PagerdutyNotifier(BaseNotifier):
             pagerduty_events_conn_id=self.pagerduty_events_conn_id, integration_key=self.integration_key
         )
 
+    @cached_property
+    def hook_async(self) -> PagerdutyEventsAsyncHook:
+        """Pagerduty Events Async Hook."""
+        return PagerdutyEventsAsyncHook(
+            pagerduty_events_conn_id=self.pagerduty_events_conn_id, integration_key=self.integration_key
+        )
+
     def notify(self, context):
         """Send a alert to a pagerduty event v2 API."""
         self.hook.send_event(
+            summary=self.summary,
+            severity=self.severity,
+            source=self.source,
+            action=self.action,
+            dedup_key=self.dedup_key,
+            custom_details=self.custom_details,
+            group=self.group,
+            component=self.component,
+            class_type=self.class_type,
+            images=self.images,
+            links=self.links,
+        )
+
+    async def async_notify(self, context) -> None:
+        """Send a alert to a pagerduty event v2 API using async HTTP."""
+        await self.hook_async.send_event(
             summary=self.summary,
             severity=self.severity,
             source=self.source,

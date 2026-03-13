@@ -1,20 +1,20 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות תופעלנה.",
+    "affected_other": "{{count}} ריצות יופעלו.",
+    "affected_two": "שתי ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
-    "dateRangeFrom": "מתאריך",
-    "dateRangeTo": "עד תאריך",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
+    "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
-    "selectDescription": "הרץ DAG זה עבור טווח תאריכים",
+    "selectDescription": "הרץ Dag זה עבור טווח תאריכים",
     "selectLabel": "Backfill",
     "title": "הרץ Backfill",
     "toaster": {
@@ -24,7 +24,7 @@
       }
     },
     "tooltip": "Backfill דורש לוח זמנים",
-    "unpause": "הפעל את {{dag_display_name}} בעת ההרצה",
+    "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
@@ -46,25 +46,37 @@
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "שגיאה אחת",
-    "error_other": "שגיאה אחת",
+    "error_one": "שגיאה",
+    "error_other": "שגיאות",
+    "error_two": "שגיאות",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
-    "warning_other": "{{count}} אזהרות"
+    "warning_other": "{{count}} אזהרות",
+    "warning_two": "שתי אזהרות"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "פורמט התאריך אינו תקין.",
+      "invalidTimeFormat": "פורמט הזמן אינו תקין.",
+      "startBeforeEnd": "תאריך/זמן התחלה חייב להיות לפני תאריך/זמן סיום"
+    }
   },
   "durationChart": {
     "duration": "משך זמן (שניות)",
-    "lastDagRun_one": "ריצת DAG אחרונה",
-    "lastDagRun_other": "{{count}} ריצות DAG אחרונות",
-    "lastTaskInstance_one": "משימה אחרונה",
-    "lastTaskInstance_other": "{{count}} משימות אחרונות",
+    "lastDagRun_one": "ריצת Dag אחרונה",
+    "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
+    "lastDagRun_two": "שתי ריצות Dag אחרונות",
+    "lastTaskInstance_one": "מופע משימה אחרונה",
+    "lastTaskInstance_other": "{{count}} מופעי משימות אחרונות",
+    "lastTaskInstance_two": "שני מופעי משימות אחרונות",
     "queuedDuration": "זמן המתנה בתור",
     "runAfter": "הרץ אחרי",
     "runDuration": "משך זמן ריצה"
   },
   "fileUpload": {
-    "files_one": "{{count}} קבצים",
-    "files_other": "{{count}} קבצים"
+    "files_one": "קובץ אחד",
+    "files_other": "{{count}} קבצים",
+    "files_two": "שני קבצים"
   },
   "flexibleForm": {
     "placeholder": "בחר ערך",
@@ -84,37 +96,65 @@
     "downloadImage": "הורד תמונת גרף",
     "downloadImageError": "הורדת תמונת הגרף נכשלה.",
     "downloadImageErrorTitle": "ההורדה נכשלה",
-    "otherDagRuns": "+ ריצות DAG נוספות",
+    "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
+    "taskCount_two": "שתי משימות",
     "taskGroup": "קבוצת משימות"
   },
   "limitedList": "+ {{count}} נוספים",
+  "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList.allTags_one": "כל התגיות (1)",
+  "limitedList.allTags_other": "כל התגיות ({{count}})",
+  "limitedList.allTags_two": "כל התגיות (2)",
+  "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
+  "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
+  "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
+  "limitedList.showingItems_one": "מציג פריט אחד",
+  "limitedList.showingItems_other": "מציג {{count}} פריטים",
+  "limitedList.showingItems_two": "מציג שני פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
   },
-  "reparseDag": "נתח DAG מחדש",
+  "reparseDag": "נתח Dag מחדש",
   "sortedAscending": "ממוין בסדר עולה",
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
   "taskTries": "ניסיונות משימה",
+  "taskTryPlaceholder": "ניסיון משימה",
+  "team": {
+    "selector": {
+      "helperText": "אופציונלי. הגבל שימוש לצוות מסוים.",
+      "label": "צוות",
+      "placeHolder": "בחר צוות"
+    }
+  },
   "toggleCardView": "הצג תצוגת כרטיסים",
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
-    "loading": "טוען מידע DAG...",
-    "loadingFailed": "טעינת מידע ה-DAG נכשלה. אנא נסו שוב.",
+    "dataInterval": "מרווח נתונים",
+    "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
+    "dataIntervalManual": "הגדר ידנית",
+    "intervalEnd": "סיום",
+    "intervalStart": "התחלה",
+    "loading": "טוען מידע Dag...",
+    "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
-    "selectDescription": "הפעל ריצה בודדת של DAG זה",
+    "selectDescription": "הפעל ריצה בודדת של Dag זה",
     "selectLabel": "ריצה בודדת",
-    "title": "הפעל DAG",
+    "title": "הפעל Dag",
     "toaster": {
+      "error": {
+        "title": "הפעלת Dag נכשלה"
+      },
       "success": {
-        "description": "ריצת ה-DAG הופעלה בהצלחה.",
-        "title": "ריצת DAG הופעלה"
+        "description": "ריצת ה-Dag הופעלה בהצלחה.",
+        "title": "ריצת Dag הופעלה"
       }
     },
+    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו",
     "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
   },
   "trimText": {
@@ -130,7 +170,8 @@
     "versionId": "מזהה גרסה"
   },
   "versionSelect": {
-    "dagVersion": "גרסת DAG",
+    "allVersions": "כל הגרסאות",
+    "dagVersion": "גרסת Dag",
     "versionCode": "גרסה {{versionCode}}"
   }
 }

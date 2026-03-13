@@ -16,31 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, Image, Menu } from "@chakra-ui/react";
+import { Link, Image, Menu, Icon, Box } from "@chakra-ui/react";
 import { FiExternalLink } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import { useColorMode } from "src/context/colorMode";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 
 type Props = { readonly topLevel?: boolean } & NavItemResponse;
 
-export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRoute, ...rest }: Props) => {
+export const PluginMenuItem = ({
+  icon,
+  icon_dark_mode: iconDarkMode,
+  name,
+  topLevel = false,
+  url_route: urlRoute,
+  ...rest
+}: Props) => {
   // Determine if this is an external view or react app based on the presence of href
+  const { colorMode } = useColorMode();
   const isExternalView = "href" in rest;
   const href = isExternalView ? (rest as ExternalViewResponse).href : undefined;
 
+  const displayIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
   const pluginIcon =
-    typeof icon === "string" ? (
-      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon} width="1.25rem" />
+    typeof displayIcon === "string" ? (
+      <Image boxSize={5} src={displayIcon} />
     ) : urlRoute === "legacy-fab-views" ? (
-      <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <Icon as={RiArchiveStackLine} boxSize={5} />
     ) : (
-      <LuPlug size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <Icon as={LuPlug} boxSize={5} />
     );
 
   const isExternal = urlRoute === undefined || urlRoute === null;
@@ -48,9 +58,10 @@ export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRou
   if (topLevel) {
     return (
       <NavButton
-        icon={pluginIcon}
+        icon={LuPlug}
         isExternal={isExternal}
         key={name}
+        pluginIcon={pluginIcon}
         title={name}
         to={isExternal ? href : `plugin/${urlRoute}`}
       />
@@ -70,13 +81,15 @@ export const PluginMenuItem = ({ icon, name, topLevel = false, url_route: urlRou
           width="100%"
         >
           {pluginIcon}
-          {name}
-          <FiExternalLink />
+          <Box flex="1">{name}</Box>
+          <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
         </Link>
       ) : (
         <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
           {pluginIcon}
-          {name}
+          <Box flex="1" ml={2}>
+            {name}
+          </Box>
         </RouterLink>
       )}
     </Menu.Item>

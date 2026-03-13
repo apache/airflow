@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.branch import BaseBranchOperator
@@ -28,13 +29,18 @@ from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, 
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
+try:
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+except ImportError:
+    # Fallback for Airflow < 3.1
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
@@ -86,7 +92,9 @@ class TestBranchOperator:
 
             ti_date = TI.logical_date if AIRFLOW_V_3_0_PLUS else TI.execution_date
 
-            for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, ti_date == DEFAULT_DATE):
+            for ti in dag_maker.session.scalars(
+                select(TI).where(TI.dag_id == dag_id, ti_date == DEFAULT_DATE)
+            ):
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":
@@ -132,7 +140,9 @@ class TestBranchOperator:
 
             ti_date = TI.logical_date if AIRFLOW_V_3_0_PLUS else TI.execution_date
 
-            for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, ti_date == DEFAULT_DATE):
+            for ti in dag_maker.session.scalars(
+                select(TI).where(TI.dag_id == dag_id, ti_date == DEFAULT_DATE)
+            ):
                 if ti.task_id in expected:
                     assert ti.state == expected[ti.task_id]
                 else:
@@ -186,7 +196,9 @@ class TestBranchOperator:
 
             ti_date = TI.logical_date if AIRFLOW_V_3_0_PLUS else TI.execution_date
 
-            for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, ti_date == DEFAULT_DATE):
+            for ti in dag_maker.session.scalars(
+                select(TI).where(TI.dag_id == dag_id, ti_date == DEFAULT_DATE)
+            ):
                 if ti.task_id in expected:
                     assert ti.state == expected[ti.task_id]
                 else:
@@ -236,7 +248,7 @@ class TestBranchOperator:
 
         ti_date = TI.logical_date if AIRFLOW_V_3_0_PLUS else TI.execution_date
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, ti_date == DEFAULT_DATE):
+        for ti in dag_maker.session.scalars(select(TI).where(TI.dag_id == dag_id, ti_date == DEFAULT_DATE)):
             if ti.task_id in expected:
                 assert ti.state == expected[ti.task_id]
             else:
@@ -331,7 +343,9 @@ class TestBranchOperator:
 
             ti_date = TI.logical_date if AIRFLOW_V_3_0_PLUS else TI.execution_date
 
-            for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, ti_date == DEFAULT_DATE):
+            for ti in dag_maker.session.scalars(
+                select(TI).where(TI.dag_id == dag_id, ti_date == DEFAULT_DATE)
+            ):
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":

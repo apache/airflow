@@ -22,12 +22,12 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type

@@ -100,6 +100,7 @@ def get_provider_info():
                 "integration-name": "Amazon ECS",
                 "external-doc-url": "https://aws.amazon.com/ecs/",
                 "logo": "/docs/integration-logos/Amazon-Elastic-Container-Service_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecs.rst"],
                 "tags": ["aws"],
             },
             {
@@ -222,7 +223,7 @@ def get_provider_info():
                 "integration-name": "Amazon Simple Email Service (SES)",
                 "external-doc-url": "https://aws.amazon.com/ses/",
                 "logo": "/docs/integration-logos/Amazon-Simple-Email-Service-SES_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecs.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ses.rst"],
                 "tags": ["aws"],
             },
             {
@@ -250,6 +251,7 @@ def get_provider_info():
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ssm.rst"],
                 "tags": ["aws"],
             },
             {
@@ -337,6 +339,20 @@ def get_provider_info():
                 "external-doc-url": "https://aws.amazon.com/neptune/",
                 "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "external-doc-url": "https://aws.amazon.com/kinesis/",
+                "logo": "/docs/integration-logos/Amazon-Kinesis-Data-Firehose_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "external-doc-url": "https://aws.amazon.com/managed-workflows-for-apache-airflow/",
+                "logo": "/docs/integration-logos/Amazon-MWAA.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa.rst"],
                 "tags": ["aws"],
             },
         ],
@@ -433,6 +449,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.sagemaker_unified_studio"],
             },
             {
+                "integration-name": "Amazon Simple Email Service (SES)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ses"],
+            },
+            {
                 "integration-name": "Amazon Simple Notification Service (SNS)",
                 "python-modules": ["airflow.providers.amazon.aws.operators.sns"],
             },
@@ -443,6 +463,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Step Functions",
                 "python-modules": ["airflow.providers.amazon.aws.operators.step_function"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ssm"],
             },
             {
                 "integration-name": "Amazon RDS",
@@ -582,6 +606,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.step_function"],
             },
             {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.ssm"],
+            },
+            {
                 "integration-name": "Amazon QuickSight",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.quicksight"],
             },
@@ -686,8 +714,12 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Amazon Kinesis Data Firehose",
+                "integration-name": "Amazon Kinesis Data Stream",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.kinesis"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Firehose",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.firehose"],
             },
             {
                 "integration-name": "AWS Lambda",
@@ -779,6 +811,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.neptune"],
             },
         ],
+        "bundles": [
+            {
+                "integration-name": "Amazon Simple Storage Service (S3)",
+                "python-modules": ["airflow.providers.amazon.aws.bundles.s3"],
+            }
+        ],
         "triggers": [
             {
                 "integration-name": "Amazon Web Services",
@@ -845,6 +883,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.s3"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.ssm"],
             },
             {
                 "integration-name": "Amazon EMR",
@@ -1043,19 +1085,57 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
                 "connection-type": "aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port"],
+                    "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
+                    "placeholders": {
+                        "login": "AKIAIOSFODNN7EXAMPLE",
+                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                        "extra": '{\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook",
                 "connection-type": "chime",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "port", "extra"],
+                    "relabeling": {"host": "Chime Webhook Endpoint", "password": "Chime Webhook token"},
+                    "placeholders": {
+                        "schema": "https",
+                        "host": "hooks.chime.aws/incomingwebhook/",
+                        "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
             },
-            {"hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook", "connection-type": "emr"},
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
+                "connection-type": "emr",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port", "login", "password"],
+                    "relabeling": {"extra": "Run Job Flow Configuration"},
+                    "placeholders": {
+                        "extra": '{\n  "Name": "MyClusterName",\n  "ReleaseLabel": "emr-5.36.0",\n  "Applications": [{"Name": "Spark"}],\n  "Instances": {\n    "InstanceGroups": [{\n      "Name": "Primary node",\n      "Market": "SPOT",\n      "InstanceRole": "MASTER",\n      "InstanceType": "m5.large",\n      "InstanceCount": 1\n    }],\n    "KeepJobFlowAliveWhenNoSteps": false,\n    "TerminationProtected": false\n  },\n  "StepConcurrencyLevel": 2\n}\n'
+                    },
+                },
+            },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook",
                 "connection-type": "redshift",
+                "ui-field-behaviour": {"relabeling": {"login": "User", "schema": "Database"}},
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook",
                 "connection-type": "athena",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "port"],
+                    "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
+                    "placeholders": {
+                        "login": "AKIAIOSFODNN7EXAMPLE",
+                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                        "extra": '{\n  "aws_domain": "amazonaws.com",\n  "driver": "rest",\n  "s3_staging_dir": "s3://bucket_name/staging/",\n  "work_group": "primary",\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                    },
+                },
             },
         ],
         "notifications": [
@@ -1176,7 +1256,7 @@ def get_provider_info():
                         "example": "True",
                         "default": "True",
                     },
-                    "max_run_task_attempts": {
+                    "max_invoke_attempts": {
                         "description": "The maximum number of times the Lambda Executor should attempt to start an Airflow task.\n",
                         "version_added": "9.9.0",
                         "type": "integer",
@@ -1359,5 +1439,6 @@ def get_provider_info():
         },
         "executors": ["airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
+        "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
         "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
     }

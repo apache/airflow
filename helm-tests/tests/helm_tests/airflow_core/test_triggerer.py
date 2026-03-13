@@ -25,21 +25,14 @@ from chart_utils.log_groomer import LogGroomerTestBase
 class TestTriggerer:
     """Tests triggerer."""
 
-    @pytest.mark.parametrize(
-        "airflow_version, num_docs",
-        [
-            ("2.1.0", 0),
-            ("2.2.0", 1),
-        ],
-    )
-    def test_only_exists_on_new_airflow_versions(self, airflow_version, num_docs):
-        """Trigger was only added from Airflow 2.2 onwards."""
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_only_exists(self, airflow_version):
+        """Check that Triggerer was added."""
         docs = render_chart(
             values={"airflowVersion": airflow_version},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-
-        assert num_docs == len(docs)
+        assert len(docs) == 1
 
     def test_can_be_disabled(self):
         """
@@ -55,7 +48,7 @@ class TestTriggerer:
         assert len(docs) == 0
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -75,6 +68,25 @@ class TestTriggerer:
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"triggerer": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["triggerer"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
@@ -88,6 +100,38 @@ class TestTriggerer:
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
         )
         assert actual is None
+
+    @pytest.mark.parametrize(
+        ("logs_values", "expect_sub_path"),
+        [
+            ({"persistence": {"enabled": False}}, None),
+            ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
+        ],
+    )
+    def test_logs_mount_on_wait_for_migrations_initcontainer(self, logs_values, expect_sub_path):
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "triggerer": {"enabled": True},
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        mounts = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].volumeMounts",
+            docs[0],
+        )
+        assert mounts is not None, (
+            "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        )
+        assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
+        if expect_sub_path is not None:
+            assert any(
+                m.get("name") == "logs"
+                and m.get("mountPath") == "/opt/airflow/logs"
+                and m.get("subPath") == expect_sub_path
+                for m in mounts
+            )
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -438,24 +482,21 @@ class TestTriggerer:
         ]
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
-        [
-            ("2.4.9", "airflow jobs check --job-type TriggererJob --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --job-type TriggererJob --local"),
-        ],
+        "airflow_version",
+        ["2.11.0", "3.0.0"],
     )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert (
-            probe_command
+            "airflow jobs check --job-type TriggererJob --local"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
     @pytest.mark.parametrize(
-        "log_values, expected_volume",
+        ("log_values", "expected_volume"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -525,7 +566,7 @@ class TestTriggerer:
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "persistence, update_strategy, expected_update_strategy",
+        ("persistence", "update_strategy", "expected_update_strategy"),
         [
             (False, None, None),
             (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
@@ -535,7 +576,7 @@ class TestTriggerer:
     def test_update_strategy(self, persistence, update_strategy, expected_update_strategy):
         docs = render_chart(
             values={
-                "airflowVersion": "2.6.0",
+                "airflowVersion": "2.11.0",
                 "executor": "CeleryExecutor",
                 "triggerer": {
                     "persistence": {"enabled": persistence},
@@ -548,7 +589,7 @@ class TestTriggerer:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        "persistence, strategy, expected_strategy",
+        ("persistence", "strategy", "expected_strategy"),
         [
             (True, None, None),
             (
@@ -797,7 +838,7 @@ class TestTriggererKedaAutoScaler:
         assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "triggerer"
 
     @pytest.mark.parametrize(
-        "query, expected_query",
+        ("query", "expected_query"),
         [
             # default query
             (

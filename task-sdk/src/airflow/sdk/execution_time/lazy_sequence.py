@@ -81,6 +81,9 @@ class LazyXComSequence(Sequence[T]):
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
         return all(x == y for x, y in z)
 
+    def __hash__(self):
+        return hash((*[item for item in iter(self)],))
+
     def __iter__(self) -> Iterator[T]:
         return LazyXComIterator(seq=self)
 

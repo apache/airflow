@@ -23,15 +23,20 @@ import dateutil.relativedelta
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import select
 
+from airflow._shared.timezones.timezone import utc
 from airflow.exceptions import AirflowTimetableInvalid
+from airflow.models import DagModel
+from airflow.sdk import CronPartitionTimetable
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.trigger import (
+    CronPartitionTimetable as CoreCronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
 )
-from airflow.utils.timezone import utc
+from airflow.utils.types import DagRunType
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -50,7 +55,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, next_start_time",
+    ("last_automated_data_interval", "next_start_time"),
     [
         pytest.param(
             None,
@@ -88,7 +93,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, next_start_time",
+    ("last_automated_data_interval", "next_start_time"),
     [
         pytest.param(
             None,
@@ -129,7 +134,7 @@ def test_daily_delta_trigger_no_catchup_first_starts_at_next_schedule(
 
 
 @pytest.mark.parametrize(
-    "current_time, earliest, expected",
+    ("current_time", "earliest", "expected"),
     [
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
@@ -177,7 +182,7 @@ def test_hourly_cron_trigger_no_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "current_time, earliest, expected",
+    ("current_time", "earliest", "expected"),
     [
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
@@ -233,7 +238,7 @@ def test_hourly_delta_trigger_no_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, earliest, expected",
+    ("last_automated_data_interval", "earliest", "expected"),
     [
         pytest.param(
             DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
@@ -274,7 +279,7 @@ def test_hourly_cron_trigger_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, earliest, expected",
+    ("last_automated_data_interval", "earliest", "expected"),
     [
         pytest.param(
             DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
@@ -356,7 +361,7 @@ def test_validate_success(timetable: Timetable) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, message",
+    ("timetable", "message"),
     [
         pytest.param(
             CronTriggerTimetable("0 0 1 13 0", timezone=utc),
@@ -382,7 +387,7 @@ def test_validate_failure(timetable: Timetable, message: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, data",
+    ("timetable", "data"),
     [
         pytest.param(
             HOURLY_CRON_TRIGGER_TIMETABLE,
@@ -425,7 +430,7 @@ def test_cron_trigger_serialization(timetable: CronTriggerTimetable, data: dict[
 
 
 @pytest.mark.parametrize(
-    "timetable, data",
+    ("timetable", "data"),
     [
         pytest.param(
             HOURLY_TIMEDELTA_TIMETABLE,
@@ -472,7 +477,7 @@ NEXT = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=16, hour=3))
 
 @pytest.mark.parametrize("catchup", [True, False])
 @pytest.mark.parametrize(
-    "run_immediately, current_time, correct_interval",
+    ("run_immediately", "current_time", "correct_interval"),
     [
         (True, WAY_AFTER, PREVIOUS),
         (False, JUST_AFTER, PREVIOUS),
@@ -511,7 +516,7 @@ def test_run_immediately_fast_dag(catchup):
 
 
 @pytest.mark.parametrize(
-    "start_date, expected",
+    ("start_date", "expected"),
     [
         (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1)),
         (pendulum.datetime(2025, 1, 1, minute=5), pendulum.datetime(2025, 1, 1, minute=30)),
@@ -528,7 +533,7 @@ def test_multi_run_first(start_date, expected):
 
 
 @pytest.mark.parametrize(
-    "last, expected",
+    ("last", "expected"),
     [
         (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1, minute=30)),
         (pendulum.datetime(2025, 1, 1, minute=30), pendulum.datetime(2025, 1, 1, hour=1)),
@@ -544,7 +549,7 @@ def test_multi_run_next_catchup(last, expected):
 
 
 @pytest.mark.parametrize(
-    "last, current_time, expected",
+    ("last", "current_time", "expected"),
     [
         pytest.param(
             pendulum.datetime(2025, 2, 1),
@@ -599,3 +604,233 @@ def test_multi_serialization():
     assert tt._timetables[0]._timezone == tt._timetables[1]._timezone == utc
     assert tt._timetables[0]._interval == tt._timetables[1]._interval == datetime.timedelta(minutes=10)
     assert tt._timetables[0]._run_immediately == tt._timetables[1]._run_immediately is False
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_latest_run_no_history(dag_maker, session):
+    start_date = pendulum.datetime(2026, 1, 1)
+    with dag_maker(
+        "test",
+        start_date=start_date,
+        catchup=True,
+        schedule=CronPartitionTimetable(
+            "0 * * * *",
+            timezone=pendulum.UTC,
+        ),
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    session.commit()
+    dm = session.scalar(select(DagModel))
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date
+    assert dm.next_dagrun_partition_key == "2026-01-01T00:00:00"
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_latest_run_with_run(dag_maker, session):
+    """
+    This ensures that the dag processor will figure out the next run correctly
+    """
+    start_date = pendulum.datetime(2026, 1, 1)
+    with dag_maker(
+        "test",
+        start_date=start_date,
+        catchup=True,
+        schedule=CronPartitionTimetable(
+            "0 0 * * *",
+            timezone=pendulum.UTC,
+        ),
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dag_maker.create_dagrun(
+        run_id="abc1234",
+        logical_date=None,
+        data_interval=None,
+        run_type="scheduled",
+        run_after=start_date + datetime.timedelta(days=3),
+        partition_key="anything",
+        session=session,
+    )
+    session.commit()
+    dag_maker.sync_dag_to_db()
+    session.commit()
+    dm = session.scalar(select(DagModel))
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun_partition_key == "2026-01-05T00:00:00"
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("schedule", "expected"),
+    [
+        pytest.param(
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=3),
+                data_interval=None,
+                partition_date=START_DATE + datetime.timedelta(days=3),
+                partition_key="key-1",
+            ),
+            id="cron-partition",
+        ),
+        pytest.param(
+            "0 0 * * *",
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=3),
+                data_interval=DataInterval(
+                    start=START_DATE + datetime.timedelta(days=2),
+                    end=START_DATE + datetime.timedelta(days=3),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+            id="cron-trigger",
+        ),
+    ],
+)
+def test_run_info_from_dag_run(schedule, expected, dag_maker, session):
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dr = dag_maker.create_dagrun(
+        run_id="abc1234",
+        logical_date=None,
+        data_interval=None,
+        run_type="scheduled",
+        run_after=START_DATE + datetime.timedelta(days=3),
+        partition_key=expected.partition_key,
+        partition_date=expected.partition_date,
+        session=session,
+    )
+    info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
+    assert info == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("schedule", "expected"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            DagRunInfo(
+                run_after=START_DATE,
+                data_interval=None,
+                partition_date=START_DATE,
+                partition_key="2021-09-04T00:00:00",
+            ),
+        ),
+        (
+            "0 0 * * *",
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=1),
+                data_interval=DataInterval(
+                    start=START_DATE,
+                    end=START_DATE + datetime.timedelta(days=1),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ),
+    ],
+)
+def test_next_dagrun_info_v2(schedule, expected, dag_maker, session):
+    """
+    This ensures that the dag processor will figure out the next run correctly
+    """
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    serdag = dag_maker.serialized_dag
+    timetable = serdag.timetable
+    info = timetable.next_dagrun_info_v2(
+        last_dagrun_info=None,
+        restriction=serdag._time_restriction,
+    )
+    assert info == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("schedule", "partition_key", "expected"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            "key-1",
+            DagRunInfo(
+                run_after=START_DATE,
+                data_interval=None,
+                partition_date=START_DATE,
+                partition_key="2021-09-04T00:00:00",
+            ),
+        ),
+        (
+            "0 0 * * *",
+            None,
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=1),
+                data_interval=DataInterval(
+                    start=START_DATE,
+                    end=START_DATE + datetime.timedelta(days=1),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ),
+    ],
+)
+def test_next_run_info_from_dag_model(schedule, partition_key, expected, dag_maker, session):
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dm = dag_maker.dag_model
+    info = dag_maker.serialized_dag.timetable.next_run_info_from_dag_model(dag_model=dm)
+    assert info == expected
+
+
+def test_generate_run_id_without_partition_key() -> None:
+    """
+    Tests the generate_run_id method of CronPartitionTimetable.
+
+    generate_run_id shouldn't break even if when the run is manually trigger (partition_key might be missing).
+    """
+    cron_partitioned_timetabe = CoreCronPartitionTimetable(
+        "0 * * * *",
+        timezone=pendulum.UTC,
+    )
+    run_id = cron_partitioned_timetabe.generate_run_id(
+        run_type=DagRunType.MANUAL,
+        run_after=pendulum.DateTime(2025, 6, 7, 8, 9, tzinfo=pendulum.UTC),
+        data_interval=None,
+    )
+    assert run_id.startswith("manual__2025-06-07T08:09:00+00:00__")

@@ -1,0 +1,46 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "Esemény",
+      "extra": "Extra",
+      "user": "Felhasználó",
+      "when": "Időpont"
+    },
+    "filters": {
+      "eventType": "Esemény típusa"
+    },
+    "title": "Naplózás"
+  },
+  "xcom": {
+    "add": {
+      "error": "XCom hozzáadása sikertelen",
+      "errorTitle": "Hiba",
+      "success": "XCom sikeresen hozzáadva",
+      "successTitle": "XCom hozzáadva",
+      "title": "XCom hozzáadása"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "Kulcs",
+      "value": "Érték"
+    },
+    "delete": {
+      "error": "XCom törlése sikertelen",
+      "errorTitle": "Hiba",
+      "success": "XCom sikeresen törölve",
+      "successTitle": "XCom törölve",
+      "title": "XCom törlése",
+      "warning": "Biztosan törölni szeretné ezt az XCom-ot? Ez a művelet nem vonható vissza."
+    },
+    "edit": {
+      "error": "XCom frissítése sikertelen",
+      "errorTitle": "Hiba",
+      "success": "XCom sikeresen frissítve",
+      "successTitle": "XCom frissítve",
+      "title": "XCom szerkesztése"
+    },
+    "key": "Kulcs",
+    "title": "XCom",
+    "value": "Érték"
+  }
+}

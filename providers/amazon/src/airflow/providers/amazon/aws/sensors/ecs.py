@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
@@ -29,11 +28,12 @@ from airflow.providers.amazon.aws.hooks.ecs import (
 )
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     import boto3
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 def _check_failed(current_state, target_state, failure_states) -> None:

@@ -20,9 +20,13 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import yaml
+
+if TYPE_CHECKING:
+    from _pytest.config.findpaths import ConfigValue
 
 
 class ForbiddenWarningsPlugin:
@@ -33,11 +37,15 @@ class ForbiddenWarningsPlugin:
 
     def __init__(self, config: pytest.Config, forbidden_warnings: tuple[str, ...]):
         # Set by a pytest_configure hook in conftest
-        deprecations_ignore = config.inicfg["airflow_deprecations_ignore"]
-        if isinstance(deprecations_ignore, (str, os.PathLike)):
-            self.deprecations_ignore = [deprecations_ignore]
+        deprecations_ignore_config: ConfigValue = config.inicfg["airflow_deprecations_ignore"]
+        if isinstance(deprecations_ignore_config.value, (str, os.PathLike)):
+            self.deprecations_ignore = [deprecations_ignore_config.value]
+        elif isinstance(deprecations_ignore_config.value, list):
+            self.deprecations_ignore = deprecations_ignore_config.value
         else:
-            self.deprecations_ignore = deprecations_ignore
+            raise TypeError(
+                f"Invalid type for airflow_deprecations_ignore: {type(deprecations_ignore_config.value)}"
+            )
 
         excluded_cases = {
             "tests/integration/",
@@ -46,8 +54,8 @@ class ForbiddenWarningsPlugin:
             "tests/dags_corrupted/",
             "tests/dags_with_system_exit/",
         }
-        for path in self.deprecations_ignore:
-            path = Path(path).resolve()
+        for path_raw in self.deprecations_ignore:
+            path = Path(path_raw).resolve()
             with path.open() as fp:
                 excluded_cases.update(yaml.safe_load(fp))
 

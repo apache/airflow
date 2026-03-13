@@ -19,19 +19,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
     TableauJobFinishCode,
 )
-from airflow.providers.tableau.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class TableauJobStatusSensor(BaseSensorOperator):

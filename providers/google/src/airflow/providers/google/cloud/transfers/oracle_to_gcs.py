@@ -21,11 +21,16 @@ import base64
 import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from functools import cached_property
+from typing import TYPE_CHECKING
 
 import oracledb
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class OracleToGCSOperator(BaseSQLToGCSOperator):
@@ -62,10 +67,13 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         self.ensure_utc = ensure_utc
         self.oracle_conn_id = oracle_conn_id
 
+    @cached_property
+    def db_hook(self) -> OracleHook:
+        return OracleHook(oracle_conn_id=self.oracle_conn_id)
+
     def query(self):
         """Query Oracle and returns a cursor to the results."""
-        oracle = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        conn = oracle.get_conn()
+        conn = self.db_hook.get_conn()
         cursor = conn.cursor()
         if self.ensure_utc:
             # Ensure TIMESTAMP results are in UTC
@@ -121,3 +129,20 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
             else:
                 value = base64.standard_b64encode(value).decode("ascii")
         return value
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
+        from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
+        from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        sql_parsing_result = get_openlineage_facets_with_sql(
+            hook=self.db_hook,
+            sql=self.sql,
+            conn_id=self.oracle_conn_id,
+            database=self.db_hook.service_name or self.db_hook.sid,
+        )
+        gcs_output_datasets = self._get_openlineage_output_datasets()
+        if sql_parsing_result:
+            sql_parsing_result.outputs = gcs_output_datasets
+            return sql_parsing_result
+        return OperatorLineage(outputs=gcs_output_datasets, job_facets={"sql": SQLJobFacet(self.sql)})

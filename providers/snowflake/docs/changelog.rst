@@ -27,6 +27,231 @@
 Changelog
 ---------
 
+6.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow SnowflakeHook + SnowflakeSqlApiHook 'private_key_content' to use raw key in addition to base64 encoding (#62378)``
+
+Misc
+~~~~
+
+* ``Centralize OAuth grant_type validation in SnowflakeHook (#61969)``
+* ``Lazy load 'snowflake' imports in Snowflake provider. (#62365)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Added retry logic for Snowflake OAuth token requests (#61796)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+
+6.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle HTTP 422 responses via _process_response instead of raising immediately in Snowflake SQL API hook (#60891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): add HTTP request customization parameters to 'SnowflakeSqlApiHook' (#60689)``
+
+Misc
+~~~~
+
+* ``reformat add proxy support commit (#60432)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OAuth token refresh for long-running SnowflakeHook tasks and add tests. (#60027)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrated conf imports for snowflake provider to use sdk config (#60002)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unneeded call to SnowflakeSqlApiHook (#59470)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support optional scope in OAuth token request (#58871)``
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add support for cancelling running queries via SQL API (#56164)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+6.6.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``better error handling in SnowflakeHook and PostgresHook when old version of AzureBaseHook (#57184)``
+* ``Bump snowflake-connector-python>=3.16.0 (#57420)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``Enable PT006 rule to 9 files in providers (snowflake,smtp/tests) (#57845)``
+   * ``Attempt to resolve pip "ResolutionTooDeep" on cffi conflict (#57697)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Attempt to limit setuptools for Snowflake snowpark (#57581)``
+
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure IAM/Entra ID support for SnowflakeHook (#55874)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'snowflake-snowpark-python' pip resolver hint for Python 3.13 (#56606)``
+
+Misc
+~~~~
+
+* ``Migrate snowflake provider to ''common.compat'' (#57003)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix path of how-to-guide docs for copy_into_snowflake.rst(#56527)``
+* ``Update Snowflake docs with breaking change (#56516)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+6.5.4
+.....
+
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.5.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(snowflake): enhance error message formatting for SQL errors (#54063)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+6.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SnowflakeCheckOperator and SnowflakeValueCheckOperator to use parameters arg correctly (#53837)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.5.1
 .....
 
@@ -39,11 +264,14 @@ Misc
 * ``Remove upper-binding for "python-requires" (#52980)``
 * ``Cleanup type ignores in snowflake provider where possible (#53258)``
 * ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make snowpark optional for snowflake provider and disable it for Python 3.13 (#53489)``
+* ``Deprecate decorators from Core (#53629)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Make dag_version_id in TI non-nullable (#50825)``
    * ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
 
 6.5.0
 .....
@@ -143,10 +371,17 @@ Features
 
 * ``Adding OAuth support for SnowflakeHook  (#47191)``
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Existing connections using key pairs break as a result of changing the connection string to be base64 encoded.
+
+  * ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+
 Bug Fixes
 ~~~~~~~~~
 
-* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
 * ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
 * ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``
@@ -294,8 +529,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 5.8.1
@@ -605,7 +838,8 @@ Bug Fixes
 
 * ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
 
 

@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient

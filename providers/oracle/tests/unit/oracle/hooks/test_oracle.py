@@ -28,6 +28,8 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
+from unit.oracle.test_utils import mock_oracle_lob
+
 
 class TestOracleHookConn:
     def setup_method(self):
@@ -138,6 +140,36 @@ class TestOracleHookConn:
         args, kwargs = mock_connect.call_args
         assert args == ()
         assert kwargs["expire_time"] == 10
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_as_service_name(self, mock_connect):
+        """When service_name and sid are not in extras, conn.schema should be used as service_name."""
+        self.connection.schema = "MY_SERVICE"
+        self.connection.extra = json.dumps({})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="MY_SERVICE")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_service_name_set(self, mock_connect):
+        """Explicit service_name in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"service_name": "EXPLICIT_SVC"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="EXPLICIT_SVC")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_sid_set(self, mock_connect):
+        """Explicit sid in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"sid": "MY_SID"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, "MY_SID")
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_set_current_schema(self, mock_connect):
@@ -266,7 +298,7 @@ class TestOracleHookConn:
             self.db_hook.get_conn()
 
     @pytest.mark.parametrize(
-        "connection_params, expected_uri",
+        ("connection_params", "expected_uri"),
         [
             pytest.param(
                 {"extra": '{"service_name": "service"}', "schema": None, "port": 1521},
@@ -309,6 +341,27 @@ class TestOracleHookConn:
         uri = self.db_hook.get_uri()
         assert uri == expected_uri
 
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_with_various_params(self, mock_connect):
+        """Verify wallet/SSL, connection class, and pool parameters
+        are passed to oracledb.connect."""
+        params = {
+            "wallet_location": "/tmp/wallet",
+            "wallet_password": "secret",
+            "ssl_server_cert_dn": "CN=dbserver,OU=DB,O=Oracle,L=BLR,C=IN",
+            "ssl_server_dn_match": True,
+            "cclass": "MY_APP_CLASS",
+            "pool_name": "POOL_1",
+        }
+        self.connection.extra = json.dumps(params)
+        self.db_hook.get_conn()
+
+        assert mock_connect.call_count == 1
+        _, kwargs = mock_connect.call_args
+
+        for key, value in params.items():
+            assert kwargs[key] == value
+
 
 class TestOracleHook:
     def setup_method(self):
@@ -337,6 +390,46 @@ class TestOracleHook:
         self.db_hook.run(sql, parameters=param)
         self.cur.execute.assert_called_once_with(sql, param)
         assert self.conn.commit.called
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
 
     def test_insert_rows_with_fields(self):
         rows = [
@@ -389,6 +482,18 @@ class TestOracleHook:
             "to_date('2019-01-24 00:00:00','YYYY-MM-DD HH24:MI:SS'),1,10.24,'str')"
         )
 
+    @mock.patch("airflow.providers.oracle.hooks.oracle.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        rows = [("a", "b", "c")]
+        target_fields = ["col1", "col2", "col3"]
+        self.db_hook.insert_rows("table", rows, target_fields)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT /*+ APPEND */ INTO table (col1, col2, col3) VALUES ('a','b','c')"
+        assert call_kw["row_count"] == 1
+
     def test_bulk_insert_rows_with_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
@@ -417,9 +522,21 @@ class TestOracleHook:
         self.cur.prepare.assert_called_once_with("insert into table  values (:1, :2, :3)")
         self.cur.executemany.assert_called_once_with(None, rows)
 
+    @mock.patch("airflow.providers.oracle.hooks.oracle.send_sql_hook_lineage")
+    def test_bulk_insert_rows_hook_lineage(self, mock_send_lineage):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        target_fields = ["col1", "col2", "col3"]
+        self.db_hook.bulk_insert_rows("table", rows, target_fields)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "insert into table (col1, col2, col3) values (:1, :2, :3)"
+        assert call_kw["row_count"] == 3
+
     def test_bulk_insert_rows_no_rows(self):
         rows = []
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="parameter rows could not be None or empty iterable"):
             self.db_hook.bulk_insert_rows("table", rows)
 
     def test_bulk_insert_sequence_field(self):
@@ -436,18 +553,21 @@ class TestOracleHook:
         self.cur.executemany.assert_called_once_with(None, rows)
 
     def test_bulk_insert_sequence_without_parameter(self):
+        SEQUENCE_COLUMN_OR_NAME_PROVIDED = (
+            "Parameters 'sequence_column' and 'sequence_name' must be provided together or not at all."
+        )
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
         sequence_column = "id"
         sequence_name = None
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=SEQUENCE_COLUMN_OR_NAME_PROVIDED):
             self.db_hook.bulk_insert_rows(
                 "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
             )
 
         sequence_column = None
         sequence_name = "my_sequence"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=SEQUENCE_COLUMN_OR_NAME_PROVIDED):
             self.db_hook.bulk_insert_rows(
                 "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
             )
@@ -521,7 +641,70 @@ class TestOracleHook:
         assert result == expected
 
     def test_test_connection_use_dual_table(self):
+        self.cur.fetchone.return_value = (1,)
         status, message = self.db_hook.test_connection()
         self.cur.execute.assert_called_once_with("select 1 from dual")
         assert status is True
         assert message == "Connection successfully tested"
+
+    def test_get_openlineage_database_info_with_service_name(self):
+        conn = Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="localhost",
+            port=1521,
+            extra='{"service_name": "ORCLPDB1"}',
+        )
+        hook = OracleHook(oracle_conn_id="oracle_default")
+        hook.get_connection = lambda _: conn
+
+        assert hook.service_name == "ORCLPDB1"
+        db_info = hook.get_openlineage_database_info(conn)
+        assert db_info.scheme == "oracle"
+        assert db_info.authority == "localhost:1521"
+        assert db_info.database == "ORCLPDB1"
+        assert db_info.normalize_name_method("employees") == "EMPLOYEES"
+        assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
+        assert "owner" in db_info.information_schema_columns
+
+    def test_get_openlineage_database_info_with_sid(self):
+        conn = Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="dbhost",
+            port=1521,
+            extra='{"sid": "XE"}',
+        )
+        hook = OracleHook(oracle_conn_id="oracle_default")
+        hook.get_connection = lambda _: conn
+
+        assert hook.sid == "XE"
+        db_info = hook.get_openlineage_database_info(conn)
+        assert db_info.scheme == "oracle"
+        assert db_info.authority == "dbhost:1521"
+        assert db_info.database == "XE"
+        assert db_info.normalize_name_method("employees") == "EMPLOYEES"
+        assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
+        assert "owner" in db_info.information_schema_columns
+
+    def test_get_first(self):
+        statement = "SQL"
+
+        self.cur.fetchone.return_value = (mock_oracle_lob("hello"),)
+
+        assert self.db_hook.get_first(statement) == ("hello",)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_records(self):
+        statement = "SQL"
+
+        self.cur.fetchall.return_value = (mock_oracle_lob("hello"),), (mock_oracle_lob("world"),)
+
+        assert self.db_hook.get_records(statement) == [("hello",), ("world",)]
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)

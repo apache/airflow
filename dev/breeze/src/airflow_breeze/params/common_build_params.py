@@ -27,7 +27,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     get_airflow_version,
 )
@@ -68,7 +67,6 @@ class CommonBuildParams:
     python_image: str | None = None
     push: bool = False
     python: str = "3.10"
-    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
     version_suffix: str | None = None
     verbose: bool = False
@@ -116,7 +114,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"python:{self.python}-slim-{self.debian_version}"
+        return f"debian:{self.debian_version}-slim"
 
     @property
     def airflow_image_repository(self):

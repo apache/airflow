@@ -36,11 +36,14 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
+    option_llm_model,
     option_mysql_version,
     option_postgres_version,
     option_python,
+    option_terminal_multiplexer,
     option_verbose,
 )
+from airflow_breeze.commands.developer_commands import option_auth_manager
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -56,7 +59,6 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     get_installation_airflow_sources,
     get_installation_sources_config_metadata_hash,
-    get_package_setup_metadata_hash,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
 )
@@ -68,7 +70,7 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 
 @click.group(cls=BreezeGroup, name="setup", help="Tools that developers can use to configure Breeze")
-def setup():
+def setup_group():
     pass
 
 
@@ -79,7 +81,7 @@ def setup():
     help="Use current workdir Airflow sources for upgrade"
     + (f" rather than {get_installation_airflow_sources()}." if not generating_command_images() else "."),
 )
-@setup.command(
+@setup_group.command(
     name="self-upgrade",
     help=f"Self upgrade Breeze. By default it re-installs Breeze from {get_installation_airflow_sources()}."
     if not generating_command_images()
@@ -98,7 +100,7 @@ def self_upgrade(use_current_airflow_sources: bool):
         sys.exit(1)
 
 
-@setup.command(name="autocomplete")
+@setup_group.command(name="autocomplete")
 @click.option(
     "-f",
     "--force",
@@ -163,7 +165,7 @@ def autocomplete(force: bool):
         sys.exit(0)
 
 
-@setup.command()
+@setup_group.command()
 @option_verbose
 @option_dry_run
 def version():
@@ -180,16 +182,16 @@ def version():
         get_console().print(
             f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
         )
-        get_console().print(
-            f"[info]Package config hash              : {(get_package_setup_metadata_hash())}[/]\n"
-        )
 
 
-@setup.command(name="config")
+@setup_group.command(name="config")
 @option_python
 @option_backend
 @option_postgres_version
+@option_terminal_multiplexer
 @option_mysql_version
+@option_auth_manager
+@option_llm_model
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
@@ -200,8 +202,11 @@ def version():
 def change_config(
     python: str,
     backend: str,
+    terminal_multiplexer: str,
     postgres_version: str,
     mysql_version: str,
+    auth_manager: str,
+    llm_model: str,
     cheatsheet: bool,
     asciiart: bool,
     colour: bool,
@@ -234,11 +239,8 @@ def change_config(
             touch_cache_file(colour_file)
             get_console().print("[info]Disable Colour[/]")
 
-    def get_supress_status(file: str):
+    def get_suppress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
-
-    def get_status(file: str):
-        return "enabled" if check_if_cache_exists(file) else "disabled"
 
     get_console().print()
     get_console().print("[info]Current configuration:[/]")
@@ -247,12 +249,14 @@ def change_config(
     get_console().print(f"[info]* Backend: {backend}[/]")
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
+    get_console().print(f"[info]* Terminal multiplexer: {terminal_multiplexer}[/]")
+    get_console().print(f"[info]* Auth Manager: {auth_manager}[/]")
+    get_console().print(f"[info]* LLM Model: {llm_model}[/]")
     get_console().print()
-    get_console().print(f"[info]* ASCIIART: {get_supress_status(asciiart_file)}[/]")
-    get_console().print(f"[info]* Cheatsheet: {get_supress_status(cheatsheet_file)}[/]")
+    get_console().print(f"[info]* ASCIIART: {get_suppress_status(asciiart_file)}[/]")
+    get_console().print(f"[info]* Cheatsheet: {get_suppress_status(cheatsheet_file)}[/]")
     get_console().print()
-    get_console().print()
-    get_console().print(f"[info]* Colour: {get_supress_status(colour_file)}[/]")
+    get_console().print(f"[info]* Colour: {get_suppress_status(colour_file)}[/]")
     get_console().print()
 
 
@@ -375,6 +379,9 @@ def get_command_hash_dict() -> dict[str, str]:
                 hashes[f"{command}"] = dict_hash(current_command_dict) + "\n"
             duplicate_found_subcommand = False
             for subcommand in sorted(subcommands.keys()):
+                # Skip hidden commands (e.g., deprecated aliases) from image generation
+                if subcommands[subcommand].get("hidden", False):
+                    continue
                 duplicate_found = validate_params_for_command(
                     commands_dict[command]["commands"][subcommand], command + " " + subcommand
                 )
@@ -563,7 +570,6 @@ DEVELOPER_COMMANDS = [
     "exec",
     "shell",
     "run",
-    "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
     "doctor",
@@ -664,6 +670,9 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
         if "commands" in current_command_dict:
             subcommands = current_command_dict["commands"]
             for subcommand in sorted(subcommands.keys()):
+                # Skip hidden commands (e.g., deprecated aliases) from param group validation
+                if subcommands[subcommand].get("hidden", False):
+                    continue
                 if errors_detected_in_params(command, subcommand, subcommands[subcommand]):
                     errors_detected = True
         else:
@@ -672,7 +681,7 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
     return 1 if errors_detected else 0
 
 
-@setup.command(name="regenerate-command-images", help="Regenerate breeze command images.")
+@setup_group.command(name="regenerate-command-images", help="Regenerate breeze command images.")
 @click.option("--force", is_flag=True, help="Forces regeneration of all images", envvar="FORCE")
 @click.option(
     "--check-only",
@@ -697,7 +706,7 @@ def regenerate_command_images(command: tuple[str, ...], force: bool, check_only:
     sys.exit(return_code)
 
 
-@setup.command(name="check-all-params-in-groups", help="Check that all parameters are put in groups.")
+@setup_group.command(name="check-all-params-in-groups", help="Check that all parameters are put in groups.")
 @click.option(
     "--command",
     help="Command(s) to regenerate images for (optional, might be repeated)",
@@ -729,7 +738,7 @@ def _insert_documentation(file_path: Path, content: list[str], header: str, foot
     file_path.write_text(src)
 
 
-@setup.command(
+@setup_group.command(
     name="synchronize-local-mounts",
     help="Synchronize local mounts between python files and docker compose yamls.",
 )

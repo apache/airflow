@@ -56,7 +56,7 @@ MOCK_CONFIG_DICT = {
         OPTION_KEY_SMTP_MAIL_FROM: OPTION_VALUE_SMTP_MAIL_FROM,
     },
     SECTION_DATABASE: {
-        OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_SQL_ALCHEMY_CONN,
+        OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_SENSITIVE_HIDDEN,
     },
 }
 MOCK_CONFIG_DICT_SENSITIVE_HIDDEN = {
@@ -102,7 +102,7 @@ GET_CONFIG_ALL_JSON_RESPONSE = {
         {
             "name": SECTION_DATABASE,
             "options": [
-                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
+                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
             ],
         },
     ],
@@ -181,7 +181,7 @@ class TestConfigEndpoint:
 
 class TestGetConfig(TestConfigEndpoint):
     @pytest.mark.parametrize(
-        "section, headers, expected_status_code, expected_response",
+        ("section", "headers", "expected_status_code", "expected_response"),
         [
             (
                 None,
@@ -206,7 +206,7 @@ class TestGetConfig(TestConfigEndpoint):
                     {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
 
                     [{SECTION_DATABASE}]
-                    {OPTION_KEY_SQL_ALCHEMY_CONN} = {OPTION_VALUE_SQL_ALCHEMY_CONN}
+                    {OPTION_KEY_SQL_ALCHEMY_CONN} = {OPTION_VALUE_SENSITIVE_HIDDEN}
                     """
                 ),
             ),
@@ -252,7 +252,7 @@ class TestGetConfig(TestConfigEndpoint):
                         {
                             "name": SECTION_DATABASE,
                             "options": [
-                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
+                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
                             ],
                         },
                     ],
@@ -273,7 +273,7 @@ class TestGetConfig(TestConfigEndpoint):
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
-        "headers, expected_status_code, expected_response",
+        ("headers", "expected_status_code", "expected_response"),
         [
             (HEADERS_JSON, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
             (HEADERS_JSON_UTF8, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
@@ -316,7 +316,7 @@ class TestGetConfig(TestConfigEndpoint):
 
 class TestGetConfigValue(TestConfigEndpoint):
     @pytest.mark.parametrize(
-        "section, option, headers, expected_status_code, expected_response",
+        ("section", "option", "headers", "expected_status_code", "expected_response"),
         [
             (
                 SECTION_CORE,
@@ -430,7 +430,7 @@ class TestGetConfigValue(TestConfigEndpoint):
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
-        "section, option, headers, expected_status_code, expected_response",
+        ("section", "option", "headers", "expected_status_code", "expected_response"),
         [
             (
                 SECTION_DATABASE,

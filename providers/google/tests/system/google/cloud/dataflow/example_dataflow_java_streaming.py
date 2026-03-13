@@ -47,7 +47,12 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubDeleteTopicOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -124,7 +129,7 @@ with DAG(
             "streaming": True,
         },
         dataflow_config={
-            "job_name": f"java-streaming-job-{ENV_ID}",
+            "job_name": f"java-streaming-job-def-{ENV_ID}",
             "location": LOCATION,
         },
         deferrable=True,
@@ -159,13 +164,13 @@ with DAG(
         # TEST SETUP
         create_bucket
         >> download_file
-        >> create_output_pub_sub_topic
-        >> create_output_pub_sub_topic_2
+        >> [create_output_pub_sub_topic, create_output_pub_sub_topic_2]
         # TEST BODY
         >> start_java_streaming_job_dataflow
+        >> stop_dataflow_job
         >> start_java_streaming_job_dataflow_def
+        >> stop_dataflow_job_deferrable
         # TEST TEARDOWN
-        >> [stop_dataflow_job, stop_dataflow_job_deferrable]
         >> delete_topic
         >> delete_topic_2
         >> delete_bucket

@@ -22,12 +22,18 @@ description: |
     `Asana <https://asana.com/>`__
 
 state: ready
-source-date-epoch: 1751472745
+lifecycle: production
+source-date-epoch: 1768334416
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.11.1
+  - 2.11.0
+  - 2.10.4
+  - 2.10.3
+  - 2.10.2
   - 2.10.1
   - 2.10.0
   - 2.9.1
@@ -54,6 +60,7 @@ versions:
 integrations:
   - integration-name: Asana
     external-doc-url: https://developers.asana.com/docs
+    logo: /docs/integration-logos/Asana.svg
     how-to-guide:
       - /docs/apache-airflow-providers-asana/operators/asana.rst
     tags: [software]
@@ -72,3 +79,26 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.asana.hooks.asana.AsanaHook
     connection-type: asana
+    ui-field-behaviour:
+      hidden-fields:
+        - port
+        - host
+        - login
+        - schema
+      placeholders:
+        password: Asana personal access token
+        workspace: Asana workspace gid
+        project: Asana project gid
+    conn-fields:
+      workspace:
+        label: Workspace
+        schema:
+          type:
+            - string
+            - 'null'
+      project:
+        label: Project
+        schema:
+          type:
+            - string
+            - 'null'

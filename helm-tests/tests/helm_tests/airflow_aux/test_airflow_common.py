@@ -29,7 +29,52 @@ class TestAirflowCommon:
     """
 
     @pytest.mark.parametrize(
-        "dag_values, expected_mount",
+        ("logs_values", "expected_mount"),
+        [
+            (
+                {"persistence": {"enabled": True, "subPath": "test/logs"}},
+                {"subPath": "test/logs", "mountPath": "/opt/airflow/logs", "name": "logs"},
+            ),
+        ],
+    )
+    def test_logs_mount(self, logs_values, expected_mount):
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "airflowVersion": "3.0.0",
+            },  # airflowVersion is present so webserver gets the mount
+            show_only=[
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 5
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+        # check for components deployed when airflow version is < 3.0.0
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "airflowVersion": "2.11.0",
+            },  # airflowVersion is present so webserver gets the mount
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+    @pytest.mark.parametrize(
+        ("dag_values", "expected_mount"),
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -89,20 +134,45 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "dags": dag_values,
-                "airflowVersion": "1.10.15",
-            },  # airflowVersion is present so webserver gets the mount
+                "airflowVersion": "2.11.0",
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 2
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+    def test_git_sync_http_port(self):
+        docs = render_chart(
+            values={
+                "dags": {"gitSync": {"enabled": True, "httpPort": 10}},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
             ],
         )
 
         assert len(docs) == 3
         for doc in docs:
-            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+            envs = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", doc)
+            assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
+            assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_webserver_config_configmap_name_volume_mounts(self, workers_values):
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
@@ -110,7 +180,7 @@ class TestAirflowCommon:
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -148,7 +218,9 @@ class TestAirflowCommon:
             name=release_name,
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "dagProcessor": {"enabled": True},
             },
@@ -161,11 +233,12 @@ class TestAirflowCommon:
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
             ],
         )
 
-        # Objects in show_only are 8 but only one of Webserver or API server is created so we have 7 objects
-        assert len(k8s_objects) == 7
+        # Objects in show_only are 9 but only one of Webserver or API server is created so we have 8 objects
+        assert len(k8s_objects) == 8
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -180,7 +253,9 @@ class TestAirflowCommon:
         """Test affinity, tolerations, etc are correctly applied on all pods created."""
         k8s_objects = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "dagProcessor": {"enabled": True},
@@ -212,6 +287,7 @@ class TestAirflowCommon:
             },
             show_only=[
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -227,8 +303,8 @@ class TestAirflowCommon:
             ],
         )
 
-        # Objects in show_only are 13 but only one of Webserver or API server is created so we have 12 objects
-        assert len(k8s_objects) == 12
+        # Objects in show_only are 14 but only one of Webserver or API server is created so we have 13 objects
+        assert len(k8s_objects) == 13
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -252,7 +328,7 @@ class TestAirflowCommon:
             assert jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec) == "foo"
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),
@@ -283,7 +359,7 @@ class TestAirflowCommon:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),
@@ -321,14 +397,12 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "enableBuiltInSecretEnvVars": {
-                    "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__API__SECRET_KEY": False,
                     "AIRFLOW__API_AUTH__JWT_SECRET": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
-                    "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": False,
                     "AIRFLOW__OPENSEARCH__HOST": False,
                 },
             },
@@ -368,7 +442,6 @@ class TestAirflowCommon:
         expected_vars = [
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
-            "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
@@ -410,6 +483,7 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
                 "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
@@ -419,6 +493,7 @@ class TestAirflowCommon:
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
+                "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
                 "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
@@ -432,17 +507,79 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/jobs/create-user-job.yaml",
             ],
         )
 
-        assert len(docs) == 10
+        assert len(docs) == 11
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            if component == "airflow-cleanup-pods":
+            if component in ["airflow-cleanup-pods", "database-cleanup"]:
                 priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
             else:
                 priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"
+
+    @pytest.mark.parametrize(
+        ("image_pull_secrets", "registry_secret_name", "registry_connection", "expected_image_pull_secrets"),
+        [
+            ([], None, {}, []),
+            (
+                [],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["test-basic-registry"],
+            ),
+            ([], "regcred", {}, ["regcred"]),
+            (["regcred2"], "regcred", {}, ["regcred2"]),
+            (
+                ["regcred2"],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["regcred2"],
+            ),
+            (["regcred", {"name": "regcred2"}, ""], None, {}, ["regcred", "regcred2"]),
+        ],
+    )
+    def test_image_pull_secrets(
+        self, image_pull_secrets, registry_secret_name, registry_connection, expected_image_pull_secrets
+    ):
+        release_name = "test-basic"
+        docs = render_chart(
+            name=release_name,
+            values={
+                "imagePullSecrets": image_pull_secrets,
+                "registry": {"secretName": registry_secret_name, "connection": registry_connection},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
+            ],
+        )
+
+        expected_image_pull_secrets = [{"name": name} for name in expected_image_pull_secrets]
+
+        for doc in docs:
+            got_image_pull_secrets = (
+                doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["imagePullSecrets"]
+                if doc["kind"] == "CronJob"
+                else doc["spec"]["template"]["spec"]["imagePullSecrets"]
+            )
+            assert got_image_pull_secrets == expected_image_pull_secrets

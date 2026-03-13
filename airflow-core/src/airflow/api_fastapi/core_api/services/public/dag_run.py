@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -33,6 +34,8 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
+
+    from sqlalchemy import ScalarResult
 
 
 @attrs.define
@@ -43,6 +46,7 @@ class DagRunWaiter:
     run_id: str
     interval: float
     result_task_ids: list[str] | None
+    session: SessionDep
 
     async def _get_dag_run(self) -> DagRun:
         async with create_session_async() as session:
@@ -55,17 +59,19 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_query = xcom_query.order_by(XComModel.task_id, XComModel.map_index)
+        xcom_results: ScalarResult[tuple[XComModel]] = self.session.scalars(
+            xcom_query.order_by(XComModel.task_id, XComModel.map_index)
+        )
 
-        def _group_xcoms(g: Iterator[XComModel]) -> Any:
-            entries = list(g)
+        def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
+            entries = [row[0] if isinstance(row, tuple) else row for row in g]
             if len(entries) == 1 and entries[0].map_index < 0:  # Unpack non-mapped task xcom.
                 return entries[0].value
             return [entry.value for entry in entries]  # Task is mapped; return all xcoms in a list.
 
         return {
             task_id: _group_xcoms(g)
-            for task_id, g in itertools.groupby(xcom_query, key=operator.attrgetter("task_id"))
+            for task_id, g in itertools.groupby(xcom_results, key=operator.attrgetter("task_id"))
         }
 
     def _serialize_response(self, dag_run: DagRun) -> str:

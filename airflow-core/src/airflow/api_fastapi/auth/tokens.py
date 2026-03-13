@@ -34,7 +34,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
+from airflow.models.revoked_token import RevokedToken
 
 if TYPE_CHECKING:
     from jwt.algorithms import AllowedKeys, AllowedPrivateKeys
@@ -92,7 +93,7 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
     if isinstance(key, RSAPrivateKey):
-        return "RS512"
+        return "RS256"
     if isinstance(key, Ed25519PrivateKey):
         return "EdDSA"
     raise ValueError(f"Unknown key object {type(key)}")
@@ -242,13 +243,13 @@ def _conf_list_factory(
 
 
 def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
-    def factory() -> list[str] | str:
+    def factory() -> list[str] | str | None:
         from airflow.configuration import conf
 
         val = conf.getlist(section, key, **kwargs, suppress_warnings=True)
 
-        if first_only and val:
-            return val[0]
+        if first_only:
+            return val[0] if val else None
         return val or []
 
     return factory
@@ -290,14 +291,8 @@ class JWTValidator:
             raise ValueError("Exactly one of private_key and secret_key must be specified")
 
         if self.algorithm == ["GUESS"]:
-            if self.jwks:
-                # TODO: We could probably populate this from the jwks document, but we don't have that at
-                # construction time.
-                raise ValueError(
-                    "Cannot guess the algorithm when using JWKS - please specify it in the config option "
-                    "[api_auth] jwt_algorithm"
-                )
-            self.algorithm = ["HS512"]
+            if not self.jwks:
+                self.algorithm = ["HS512"]
 
     def _get_kid_from_header(self, unvalidated: str) -> str:
         header = jwt.get_unverified_header(unvalidated)
@@ -325,13 +320,21 @@ class JWTValidator:
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
         key = await self._get_validation_key(unvalidated)
+        algorithms = self.algorithm
+        validation_key: str | jwt.PyJWK | Any = key
+        if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
+            if not key.algorithm_name:
+                raise jwt.InvalidTokenError("Missing algorithm in JWK")
+            algorithms = [key.algorithm_name]
+            validation_key = key.key
+
         claims = jwt.decode(
             unvalidated,
-            key,
+            validation_key,
             audience=self.audience,
             issuer=self.issuer,
-            options={"require": self.required_claims},
-            algorithms=self.algorithm,
+            options={"require": list(self.required_claims)},
+            algorithms=algorithms,
             leeway=self.leeway,
         )
 
@@ -344,6 +347,15 @@ class JWTValidator:
                     raise InvalidClaimError(claim)
 
         return claims
+
+    def revoke_token(self, token: str) -> None:
+        """Validate the token, extract jti and exp, and revoke it in the database."""
+        try:
+            claims = self.validated_claims(token)
+            if (jti := claims.get("jti")) and (exp := claims.get("exp")):
+                RevokedToken.revoke(jti, datetime.fromtimestamp(exp, tz=timezone.utc))
+        except (jwt.InvalidTokenError, Exception):
+            log.warning("Failed to revoke token", exc_info=True)
 
     def status(self):
         if self.jwks:
@@ -372,11 +384,12 @@ def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
 
 
 def _generate_kid(gen) -> str:
-    if not gen._private_key:
-        return "not-used"
-
+    # Always check config first — both symmetric and asymmetric keys can have a configured kid
     if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
         return kid
+
+    if not gen._private_key:
+        return "not-used"
 
     # Generate it from the thumbprint of the private key
     info = key_to_jwk_dict(gen._private_key)
@@ -446,16 +459,18 @@ class JWTGenerator:
             "iat": now,
         }
 
-        if claims["iss"] is None:
+        # Remove iss and aud claims if they are falsy (None, [], "", etc.)
+        # Per RFC 7519, these are optional claims and should be omitted entirely
+        # rather than set to empty/invalid values: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1
+        if not claims["iss"]:
             del claims["iss"]
-        if claims["aud"] is None:
+        if not claims["aud"]:
             del claims["aud"]
 
         if extras is not None:
             claims = extras | claims
         headers = {"alg": self.algorithm, **(headers or {})}
-        if self._private_key:
-            headers["kid"] = self.kid
+        headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
 
 

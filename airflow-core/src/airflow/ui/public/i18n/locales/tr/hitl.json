@@ -1,0 +1,38 @@
+{
+  "filters": {
+    "body": "Gövde",
+    "createdAt": "Zamanınında oluşturuldu",
+    "response": {
+      "all": "Hepsi",
+      "pending": "Beklemede",
+      "received": "İncelendi"
+    }
+  },
+  "requiredAction_one": "Gerekli işlem",
+  "requiredAction_other": "Gerekli işlemler",
+  "requiredActionCount_one": "Gerekli işlem ({{count}})",
+  "requiredActionCount_other": "Gerekli işlemler ({{count}})",
+  "requiredActionState": "Gerekli işlemin durumu",
+  "response": {
+    "created": "Yanıt oluşturulma zamanı ",
+    "error": "Yanıt alınamadı",
+    "optionsDescription": "Bu görev örneği için seçenekleri seçin",
+    "optionsLabel": "Seçenekler",
+    "received": "Yanıt alındı: ",
+    "respond": "Yanıtla",
+    "responded_by_user_name": "Yanıtlayan (Kullanıcı Adı)",
+    "success": "{{taskId}} için yanıt başarıyla gönderildi",
+    "title": "İnsan müdahalesi gerektiren görev örneği - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Onay alındı",
+    "approvalRequired": "Onay gerekli",
+    "choiceReceived": "Seçim alındı",
+    "choiceRequired": "Seçim gerekli",
+    "noResponseReceived": "Cevap alınmadı",
+    "rejectionReceived": "Reddetme alındı",
+    "responseReceived": "Yanıt alındı",
+    "responseRequired": "Yanıt gerekli"
+  },
+  "subject": "Konu"
+}

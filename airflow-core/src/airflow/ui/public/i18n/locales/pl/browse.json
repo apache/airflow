@@ -1,23 +1,46 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
-      "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON"
-    },
     "columns": {
       "event": "Zdarzenie",
       "extra": "Dodatkowe",
       "user": "Użytkownik",
       "when": "Kiedy"
     },
+    "filters": {
+      "eventType": "Typ zdarzenia"
+    },
     "title": "Dziennik audytu"
   },
   "xcom": {
+    "add": {
+      "error": "Nie udało się dodać XCom",
+      "errorTitle": "Błąd",
+      "success": "XCom dodany pomyślnie",
+      "successTitle": "XCom dodany",
+      "title": "Dodaj XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Klucz",
       "value": "Wartość"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Nie udało się usunąć XCom",
+      "errorTitle": "Błąd",
+      "success": "XCom usunięty pomyślnie",
+      "successTitle": "XCom usunięty",
+      "title": "Usuń XCom",
+      "warning": "Czy na pewno chcesz usunąć ten XCom? Ta akcja jest nieodwracalna."
+    },
+    "edit": {
+      "error": "Nie udało się zaktualizować XCom",
+      "errorTitle": "Błąd",
+      "success": "XCom zaktualizowany pomyślnie",
+      "successTitle": "XCom zaktualizowany",
+      "title": "Edytuj XCom"
+    },
+    "key": "Klucz",
+    "title": "XCom",
+    "value": "Wartość"
   }
 }

@@ -17,32 +17,32 @@
 
 .. _concepts:debugging:
 
-Debugging Airflow dags
+Debugging Airflow Dags
 ======================
 
-Testing dags with dag.test()
-*****************************
+Testing Dags with dag.test()
+-----------------------------
 
-To debug dags in an IDE, you can set up the ``dag.test`` command in your dag file and run through your DAG in a single
+To debug Dags in an IDE, you can set up the ``dag.test`` command in your Dag file and run through your Dag in a single
 serialized python process.
 
 This approach can be used with any supported database (including a local SQLite database) and will
 *fail fast* as all tasks run in a single process.
 
-To set up ``dag.test``, add these two lines to the bottom of your dag file:
+To set up ``dag.test``, add these two lines to the bottom of your Dag file:
 
 .. code-block:: python
 
   if __name__ == "__main__":
       dag.test()
 
-and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug dags as
+and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug Dags as
 needed. Here are some examples of arguments:
 
-* ``execution_date`` if you want to test argument-specific DAG runs
-* ``use_executor`` if you want to test the DAG using an executor. By default ``dag.test`` runs the DAG without an
+* ``execution_date`` if you want to test argument-specific Dag runs
+* ``use_executor`` if you want to test the Dag using an executor. By default ``dag.test`` runs the Dag without an
   executor, it just runs all the tasks locally.
-  By providing this argument, the DAG is executed using the executor configured in the Airflow environment.
+  By providing this argument, the Dag is executed using the executor configured in the Airflow environment.
 
 Conditionally skipping tasks
 ----------------------------
@@ -50,7 +50,7 @@ Conditionally skipping tasks
 If you don't wish to execute some subset of tasks in your local environment (e.g. dependency check sensors or cleanup steps),
 you can automatically mark them successful supplying a pattern matching their ``task_id`` in the ``mark_success_pattern`` argument.
 
-In the following example, testing the dag won't wait for either of the upstream dags to complete. Instead, testing data
+In the following example, testing the Dag won't wait for either of the upstream Dags to complete. Instead, testing data
 is manually ingested. The cleanup step is also skipped, making the intermediate csv is available for inspection.
 
 .. code-block:: python
@@ -70,17 +70,17 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
       print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_id='collect_stats')}")
 
 
-Debugging Airflow dags on the command line
-******************************************
+Debugging Airflow Dags on the command line
+==========================================
 
-With the same two line addition as mentioned in the above section, you can now easily debug a DAG using pdb as well.
-Run ``python -m pdb <path to dag file>.py`` for an interactive debugging experience on the command line.
+With the same two line addition as mentioned in the above section, you can now easily debug a Dag using pdb as well.
+Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experience on the command line.
 
 .. code-block:: bash
 
-  root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
+  [Breeze:3.10.19] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
   > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(18)<module>()
-  -> """Example DAG demonstrating the usage of the BashOperator."""
+  -> """Example Dag demonstrating the usage of the BashOperator."""
   (Pdb) b 45
   Breakpoint 1 at /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py:45
   (Pdb) c
@@ -91,11 +91,11 @@ Run ``python -m pdb <path to dag file>.py`` for an interactive debugging experie
 
 **IDE setup steps:**
 
-1. Add ``main`` block at the end of your DAG file to make it runnable.
+1. Add ``main`` block at the end of your Dag file to make it runnable.
 
 .. code-block:: python
 
   if __name__ == "__main__":
       dag.test()
 
-2. Run / debug the DAG file.
+2. Run / debug the Dag file.

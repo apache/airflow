@@ -8,19 +8,19 @@
             "acceptors": [
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "RUNNING",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "FINISHED",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "FAILED",
                     "state": "failure"
                 }
@@ -33,19 +33,19 @@
             "acceptors": [
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "STOPPED",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "FINISHED",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "notebookexecution.status",
+                    "argument": "NotebookExecution.Status",
                     "expected": "FAILED",
                     "state": "failure"
                 }

@@ -28,9 +28,10 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 
 if TYPE_CHECKING:
     from botocore.paginate import PageIterator
@@ -40,11 +41,15 @@ MULTI_LINE_QUERY_LOG_PREFIX = "\n\t\t"
 
 def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
     result = ""
-    for key, value in params.items():
+    for key, original_value in params.items():
+        value: str | Collection[str]
         if key == "QueryString":
             value = (
-                MULTI_LINE_QUERY_LOG_PREFIX + str(value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
+                MULTI_LINE_QUERY_LOG_PREFIX
+                + str(original_value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
             )
+        else:
+            value = original_value
         result += f"\t{key}: {value}\n"
     return result.rstrip()
 
@@ -122,6 +127,11 @@ class AthenaHook(AwsBaseHook):
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)
+        send_sql_hook_lineage(
+            context=self,
+            sql=query,
+            job_id=query_execution_id,
+        )
         return query_execution_id
 
     def get_query_info(self, query_execution_id: str, use_cache: bool = False) -> dict:

@@ -23,9 +23,9 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 REGION_NAME = "eu-central-1"
 QUEUE_NAME = "test-queue"

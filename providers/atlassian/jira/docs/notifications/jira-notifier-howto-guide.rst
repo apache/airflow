@@ -22,7 +22,7 @@ How-to guide for Atlassian Jira notifications
 Introduction
 ------------
 The Atlassian Jira notifier (:class:`airflow.providers.atlassian.jira.notifications.jira.JiraNotifier`) allows users to create
-issues in a Jira instance using the various ``on_*_callbacks`` available at both the DAG level and Task level
+issues in a Jira instance using the various ``on_*_callbacks`` available at both the Dag level and Task level
 
 Example Code
 ------------
@@ -40,8 +40,8 @@ Example Code
         on_failure_callback=[
             send_jira_notification(
                 jira_conn_id="my-jira-conn",
-                description="Failure in the DAG {{ dag.dag_id }}",
-                summary="Airflow DAG Issue",
+                description="Failure in the Dag {{ dag.dag_id }}",
+                summary="Airflow Dag Issue",
                 project_id=10000,
                 issue_type_id=10003,
                 labels=["airflow-dag-failure"],

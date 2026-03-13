@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 from asyncssh.sftp import SFTPAttrs, SFTPName
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.triggers.base import TriggerEvent
 

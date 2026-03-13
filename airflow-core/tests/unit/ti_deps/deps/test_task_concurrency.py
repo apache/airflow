@@ -35,7 +35,7 @@ class TestTaskConcurrencyDep:
         return BaseOperator(task_id="test_task", dag=DAG("test_dag", schedule=None), **kwargs)
 
     @pytest.mark.parametrize(
-        "kwargs, num_running_tis, is_task_concurrency_dep_met",
+        ("kwargs", "num_running_tis", "is_task_concurrency_dep_met"),
         [
             ({}, None, True),
             ({"max_active_tis_per_dag": 1}, 0, True),

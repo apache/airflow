@@ -3,6 +3,7 @@
     "description": "Beschreibung",
     "key": "Name",
     "name": "Name",
+    "team": "Team",
     "value": "Wert"
   },
   "config": {
@@ -36,6 +37,7 @@
       "extraFields": "Weitere Felder",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
+      "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
       "selectConnectionType": "Verbindungstyp auswählen",
       "standardFields": "Standardfelder"
     },
@@ -48,6 +50,12 @@
     "searchPlaceholder": "Verbindungen suchen",
     "test": "Verbindung testen",
     "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten.",
+    "testError": {
+      "title": "Verbindungstest fehlgeschlagen"
+    },
+    "testSuccess": {
+      "title": "Verbindungstest erfolgreich"
+    },
     "typeMeta": {
       "error": "Fehler beim Abrufen der Liste der Verbindungstypen",
       "standardFields": {
@@ -71,8 +79,24 @@
     "tooltip": "Ausgewählte Verbindungen löschen"
   },
   "formActions": {
-    "reset": "Zurücksetzen",
     "save": "Speichern"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Klasse",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job-Typ",
+      "latestHeartbeat": "Letztes Lebenszeichen",
+      "unixname": "Unix-Name"
+    },
+    "filters": {
+      "allStates": "Alle Zustände",
+      "allTypes": "Alle Job-Typen",
+      "dagProcessorJob": "Dag-Prozessor-Job",
+      "schedulerJob": "Scheduler-Job",
+      "triggererJob": "Triggerer-Job"
+    }
   },
   "plugins": {
     "columns": {
@@ -128,8 +152,6 @@
       "tooltip": "Ausgewählte Variablen löschen"
     },
     "edit": "Variable bearbeiten",
-    "export": "Exportieren",
-    "exportTooltip": "Ausgewählte Variablen exportieren",
     "form": {
       "invalidJson": "JSON ist ungültig",
       "keyMaxLength": "Der Name kann maximal 250 Zeichen lang sein",

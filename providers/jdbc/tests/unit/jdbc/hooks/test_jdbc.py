@@ -29,8 +29,8 @@ from unittest.mock import MagicMock, Mock, patch
 import jaydebeapi
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
@@ -224,7 +224,8 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
+        expected = "mssql://login:password@host:1234/schema"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
         conn_params = dict(
@@ -233,7 +234,8 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema?servicename=test"
+        expected = "mssql://login:password@host:1234/schema?servicename=test"
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
         conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))
@@ -267,6 +269,25 @@ class TestJdbcHook:
             host="localhost",
             schema="sap",
             port=30215,
+        )
+
+        assert jdbc_hook.dialect_name == "hana"
+
+    def test_dialect_name_when_host_is_jdbc_url(self):
+        jdbc_hook = get_hook(
+            conn_params=dict(
+                extra={
+                    "driver_class": "com.sap.db.jdbc.Driver",
+                    "driver_path": "/usr/local/lib/java/ngdbc.jar",
+                    "placeholder": "?",
+                    "sqlalchemy_scheme": "hana",
+                    "replace_statement_format": "UPSERT {} {} VALUES ({}) WITH PRIMARY KEY",
+                }
+            ),
+            conn_type="jdbc",
+            login=None,
+            password=None,
+            host="jdbc:sap://localhost:30015",
         )
 
         assert jdbc_hook.dialect_name == "hana"
@@ -307,8 +328,63 @@ class TestJdbcHook:
 
             assert mock_connect.call_count == 10
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_run_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        jdbc_conn_mock.cursor.return_value.rowcount = 0
+        sql = "SELECT 1"
+        hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_insert_rows_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        table = "table"
+        rows = [("hello",), ("world",)]
+        hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        parameters = ("x",)
+        hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     @pytest.mark.parametrize(
-        "params,expected_uri",
+        ("params", "expected_uri"),
         [
             # JDBC URL fallback cases
             pytest.param(
@@ -353,6 +429,17 @@ class TestJdbcHook:
                 },
                 "postgresql+psycopg2://login:password@host:1234/schema",
                 id="sqlalchemy-scheme-with-driver",
+            ),
+            pytest.param(
+                {
+                    "conn_params": {
+                        "extra": json.dumps(
+                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg"}
+                        )
+                    }
+                },
+                "postgresql+psycopg://login:password@host:1234/schema",
+                id="sqlalchemy-scheme-with-driver-ppg3",
             ),
             pytest.param(
                 {

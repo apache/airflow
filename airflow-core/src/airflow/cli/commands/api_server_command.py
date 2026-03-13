@@ -18,53 +18,84 @@
 
 from __future__ import annotations
 
-import logging
 import os
-import subprocess
 import sys
 import textwrap
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
 
+import structlog
 import uvicorn
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.typing_compat import ParamSpec
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
-AIRFLOW_API_APPS = "AIRFLOW_API_APPS"
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from argparse import Namespace
 
-# This shouldn't be necessary but there seems to be an issue in uvloop that causes bad file descriptor
-# errors when shutting down workers. Despite the 'closed' status of the issue it is not solved,
-# more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
 
+def _run_api_server_with_gunicorn(
+    args,
+    apps: str,
+    num_workers: int,
+    worker_timeout: int,
+    proxy_headers: bool,
+) -> None:
+    """
+    Run the API server using gunicorn with uvicorn workers.
 
-def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
-    """Run the API server."""
-    log.info(
-        textwrap.dedent(
-            f"""\
-            Running the uvicorn with:
-            Apps: {apps}
-            Workers: {num_workers}
-            Host: {args.host}:{args.port}
-            Timeout: {worker_timeout}
-            Logfiles: {args.log_file or "-"}
-            ================================================================="""
-        )
+    Uses a custom Arbiter that integrates worker monitoring directly into
+    the arbiter process loop. This provides:
+    - Rolling worker restarts for memory management
+    - Direct access to worker state (no external monitoring needed)
+    - Proper signal handling through gunicorn's infrastructure
+    - Memory sharing via preload + fork copy-on-write
+    """
+    from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+    ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+
+    log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+
+    gunicorn_app = create_gunicorn_app(
+        host=args.host,
+        port=args.port,
+        num_workers=num_workers,
+        worker_timeout=worker_timeout,
+        ssl_cert=ssl_cert,
+        ssl_key=ssl_key,
+        log_level=log_level,
+        proxy_headers=proxy_headers,
     )
-    # get ssl cert and key filepaths here instead of passing them as arguments to reduce the number of arguments
+
+    # run() blocks until gunicorn exits
+    gunicorn_app.run()
+
+
+def _run_api_server_with_uvicorn(
+    args,
+    apps: str,
+    num_workers: int,
+    worker_timeout: int,
+    proxy_headers: bool,
+) -> None:
+    """
+    Run the API server using uvicorn directly.
+
+    This is the default mode. Note that uvicorn's multiprocess mode does not
+    share memory between workers (each worker loads everything independently).
+    """
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
@@ -76,18 +107,24 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
 
         setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
 
+    uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+
     uvicorn_kwargs = {
         "host": args.host,
         "port": args.port,
         "workers": num_workers,
         "timeout_keep_alive": worker_timeout,
         "timeout_graceful_shutdown": worker_timeout,
+        "timeout_worker_healthcheck": worker_timeout,
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
-        "access_log": True,
+        # HttpAccessLogMiddleware handles access logging; disable uvicorn's built-in access log.
+        "access_log": False,
+        "log_level": uvicorn_log_level,
         "proxy_headers": proxy_headers,
+        # Prevent uvicorn from overriding our structlog-based logging setup.
+        "log_config": None,
     }
-    # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
     if args.log_config and args.log_config != "-":
         # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
         # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
@@ -99,23 +136,74 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     )
 
 
+@enable_memray_trace(component=MemrayTraceComponents.api)
+def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
+    """Run the API server using the configured server type."""
+    server_type = conf.get("api", "server_type", fallback="uvicorn").lower()
+
+    run = _run_api_server_with_uvicorn
+    if server_type == "gunicorn":
+        try:
+            import gunicorn  # noqa: F401
+
+            run = _run_api_server_with_gunicorn
+        except ImportError:
+            raise AirflowConfigException(
+                "Gunicorn is not installed. Install it with: pip install 'apache-airflow-core[gunicorn]'"
+            )
+
+    log_file = args.log_file or None
+    if conf.getboolean("logging", "json_logs", fallback=False):
+        extra = {"logfile": log_file} if log_file else {}
+        log.info(
+            "Running the API server",
+            server=server_type,
+            apps=apps,
+            workers=num_workers,
+            host=f"{args.host}:{args.port}",
+            timeout=worker_timeout,
+            **extra,
+        )
+    else:
+        print(
+            textwrap.dedent(
+                f"""\
+                Running the API server with {server_type}:
+                Apps: {apps}
+                Workers: {num_workers}
+                Host: {args.host}:{args.port}
+                Timeout: {worker_timeout}
+                Logfiles: {log_file or "-"}
+                =================================================================""",
+            )
+        )
+
+    run(
+        args=args,
+        apps=apps,
+        num_workers=num_workers,
+        worker_timeout=worker_timeout,
+        proxy_headers=proxy_headers,
+    )
+
+
 def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], RT]:
     """We use AIRFLOW_API_APPS to specify which apps are initialized in the API server."""
 
     @wraps(func)
     def wrapper(args: Namespace) -> RT:
         apps: str = args.apps
-        original_value = os.environ.get(AIRFLOW_API_APPS)
+        original_value = os.environ.get("AIRFLOW_API_APPS")
         try:
             log.debug("Setting AIRFLOW_API_APPS to: %s", apps)
-            os.environ[AIRFLOW_API_APPS] = apps
+            os.environ["AIRFLOW_API_APPS"] = apps
             return func(args)
         finally:
             if original_value is not None:
-                os.environ[AIRFLOW_API_APPS] = original_value
+                os.environ["AIRFLOW_API_APPS"] = original_value
                 log.debug("Restored AIRFLOW_API_APPS to: %s", original_value)
             else:
-                os.environ.pop(AIRFLOW_API_APPS, None)
+                os.environ.pop("AIRFLOW_API_APPS", None)
                 log.debug("Removed AIRFLOW_API_APPS from environment")
 
     return wrapper
@@ -126,7 +214,7 @@ def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], 
 @with_api_apps_env
 def api_server(args: Namespace):
     """Start Airflow API server."""
-    print(settings.HEADER)
+    cli_utils.print_banner()
 
     apps = args.apps
     num_workers = args.workers
@@ -138,43 +226,32 @@ def api_server(args: Namespace):
 
     get_signing_args()
 
-    if args.dev:
+    if cli_utils.should_enable_hot_reload(args):
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
+        from fastapi_cli.cli import _run
 
-        run_args = [
-            "fastapi",
-            "dev",
-            "airflow-core/src/airflow/api_fastapi/main.py",
-            "--port",
-            str(args.port),
-            "--host",
-            str(args.host),
-        ]
-
-        if args.proxy_headers:
-            run_args.append("--proxy-headers")
-
-        if args.log_config and args.log_config != "-":
-            run_args.extend(["--log-config", args.log_config])
-
-        with subprocess.Popen(
-            run_args,
-            close_fds=True,
-        ) as process:
-            process.wait()
-    else:
-        run_command_with_daemon_option(
-            args=args,
-            process_name="api_server",
-            callback=lambda: _run_api_server(
-                args=args,
-                apps=apps,
-                num_workers=num_workers,
-                worker_timeout=worker_timeout,
-                proxy_headers=proxy_headers,
-            ),
+        _run(
+            entrypoint="airflow.api_fastapi.main:app",
+            port=args.port,
+            host=args.host,
+            reload=True,
+            proxy_headers=args.proxy_headers,
+            command="dev",
         )
+        return
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name="api_server",
+        callback=lambda: _run_api_server(
+            args=args,
+            apps=apps,
+            num_workers=num_workers,
+            worker_timeout=worker_timeout,
+            proxy_headers=proxy_headers,
+        ),
+    )
 
 
 def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | None]:

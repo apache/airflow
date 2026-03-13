@@ -39,7 +39,7 @@ if __name__ == "__main__":
         # Write default config cmd output to a temporary file
         default_config_file = os.path.join(tmp_dir, "airflow.cfg")
         with open(default_config_file, "w") as f:
-            result = subprocess.run(list_default_config_cmd, stdout=f)
+            result = subprocess.run(list_default_config_cmd, check=False, stdout=f)
         if result.returncode != 0:
             print(f"\033[0;31mERROR: when running `{' '.join(list_default_config_cmd)}`\033[0m\n")
             exit(1)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         env = os.environ.copy()
         env["AIRFLOW_HOME"] = tmp_dir
         env["AIRFLOW_CONFIG"] = default_config_file
-        result = subprocess.run(lint_config_cmd, capture_output=True, env=env)
+        result = subprocess.run(lint_config_cmd, check=False, capture_output=True, env=env)
 
     output: str = result.stdout.decode().strip()
     if result.returncode != 0 or expected_output not in output:

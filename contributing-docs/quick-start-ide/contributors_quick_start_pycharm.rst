@@ -15,7 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Setup your project
 ##################
@@ -60,7 +62,7 @@ Or for specific provider and its cross-provider dependencies:
 Next: Configure your IDEA project.
 
 3. The fastest way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
-   ``module.xml`` file using the ``setup_idea.py`` script:
+   ``module.xml`` file using the ``dev/ide_setup/setup_idea.py`` script:
 
    To setup the source roots for all the modules that exist in the project, you can run the following command:
    This needs to done on the Airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
@@ -68,7 +70,7 @@ Next: Configure your IDEA project.
 
     .. code-block:: bash
 
-      $ uv run setup_idea.py
+      $ uv run dev/ide_setup/setup_idea.py
 
    Then Restart the PyCharm/IntelliJ IDEA.
 
@@ -152,7 +154,7 @@ It requires "airflow-env" virtual environment configured locally.
 - Now set ``sql_alchemy_conn = mysql+pymysql://root:@127.0.0.1:23306/airflow?charset=utf8mb4`` in file
   ``~/airflow/airflow.cfg`` on local machine.
 
-2. Debugging an example DAG
+2. Debugging an example Dag
 
 - Add Interpreter to PyCharm pointing interpreter path to ``~/.pyenv/versions/airflow-env/bin/python``, which is virtual
   environment ``airflow-env`` created with pyenv earlier. For adding an Interpreter go to ``File -> Setting -> Project:
@@ -166,12 +168,12 @@ It requires "airflow-env" virtual environment configured locally.
     </div>
 
 - In PyCharm IDE open Airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
-  machine when breeze Airflow is started. So any DAG file present in this directory will be picked automatically by
+  machine when breeze Airflow is started. So any Dag file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
+- Copy any example Dag present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
-- Add a ``__main__`` block at the end of your DAG file to make it runnable:
+- Add a ``__main__`` block at the end of your Dag file to make it runnable:
 
   .. code-block:: python
 
@@ -201,4 +203,4 @@ Creating a branch
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03b_contributors_quick_start_seasoned_developers.rst>`_ for typical development tasks.

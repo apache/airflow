@@ -6,12 +6,11 @@
     "allRuns": "Alle Läufe",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
-    "dateRangeFrom": "Von",
-    "dateRangeTo": "Bis",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
@@ -52,6 +51,13 @@
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Ungültiges Datumsformat.",
+      "invalidTimeFormat": "Ungültiges Zeitformat.",
+      "startBeforeEnd": "Startdatum/-uhrzeit muss vor Enddatum/-uhrzeit liegen."
+    }
+  },
   "durationChart": {
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
@@ -90,31 +96,57 @@
     "taskGroup": "Task Gruppe"
   },
   "limitedList": "+{{count}} mehr",
+  "limitedList.allItems": "Alle {{count}} Einträge:",
+  "limitedList.allTags_one": "Alle Markierungen ({{count}})",
+  "limitedList.allTags_other": "Alle Markierungen ({{count}})",
+  "limitedList.clickToInteract": "Klicken Sie auf eine Markierung, um Dags zu filtern",
+  "limitedList.clickToOpenFull": "Klicken Sie auf \"+{{count}} mehr\" für die vollständige Ansicht",
+  "limitedList.copyPasteText": "Sie können den obigen Text kopieren und einfügen",
+  "limitedList.showingItems_one": "{{count}} Eintrag wird angezeigt",
+  "limitedList.showingItems_other": "{{count}} Einträge werden angezeigt",
   "logs": {
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
   },
   "reparseDag": "Dag neu parsen",
-  "sortedAscending": "aufsteigend sortier",
-  "sortedDescending": "absteigend sortier",
+  "sortedAscending": "aufsteigend sortiert",
+  "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
+  "taskTryPlaceholder": "Task Versuch",
+  "team": {
+    "selector": {
+      "helperText": "Optional - Nutzung auf ein bestimmtes Team beschränken.",
+      "label": "Team",
+      "placeHolder": "Wählen Sie ein Team"
+    }
+  },
   "toggleCardView": "Kachelansicht anzeigen",
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
     "button": "Auslösen",
-    "loading": "Lade DAG Information...",
-    "loadingFailed": "Das Laden der DAG Information fehlgeschlagen. Bitt versuchen Sie es noch einmal.",
+    "dataInterval": "Datenintervall",
+    "dataIntervalAuto": "Abgeleitet aus logischem Datum und Zeitplan",
+    "dataIntervalManual": "Manuell festgelegt",
+    "intervalEnd": "Ende",
+    "intervalStart": "Start",
+    "loading": "Lade Dag Information...",
+    "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
+    "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
-    "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
+    "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
     "toaster": {
+      "error": {
+        "title": "Fehler beim Auslösen des Dags"
+      },
       "success": {
         "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
         "title": "Dag-Lauf ausgelöst"
       }
     },
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
     "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "trimText": {
@@ -130,6 +162,7 @@
     "versionId": "Versions-ID"
   },
   "versionSelect": {
+    "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

@@ -29,13 +29,15 @@
   "poolSlots": "풀 슬롯",
   "sortBy": {
     "newestFirst": "최신순",
-    "oldestFirst": "오래된 순"
+    "oldestFirst": "오래된 순",
+    "placeholder": "정렬 기준"
   },
   "source": "소스",
   "stats": {
     "activeDags": "활성 Dags",
     "failedDags": "실패한 Dags",
     "queuedDags": "대기 중인 Dags",
+    "requiredActions": "필수 작업",
     "runningDags": "실행 중인 Dags",
     "stats": "통계"
   },

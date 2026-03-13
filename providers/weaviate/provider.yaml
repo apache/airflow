@@ -24,13 +24,20 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 state: ready
-source-date-epoch: 1751474651
+lifecycle: production
+source-date-epoch: 1768335730
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.3.1
+  - 3.3.0
+  - 3.2.5
+  - 3.2.4
+  - 3.2.3
+  - 3.2.2
   - 3.2.1
   - 3.2.0
   - 3.1.0
@@ -54,6 +61,7 @@ versions:
 integrations:
   - integration-name: Weaviate
     external-doc-url: https://weaviate.io/developers/weaviate
+    logo: /docs/integration-logos/Weaviate.png
     how-to-guide:
       - /docs/apache-airflow-providers-weaviate/operators/weaviate.rst
     tags: [software]
@@ -66,6 +74,46 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.weaviate.hooks.weaviate.WeaviateHook
     connection-type: weaviate
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        login: OIDC Username
+        password: OIDC Password
+    conn-fields:
+      http_secure:
+        label: Use https
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
+      token:
+        label: Weaviate API Key
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      grpc_host:
+        label: gRPC host
+        schema:
+          type:
+            - string
+            - 'null'
+      grpc_port:
+        label: gRPC port
+        schema:
+          type:
+            - string
+            - 'null'
+      grpc_secure:
+        label: Use a secure channel for the underlying gRPC API
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
 
 operators:
   - integration-name: Weaviate

@@ -24,9 +24,7 @@ from typing import Any, cast
 import requests
 from hdfs import HdfsError, InsecureClient
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.apache.hdfs.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
 
 log = logging.getLogger(__name__)
 

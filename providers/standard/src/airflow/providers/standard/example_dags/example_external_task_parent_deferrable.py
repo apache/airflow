@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.utils.timezone import datetime
 
 with DAG(
     dag_id="example_external_task",
-    start_date=datetime(2022, 1, 1),
+    start_date=timezone.datetime(2022, 1, 1),
     schedule="@once",
     catchup=False,
     tags=["example", "async", "core"],

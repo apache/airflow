@@ -19,17 +19,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import task_decorator_factory
-else:
-    from airflow.decorators.base import task_decorator_factory  # type: ignore[no-redef]
+from airflow.providers.common.compat.sdk import task_decorator_factory
 from airflow.providers.standard.decorators.python import _PythonDecoratedOperator
 from airflow.providers.standard.operators.python import BranchPythonVirtualenvOperator
 
 if TYPE_CHECKING:
-    from airflow.sdk.bases.decorator import TaskDecorator
+    from airflow.providers.common.compat.sdk import TaskDecorator
 
 
 class _BranchPythonVirtualenvDecoratedOperator(_PythonDecoratedOperator, BranchPythonVirtualenvOperator):

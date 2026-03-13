@@ -22,9 +22,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from google.api_core.client_options import ClientOptions
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -44,6 +45,8 @@ class GSheetsHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param api_endpoint: Optional. Custom API endpoint, i.e: regional or private endpoint.
+        This can be used to target private VPC or restricted access endpoints.
     """
 
     def __init__(
@@ -51,6 +54,7 @@ class GSheetsHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v4",
         impersonation_chain: str | Sequence[str] | None = None,
+        api_endpoint: str | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -58,6 +62,7 @@ class GSheetsHook(GoogleBaseHook):
         )
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.api_endpoint = api_endpoint
         self._conn = None
 
     def get_conn(self) -> Any:
@@ -68,7 +73,16 @@ class GSheetsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("sheets", self.api_version, http=http_authorized, cache_discovery=False)
+            client_options = None
+            if self.api_endpoint:
+                client_options = ClientOptions(api_endpoint=self.api_endpoint)
+            self._conn = build(
+                "sheets",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=client_options,
+            )
 
         return self._conn
 

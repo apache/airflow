@@ -1,17 +1,19 @@
 {
   "backfill": {
+    "affected_many": "Se activarán {{count}} ejecuciones.",
     "affected_one": "1 ejecución será activada.",
-    "affected_other": "{{count}} ejecuciones serán activadas.",
+    "affected_other": "Se activarán {{count}} ejecuciones.",
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
+    "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
     "dateRange": "Rango de Fechas",
-    "dateRangeFrom": "Desde",
-    "dateRangeTo": "Hasta",
     "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
     "maxRuns": "Máximo de Ejecuciones Activas",
+    "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
+    "missingRuns": "Ejecutaciones Faltantes",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
-    "selectDescription": "Ejecutar este DAG para un rango de fechas",
+    "selectDescription": "Ejecutar este Dag para un rango de fechas",
     "selectLabel": "Backfill",
     "title": "Ejecutar Backfill",
     "toaster": {
@@ -43,15 +45,20 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "Errores",
     "error_one": "1 Error",
+    "error_other": "Errores",
     "errorAndWarning": "1 Error y {{warningText}}",
-    "warning_one": "1 Aviso",
+    "warning_many": "{{count}} Advertencias",
+    "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
   },
   "durationChart": {
     "duration": "Duración (segundos)",
-    "lastDagRun_one": "Última Ejecución de DAG",
-    "lastDagRun_other": "Últimas {{count}} Ejecuciones de DAG",
+    "lastDagRun_many": "Últimas {{count}} Ejecuciones de Dag",
+    "lastDagRun_one": "Última Ejecución de Dag",
+    "lastDagRun_other": "Últimas {{count}} Ejecuciones de Dag",
+    "lastTaskInstance_many": "Últimas {{count}} Instancias de Tarea",
     "lastTaskInstance_one": "Última Instancia de Tarea",
     "lastTaskInstance_other": "Últimas {{count}} Instancias de Tarea",
     "queuedDuration": "Duración en Cola",
@@ -59,6 +66,8 @@
     "runDuration": "Duración de la Ejecución"
   },
   "fileUpload": {
+    "files_many": "{{count}} archivos",
+    "files_one": "{{count}} archivo",
     "files_other": "{{count}} archivos"
   },
   "flexibleForm": {
@@ -79,17 +88,28 @@
     "downloadImage": "Descargar imagen",
     "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
-    "otherDagRuns": "+Otras Ejecuciones de DAG",
+    "otherDagRuns": "+Otras Ejecuciones de Dag",
+    "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
     "taskGroup": "Grupo de Tareas"
   },
   "limitedList": "+{{count}} más",
+  "limitedList.allItems": "Todos los {{count}} elementos:",
+  "limitedList.allTags_many": "Todas las etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas las etiquetas (1)",
+  "limitedList.allTags_other": "Todas las etiquetas ({{count}})",
+  "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
+  "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
+  "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementos",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementos",
   "logs": {
     "file": "Archivo",
     "location": "línea {{line}} en {{name}}"
   },
-  "reparseDag": "Reparar DAG",
+  "reparseDag": "Reparar Dag",
   "sortedAscending": "ordenado ascendente",
   "sortedDescending": "ordenado descendente",
   "sortedUnsorted": "sin ordenar",
@@ -98,16 +118,16 @@
   "toggleTableView": "Mostrar vista de tabla",
   "triggerDag": {
     "button": "Trigger",
-    "loading": "Cargando información del DAG...",
-    "loadingFailed": "Error al cargar la información del DAG. Por favor, inténtelo de nuevo.",
+    "loading": "Cargando información del Dag...",
+    "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
     "runIdHelp": "Opcional - se generará si no se proporciona",
-    "selectDescription": "Activar una ejecución única de este DAG",
+    "selectDescription": "Activar una ejecución única de este Dag",
     "selectLabel": "Ejecución Única",
-    "title": "Activar DAG",
+    "title": "Activar Dag",
     "toaster": {
       "success": {
-        "description": "La ejecución del DAG ha sido activada exitosamente.",
-        "title": "Ejecución del DAG Activada"
+        "description": "La ejecución del Dag ha sido activada exitosamente.",
+        "title": "Ejecución del Dag Activada"
       }
     },
     "unpause": "Reanudar {{dagDisplayName}} al activarse"
@@ -125,7 +145,7 @@
     "versionId": "ID de la Versión"
   },
   "versionSelect": {
-    "dagVersion": "Versión del DAG",
+    "dagVersion": "Versión del Dag",
     "versionCode": "v{{versionCode}}"
   }
 }

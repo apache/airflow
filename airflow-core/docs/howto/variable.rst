@@ -48,7 +48,7 @@ For example,
     # To use JSON, store them as JSON strings
     export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
 
-You can use them in your dags as:
+You can use them in your Dags as:
 
 .. code-block:: python
 
@@ -74,6 +74,14 @@ This is because these variables are **resolved dynamically at runtime**, typical
 This supports secure deployment patterns where environment-based secrets (e.g. via ``.env`` files, Docker, or Kubernetes secrets) are injected only into runtime components like workers — and not into components exposed to users, like the webserver.
 
 If you want variables to appear in the UI for visibility or editing, define them in the metadata database instead.
+
+Exporting variables to file
+---------------------------
+
+You can export variables stored in the database (e.g. for migrating variables from one environment to another) using the local CLI. Run ``airflow variables export`` on the Airflow server. See :doc:`/cli-and-env-variables-ref` for complete command reference.
+
+.. note::
+   Variable export is only available via local CLI for security reasons. The UI/API cannot export sensitive values to maintain the Airflow 3 security model. See :doc:`/security/security_model` for details.
 
 Securing Variables
 ------------------

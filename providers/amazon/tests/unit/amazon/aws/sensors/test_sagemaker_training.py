@@ -22,14 +22,14 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerTrainingSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 DESCRIBE_TRAINING_COMPLETED_RESPONSE = {
     "TrainingJobStatus": "Completed",
-    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c4.xlarge", "VolumeSizeInGB": 10},
+    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c6g.xlarge", "VolumeSizeInGB": 10},
     "TrainingStartTime": datetime(2018, 2, 17, 7, 15, 0, 103000),
     "TrainingEndTime": datetime(2018, 2, 17, 7, 19, 34, 953000),
     "ResponseMetadata": {

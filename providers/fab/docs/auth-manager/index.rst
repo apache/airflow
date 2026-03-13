@@ -30,6 +30,7 @@ Follow the below topics as well to understand other aspects of FAB auth manager:
 * :doc:`access-control`. How FAB auth manager manage users and permissions
 * :doc:`webserver-authentication`. To learn the different options available in FAB auth manager to authenticate users
 * :doc:`security`. To learn the different options available in FAB auth manager to secure the UI provided by FAB auth manager
+* :doc:`sso`. How to configure Single Sign-On (SSO) with OAuth2 providers using FAB auth manager
 * :doc:`configuring-flask-app`. To learn the configuration options available for the flask app used by ``FabAuthManager``.
 
 .. toctree::

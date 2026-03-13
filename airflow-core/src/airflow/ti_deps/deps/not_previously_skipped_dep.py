@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
-## The following constants are taken from the SkipMixin class in the standard provider
+# The following constants are taken from the SkipMixin class in the standard provider
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
 
@@ -58,8 +58,15 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
+                # Use the parent's map context to look up the XCom. An unmapped parent
+                # (e.g. LatestOnlyOperator) writes XCom with map_index=-1, so we must
+                # query with -1 instead of the child's map_index.
+                xcom_map_index = ti.map_index if parent.is_mapped else -1
                 prev_result = ti.xcom_pull(
-                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session, map_indexes=ti.map_index
+                    task_ids=parent.task_id,
+                    key=XCOM_SKIPMIXIN_KEY,
+                    session=session,
+                    map_indexes=xcom_map_index,
                 )
 
                 if prev_result is None:

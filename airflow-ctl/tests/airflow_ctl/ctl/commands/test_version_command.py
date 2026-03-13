@@ -37,18 +37,27 @@ def mock_client():
     client.version.get.return_value.model_dump.return_value = {
         "version": "3.1.0",
         "git_version": None,
-        "airflowctl_version": "1.0.0",
+        "airflowctl_version": "0.1.0",
     }
 
     return client
 
 
-parser = cli_parser.get_parser()
+class TestVersionCommand:
+    """Test the version command."""
 
+    parser = cli_parser.get_parser()
 
-def test_ctl_version(mock_client):
-    with redirect_stdout(StringIO()) as stdout:
-        version_info(parser.parse_args(["version"]), api_client=mock_client)
-        assert "version" in stdout.getvalue()
-        assert "git_version" in stdout.getvalue()
-        assert "airflowctl_version" in stdout.getvalue()
+    def test_ctl_version_remote(self, mock_client):
+        with redirect_stdout(StringIO()) as stdout:
+            version_info(self.parser.parse_args(["version", "--remote"]), api_client=mock_client)
+            assert "version" in stdout.getvalue()
+            assert "git_version" in stdout.getvalue()
+            assert "airflowctl_version" in stdout.getvalue()
+
+    def test_ctl_version_only_local_version(self, mock_client):
+        """Test the version command with an exception."""
+        with redirect_stdout(StringIO()) as stdout:
+            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            output = stdout.getvalue()
+        assert "airflowctl_version" in output

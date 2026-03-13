@@ -28,8 +28,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIBatchPredictionJobLink,
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):

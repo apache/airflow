@@ -50,7 +50,12 @@ from airflow.providers.google.cloud.sensors.dataform import (
     DataformWorkflowInvocationStateSensor,
 )
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -174,6 +179,12 @@ with DAG(
             "{{ task_instance.xcom_pull('create-workflow-invocation-async')['name'].split('/')[-1] }}"
         ),
         expected_statuses={WorkflowInvocation.State.SUCCEEDED},
+        failure_statuses={
+            WorkflowInvocationAction.State.SKIPPED,
+            WorkflowInvocationAction.State.DISABLED,
+            WorkflowInvocationAction.State.CANCELLED,
+            WorkflowInvocationAction.State.FAILED,
+        },
     )
     # [END howto_operator_create_workflow_invocation_async]
 
@@ -336,7 +347,7 @@ with DAG(
         >> delete_dataset
     )
     (
-        last_initialization_step
+        remove_test_directory
         >> install_npm_packages
         >> create_compilation_result
         >> [
@@ -353,7 +364,8 @@ with DAG(
     )
     (
         create_workflow_invocation_async
-        >> [is_workflow_invocation_done, is_workflow_invocation_action_done]
+        >> is_workflow_invocation_done
+        >> is_workflow_invocation_action_done
         >> delete_dataset
     )
     create_workflow_invocation_for_cancel >> cancel_workflow_invocation >> delete_dataset

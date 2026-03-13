@@ -20,9 +20,9 @@ import datetime as dt
 import json
 import random
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 import boto3
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import Connection
@@ -44,19 +44,19 @@ from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task, task_group
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task, task_group
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task, task_group
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task, task_group
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2 path
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -179,14 +179,18 @@ def copy_jar_to_s3(bucket: str):
             conn_type="http",
             host="https://github.com/",
         )
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
         session.add(conn)
         session.commit()
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_connection(conn_id: str):
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
-        conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn_to_details = session.scalar(select(Connection).where(Connection.conn_id == conn_id))
         session.delete(conn_to_details)
         session.commit()
 
@@ -241,7 +245,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

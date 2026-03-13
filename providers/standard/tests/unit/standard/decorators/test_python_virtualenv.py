@@ -25,11 +25,16 @@ from typing import Any
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
+
 
 pytestmark = pytest.mark.db_test
 
@@ -198,7 +203,7 @@ class TestPythonVirtualenvDecorator:
         dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -244,7 +249,7 @@ class TestPythonVirtualenvDecorator:
             dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -271,7 +276,7 @@ class TestPythonVirtualenvDecorator:
         dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),

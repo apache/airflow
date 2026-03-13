@@ -16,18 +16,31 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
+try:
+    from airflow.sdk import dag, setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAME = "Weaviate_example_without_vectorizer_collection"
 
+default_args = {
+    "retries": 5,
+    "retry_delay": timedelta(seconds=15),
+    "pool": "weaviate_pool",
+}
+
 
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    default_args=default_args,
     catchup=False,
     tags=["example", "weaviate"],
 )

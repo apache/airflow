@@ -33,7 +33,6 @@ class TestContainerLifecycleHooks:
         docs = render_chart(
             name=RELEASE_NAME,
             values={
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "statsd": {"enabled": True},
                 "pgbouncer": {"enabled": True},
@@ -108,8 +107,30 @@ class TestContainerLifecycleHooks:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) != LIFECYCLE_PARSED
 
     # <local>.containerLifecycleWebhooks > containerLifecycleWebhooks
-    @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
-    def test_check_main_container_setting(self, hook_type):
+    @pytest.mark.parametrize(
+        ("hook_type", "workers_values"),
+        [
+            ("preStop", {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}),
+            ("preStop", {"celery": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}}}),
+            (
+                "preStop",
+                {
+                    "containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE},
+                    "celery": {"containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE}},
+                },
+            ),
+            ("postStart", {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}),
+            ("postStart", {"celery": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}}}),
+            (
+                "postStart",
+                {
+                    "containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE},
+                    "celery": {"containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE}},
+                },
+            ),
+        ],
+    )
+    def test_check_main_container_setting(self, hook_type, workers_values):
         docs = render_chart(
             name=RELEASE_NAME,
             values={
@@ -117,7 +138,7 @@ class TestContainerLifecycleHooks:
                 "flower": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "scheduler": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "webserver": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
-                "workers": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
+                "workers": workers_values,
                 "migrateDatabaseJob": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "triggerer": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
                 "redis": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}},
@@ -172,25 +193,75 @@ class TestContainerLifecycleHooks:
         )
 
     # Test container lifecycle hooks for worker-kerberos main container
-    @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
-    def test_worker_kerberos_container_setting(self, hook_type):
-        docs = render_chart(
-            name=RELEASE_NAME,
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        ("workers_values", "expected_hook_type"),
+        [
+            (
+                {
                     "kerberosSidecar": {
                         "enabled": True,
-                        "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
+                        "containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE},
                     }
                 },
-            },
+                "preStop",
+            ),
+            (
+                {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE},
+                    }
+                },
+                "postStart",
+            ),
+            (
+                {
+                    "celery": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE},
+                        }
+                    }
+                },
+                "preStop",
+            ),
+            (
+                {
+                    "celery": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {"postStart": LIFECYCLE_TEMPLATE},
+                        }
+                    }
+                },
+                "postStart",
+            ),
+            (
+                {
+                    "kerberosSidecar": {
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["test"]}}}
+                    },
+                    "celery": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {"preStop": LIFECYCLE_TEMPLATE},
+                        }
+                    },
+                },
+                "preStop",
+            ),
+        ],
+    )
+    def test_worker_kerberos_container_setting(self, workers_values, expected_hook_type):
+        docs = render_chart(
+            name=RELEASE_NAME,
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(f"spec.template.spec.containers[2].lifecycle.{hook_type}", docs[0])
-            == LIFECYCLE_PARSED
-        )
+        assert jmespath.search("spec.template.spec.containers[2].lifecycle", docs[0]) == {
+            expected_hook_type: LIFECYCLE_PARSED
+        }
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])

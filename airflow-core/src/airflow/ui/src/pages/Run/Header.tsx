@@ -16,31 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box } from "@chakra-ui/react";
-import { useCallback, useState, useRef } from "react";
+import { HStack, Text, Box, Link } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiMessageSquare } from "react-icons/fi";
+import { FiBarChart } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-import { getDuration, useContainerWidth } from "src/utils";
+import { getDuration } from "src/utils";
 
-export const Header = ({
-  dagRun,
-  isRefreshing,
-}: {
-  readonly dagRun: DAGRunResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
@@ -52,7 +48,7 @@ export const Header = ({
     dagRunId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== dagRun.note) {
       mutate({
         dagId,
@@ -60,34 +56,32 @@ export const Header = ({
         requestBody: { note },
       });
     }
-  }, [dagId, dagRun.note, dagRunId, mutate, note]);
-  const containerRef = useRef<HTMLDivElement>();
-  const containerWidth = useContainerWidth(containerRef);
+  };
+
+  const onOpen = () => {
+    setNote(dagRun.note ?? "");
+  };
 
   return (
-    <Box ref={containerRef}>
+    <Box>
       <HeaderCard
         actions={
           <>
-            {!Boolean(dagRun.note) && (
-              <EditableMarkdownButton
-                header={translate("note.dagRun")}
-                icon={<FiMessageSquare />}
-                isPending={isPending}
-                mdContent={note}
-                onConfirm={onConfirm}
-                placeholder={translate("note.placeholder")}
-                setMdContent={setNote}
-                text={translate("note.add")}
-                withText={containerWidth > 700}
-              />
-            )}
-            <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
-            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <EditableMarkdownButton
+              header={translate("note.dagRun")}
+              isPending={isPending}
+              mdContent={dagRun.note}
+              onConfirm={onConfirm}
+              onOpen={onOpen}
+              placeholder={translate("note.placeholder")}
+              setMdContent={setNote}
+            />
+            <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
+            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
+            <DeleteRunButton dagRun={dagRun} />
           </>
         }
         icon={<FiBarChart />}
-        isRefreshing={isRefreshing}
         state={dagRun.state}
         stats={[
           ...(dagRun.logical_date === null
@@ -96,6 +90,14 @@ export const Header = ({
                 {
                   label: translate("logicalDate"),
                   value: <Time datetime={dagRun.logical_date} />,
+                },
+              ]),
+          ...(dagRun.partition_key === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.mappedPartitionKey"),
+                  value: dagRun.partition_key,
                 },
               ]),
           {
@@ -110,6 +112,22 @@ export const Header = ({
           { label: translate("startDate"), value: <Time datetime={dagRun.start_date} /> },
           { label: translate("endDate"), value: <Time datetime={dagRun.end_date} /> },
           { label: translate("duration"), value: getDuration(dagRun.start_date, dagRun.end_date) },
+          ...(dagRun.triggering_user_name === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.triggeringUser"),
+                  value: (
+                    <Link asChild color="fg.info">
+                      <RouterLink
+                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                      >
+                        <Text>{dagRun.triggering_user_name}</Text>
+                      </RouterLink>
+                    </Link>
+                  ),
+                },
+              ]),
           {
             label: translate("dagRun.dagVersions"),
             value: (
@@ -122,11 +140,8 @@ export const Header = ({
             ),
           },
         ]}
-        title={<Time datetime={dagRun.run_after} />}
+        title={dagRun.dag_run_id}
       />
-      {Boolean(dagRun.note) && (
-        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
-      )}
     </Box>
   );
 };

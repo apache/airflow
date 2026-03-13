@@ -34,8 +34,8 @@ from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
 
 
@@ -603,7 +603,7 @@ class TestHttpHook:
             http_send.assert_called()
 
     @pytest.mark.parametrize(
-        "base_url, endpoint, expected_url",
+        ("base_url", "endpoint", "expected_url"),
         [
             pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
             pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
@@ -612,7 +612,30 @@ class TestHttpHook:
     def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
         hook = HttpHook()
         hook.base_url = base_url
+        hook._base_url_initialized = True  # Mark as initialized to prevent lazy loading
         assert hook.url_from_endpoint(endpoint) == expected_url
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_url_from_endpoint_lazy_initialization(self, mock_get_connection):
+        """Test that url_from_endpoint works without calling get_conn() first."""
+        # Mock the connection
+        mock_connection = mock.MagicMock()
+        mock_connection.host = "foo.bar.com"
+        mock_connection.schema = "https"
+        mock_connection.port = None
+        mock_get_connection.return_value = mock_connection
+
+        # Create hook without calling get_conn() and verify that base_url is not initialized
+        hook = HttpHook(http_conn_id="test_conn")
+        assert not hook._base_url_initialized
+
+        # This should work now with our fix and verify the URL was constructed correctly
+        url = hook.url_from_endpoint("baz/bop")
+        assert url == "https://foo.bar.com/baz/bop"
+
+        # Verify get_connection was called and and verify that base_url is now initialized
+        mock_get_connection.assert_called_once_with("test_conn")
+        assert hook._base_url_initialized
 
     def test_custom_adapter(self):
         custom_adapter = HTTPAdapter()

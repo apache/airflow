@@ -166,7 +166,7 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
 
 
 def ensure_mod_prefix(mod_name, idx, version):
-    parts = [f"{idx + 1:04}", *version]
+    parts = [f"{idx:04}", *version]
     match = re.match(r"([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)", mod_name)
     if match:
         # previously standardized file, rebuild the name
@@ -205,7 +205,7 @@ def ensure_filenames_are_sorted(revisions, app):
         )
         raise SystemExit(
             "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
-            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f'"airflow" directory (where alembic.ini located) and re-run prek. '
             f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:

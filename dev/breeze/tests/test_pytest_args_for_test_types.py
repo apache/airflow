@@ -39,7 +39,7 @@ def _find_all_integration_folders() -> list[str]:
 
 
 @pytest.mark.parametrize(
-    "test_group, test_type, pytest_args",
+    ("test_group", "test_type", "pytest_args"),
     [
         # Those list needs to be updated every time we add a new directory to airflow-core/tests/ folder
         (
@@ -65,6 +65,7 @@ def _find_all_integration_folders() -> list[str]:
                 "providers/apache/pinot/tests/integration",
                 "providers/apache/tinkerpop/tests/integration",
                 "providers/celery/tests/integration",
+                "providers/elasticsearch/tests/integration",
                 "providers/google/tests/integration",
                 "providers/microsoft/mssql/tests/integration",
                 "providers/mongo/tests/integration",
@@ -163,17 +164,19 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/decorators",
                 "airflow-core/tests/unit/hooks",
                 "airflow-core/tests/unit/io",
-                "airflow-core/tests/unit/lineage",
                 "airflow-core/tests/unit/listeners",
                 "airflow-core/tests/unit/logging",
                 "airflow-core/tests/unit/macros",
+                "airflow-core/tests/unit/migrations",
+                "airflow-core/tests/unit/observability",
+                "airflow-core/tests/unit/partition_mappers",
                 "airflow-core/tests/unit/plugins",
-                "airflow-core/tests/unit/secrets",
                 "airflow-core/tests/unit/security",
                 "airflow-core/tests/unit/sensors",
                 "airflow-core/tests/unit/task",
                 "airflow-core/tests/unit/testconfig",
                 "airflow-core/tests/unit/timetables",
+                "airflow-core/tests/unit/triggers",
             ],
         ),
         (
@@ -211,7 +214,7 @@ def test_pytest_args_for_missing_provider():
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types, folders",
+    ("test_group", "parallel_test_types", "folders"),
     [
         (
             GroupOfTests.CORE,
@@ -344,7 +347,7 @@ def test_folders_for_parallel_test_types(
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types",
+    ("test_group", "parallel_test_types"),
     [
         (
             GroupOfTests.CORE,

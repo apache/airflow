@@ -24,6 +24,10 @@ from unittest import mock
 import dill
 import pytest
 
+# TODO: Remove below skip once beam provider changed to ready state
+pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
+
+
 if sys.version_info < (3, 12):
     from airflow.providers.google.cloud.utils import mlengine_prediction_summary
 else:
@@ -77,7 +81,7 @@ class TestMakeSummary:
         non_callable_value = 1
         fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="--metric_fn_encoded must be an encoded callable."):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",

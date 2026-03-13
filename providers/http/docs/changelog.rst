@@ -27,6 +27,177 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The HTTP provider now uses JSON-based serialization for HTTP responses in deferred tasks
+  instead of pickle. Deferred HTTP tasks from previous provider versions will fail with a
+  ``TypeError`` after upgrade.
+
+  Before upgrading, ensure all HTTP tasks with ``deferrable=True`` that are currently in
+  ``deferred`` state have completed or been cleared.
+
+* ``Replace pickle with json serialization for http triggers (#61662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
+5.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.3
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Update conf imports for http provider (#60090)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct header parameter description in HTTP operator (#59105)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``HTTP Notifier implementation (#56160)``
+* ``Add poll_interval attribute to HttpEventTrigger (#57583)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'http' provider to 'common.compat' (#57089)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to http Provider test (#57917)``
+
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create HttpEventTrigger for AssetWatcher library (#51253)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.3.4
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(http): Fix HttpHook.url_from_endpoint() lazy initialization (#54202)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+   * ``Conn docs extra fix (#53942)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Cleanup type ignores (#53294)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make http provider compatible with mypy 1.16.1 (#53108)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in HTTP (#52814)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Bump aiohttp to 3.12.14 (#53830)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve timeout in ''HttpSensor'' test by fixing template rendering (#53676)``
+
 5.3.2
 .....
 
@@ -193,8 +364,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Correct new changelog breaking changes header (#44659)``
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 4.13.3
@@ -226,7 +395,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``add lowerbount to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
+* ``add lower bound to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
 * ``Set lower bound to asgiref>=2.3.0 (#43001)``
 
 
@@ -525,7 +694,7 @@ Misc
 Features
 ~~~~~~~~
 
-* ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+* ``Add non login-password auth support for SimpleHttpOperator (#29206)``
 
 4.2.0
 .....
@@ -707,13 +876,13 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Check syntactic correctness for code-snippets (#16005)``
    * ``Prepares provider release after PIP 21 compatibility (#15576)``
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add documentation for the HTTP connection (#15379)``
    * ``More documentation update for June providers release (#16405)``
-   * ``Synchronizes updated changelog after buggfix release (#16464)``
+   * ``Synchronizes updated changelog after bugfix release (#16464)``
 
 1.1.1
 .....

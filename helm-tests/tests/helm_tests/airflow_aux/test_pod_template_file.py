@@ -137,7 +137,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "dag_values, expected_read_only",
+        ("dag_values", "expected_read_only"),
         [
             ({"gitSync": {"enabled": True}}, True),
             ({"persistence": {"enabled": True}}, False),
@@ -300,7 +300,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "dags_gitsync_values, expected",
+        ("dags_gitsync_values", "expected"),
         [
             ({"enabled": True}, {"emptyDir": {}}),
             ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
@@ -315,7 +315,7 @@ class TestPodTemplateFile:
         assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_values, expected",
+        ("log_values", "expected"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -375,7 +375,7 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
-    def test_should_use_global_affinity_tolerations_and_node_selector(self):
+    def test_global_affinity(self):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -392,43 +392,77 @@ class TestPodTemplateFile:
                         }
                     }
                 },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.affinity", docs[0]) == {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchExpressions": [
+                                {"key": "foo", "operator": "In", "values": ["true"]},
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+    def test_global_tolerations(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
                 "tolerations": [
                     {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.tolerations", docs[0]) == [
+            {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+        ]
+
+    def test_global_topology_spread_constraints(self):
+        expected_topology_spread_constraints = [
+            {
+                "maxSkew": 1,
+                "topologyKey": "foo",
+                "whenUnsatisfiable": "ScheduleAnyway",
+                "labelSelector": {"matchLabels": {"tier": "airflow"}},
+            }
+        ]
+        docs = render_chart(
+            values={"topologySpreadConstraints": expected_topology_spread_constraints},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert expected_topology_spread_constraints == jmespath.search(
+            "spec.topologySpreadConstraints", docs[0]
+        )
+
+    def test_global_node_selector(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
                 "nodeSelector": {"diskType": "ssd"},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert re.search("Pod", docs[0]["kind"])
-        assert (
-            jmespath.search(
-                "spec.affinity.nodeAffinity."
-                "requiredDuringSchedulingIgnoredDuringExecution."
-                "nodeSelectorTerms[0]."
-                "matchExpressions[0]."
-                "key",
-                docs[0],
-            )
-            == "foo"
-        )
-        assert (
-            jmespath.search(
-                "spec.nodeSelector.diskType",
-                docs[0],
-            )
-            == "ssd"
-        )
-        assert (
-            jmespath.search(
-                "spec.tolerations[0].key",
-                docs[0],
-            )
-            == "dynamic-pods"
-        )
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
-    def test_should_create_valid_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
+    def test_workers_affinity(self):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -446,9 +480,51 @@ class TestPodTemplateFile:
                             }
                         }
                     },
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.affinity", docs[0]) == {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchExpressions": [
+                                {"key": "foo", "operator": "In", "values": ["true"]},
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+    def test_workers_tolerations(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.tolerations", docs[0]) == [
+            {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+        ]
+
+    def test_workers_topology_spread_constraints(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
                     "topologySpreadConstraints": [
                         {
                             "maxSkew": 1,
@@ -457,7 +533,6 @@ class TestPodTemplateFile:
                             "labelSelector": {"matchLabels": {"tier": "airflow"}},
                         }
                     ],
-                    "nodeSelector": {"diskType": "ssd"},
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -465,41 +540,37 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("kind", docs[0]) == "Pod"
-        assert (
-            jmespath.search(
-                "spec.affinity.nodeAffinity."
-                "requiredDuringSchedulingIgnoredDuringExecution."
-                "nodeSelectorTerms[0]."
-                "matchExpressions[0]."
-                "key",
-                docs[0],
-            )
-            == "foo"
-        )
-        assert (
-            jmespath.search(
-                "spec.nodeSelector.diskType",
-                docs[0],
-            )
-            == "ssd"
-        )
-        assert (
-            jmespath.search(
-                "spec.tolerations[0].key",
-                docs[0],
-            )
-            == "dynamic-pods"
-        )
-        assert (
-            jmespath.search(
-                "spec.topologySpreadConstraints[0].topologyKey",
-                docs[0],
-            )
-            == "foo"
+        assert jmespath.search("spec.topologySpreadConstraints", docs[0]) == [
+            {
+                "maxSkew": 1,
+                "topologyKey": "foo",
+                "whenUnsatisfiable": "ScheduleAnyway",
+                "labelSelector": {"matchLabels": {"tier": "airflow"}},
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+            {"nodeSelector": {"ssd": "diskType"}, "kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_workers_node_selector(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
-        """When given both global and worker affinity etc, worker affinity etc is used."""
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
+
+    def test_affinity_overwrite(self):
         expected_affinity = {
             "nodeAffinity": {
                 "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -513,22 +584,9 @@ class TestPodTemplateFile:
                 }
             }
         }
-        expected_topology_spread_constraints = {
-            "maxSkew": 1,
-            "topologyKey": "foo",
-            "whenUnsatisfiable": "ScheduleAnyway",
-            "labelSelector": {"matchLabels": {"tier": "airflow"}},
-        }
         docs = render_chart(
             values={
-                "workers": {
-                    "affinity": expected_affinity,
-                    "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
-                    ],
-                    "topologySpreadConstraints": [expected_topology_spread_constraints],
-                    "nodeSelector": {"type": "ssd"},
-                },
+                "workers": {"affinity": expected_affinity},
                 "affinity": {
                     "nodeAffinity": {
                         "preferredDuringSchedulingIgnoredDuringExecution": [
@@ -543,9 +601,47 @@ class TestPodTemplateFile:
                         ]
                     }
                 },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert expected_affinity == jmespath.search("spec.affinity", docs[0])
+
+    def test_tolerations_overwrite(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                },
                 "tolerations": [
                     {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.tolerations", docs[0]) == [
+            {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+        ]
+
+    def test_topology_spread_constraints_overwrite(self):
+        expected_topology_spread_constraints = {
+            "maxSkew": 1,
+            "topologyKey": "foo",
+            "whenUnsatisfiable": "ScheduleAnyway",
+            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+        }
+        docs = render_chart(
+            values={
+                "workers": {
+                    "topologySpreadConstraints": [expected_topology_spread_constraints],
+                },
                 "topologySpreadConstraints": [
                     {
                         "maxSkew": 1,
@@ -554,55 +650,218 @@ class TestPodTemplateFile:
                         "labelSelector": {"matchLabels": {"tier": "airflow"}},
                     }
                 ],
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert [expected_topology_spread_constraints] == jmespath.search(
+            "spec.topologySpreadConstraints", docs[0]
+        )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_node_selector_overwrite(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
                 "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert expected_affinity == jmespath.search("spec.affinity", docs[0])
-        assert (
-            jmespath.search(
-                "spec.nodeSelector.type",
-                docs[0],
-            )
-            == "ssd"
-        )
-        tolerations = jmespath.search("spec.tolerations", docs[0])
-        assert len(tolerations) == 1
-        assert tolerations[0]["key"] == "dynamic-pods"
-        assert expected_topology_spread_constraints == jmespath.search(
-            "spec.topologySpreadConstraints[0]", docs[0]
-        )
+        assert jmespath.search("kind", docs[0]) == "Pod"
+        assert jmespath.search("spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
-    def test_scheduler_name(self):
+    @pytest.mark.parametrize(
+        ("base_scheduler_name", "worker_scheduler_name", "expected"),
+        [
+            ("default-scheduler", "most-allocated", "most-allocated"),
+            ("default-scheduler", None, "default-scheduler"),
+            (None, None, None),
+        ],
+    )
+    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={
+                "schedulerName": base_scheduler_name,
+                "workers": {"schedulerName": worker_scheduler_name},
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert (
-            jmespath.search(
-                "spec.schedulerName",
-                docs[0],
-            )
-            == "airflow-scheduler"
-        )
+        scheduler_name = jmespath.search("spec.schedulerName", docs[0])
+
+        if expected is not None:
+            assert scheduler_name == expected
+        else:
+            assert scheduler_name is None
 
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
 
         assert jmespath.search("spec.affinity", docs[0]) == {}
 
-    def test_should_add_fsgroup_to_the_pod_template(self):
+    def test_pod_security_context_default(self):
         docs = render_chart(
-            values={"gid": 5000},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 5000
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 50_000, "fsGroup": 0}
+
+    def test_container_security_context_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 10}},
+            {"securityContexts": {"pod": {"runAsUser": 10}}},
+            {"workers": {"securityContext": {"runAsUser": 10}}},
+            {"workers": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            {"workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}}},
+        ],
+    )
+    def test_pod_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContexts": {"containers": {"allowPrivilegeEscalation": False}}},
+            {"workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+            {
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                }
+            },
+        ],
+    )
+    def test_container_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 5}, "workers": {"securityContext": {"runAsUser": 10}}},
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"securityContexts": {"pod": {"runAsUser": 10}}},
+            },
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+            {
+                "workers": {
+                    "securityContexts": {"pod": {"runAsUser": 5}},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                },
+            },
+            {"securityContext": {"runAsUser": 5}, "securityContexts": {"pod": {"runAsUser": 10}}},
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "securityContexts": {"pod": {"runAsUser": 10}},
+                }
+            },
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                }
+            },
+        ],
+    )
+    def test_pod_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+            },
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                },
+            },
+            {
+                "workers": {
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+                },
+            },
+        ],
+    )
+    def test_container_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    def test_should_add_gid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"gid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 1
+
+    def test_should_add_uid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"uid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.runAsUser", docs[0]) == 1
 
     def test_should_create_valid_volume_mount_and_volume(self):
         docs = render_chart(
@@ -861,25 +1120,25 @@ class TestPodTemplateFile:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_should_add_resources(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "resources": {
-                        "requests": {"memory": "2Gi", "cpu": "1"},
-                        "limits": {"memory": "3Gi", "cpu": "2"},
-                    }
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}},
+            {"kubernetes": {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}}},
+            {
+                "resources": {"limits": {"memory": "1Gi", "cpu": "2"}},
+                "kubernetes": {"resources": {"requests": {"memory": "2Gi", "cpu": "1"}}},
             },
+        ],
+    )
+    def test_should_add_resources(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert jmespath.search("spec.containers[0].resources", docs[0]) == {
-            "limits": {
-                "cpu": "2",
-                "memory": "3Gi",
-            },
             "requests": {
                 "cpu": "1",
                 "memory": "2Gi",
@@ -921,31 +1180,56 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.priorityClassName", docs[0]) == "test-priority"
 
-    def test_workers_container_lifecycle_webhooks_are_configurable(self):
-        docs = render_chart(
-            name="test-release",
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "containerLifecycleHooks": {
+                    "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                }
+            },
+            {
+                "kubernetes": {
+                    "containerLifecycleHooks": {
+                        "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                    }
+                }
+            },
+            {
+                "containerLifecycleHooks": {
+                    "postStart": {"exec": {"command": ["echo", "postStart", "{{ .Release.Name }}"]}}
+                },
+                "kubernetes": {
                     "containerLifecycleHooks": {
                         "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
                     }
                 },
             },
+        ],
+    )
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, workers_values):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[0].lifecycle.preStop", docs[0]) == {
-            "exec": {"command": ["echo", "preStop", "test-release"]}
+        assert jmespath.search("spec.containers[0].lifecycle", docs[0]) == {
+            "preStop": {"exec": {"command": ["echo", "preStop", "test-release"]}}
         }
 
-    def test_termination_grace_period_seconds(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"terminationGracePeriodSeconds": 123},
+            {"kubernetes": {"terminationGracePeriodSeconds": 123}},
+            {"terminationGracePeriodSeconds": 1, "kubernetes": {"terminationGracePeriodSeconds": 123}},
+        ],
+    )
+    def test_termination_grace_period_seconds(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "terminationGracePeriodSeconds": 123,
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -963,11 +1247,19 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"
 
-    def test_airflow_local_settings_kerberos_sidecar(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "kubernetes": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_airflow_local_settings_kerberos_sidecar(self, workers_values):
         docs = render_chart(
             values={
                 "airflowLocalSettings": "# Well hello!",
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -982,64 +1274,269 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, init_container_enabled, expected_init_containers",
+        "workers_values",
         [
-            ("1.9.0", True, 0),
-            ("1.9.0", False, 0),
-            ("1.10.14", True, 0),
-            ("1.10.14", False, 0),
-            ("2.0.2", True, 0),
-            ("2.0.2", False, 0),
-            ("2.1.0", True, 0),
-            ("2.1.0", False, 0),
-            ("2.8.0", True, 1),
-            ("2.8.0", False, 0),
+            {
+                "kerberosSidecar": {
+                    "resources": {
+                        "requests": {"cpu": "1m", "memory": "2Mi"},
+                    }
+                },
+                "kubernetes": {"kerberosSidecar": {"enabled": True}},
+            },
+            {
+                "kubernetes": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                        },
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {
+                    "resources": {
+                        "limits": {"cpu": "30m", "memory": "40Mi"},
+                    }
+                },
+                "kubernetes": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                        },
+                    }
+                },
+            },
         ],
     )
-    def test_airflow_kerberos_init_container(
-        self, airflow_version, init_container_enabled, expected_init_containers
-    ):
+    def test_kerberos_sidecar_resources(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].resources", docs[0]) == {
+            "requests": {
+                "cpu": "1m",
+                "memory": "2Mi",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected_hook_type"),
+        [
+            (
+                {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "preStop": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
+                },
+                "preStop",
+            ),
+            (
+                {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
+                },
+                "postStart",
+            ),
+            (
+                {
+                    "kubernetes": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "preStop": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    }
+                },
+                "preStop",
+            ),
+            (
+                {
+                    "kubernetes": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    }
+                },
+                "postStart",
+            ),
+            (
+                {
+                    "kerberosSidecar": {
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["test"]}}}
+                    },
+                    "kubernetes": {
+                        "kerberosSidecar": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "preStop": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    },
+                },
+                "preStop",
+            ),
+        ],
+    )
+    def test_kerberos_sidecar_lifecycle(self, workers_values, expected_hook_type):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[1].lifecycle", docs[0]) == {
+            expected_hook_type: {"exec": {"command": ["echo", "test-release"]}}
+        }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                }
+            },
+            {
+                "kubernetes": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {"securityContexts": {"container": {"runAsUser": 10}}},
+                "kubernetes": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_sidecar_security_context(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[1].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    def test_kerberos_init_container_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
+
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_kerberos_init_container_default_different_versions(self, airflow_version):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
+
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosInitContainer": {"enabled": True}},
+            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+        ],
+    )
+    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is not None
+
+    def test_kerberos_init_container_name_and_args_default(self):
+        docs = render_chart(
+            values={
                 "workers": {
-                    "kerberosInitContainer": {"enabled": init_container_enabled},
+                    "kubernetes": {"kerberosInitContainer": {"enabled": True}},
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        initContainers = jmespath.search("spec.initContainers", docs[0])
-        if expected_init_containers == 0:
-            assert initContainers is None
+        initContainers = jmespath.search("spec.initContainers[0]", docs[0])
 
-        if expected_init_containers == 1:
-            assert initContainers[0]["name"] == "kerberos-init"
-            assert initContainers[0]["args"] == ["kerberos", "-o"]
+        assert initContainers["name"] == "kerberos-init"
+        assert initContainers["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        "cmd, expected",
+        ("workers_values", "expected"),
         [
-            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
-            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+            ({"command": ["test", "command", "to", "run"]}, ["test", "command", "to", "run"]),
+            ({"command": ["cmd", "{{ .Release.Name }}"]}, ["cmd", "release-name"]),
+            ({"kubernetes": {"command": ["test", "command", "to", "run"]}}, ["test", "command", "to", "run"]),
+            ({"kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}}, ["cmd", "release-name"]),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["test", "command", "to", "run"]}},
+                ["test", "command", "to", "run"],
+            ),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}},
+                ["cmd", "release-name"],
+            ),
         ],
     )
-    def test_should_add_command(self, cmd, expected):
+    def test_should_add_command(self, workers_values, expected):
         docs = render_chart(
-            values={
-                "workers": {"command": cmd},
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert expected == jmespath.search("spec.containers[0].command", docs[0])
 
-    @pytest.mark.parametrize("cmd", [None, []])
-    def test_should_not_add_command(self, cmd):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"command": None},
+            {"command": []},
+            {"kubernetes": {"command": None}},
+            {"kubernetes": {"command": []}},
+        ],
+    )
+    def test_should_not_add_command(self, workers_values):
         docs = render_chart(
-            values={"workers": {"command": cmd}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1055,15 +1552,36 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "workers_values, kerberos_init_container",
+        ("airflow_version", "workers_values", "kerberos_init_container", "expected_config_name"),
         [
-            ({"kerberosSidecar": {"enabled": True}}, False),
-            ({"kerberosInitContainer": {"enabled": True}}, True),
+            (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
+            (None, {"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "api-server-config"),
+            (None, {"kubernetes": {"kerberosInitContainer": {"enabled": True}}}, True, "api-server-config"),
+            (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
+            ("2.11.0", {"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "webserver-config"),
+            ("2.11.0", {"kerberosSidecar": {"enabled": True}}, False, "webserver-config"),
+            (
+                "2.11.0",
+                {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+                True,
+                "webserver-config",
+            ),
+            ("2.11.0", {"kerberosInitContainer": {"enabled": True}}, True, "webserver-config"),
         ],
     )
-    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+    def test_webserver_config_for_kerberos(
+        self, airflow_version, workers_values, kerberos_init_container, expected_config_name
+    ):
+        values = {
+            "airflowVersion": airflow_version,
+            "workers": workers_values,
+            "apiServer": {"apiServerConfigConfigMapName": "config"},
+            "webserver": {"webserverConfigConfigMapName": "config"},
+        }
+        if airflow_version is None:
+            del values["airflowVersion"]
         docs = render_chart(
-            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            values=values,
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1074,12 +1592,16 @@ class TestPodTemplateFile:
 
         volume_mounts_names = jmespath.search(kerberos_container, docs[0])
         print(volume_mounts_names)
-        assert "webserver-config" in volume_mounts_names
-        assert "webserver-config" in jmespath.search("spec.volumes[*].name", docs[0])
+        assert expected_config_name in volume_mounts_names
+        assert expected_config_name in jmespath.search("spec.volumes[*].name", docs[0])
 
     @pytest.mark.parametrize(
         "workers_values",
-        [{"kerberosSidecar": {"enabled": True}}, {"kerberosInitContainer": {"enabled": True}}],
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"kerberosInitContainer": {"enabled": True}},
+            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+        ],
     )
     def test_base_contains_kerberos_env(self, workers_values):
         docs = render_chart(
@@ -1093,19 +1615,157 @@ class TestPodTemplateFile:
         scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
         assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)
 
-    def test_workers_kubernetes_service_account_custom_names_in_objects(self):
-        k8s_objects = render_chart(
-            "test-rbac",
-            values={
-                "workers": {
-                    "useWorkerDedicatedServiceAccounts": True,
-                    "kubernetes": {"serviceAccount": {"name": "TestWorkerKubernetes"}},
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "resources": {
+                        "requests": {"cpu": "1m", "memory": "2Mi"},
+                        "limits": {"cpu": "3m", "memory": "4Mi"},
+                    }
+                },
+                "kubernetes": {"kerberosInitContainer": {"enabled": True}},
+            },
+            {
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                            "limits": {"cpu": "3m", "memory": "4Mi"},
+                        },
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                        "limits": {"cpu": "30m", "memory": "40Mi"},
+                    }
+                },
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                            "limits": {"cpu": "3m", "memory": "4Mi"},
+                        },
+                    }
                 },
             },
-            show_only=[
-                "templates/pod-template-file.yaml",
-            ],
+        ],
+    )
+    def test_kerberos_init_container_resources(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.serviceAccountName", k8s_objects[0]) == "TestWorkerKubernetes"
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].resources", docs[0]) == {
+            "requests": {
+                "cpu": "1m",
+                "memory": "2Mi",
+            },
+            "limits": {
+                "cpu": "3m",
+                "memory": "4Mi",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"runAsUser": 2000}},
+                }
+            },
+            {
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                },
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_init_container_security_context(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search(
+            "spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
+        ) == {"runAsUser": 2000}
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {
+                        "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                    },
+                }
+            },
+            {
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "base"]}}},
+                },
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                        },
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]) == {
+            "postStart": {"exec": {"command": ["echo", "test-release"]}}
+        }

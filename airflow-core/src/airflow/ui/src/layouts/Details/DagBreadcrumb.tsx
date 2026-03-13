@@ -28,7 +28,6 @@ import {
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
-import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -36,6 +35,7 @@ export const DagBreadcrumb = () => {
   const { t: translate } = useTranslation();
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -56,9 +56,9 @@ export const DagBreadcrumb = () => {
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
 
   const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    { dagId, dagRunId: runId ?? "", mapIndex: parseInt(mapIndex, 10), taskId: taskId ?? "" },
+    { dagId, dagRunId: runId ?? "", mapIndex: parsedMapIndex, taskId: taskId ?? "" },
     undefined,
-    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" },
+    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" && !isNaN(parsedMapIndex) },
   );
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
@@ -81,7 +81,7 @@ export const DagBreadcrumb = () => {
   // Add dag run breadcrumb
   if (runId !== undefined) {
     links.push({
-      label: dagRun === undefined ? runId : <Time datetime={dagRun.run_after} />,
+      label: dagRun === undefined ? runId : dagRun.dag_run_id,
       labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
       title: translate("dagRun_one"),
       value: `/dags/${dagId}/runs/${runId}`,

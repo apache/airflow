@@ -19,8 +19,8 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -28,12 +28,14 @@ import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -59,46 +61,59 @@ const nodeColor = (
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
-  const { dagId = "", runId = "", taskId } = useParams();
+  const { dagId = "", groupId, runId = "", taskId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
 
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
+
+  const hasActiveFilter = includeUpstream || includeDownstream;
+
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "white",
-    "black",
-    "gray.200",
-    "gray.800",
-    "gray.200",
-    "gray.800",
+    "bg",
+    "fg",
+    "bg.muted",
+    "bg.emphasized",
+    "bg.muted",
+    "bg.emphasized",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
-  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
+  const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
+      depth,
       externalDependencies: dependencies === "immediate",
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
     { enabled: selectedVersion !== undefined },
   );
 
-  const { allGroupIds: observedGroupIds } = useMemo(
-    () => flattenGraphNodes(graphData.nodes),
-    [graphData.nodes],
-  );
-
   useEffect(() => {
-    if (observedGroupIds !== allGroupIds) {
+    const observedGroupIds = flattenGraphNodes(graphData.nodes).allGroupIds;
+
+    if (
+      observedGroupIds.length !== allGroupIds.length ||
+      observedGroupIds.some((element, index) => allGroupIds[index] !== element)
+    ) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [allGroupIds, observedGroupIds, setAllGroupIds]);
+  }, [allGroupIds, graphData.nodes, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",
@@ -129,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
+        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -144,6 +159,8 @@ export const Graph = () => {
         isSelected:
           taskId === edge.source ||
           taskId === edge.target ||
+          groupId === edge.source ||
+          groupId === edge.target ||
           edge.source === `dag:${dagId}` ||
           edge.target === `dag:${dagId}`,
       },
@@ -164,6 +181,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
       <Controls showInteractive={false} />

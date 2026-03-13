@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import os
 import re
 import socket
@@ -30,18 +31,23 @@ from typing import TYPE_CHECKING, Any, Literal
 from deprecated import deprecated
 from typing_extensions import overload
 
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
-
-import csv
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING, BaseHook
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    AirflowException,
+    BaseHook,
+    conf,
+)
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
+    from sqlalchemy.engine import URL
+
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -134,6 +140,10 @@ class HiveCliHook(BaseHook):
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
             "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
+            "ssl": BooleanField(lazy_gettext("Ssl"), default=True),
+            "zoo_keeper_namespace": StringField(
+                lazy_gettext("Zoo Keeper Namespace"), widget=BS3TextFieldWidget(), default="hiveserver2"
+            ),
         }
 
     @classmethod
@@ -182,7 +192,11 @@ class HiveCliHook(BaseHook):
                 if self.high_availability:
                     if not jdbc_url.endswith(";"):
                         jdbc_url += ";"
-                    jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
+                    ssl = conn.extra_dejson.get("ssl", True)
+                    zoo_keeper_namespace = conn.extra_dejson.get("zoo_keeper_namespace", "hiveserver2")
+                    jdbc_url += (
+                        f"serviceDiscoveryMode=zooKeeper;ssl={ssl};zooKeeperNamespace={zoo_keeper_namespace}"
+                    )
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
@@ -317,8 +331,8 @@ class HiveCliHook(BaseHook):
             )
             self.sub_process = sub_process
             stdout = ""
-            for line in iter(sub_process.stdout.readline, b""):
-                line = line.decode()
+            for line_raw in iter(sub_process.stdout.readline, b""):
+                line = line_raw.decode()
                 stdout += line
                 if verbose:
                     self.log.info(line.strip())
@@ -327,30 +341,31 @@ class HiveCliHook(BaseHook):
             if sub_process.returncode:
                 raise AirflowException(stdout)
 
+            send_sql_hook_lineage(context=self, sql=hql)
+
             return stdout
 
     def test_hql(self, hql: str) -> None:
         """Test an hql statement using the hive cli and EXPLAIN."""
         create, insert, other = [], [], []
         for query in hql.split(";"):  # naive
-            query_original = query
-            query = query.lower().strip()
+            query_lower = query.lower().strip()
 
-            if query.startswith("create table"):
-                create.append(query_original)
-            elif query.startswith(("set ", "add jar ", "create temporary function")):
-                other.append(query_original)
-            elif query.startswith("insert"):
-                insert.append(query_original)
+            if query_lower.startswith("create table"):
+                create.append(query)
+            elif query_lower.startswith(("set ", "add jar ", "create temporary function")):
+                other.append(query)
+            elif query_lower.startswith("insert"):
+                insert.append(query)
         other_ = ";".join(other)
         for query_set in [create, insert]:
-            for query in query_set:
-                query_preview = " ".join(query.split())[:50]
+            for query_item in query_set:
+                query_preview = " ".join(query_item.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
-                    query = other_ + "; explain " + query
+                    query = other_ + "; explain " + query_item
                 else:
-                    query = "explain " + query
+                    query = "explain " + query_item
                 try:
                     self.run_cli(query, verbose=False)
                 except AirflowException as e:
@@ -512,7 +527,7 @@ class HiveCliHook(BaseHook):
         """Kill Hive cli command."""
         if hasattr(self, "sub_process"):
             if self.sub_process.poll() is None:
-                print("Killing the Hive job")
+                self.log.info("Killing the Hive job")
                 self.sub_process.terminate()
                 time.sleep(60)
                 self.sub_process.kill()
@@ -573,21 +588,15 @@ class HiveMetastoreHook(BaseHook):
         conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            try:
-                import saslwrapper as sasl
-            except ImportError:
-                import sasl
-
-            def sasl_factory() -> sasl.Client:
-                sasl_client = sasl.Client()
-                sasl_client.setAttr("host", host)
-                sasl_client.setAttr("service", kerberos_service_name)
-                sasl_client.init()
-                return sasl_client
-
+            from pyhive.hive import get_installed_sasl
             from thrift_sasl import TSaslClientTransport
 
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            sasl_auth = "GSSAPI"
+            transport = TSaslClientTransport(
+                lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name),
+                sasl_auth,
+                conn_socket,
+            )
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
 
@@ -876,8 +885,11 @@ class HiveServer2Hook(DbApiHook):
             auth_mechanism = db.extra_dejson.get("auth_mechanism", "KERBEROS")
             kerberos_service_name = db.extra_dejson.get("kerberos_service_name", "hive")
 
-        # Password should be set if and only if in LDAP or CUSTOM mode
-        if auth_mechanism in ("LDAP", "CUSTOM"):
+        # Pass through the password whenever the user has explicitly set one.
+        # Previously this was restricted to LDAP/CUSTOM/PLAIN, which caused
+        # user-provided passwords to be silently dropped for other auth modes
+        # (pyhive defaults to sending "x" when password is None).
+        if db.password:
             password = db.password
 
         from pyhive.hive import connect
@@ -918,6 +930,7 @@ class HiveServer2Hook(DbApiHook):
 
             for statement in sql:
                 cur.execute(statement)
+                send_sql_hook_lineage(context=self, sql=statement, cur=cur, default_schema=schema)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
                 if lowered_statement.startswith(("select", "with", "show")) or (
@@ -1040,7 +1053,7 @@ class HiveServer2Hook(DbApiHook):
         try:
             import pandas as pd
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -1059,7 +1072,7 @@ class HiveServer2Hook(DbApiHook):
         try:
             import polars as pl
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -1134,3 +1147,32 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pd.DataFrame:
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URL. "
+                "Install it with: pip install 'apache-airflow-providers-apache-hive[sqlalchemy]'"
+            )
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
+
+        return URL.create(
+            drivername="hive",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)

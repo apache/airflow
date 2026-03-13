@@ -77,8 +77,8 @@ def read_metadata_from_google_spreadsheet(sheets: Resource):
         metadata_types.append(MetadataFromSpreadsheet[metadata_field])
         metadata_from_spreadsheet[MetadataFromSpreadsheet[metadata_field]] = []
     for row in range["values"][1:]:
-        for index, value in enumerate(row):
-            value = value.strip()
+        for index, value_raw in enumerate(row):
+            value = value_raw.strip()
             if value:
                 metadata_from_spreadsheet[metadata_types[index]].append(value)
     get_console().print("[success]Metadata read from Google Spreadsheet.")

@@ -28,6 +28,11 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+
+# TODO: Remove below skip once beam provider changed to ready state
+pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
+
+
 from google.cloud.dataflow_v1beta3 import (
     GetJobMetricsRequest,
     GetJobRequest,
@@ -37,8 +42,8 @@ from google.cloud.dataflow_v1beta3 import (
 )
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import run_beam_command
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     AsyncDataflowHook,
@@ -206,7 +211,7 @@ class TestDataflowHook:
         assert mock_build.return_value == result
 
     @pytest.mark.parametrize(
-        "expected_result, job_name, append_job_name",
+        ("expected_result", "job_name", "append_job_name"),
         [
             (JOB_NAME, JOB_NAME, False),
             ("test-example", "test_example", False),
@@ -736,7 +741,7 @@ class TestDataflowJob:
         assert dataflow_job.get_jobs() == [job, job]
 
     @pytest.mark.parametrize(
-        "state, exception_regex",
+        ("state", "exception_regex"),
         [
             (DataflowJobStatus.JOB_STATE_FAILED, "unexpected terminal state: JOB_STATE_FAILED"),
             (DataflowJobStatus.JOB_STATE_CANCELLED, "unexpected terminal state: JOB_STATE_CANCELLED"),
@@ -878,7 +883,7 @@ class TestDataflowJob:
         assert result is False
 
     @pytest.mark.parametrize(
-        "job_type, job_state, wait_until_finished, expected_result",
+        ("job_type", "job_state", "wait_until_finished", "expected_result"),
         [
             # RUNNING
             (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, None, False),
@@ -915,7 +920,7 @@ class TestDataflowJob:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "jobs, wait_until_finished, expected_result",
+        ("jobs", "wait_until_finished", "expected_result"),
         [
             # STREAMING
             (
@@ -987,7 +992,7 @@ class TestDataflowJob:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "job_state, wait_until_finished, expected_result",
+        ("job_state", "wait_until_finished", "expected_result"),
         [
             # DONE
             (DataflowJobStatus.JOB_STATE_DONE, None, True),
@@ -1020,7 +1025,7 @@ class TestDataflowJob:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "job_type, job_state, exception_regex",
+        ("job_type", "job_state", "exception_regex"),
         [
             (
                 DataflowJobType.JOB_TYPE_BATCH,
@@ -1090,7 +1095,7 @@ class TestDataflowJob:
             dataflow_job.job_reached_terminal_state(job)
 
     @pytest.mark.parametrize(
-        "job_type, expected_terminal_state, match",
+        ("job_type", "expected_terminal_state", "match"),
         [
             (
                 DataflowJobType.JOB_TYPE_BATCH,
@@ -1213,7 +1218,7 @@ class TestDataflowJob:
         )
 
     @pytest.mark.parametrize(
-        "drain_pipeline, job_type, requested_state",
+        ("drain_pipeline", "job_type", "requested_state"),
         [
             (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
             (False, "JOB_TYPE_STREAMING", "JOB_STATE_CANCELLED"),

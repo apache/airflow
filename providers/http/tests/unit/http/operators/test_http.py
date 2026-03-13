@@ -31,12 +31,12 @@ from aiohttp import BasicAuth
 from requests import Response
 from requests.models import RequestEncodingMixin
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.hooks import base
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
@@ -124,13 +124,38 @@ class TestHttpOperator:
             context={},
             event={
                 "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                "response": HttpResponseSerializer.serialize(response),
             },
         )
         assert result == "content"
 
+    def test_async_execute_legacy_pickle_format_raise_error(self):
+        """Test error raised with legacy pickle format."""
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            deferrable=True,
+        )
+        response = Response()
+        response._content = b"content"
+
+        with pytest.raises(TypeError, match="Response data must be a dict, got str"):
+            _ = operator.execute_complete(
+                context={},
+                event={
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                },
+            )
+
     @pytest.mark.parametrize(
-        "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
+        (
+            "data",
+            "headers",
+            "extra_options",
+            "pagination_data",
+            "pagination_headers",
+            "pagination_extra_options",
+        ),
         [
             ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
             ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
@@ -216,7 +241,7 @@ class TestHttpOperator:
                 context={},
                 event={
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": HttpResponseSerializer.serialize(response),
                 },
             )
 
@@ -324,7 +349,7 @@ class TestHttpOperator:
         return captured
 
     @pytest.mark.parametrize(
-        "login, password, auth_type, expect_cls",
+        ("login", "password", "auth_type", "expect_cls"),
         [
             ("user", "password", None, BasicAuth),
             (None, None, None, type(None)),

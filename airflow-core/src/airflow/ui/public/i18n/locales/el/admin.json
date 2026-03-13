@@ -1,0 +1,164 @@
+{
+  "columns": {
+    "description": "Περιγραφή",
+    "key": "Κλειδί",
+    "name": "Όνομα",
+    "value": "Τιμή"
+  },
+  "config": {
+    "columns": {
+      "section": "Ενότητα"
+    },
+    "title": "Ρυθμίσεις Airflow"
+  },
+  "connections": {
+    "add": "Προσθήκη Σύνδεσης",
+    "columns": {
+      "connectionId": "ID Σύνδεσης",
+      "connectionType": "Τύπος Σύνδεσης",
+      "host": "Ξενιστής",
+      "port": "Θύρα"
+    },
+    "connection_one": "Σύνδεση",
+    "connection_other": "Συνδέσεις",
+    "delete": {
+      "deleteConnection_one": "Διαγραφή 1 σύνδεσης",
+      "deleteConnection_other": "Διαγραφή {{count}} συνδέσεων",
+      "firstConfirmMessage_one": "Πρόκειται να διαγράψετε την ακόλουθη σύνδεση:",
+      "firstConfirmMessage_other": "Πρόκειται να διαγράψετε τις ακόλουθες συνδέσεις:",
+      "title": "Διαγραφή Σύνδεσης"
+    },
+    "edit": "Επεξεργασία Σύνδεσης",
+    "form": {
+      "connectionIdRequired": "Το ID Σύνδεσης είναι υποχρεωτικό",
+      "connectionIdRequirement": "Το ID Σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
+      "connectionTypeRequired": "Ο Τύπος Σύνδεσης είναι υποχρεωτικός",
+      "extraFields": "Επιπλέον Πεδία",
+      "extraFieldsJson": "Επιπλέον Πεδία JSON",
+      "helperText": "Λείπει ο Τύπος Σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
+      "helperTextForRedactedFields": "Τα πεδία που έχουν αποκρυφθεί ('***') θα παραμείνουν αμετάβλητα αν δεν τροποποιηθούν.",
+      "selectConnectionType": "Επιλέξτε Τύπο Σύνδεσης",
+      "standardFields": "Βασικά Πεδία"
+    },
+    "nothingFound": {
+      "description": "Οι συνδέσεις που ορίζονται μέσω μεταβλητών περιβάλλοντος ή διαχειριστών μυστικών δεν εμφανίζονται εδώ.",
+      "documentationLink": "Μάθετε περισσότερα στην τεκμηρίωση του Airflow.",
+      "learnMore": "Αυτές επιλύονται κατά το χρόνο εκτέλεσης και δεν είναι ορατές στο UI.",
+      "title": "Δεν βρέθηκε σύνδεση!"
+    },
+    "searchPlaceholder": "Αναζήτηση Συνδέσεων",
+    "test": "Δοκιμή Σύνδεσης",
+    "testDisabled": "Η λειτουργία δοκιμής σύνδεσης είναι απενεργοποιημένη. Επικοινωνήστε με τον διαχειριστή για να την ενεργοποιήσει.",
+    "typeMeta": {
+      "error": "Αποτυχία ανάκτησης μεταδεδομένων τύπου σύνδεσης",
+      "standardFields": {
+        "description": "Περιγραφή",
+        "host": "Ξενιστής",
+        "login": "Όνομα Χρήστη",
+        "password": "Κωδικός",
+        "port": "Θύρα",
+        "url_schema": "Σχήμα"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Διαγραφή",
+    "modal": {
+      "confirmButton": "Ναι, Διαγραφή",
+      "secondConfirmMessage": "Αυτή η ενέργεια είναι μόνιμη και δεν μπορεί να αναιρεθεί.",
+      "thirdConfirmMessage": " Είστε σίγουροι ότι θέλετε να συνεχίσετε;"
+    },
+    "selected": "Επιλεγμένα",
+    "tooltip": "Διαγραφή επιλεγμένων συνδέσεων"
+  },
+  "formActions": {
+    "save": "Αποθήκευση"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Πηγή"
+    },
+    "importError_one": "Σφάλμα Εισαγωγής Πρόσθετου",
+    "importError_other": "Σφάλματα Εισαγωγής Πρόσθετων",
+    "searchPlaceholder": "Αναζήτηση κατά αρχείο"
+  },
+  "pools": {
+    "add": "Προσθήκη Pool",
+    "deferredSlotsIncluded": "Συμπεριλαμβάνονται Αναβληθέντα Slots",
+    "delete": {
+      "title": "Διαγραφή Pool",
+      "warning": "Αυτό θα αφαιρέσει όλα τα μεταδεδομένα που σχετίζονται με το pool και μπορεί να επηρεάσει εργασίες που το χρησιμοποιούν."
+    },
+    "edit": "Επεξεργασία Pool",
+    "form": {
+      "checkbox": "Επιλέξτε για να συμπεριλάβετε αναβληθείσες εργασίες στον υπολογισμό των διαθέσιμων slots του pool",
+      "description": "Περιγραφή",
+      "includeDeferred": "Συμπερίληψη Αναβληθέντων",
+      "nameMaxLength": "Το όνομα μπορεί να περιέχει έως 256 χαρακτήρες",
+      "nameRequired": "Το όνομα είναι υποχρεωτικό",
+      "slots": "Slots"
+    },
+    "noPoolsFound": "Δεν βρέθηκαν pools",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Αναζήτηση Pools",
+    "sort": {
+      "asc": "Όνομα (A-Z)",
+      "desc": "Όνομα (Ω-Α)",
+      "placeholder": "Ταξινόμηση κατά"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Όνομα Πακέτου",
+      "version": "Έκδοση"
+    }
+  },
+  "variables": {
+    "add": "Προσθήκη Μεταβλητής",
+    "columns": {
+      "isEncrypted": "Είναι Κρυπτογραφημένη"
+    },
+    "delete": {
+      "deleteVariable_one": "Διαγραφή 1 μεταβλητής",
+      "deleteVariable_other": "Διαγραφή {{count}} μεταβλητών",
+      "firstConfirmMessage_one": "Πρόκειται να διαγράψετε την ακόλουθη μεταβλητή:",
+      "firstConfirmMessage_other": "Πρόκειται να διαγράψετε τις ακόλουθες μεταβλητές:",
+      "title": "Διαγραφή Μεταβλητής",
+      "tooltip": "Διαγραφή επιλεγμένων μεταβλητών"
+    },
+    "edit": "Επεξεργασία Μεταβλητής",
+    "form": {
+      "invalidJson": "Μη έγκυρο JSON",
+      "keyMaxLength": "Το κλειδί μπορεί να περιέχει έως 250 χαρακτήρες",
+      "keyRequired": "Το κλειδί είναι υποχρεωτικό",
+      "valueRequired": "Η τιμή είναι υποχρεωτική"
+    },
+    "import": {
+      "button": "Εισαγωγή",
+      "conflictResolution": "Επιλέξτε Τρόπο Επίλυσης Συγκρούσεων Μεταβλητών",
+      "errorParsingJsonFile": "Σφάλμα Ανάλυσης Αρχείου JSON: Ανεβάστε ένα αρχείο JSON που περιέχει μεταβλητές (π.χ., {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Η εισαγωγή αποτυγχάνει αν εντοπιστούν υπάρχουσες μεταβλητές.",
+          "title": "Αποτυχία"
+        },
+        "overwrite": {
+          "description": "Αντικαθιστά τη μεταβλητή σε περίπτωση σύγκρουσης.",
+          "title": "Αντικατάσταση"
+        },
+        "skip": {
+          "description": "Παραλείπει την εισαγωγή μεταβλητών που υπάρχουν ήδη.",
+          "title": "Παράλειψη"
+        }
+      },
+      "title": "Εισαγωγή Μεταβλητών",
+      "upload": "Ανέβασμα Αρχείου JSON",
+      "uploadPlaceholder": "Ανεβάστε ένα αρχείο JSON που περιέχει μεταβλητές (π.χ., {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "Δεν βρέθηκαν μεταβλητές",
+    "searchPlaceholder": "Αναζήτηση Κλειδιών",
+    "variable_one": "Μεταβλητή",
+    "variable_other": "Μεταβλητές"
+  }
+}

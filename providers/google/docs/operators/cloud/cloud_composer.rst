@@ -178,10 +178,10 @@ or you can define the same operator in the deferrable mode:
     :start-after: [START howto_operator_run_airflow_cli_command_deferrable_mode]
     :end-before: [END howto_operator_run_airflow_cli_command_deferrable_mode]
 
-Check if a DAG run has completed
+Check if a Dag run has completed
 --------------------------------
 
-You can use sensor that checks if a DAG run has completed in your environments, use:
+You can use sensor that checks if a Dag run has completed in your environments, use:
 :class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerDAGRunSensor`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
@@ -197,3 +197,35 @@ or you can define the same sensor in the deferrable mode:
     :dedent: 4
     :start-after: [START howto_sensor_dag_run_deferrable_mode]
     :end-before: [END howto_sensor_dag_run_deferrable_mode]
+
+Trigger a DAG run
+-----------------
+
+You can trigger a DAG in another Composer environment, use:
+:class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerTriggerDAGRunOperator`
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_trigger_dag_run]
+    :end-before: [END howto_operator_trigger_dag_run]
+
+Waits for a different DAG, task group, or task to complete
+----------------------------------------------------------
+
+You can use sensor that waits for a different DAG, task group, or task to complete for a specific composer environment, use:
+:class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerExternalTaskSensor`
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_external_task]
+    :end-before: [END howto_sensor_external_task]
+
+or you can define the same sensor in the deferrable mode:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_external_task_deferrable_mode]
+    :end-before: [END howto_sensor_external_task_deferrable_mode]

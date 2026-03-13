@@ -21,10 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
+from airflow.providers.common.compat.sdk import AirflowException
 
 LOGIN_USER = "login"
 LOGIN_PASSWORD = "password"
@@ -50,9 +50,9 @@ class TestRedshiftSQLHookConn:
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
+        db_uri = self.db_hook.get_uri()
         expected = "postgresql://login:password@host:5439/dev"
-        x = self.db_hook.get_uri()
-        assert x == expected
+        assert db_uri == expected
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn(self, mock_connect):
@@ -167,7 +167,7 @@ class TestRedshiftSQLHookConn:
         )
 
     @pytest.mark.parametrize(
-        "conn_params, conn_extra, expected_call_args",
+        ("conn_params", "conn_extra", "expected_call_args"),
         [
             ({}, {}, {}),
             ({"login": "test"}, {}, {"user": "test"}),
@@ -186,7 +186,7 @@ class TestRedshiftSQLHookConn:
             mock_connect.assert_called_once_with(**expected_call_args)
 
     @pytest.mark.parametrize(
-        "connection_host, connection_extra, expected_cluster_identifier, expected_exception_msg",
+        ("connection_host", "connection_extra", "expected_cluster_identifier", "expected_exception_msg"),
         [
             # test without a connection host and without a cluster_identifier in connection extra
             (None, {"iam": True}, None, "Please set cluster_identifier or host in redshift connection."),
@@ -244,7 +244,7 @@ class TestRedshiftSQLHookConn:
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
     @pytest.mark.parametrize(
-        "connection_host, connection_extra, expected_identity",
+        ("connection_host", "connection_extra", "expected_identity"),
         [
             # test without a connection host but with a cluster_identifier in connection extra
             (
@@ -284,3 +284,81 @@ class TestRedshiftSQLHookConn:
         assert f"{expected_identity}:{LOGIN_PORT}" == self.db_hook._get_openlineage_redshift_authority_part(
             self.connection
         )
+
+
+class TestRedshiftSQLHookLineage:
+    def setup_method(self):
+        self.cur = mock.MagicMock(rowcount=0)
+        self.conn = mock.MagicMock()
+        self.conn.cursor.return_value = self.cur
+        conn = self.conn
+
+        class UnitTestRedshiftSQLHook(RedshiftSQLHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_conn(self):
+                return conn
+
+        self.db_hook = UnitTestRedshiftSQLHook()
+        self.db_hook.get_connection = mock.Mock(
+            return_value=Connection(
+                conn_type="redshift",
+                login=LOGIN_USER,
+                password=LOGIN_PASSWORD,
+                host=LOGIN_HOST,
+                port=LOGIN_PORT,
+                schema=LOGIN_SCHEMA,
+            )
+        )
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters

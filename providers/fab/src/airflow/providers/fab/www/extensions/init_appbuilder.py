@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from functools import reduce
 from typing import TYPE_CHECKING
 
@@ -42,13 +43,14 @@ from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
-from airflow.providers.fab.www.views import FabIndexView
+from airflow.providers.fab.www.views import FabIndexView, redirect
 
 if TYPE_CHECKING:
     from flask import Flask
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.scoping import scoped_session
 
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -56,6 +58,8 @@ if TYPE_CHECKING:
 # Copyright 2013, Daniel Vaz Gaspar
 # This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
 log = logging.getLogger("flask_appbuilder.base")
+
+_init_app_lock = threading.Lock()
 
 
 def dynamic_class_import(class_path):
@@ -80,8 +84,6 @@ class AirflowAppBuilder:
     """This is the base class for all the framework."""
 
     baseviews: list[BaseView | Session] = []
-    # Flask app
-    app = None
     # Database Session
     session = None
     # Security Manager Class
@@ -104,7 +106,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session: Session | None = None,
+        session: scoped_session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",
@@ -149,7 +151,6 @@ class AirflowAppBuilder:
         self.indexview = indexview
         self.static_folder = static_folder
         self.static_url_path = static_url_path
-        self.app = app
         self.enable_plugins = enable_plugins
         self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
         self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
@@ -164,6 +165,7 @@ class AirflowAppBuilder:
         :param app:
         :param session: The SQLAlchemy session
         """
+        log.info("Initializing AppBuilder")
         app.config.setdefault("APP_NAME", "F.A.B.")
         app.config.setdefault("APP_THEME", "")
         app.config.setdefault("APP_ICON", "")
@@ -175,8 +177,6 @@ class AirflowAppBuilder:
         app.config.setdefault("FAB_STATIC_URL_PATH", self.static_url_path)
         app.config.setdefault("AUTH_RATE_LIMITED", self.auth_rate_limited)
         app.config.setdefault("AUTH_RATE_LIMIT", self.auth_rate_limit)
-
-        self.app = app
 
         self.base_template = app.config.get("FAB_BASE_TEMPLATE", self.base_template)
         self.static_folder = app.config.get("FAB_STATIC_FOLDER", self.static_folder)
@@ -197,19 +197,23 @@ class AirflowAppBuilder:
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         auth_manager = create_auth_manager()
-        auth_manager.appbuilder = self
-        if hasattr(auth_manager, "init_flask_resources"):
-            auth_manager.init_flask_resources()
-        if hasattr(auth_manager, "security_manager"):
-            self.sm = auth_manager.security_manager
-        else:
-            self.sm = AirflowSecurityManagerV2(self)
-        self.bm = BabelManager(self)
-        self._add_global_static()
-        self._add_global_filters()
-        app.before_request(self.sm.before_request)
-        self._add_admin_views()
-        self._add_addon_views()
+        with _init_app_lock:
+            auth_manager.appbuilder = self
+            # Invalidate cached security_manager so it binds to the current Flask app.
+            if "security_manager" in auth_manager.__dict__:
+                del auth_manager.__dict__["security_manager"]
+            if hasattr(auth_manager, "init_flask_resources"):
+                auth_manager.init_flask_resources()
+            if hasattr(auth_manager, "security_manager"):
+                self.sm = auth_manager.security_manager
+            else:
+                self.sm = AirflowSecurityManagerV2(self)
+            self.bm = BabelManager(self)
+            self._add_global_static()
+            self._add_global_filters()
+            app.before_request(self.sm.before_request)
+            self._add_admin_views()
+            self._add_addon_views()
         self._init_extension(app)
         self._swap_url_filter()
 
@@ -220,6 +224,7 @@ class AirflowAppBuilder:
         from airflow.providers.fab.www.views import get_safe_url
 
         fab_sec_views.get_safe_redirect = get_safe_url
+        fab_sec_views.redirect = redirect
 
     def _init_extension(self, app):
         app.appbuilder = self
@@ -228,24 +233,19 @@ class AirflowAppBuilder:
         app.extensions["appbuilder"] = self
 
     @property
-    def get_app(self):
-        """
-        Get current or configured flask app.
-
-        :return: Flask App
-        """
-        if self.app:
-            return self.app
+    def app(self) -> Flask:
+        log.warning(
+            "appbuilder.app is deprecated and will be removed in a future version. Use current_app instead"
+        )
         return current_app
 
     @property
-    def get_session(self):
-        """
-        Get the current sqlalchemy session.
-
-        :return: SQLAlchemy Session
-        """
-        return self.session
+    def get_app(self) -> Flask:
+        log.warning(
+            "appbuilder.get_app is deprecated and will be removed in a future version. "
+            "Use current_app instead"
+        )
+        return self.app
 
     @property
     def app_name(self):
@@ -254,7 +254,7 @@ class AirflowAppBuilder:
 
         :return: String with app name
         """
-        return self.get_app.config["APP_NAME"]
+        return current_app.config["APP_NAME"]
 
     @property
     def app_theme(self):
@@ -263,7 +263,7 @@ class AirflowAppBuilder:
 
         :return: String app theme name
         """
-        return self.get_app.config["APP_THEME"]
+        return current_app.config["APP_THEME"]
 
     @property
     def app_icon(self):
@@ -272,11 +272,11 @@ class AirflowAppBuilder:
 
         :return: String with relative app icon location
         """
-        return self.get_app.config["APP_ICON"]
+        return current_app.config["APP_ICON"]
 
     @property
     def languages(self):
-        return self.get_app.config["LANGUAGES"]
+        return current_app.config["LANGUAGES"]
 
     @property
     def version(self):
@@ -288,7 +288,7 @@ class AirflowAppBuilder:
         return __version__
 
     def _add_global_filters(self):
-        self.template_filters = TemplateFilters(self.get_app, self.sm)
+        self.template_filters = TemplateFilters(current_app, self.sm)
 
     def _add_global_static(self):
         bp = Blueprint(
@@ -299,7 +299,7 @@ class AirflowAppBuilder:
             static_folder=self.static_folder,
             static_url_path=self.static_url_path,
         )
-        self.get_app.register_blueprint(bp)
+        current_app.register_blueprint(bp)
 
     def _add_admin_views(self):
         """Register indexview, utilview (back function), babel views and Security views."""
@@ -328,8 +328,6 @@ class AirflowAppBuilder:
                     log.error(LOGMSG_ERR_FAB_ADDON_PROCESS, addon, e)
 
     def _check_and_init(self, baseview):
-        if hasattr(baseview, "datamodel"):
-            baseview.datamodel.session = self.session
         if callable(baseview):
             baseview = baseview()
         return baseview
@@ -409,16 +407,15 @@ class AirflowAppBuilder:
             appbuilder.add_link("google", href="www.google.com", icon="fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)
+        log.debug(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
             self.baseviews.append(baseview)
             self._process_inner_views()
-            if self.app:
-                self.register_blueprint(baseview)
-                self._add_permission(baseview)
-                self.add_limits(baseview)
+            self.register_blueprint(baseview)
+            self._add_permission(baseview)
+            self.add_limits(baseview)
         self.add_link(
             name=name,
             href=href,
@@ -485,7 +482,7 @@ class AirflowAppBuilder:
             baseview=baseview,
             cond=cond,
         )
-        if self.app:
+        if current_app:
             self._add_permissions_menu(name)
             if category:
                 self._add_permissions_menu(category)
@@ -512,15 +509,14 @@ class AirflowAppBuilder:
         :param baseview: A BaseView type class instantiated.
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, "")
+        log.debug(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, "")
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
             self.baseviews.append(baseview)
             self._process_inner_views()
-            if self.app:
-                self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
-                self._add_permission(baseview)
+            self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
+            self._add_permission(baseview)
         else:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS, baseview.__class__.__name__)
         return baseview
@@ -588,7 +584,7 @@ class AirflowAppBuilder:
                         self._add_permissions_menu(item.name, update_perms=update_perms)
 
     def register_blueprint(self, baseview, endpoint=None, static_folder=None):
-        self.get_app.register_blueprint(
+        current_app.register_blueprint(
             baseview.create_blueprint(self, endpoint=endpoint, static_folder=static_folder)
         )
 
@@ -605,6 +601,8 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,

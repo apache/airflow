@@ -411,7 +411,7 @@ class TestRedis:
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
 
     @pytest.mark.parametrize(
-        "redis_values, expected",
+        ("redis_values", "expected"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -462,7 +462,7 @@ class TestRedis:
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "redis_values, expected",
+        ("redis_values", "expected"),
         [
             ({}, 600),
             ({"redis": {"terminationGracePeriodSeconds": 1200}}, 1200),
@@ -506,7 +506,7 @@ class TestRedisService:
     """Tests redis service."""
 
     @pytest.mark.parametrize(
-        "redis_values, expected",
+        ("redis_values", "expected"),
         [
             ({"redis": {"service": {"type": "ClusterIP"}}}, "ClusterIP"),
             ({"redis": {"service": {"type": "NodePort"}}}, "NodePort"),

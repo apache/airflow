@@ -22,9 +22,9 @@ from pathlib import Path
 import structlog
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class S3DagBundle(BaseDagBundle):
@@ -137,10 +137,23 @@ class S3DagBundle(BaseDagBundle):
             )
 
     def view_url(self, version: str | None = None) -> str | None:
+        """
+        Return a URL for viewing the DAGs in S3. Currently, versioning is not supported.
+
+        This method is deprecated and will be removed when the minimum supported Airflow version is 3.1.
+        Use `view_url_template` instead.
+        """
+        return self.view_url_template()
+
+    def view_url_template(self) -> str | None:
         """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
         if self.version:
             raise AirflowException("S3 url with version is not supported")
-
+        if hasattr(self, "_view_url_template") and self._view_url_template:
+            # Because we use this method in the view_url method, we need to handle
+            # backward compatibility for Airflow versions that doesn't have the
+            # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
+            return self._view_url_template
         # https://<bucket-name>.s3.<region>.amazonaws.com/<object-key>
         url = f"https://{self.bucket_name}.s3"
         if self.s3_hook.region_name:

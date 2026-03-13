@@ -17,11 +17,47 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
 import type { HttpHandler } from "msw";
 import { setupServer, type SetupServerApi } from "msw/node";
-import { beforeEach, beforeAll, afterAll } from "vitest";
+import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
+
+// Mock Chart.js to prevent DOM access errors during test cleanup
+vi.mock("react-chartjs-2", () => ({
+  Bar: vi.fn(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+    const React = require("react");
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return React.createElement("div", { "data-testid": "mock-chart" });
+  }),
+  Line: vi.fn(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+    const React = require("react");
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return React.createElement("div", { "data-testid": "mock-chart" });
+  }),
+}));
+
+// Mock Chart.js core to prevent initialization errors
+vi.mock("chart.js", () => ({
+  BarElement: vi.fn(),
+  CategoryScale: vi.fn(),
+  Chart: {
+    register: vi.fn(),
+  },
+  Filler: vi.fn(),
+  Legend: vi.fn(),
+  LinearScale: vi.fn(),
+  LineElement: vi.fn(),
+  PointElement: vi.fn(),
+  TimeScale: vi.fn(),
+  Title: vi.fn(),
+  Tooltip: vi.fn(),
+}));
 
 let server: SetupServerApi;
 
@@ -31,4 +67,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => server.resetHandlers());
+afterEach(() => {
+  cleanup();
+});
 afterAll(() => server.close());

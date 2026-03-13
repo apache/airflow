@@ -17,15 +17,15 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-import time_machine
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.edge3.plugins import edge_executor_plugin
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_plugin_inactive():
@@ -44,24 +44,53 @@ def test_plugin_inactive():
 
 
 @pytest.mark.db_test
-def test_plugin_active():
-    with conf_vars({("edge", "api_enabled"): "true"}):
+def test_plugin_active_apiserver():
+    mock_cli = ["airflow", "api-server"]
+    # create dist folder if not built locally
+    (Path(edge_executor_plugin.__file__).parent / "www" / "dist").mkdir(parents=True, exist_ok=True)
+
+    with (
+        conf_vars({("edge", "api_enabled"): "true"}),
+        patch("sys.argv", mock_cli),
+        patch("airflow.providers.edge3.models.db.check_db_manager_config"),
+    ):
         importlib.reload(edge_executor_plugin)
 
         from airflow.providers.edge3.plugins.edge_executor_plugin import (
             EDGE_EXECUTOR_ACTIVE,
+            RUNNING_ON_APISERVER,
             EdgeExecutorPlugin,
         )
 
         rep = EdgeExecutorPlugin()
         assert EDGE_EXECUTOR_ACTIVE
-        if AIRFLOW_V_3_0_PLUS:
-            assert len(rep.appbuilder_views) == 0
-            assert len(rep.flask_blueprints) == 0
-            assert len(rep.fastapi_apps) == 1
-        else:
-            assert len(rep.appbuilder_views) == 2
-            assert len(rep.flask_blueprints) == 2
+        assert RUNNING_ON_APISERVER
+        assert len(rep.appbuilder_views) == 0
+        assert len(rep.flask_blueprints) == 0
+        assert len(rep.fastapi_apps) == 1
+
+
+@patch("sys.argv", ["airflow", "some-other-command"])
+def test_plugin_active_non_apiserver():
+    with (
+        conf_vars({("edge", "api_enabled"): "true"}),
+        patch("airflow.providers.edge3.models.db.check_db_manager_config"),
+    ):
+        importlib.reload(edge_executor_plugin)
+
+        from airflow.providers.edge3.plugins.edge_executor_plugin import (
+            EDGE_EXECUTOR_ACTIVE,
+            RUNNING_ON_APISERVER,
+            EdgeExecutorPlugin,
+        )
+
+        rep = EdgeExecutorPlugin()
+        assert EDGE_EXECUTOR_ACTIVE
+        assert not RUNNING_ON_APISERVER
+        assert len(rep.appbuilder_views) == 0
+        assert len(rep.flask_blueprints) == 0
+        assert len(rep.appbuilder_views) == 0
+        assert len(rep.fastapi_apps) == 0
 
 
 @pytest.fixture
@@ -73,34 +102,3 @@ def plugin():
 
 def test_plugin_is_airflow_plugin(plugin):
     assert isinstance(plugin, AirflowPlugin)
-
-
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Plugin endpoint is not used in Airflow 3.0+")
-@pytest.mark.parametrize(
-    "initial_comment, expected_comment",
-    [
-        pytest.param(
-            "comment", "[2020-01-01 00:00] - user updated maintenance mode\nComment: comment", id="no user"
-        ),
-        pytest.param(
-            "[2019-01-01] - another user put node into maintenance mode\nComment:new comment",
-            "[2020-01-01 00:00] - user updated maintenance mode\nComment:new comment",
-            id="first update",
-        ),
-        pytest.param(
-            "[2019-01-01] - another user updated maintenance mode\nComment:new comment",
-            "[2020-01-01 00:00] - user updated maintenance mode\nComment:new comment",
-            id="second update",
-        ),
-        pytest.param(
-            None,
-            "[2020-01-01 00:00] - user updated maintenance mode\nComment:",
-            id="None as input",
-        ),
-    ],
-)
-@time_machine.travel("2020-01-01", tick=False)
-def test_modify_maintenance_comment_on_update(monkeypatch, initial_comment, expected_comment):
-    assert (
-        edge_executor_plugin.modify_maintenance_comment_on_update(initial_comment, "user") == expected_comment
-    )

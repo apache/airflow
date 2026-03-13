@@ -18,37 +18,45 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
+from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, add_debug_span
-from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import JobState
+
+
+class JobState(str, Enum):
+    """All possible states that a Job can be in."""
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 if TYPE_CHECKING:
-    import datetime
-
     from sqlalchemy.orm.session import Session
-
-    from airflow.executors.base_executor import BaseExecutor
 
 
 def _resolve_dagrun_model():
@@ -65,6 +73,8 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     elif job_type == "TriggererJob":
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    elif job_type == "DagProcessorJob":
+        health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
@@ -79,18 +89,18 @@ class Job(Base, LoggingMixin):
 
     __tablename__ = "job"
 
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dag_id: Mapped[str | None] = mapped_column(
         String(ID_LEN),
     )
-    state = Column(String(20))
-    job_type = Column(String(30))
-    start_date = Column(UtcDateTime())
-    end_date = Column(UtcDateTime())
-    latest_heartbeat = Column(UtcDateTime())
-    executor_class = Column(String(500))
-    hostname = Column(String(500))
-    unixname = Column(String(1000))
+    state: Mapped[str | None] = mapped_column(String(20))
+    job_type: Mapped[str | None] = mapped_column(String(30))
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    latest_heartbeat: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    executor_class: Mapped[str | None] = mapped_column(String(500))
+    hostname: Mapped[str | None] = mapped_column(String(500))
+    unixname: Mapped[str | None] = mapped_column(String(1000))
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -123,12 +133,10 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob.
     """
 
-    def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):
+    def __init__(self, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.heartbeat_failed = False
         self.hostname = get_hostname()
-        if executor:
-            self.executors = [executor]
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         self.previous_heartbeat = None
@@ -142,17 +150,9 @@ class Job(Base, LoggingMixin):
             self.log.exception("error calling listener")
         super().__init__(**kwargs)
 
-    @property
-    def executor(self):
-        return self.executors[0]
-
-    @cached_property
-    def executors(self):
-        return ExecutorLoader.init_executors()
-
     @cached_property
     def heartrate(self) -> float:
-        return Job._heartrate(self.job_type)
+        return Job._heartrate(str(self.job_type))
 
     def is_alive(self) -> bool:
         """
@@ -176,10 +176,11 @@ class Job(Base, LoggingMixin):
         except Exception as e:
             self.log.error("on_kill() method failed: %s", e)
 
-        job = session.scalar(select(Job).where(Job.id == self.id, session=session).limit(1))
-        job.end_date = timezone.utcnow()
-        session.merge(job)
-        session.commit()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
+        if job is not None:
+            job.end_date = timezone.utcnow()
+            session.merge(job)
+            session.commit()
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
@@ -208,64 +209,61 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with DebugTrace.start_span(span_name="heartbeat", component="Job") as span:
-            try:
-                span.set_attribute("heartbeat", str(self.latest_heartbeat))
-                # This will cause it to load from the db
+        try:
+            # This will cause it to load from the db
+            session.merge(self)
+            previous_heartbeat = self.latest_heartbeat
+
+            if self.state == JobState.RESTARTING:
+                self.kill()
+
+            # Figure out how long to sleep for
+            sleep_for: float = 0
+            if self.latest_heartbeat:
+                seconds_remaining = (
+                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                )
+                sleep_for = max(0, seconds_remaining)
+            sleep(sleep_for)
+            # Update last heartbeat time
+            with create_session() as session:
+                # Make the session aware of this object
                 session.merge(self)
+                self.latest_heartbeat = timezone.utcnow()
+                session.commit()
+                time_since_last_heartbeat: float = (
+                    0
+                    if previous_heartbeat is None
+                    else (timezone.utcnow() - previous_heartbeat).total_seconds()
+                )
+                health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
+                if time_since_last_heartbeat > health_check_threshold_value:
+                    self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
+                # At this point, the DB has updated.
                 previous_heartbeat = self.latest_heartbeat
-
-                if self.state == JobState.RESTARTING:
-                    self.kill()
-
-                # Figure out how long to sleep for
-                sleep_for = 0
-                if self.latest_heartbeat:
-                    seconds_remaining = (
-                        self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                    )
-                    sleep_for = max(0, seconds_remaining)
-                if span.is_recording():
-                    span.add_event(name="sleep", attributes={"sleep_for": sleep_for})
-                sleep(sleep_for)
-                # Update last heartbeat time
-                with create_session() as session:
-                    # Make the session aware of this object
-                    session.merge(self)
-                    self.latest_heartbeat = timezone.utcnow()
-                    session.commit()
-                    time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
-                    health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
-                    if time_since_last_heartbeat > health_check_threshold_value:
-                        self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
-                    # At this point, the DB has updated.
-                    previous_heartbeat = self.latest_heartbeat
-                    heartbeat_callback(session)
-                self.log.debug("[heartbeat]")
-                self.heartbeat_failed = False
-            except OperationalError:
-                Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-                if not self.heartbeat_failed:
-                    self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
-                    self.heartbeat_failed = True
-                    msg = f"{self.__class__.__name__} heartbeat got an exception"
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
-                if self.is_alive():
-                    self.log.error(
-                        "%s heartbeat failed with error. Scheduler may go into unhealthy state",
-                        self.__class__.__name__,
-                    )
-                    msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler may go into unhealthy state"
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
-                else:
-                    msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"
-                    self.log.error(msg)
-                    if span.is_recording():
-                        span.add_event(name="error", attributes={"message": msg})
-                # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-                self.latest_heartbeat = previous_heartbeat
+                heartbeat_callback(session)
+            self.log.debug("[heartbeat]")
+            self.heartbeat_failed = False
+        except OperationalError:
+            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+            if not self.heartbeat_failed:
+                self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
+                self.heartbeat_failed = True
+                msg = f"{self.__class__.__name__} heartbeat got an exception"
+                self.log.error(msg)
+            if self.is_alive():
+                self.log.error(
+                    "%s heartbeat failed with error. Scheduler may go into unhealthy state",
+                    self.__class__.__name__,
+                )
+                msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler may go into unhealthy state"
+            else:
+                msg = (
+                    f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"
+                )
+            self.log.error(msg)
+            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+            self.latest_heartbeat = previous_heartbeat
 
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
@@ -291,7 +289,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
-        return most_recent_job(self.job_type, session=session)
+        return most_recent_job(str(self.job_type), session=session)
 
     @staticmethod
     def _heartrate(job_type: str) -> float:
@@ -307,8 +305,10 @@ class Job(Base, LoggingMixin):
     def _is_alive(
         state: JobState | str | None,
         health_check_threshold_value: float | int,
-        latest_heartbeat: datetime.datetime,
+        latest_heartbeat: datetime | None,
     ) -> bool:
+        if latest_heartbeat is None:
+            return False
         return (
             state == JobState.RUNNING
             and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value
@@ -393,7 +393,6 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
-@add_debug_span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:

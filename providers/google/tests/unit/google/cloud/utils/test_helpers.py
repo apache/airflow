@@ -39,5 +39,5 @@ class TestHelpers:
         assert resource_path_to_dict(resource_name=resource_name) == expected_dict
 
     def test_resource_path_to_dict_fail(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid resource_name."):
             resource_path_to_dict(resource_name="key/value/key")

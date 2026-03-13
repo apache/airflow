@@ -68,13 +68,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.3"
+defaultAirflowTag: "3.1.8"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.3"
+# Version 2.11.0 and above is supported.
+airflowVersion: "3.1.8"
 
 # Images
 images:
@@ -105,7 +106,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.28.0
+    tag: v0.29.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -123,7 +124,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v4.3.0
+    tag: v4.4.2
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -136,13 +137,17 @@ schedulerName: ~
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
+# List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
+# registries. Items can be either strings or {name: secret} objects.
+imagePullSecrets: []
+
 # Ingress configuration
 ingress:
   # Enable all ingress resources
   # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
 
-  # Configs for the Ingress of the API Server
+  # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server ingress resource
     enabled: false
@@ -186,7 +191,7 @@ ingress:
     # Http paths to add to the API Server Ingress after the default path
     succeedingPaths: []
 
-  # Configs for the Ingress of the web Service
+  # Configs for the Ingress of the web Service (Airflow <3.0.0)
   web:
     # Enable web ingress resource
     enabled: false
@@ -333,7 +338,7 @@ networkPolicies:
   enabled: false
 
 # Extra annotations to apply to all
-# Airflow pods
+# Airflow pods (templated)
 airflowPodAnnotations: {}
 
 # Extra annotations to apply to
@@ -342,7 +347,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
+  {{- if semverCompare "<3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -379,6 +384,7 @@ executor: "CeleryExecutor"
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods.
 allowPodLaunching: true
+allowJobLaunching: false
 
 # Environment variables for all airflow containers
 env: []
@@ -403,18 +409,14 @@ secret: []
 # in this case disable setting of those variables by setting the relevant configuration to false.
 enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__FERNET_KEY: true
-  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__API__SECRET_KEY: true
   AIRFLOW__API_AUTH__JWT_SECRET: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
-  AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
   AIRFLOW__CELERY__RESULT_BACKEND: true
   AIRFLOW__CELERY__BROKER_URL: true
   AIRFLOW__ELASTICSEARCH__HOST: true
-  AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST: true
   AIRFLOW__OPENSEARCH__HOST: true
 
 # Priority Classes that will be installed by charts.
@@ -508,11 +510,6 @@ data:
   #   connection: base64_encoded_connection_string
 
   metadataSecretName: ~
-  # When providing secret names and using the same database for metadata and
-  # result backend, for Airflow < 2.4.0 it is necessary to create a separate
-  # secret for result backend but with a db+ scheme prefix.
-  # For Airflow >= 2.4.0 it is possible to not specify the secret again,
-  # as Airflow will use sql_alchemy_conn with a db+ scheme prefix by default.
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
 
@@ -629,42 +626,60 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Number of Airflow Celery workers
+  # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
   # Max number of old Airflow Celery workers ReplicaSets to retain
+  # (deprecated, use `workers.celery.revisionHistoryLimit` instead)
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
+  # Use workers.celery.command and/or workers.kubernetes.command to separate value between
+  # Celery workers and pod-template-file
   command: ~
+
   # Args to use when running Airflow Celery workers (templated)
+  # (deprecated, use `workers.celery.args` instead)
   args:
     - "bash"
     - "-c"
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+      airflow celery worker
+      {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
+      {{- " -q " }}{{ .Values.workers.queue }}
+      {{- end }}
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
+  # (deprecated, use `workers.celery.livenessProbe` section instead)
   livenessProbe:
+    # (deprecated, use `workers.celery.livenessProbe.enabled` instead)
     enabled: true
+    # (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead)
     initialDelaySeconds: 10
+    # (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead)
     timeoutSeconds: 20
+    # (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead)
     failureThreshold: 5
+    # (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead)
     periodSeconds: 60
+    # (deprecated, use `workers.celery.livenessProbe.command` instead)
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+  # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
+  # (deprecated, use `workers.celery.strategy` instead)
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
+  # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
@@ -676,13 +691,32 @@ workers:
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
+  # Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between
+  # Celery workers and pod-template-file
   securityContexts:
     pod: {}
     container: {}
 
   # Container level Lifecycle Hooks definition for
   # Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.containerLifecycleHooks and/or workers.kubernetes.containerLifecycleHooks
+  # to separate value between Celery workers and pod-template-file.
   containerLifecycleHooks: {}
+
+  # Airflow Celery workers pod disruption budget
+  # (deprecated, use `workers.celery.podDisruptionBudget` instead)
+  podDisruptionBudget:
+    # (deprecated, use `workers.celery.podDisruptionBudget.enabled` instead)
+    enabled: false
+
+    # PDB configuration
+    # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
+      maxUnavailable: 1
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
+      # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
@@ -699,24 +733,33 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
+  # (deprecated, use `workers.celery.keda` instead)
   keda:
+    # (deprecated, use `workers.celery.keda.enabled` instead)
     enabled: false
+
+    # (deprecated, use `workers.celery.keda.namespaceLabels` instead)
     namespaceLabels: {}
 
     # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # (deprecated, use `workers.celery.keda.pollingInterval` instead)
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
+    # (deprecated, use `workers.celery.keda.cooldownPeriod` instead)
     cooldownPeriod: 30
 
     # Minimum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.maxReplicaCount` instead)
     maxReplicaCount: 10
 
     # Specify HPA related options
+    # (deprecated, use `workers.celery.keda.advanced` instead)
     advanced: {}
     # horizontalPodAutoscalerConfig:
     #   behavior:
@@ -728,18 +771,27 @@ workers:
     #           periodSeconds: 15
 
     # Query to use for KEDA autoscaling. Must return a single integer.
+    # (deprecated, use `workers.celery.keda.query` instead)
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
+      AND queue IN (
+      {{- range $i, $q := splitList "," .Values.workers.queue -}}
+      {{- if $i }},{{ end }}'{{ $q | trim }}'
+      {{- end -}}
+      )
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
-      AND executor != 'KubernetesExecutor'
+      AND executor IS DISTINCT FROM 'KubernetesExecutor'
+      {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
+      AND executor IS DISTINCT FROM 'EdgeExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
+    # (deprecated, use `workers.celery.keda.usePgbouncer` instead)
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
@@ -765,38 +817,45 @@ workers:
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.persistence` instead)
   persistence:
-    # Enable persistent volumes
+    # Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead)
     enabled: true
 
     # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+    # (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
 
     # Volume size for Airflow Celery worker StatefulSet
+    # (deprecated, use `workers.celery.persistence.size` instead)
     size: 100Gi
 
     # If using a custom storageClass, pass name ref to all StatefulSets here
+    # (deprecated, use `workers.celery.persistence.storageClassName` instead)
     storageClassName:
 
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
+    # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
+    # (deprecated, use `workers.celery.persistence.annotations` instead)
     annotations: {}
 
     # Detailed default security context for persistence on container level
+    # (deprecated, use `workers.celery.persistence.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.persistence.securityContexts.container` instead)
       container: {}
 
-    # Container level lifecycle hooks
-    containerLifecycleHooks: {}
-
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar to separate
+  # value between Celery workers and pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
     enabled: false
@@ -817,9 +876,12 @@ workers:
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
+  # value between Celery workers and pod-template-file
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -828,7 +890,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for kerberos init container on container level
+    # Detailed default security context for kerberos init container
     securityContexts:
       container: {}
 
@@ -836,6 +898,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -846,6 +909,8 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
+  # Use workers.celery.terminationGracePeriodSeconds and/or workers.kubernetes.terminationGracePeriodSeconds
+  # to separate value between Celery workers and pod-template-file
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
@@ -882,7 +947,10 @@ workers:
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
+  # Use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector to separate value
+  # between Celery workers and pod-template-file
   nodeSelector: {}
+
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
@@ -911,7 +979,7 @@ workers:
   # Annotations for the Airflow Celery worker resource
   annotations: {}
 
-  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file (templated)
   podAnnotations: {}
 
   # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
@@ -931,8 +999,20 @@ workers:
     # Number of days to retain logs
     retentionDays: 15
 
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
+
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
+
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
 
     resources: {}
     #  limits:
@@ -986,37 +1066,282 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
-  # One common Service Account for all workers will be created if flag is set to false.
-  # If true, dedicated Service Accounts for every worker type will be created.
-  useWorkerDedicatedServiceAccounts: false
-
   celery:
-    # Create ServiceAccount for Airflow Celery workers
-    serviceAccount:
-      # default value is true
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name
-      name: ~
-      # Annotations to add to worker kubernetes service account.
+    # Number of Airflow Celery workers
+    replicas: ~
+
+    # Max number of old Airflow Celery workers ReplicaSets to retain
+    revisionHistoryLimit: ~
+
+    # Command to use when running Airflow Celery workers (templated)
+    command: ~
+
+    # Args to use when running Airflow Celery workers (templated)
+    args: ~
+
+    # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
+    # kill the worker and let Kubernetes restart it
+    livenessProbe:
+      enabled: ~
+      initialDelaySeconds: ~
+      timeoutSeconds: ~
+      failureThreshold: ~
+      periodSeconds: ~
+      command: ~
+
+    # Enable the default workers defined by the root `workers` and `workers.celery`
+    # configurations to be created.
+    # If false, only dedicated workers defined in 'sets' will be created.
+    enableDefault: true
+
+    # Queue name for the default workers
+    queue: "default"
+
+    # List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery`
+    # section.
+    sets: []
+    # sets:
+    #   - name: highcpu
+    #     replicas: 2
+    #     queue: "highcpu"
+    #     resources:
+    #       requests:
+    #         memory: "2Gi"
+    #         cpu: "4000m"
+    #       limits:
+    #         memory: "4Gi"
+    #         cpu: "8000m"
+    #   - name: highmem
+    #     replicas: 2
+    #     queue: "highmem"
+    #     resources:
+    #       requests:
+    #         memory: "4Gi"
+    #         cpu: "2000m"
+    #       limits:
+    #         memory: "8Gi"
+    #         cpu: "4000m"
+
+    # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+    updateStrategy: ~
+    # Update Strategy when Airflow Celery worker is deployed as a Deployment
+    strategy: ~
+
+    # Allow relaxing ordering guarantees for Airflow Celery worker
+    # while preserving its uniqueness and identity
+    # podManagementPolicy: Parallel
+
+    # Detailed default security context for Airflow Celery workers for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
+    securityContexts:
+      pod: {}
+      container: {}
+
+    # Container level Lifecycle Hooks definition for Airflow Celery workers
+    containerLifecycleHooks: {}
+
+    # Airflow Celery workers pod disruption budget
+    podDisruptionBudget:
+      enabled: ~
+
+      # PDB configuration
+      config:
+        # minAvailable and maxUnavailable are mutually exclusive
+        maxUnavailable: ~
+        # minAvailable: ~
+
+    # Allow KEDA autoscaling for Airflow Celery workers
+    keda:
+      enabled: ~
+
+      namespaceLabels: {}
+
+      # How often KEDA polls the airflow DB to report new scale requests to the HPA
+      pollingInterval: ~
+
+      # How many seconds KEDA will wait before scaling to zero.
+      # Note that HPA has a separate cooldown period for scale-downs
+      cooldownPeriod: ~
+
+      # Minimum number of Airflow Celery workers created by keda
+      minReplicaCount: ~
+
+      # Maximum number of Airflow Celery workers created by keda
+      maxReplicaCount: ~
+
+      # Specify HPA related options
+      advanced: {}
+      # horizontalPodAutoscalerConfig:
+      #   behavior:
+      #     scaleDown:
+      #       stabilizationWindowSeconds: 300
+      #       policies:
+      #         - type: Percent
+      #           value: 100
+      #           periodSeconds: 15
+
+      # Query to use for KEDA autoscaling. Must return a single integer
+      query: ~
+
+      # Weather to use PGBouncer to connect to the database or not when it is enabled
+      # This configuration will be ignored if PGBouncer is not enabled
+      usePgbouncer: ~
+
+    # Persistence volume configuration for Airflow Celery workers
+    persistence:
+      # Enable persistent volumes
+      enabled: ~
+
+      # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+      persistentVolumeClaimRetentionPolicy: ~
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete
+      #   whenScaled: Delete
+
+      # Volume size for Airflow Celery worker StatefulSet
+      size: ~
+
+      # If using a custom storageClass, pass name ref to all StatefulSets here
+      storageClassName:
+
+      # Execute init container to chown log directory.
+      # This is currently only needed in kind, due to usage
+      # of local-path provisioner.
+      fixPermissions: ~
+
+      # Annotations to add to Airflow Celery worker volumes
       annotations: {}
+
+      # Detailed default security context for persistence on container level
+      securityContexts:
+        container: {}
+
+    # Kerberos sidecar configuration for Airflow Celery workers
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Kerberos init container configuration for Airflow Celery workers
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Resource configuration for Airflow Celery workers
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
+    # Select certain nodes for Airflow Celery worker pods
+    nodeSelector: {}
 
   kubernetes:
-    # Create ServiceAccount for pods created with pod-template-file
-    serviceAccount:
-      # Auto mount service account token into the pod. Default value is true.
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name.
-      name: ~
-      # Annotations to add to worker kubernetes service account
-      annotations: {}
+    # Command to use in pod-template-file (templated)
+    command: ~
+
+    # Detailed default security context for pod-template-file for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
+    securityContexts:
+      pod: {}
+      container: {}
+
+    # Container level Lifecycle Hooks definition for pods created with pod-template-file
+    containerLifecycleHooks: {}
+
+    # Kerberos sidecar configuration for pods created with pod-template-file
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Kerberos init container configuration for pods created with pod-template-file
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
+    # Select certain nodes for pods created with pod-template-file
+    nodeSelector: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -1048,8 +1373,7 @@ scheduler:
     timeoutSeconds: 20
     command: ~
 
-  # Airflow 2.0 allows users to run multiple schedulers,
-  # However this feature is only recommended for MySQL 8+ and Postgres
+  # Amount of scheduler replicas
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1086,7 +1410,7 @@ scheduler:
 
   # Create ServiceAccount
   serviceAccount:
-    # only affect CeleryExecutor, default value is true
+    # affects all executors that launch pods, default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
     # Specifies whether a ServiceAccount should be created
@@ -1097,6 +1421,21 @@ scheduler:
 
     # Annotations to add to scheduler kubernetes service account.
     annotations: {}
+
+    # Service Account Token Volume configuration
+    # This is only used when automountServiceAccountToken is false
+    # and allows manual configuration of the service account token volume
+    serviceAccountTokenVolume:
+      # Enable manual service account token volume configuration
+      enabled: false
+      # Path where the service account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      # Name of the volume
+      volumeName: kube-api-access
+      # Token expiration in seconds (default: 1 hour)
+      expirationSeconds: 3600
+      # Audience for the token
+      audience: ~
 
   # Scheduler pod disruption budget
   podDisruptionBudget:
@@ -1160,6 +1499,7 @@ scheduler:
   # annotations for scheduler deployment
   annotations: {}
 
+  # Pod annotations for scheduler pods (templated)
   podAnnotations: {}
 
   # Labels specific to scheduler objects and pods
@@ -1174,8 +1514,18 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1202,6 +1552,18 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Whether the create user job should be created
+  enabled: true
+
+  # Create initial user.
+  defaultUser:
+    role: Admin
+    username: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+    password: admin
+
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
@@ -1213,25 +1575,27 @@ createUserJob:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
+      airflow users create "$@"
     - --
+    # yamllint disable rule:line-length
     - "-r"
-    - "{{ .Values.webserver.defaultUser.role }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}"
     - "-u"
-    - "{{ .Values.webserver.defaultUser.username }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}"
     - "-e"
-    - "{{ .Values.webserver.defaultUser.email }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}"
     - "-f"
-    - "{{ .Values.webserver.defaultUser.firstName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}"
     - "-l"
-    - "{{ .Values.webserver.defaultUser.lastName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
-    - "{{ .Values.webserver.defaultUser.password }}"
-
-  # Annotations on the create user job pod
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
+  # Annotations on the create user job pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
+
+  restartPolicy: OnFailure
 
   # Labels specific to createUserJob objects and pods
   labels: {}
@@ -1319,14 +1683,14 @@ migrateDatabaseJob:
     - >-
       exec \
 
-      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
-      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
-      | ternary "db upgrade" "upgradedb") }}
+      airflow db migrate
 
-  # Annotations on the database migration pod
+  # Annotations on the database migration pod (templated)
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  restartPolicy: OnFailure
 
   # Labels specific to migrate database job objects and pods
   labels: {}
@@ -1400,8 +1764,9 @@ migrateDatabaseJob:
   env: []
 
 apiServer:
-
-  # Number of Airflow API servers in the deployment
+  enabled: true
+  # Number of Airflow API servers in the deployment.
+  # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1412,9 +1777,41 @@ apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
+  # Example: To enable proxy headers support when running behind a reverse proxy:
+  # args: ["bash", "-c", "exec airflow api-server --proxy-headers"]
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
+  # Environment variables for the Airflow API server.
+  # Example: To configure FORWARDED_ALLOW_IPS when running behind a reverse proxy:
+  # env:
+  #   - name: FORWARDED_ALLOW_IPS
+  #     value: "*"  # Use "*" for trusted environments, or specify proxy IP ranges for production
   env: []
+
+  # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
+  # HPA automatically scales the number of apiServer pods based on observed metrics.
+  # HPA automatically adjusts apiServer replicas between minReplicaCount and maxReplicaCount based on metrics.
+  hpa:
+    enabled: false
+
+    # Minimum number of api-servers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of api-servers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 50
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -1503,6 +1900,7 @@ apiServer:
   # annotations for Airflow API server deployment
   annotations: {}
 
+  # Pod annotations for API server pods (templated)
   podAnnotations: {}
 
   networkPolicy:
@@ -1693,15 +2091,15 @@ webserver:
   #     cpu: 100m
   #     memory: 128Mi
 
-  # Create initial user.
-  defaultUser:
-    enabled: true
-    role: Admin
-    username: admin
-    email: admin@example.com
-    firstName: admin
-    lastName: user
-    password: admin
+  # Create initial user. (Note: Deprecated, use createUserJob section instead)
+  # defaultUser:
+  #   enabled: true
+  #   role: Admin
+  #   username: admin
+  #   email: admin@example.com
+  #   firstName: admin
+  #   lastName: user
+  #   password: admin
 
   # Launch additional containers into webserver (templated).
   extraContainers: []
@@ -1787,6 +2185,7 @@ webserver:
   # annotations for webserver deployment
   annotations: {}
 
+  # Pod annotations for webserver pods (templated)
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -1876,6 +2275,16 @@ triggerer:
     # Annotations to add to triggerer volumes
     annotations: {}
 
+  # Triggerer pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -1940,6 +2349,7 @@ triggerer:
   # annotations for the triggerer deployment
   annotations: {}
 
+  # Pod annotations for triggerer pods (templated)
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -1954,8 +2364,18 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2023,6 +2443,34 @@ triggerer:
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: ~
+
+  # Dag Bundle Configuration
+  # Define Dag bundles in a structured YAML format. This will be automatically
+  # converted to JSON string format for config.dag_processor.dag_bundle_config_list.
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+  # Example:
+  # dagBundleConfigList:
+  #   - name: bundle1
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo1"
+  #       subdir: "dags"
+  #       tracking_ref: "main"
+  #       refresh_interval: 60
+  #   - name: bundle2
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo2"
+  #       subdir: "dags"
+  #       tracking_ref: "develop"
+  #       refresh_interval: 120
+  #   - name: dags-folder
+  #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+  #     kwargs: {}
+
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -2061,6 +2509,16 @@ dagProcessor:
 
     # Annotations to add to dag processor kubernetes service account.
     annotations: {}
+
+  # Dag processor pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
@@ -2131,6 +2589,7 @@ dagProcessor:
   # annotations for the dag processor deployment
   annotations: {}
 
+  # Pod annotations for dag processor pods (templated)
   podAnnotations: {}
 
   logGroomerSidecar:
@@ -2142,8 +2601,18 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+
+    # Number of minutes to retain logs.
+    # This can be used for finer granularity than days.
+    # Total retention is retentionDays + retentionMinutes.
+    retentionMinutes: 0
+
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2164,6 +2633,10 @@ dagProcessor:
     securityContexts:
       container: {}
 
+  # Labels specific to dag processor objects
+  labels: {}
+
+  # Environment variables to add to dag processor container
   env: []
 
 # Flower settings
@@ -2204,7 +2677,7 @@ flower:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+      airflow celery flower
 
   # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -2307,6 +2780,7 @@ flower:
   # annotations for the flower deployment
   annotations: {}
 
+  # Pod annotations for flower pods (templated)
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -2324,6 +2798,37 @@ statsd:
 
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
+  # If you ever need to fully override the entire args list, you can
+  # supply your own array here; if set, all below flag-specific values
+  # (mappingConfig, cache-size, cache-type, ttl) are ignored.
+  # args:
+  #  - "--statsd.cache-size=1000"
+  #  - "--statsd.cache-type=random"
+  #  - "--ttl=10m"
+  # -------------------------------------------------------------------
+
+  # Path in the container to the mapping config file.
+
+  cache:
+    # Maximum number of metric‐mapping entries to keep in cache.
+    # When you send more distinct metric names than this, older entries
+    # will be evicted according to cacheType.
+    # Default: 1000
+    size: 1000
+
+    # Metrics Eviction policy for the mapping cache.
+    #   - lru    → Least‐Recently‐Used eviction
+    #   - random → Random eviction
+    # Default: lru
+    type: lru
+
+    # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
+    # series that hasn't received an update in this interval will be dropped
+    # from the exported /metrics output.
+    # Format: Go duration string (e.g. "30s", "5m", "1h")
+    # Default: "0s" (disabled, never expires)
+    ttl: "0s"
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}
@@ -2393,7 +2898,12 @@ statsd:
   # So, If you use it, ensure all mapping item contains in it.
   overrideMappings: []
 
+  # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
+
+  # Labels specific to statsd objects and pods
+  labels: {}
+  # Environment variables to add to statsd container
   env: []
 
 # PgBouncer settings
@@ -2418,6 +2928,7 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  # Pod annotations for PgBouncer pods (templated)
   podAnnotations: {}
 
   # Add custom annotations to the pgbouncer certificates secret
@@ -2657,6 +3168,11 @@ redis:
     # the name of an existing PVC to use
     existingClaim:
 
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
+
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:
   #   sizeLimit: 1Gi
@@ -2692,7 +3208,7 @@ redis:
   topologySpreadConstraints: []
   priorityClassName: ~
 
-  # Set to 0 for backwards-compatiblity
+  # Set to 0 for backwards-compatibility
   uid: 0
   # If not set, `redis.uid` will be used
   securityContext: {}
@@ -2707,12 +3223,21 @@ redis:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Labels specific to redis objects and pods
+  labels: {}
+
+  # Pod annotations for Redis pods (templated)
   podAnnotations: {}
-# Auth secret for a private registry
+
+# Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
 # This is used if pulling airflow images from a private registry
 registry:
+  # Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry
+  # (Deprecated - renamed to `imagePullSecrets`).
   secretName: ~
 
+  # Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret
+  # (Deprecated - create manually the credentials secret and add to `imagePullSecrets` instead).
   # Example:
   # connection:
   #   user: ~
@@ -2774,7 +3299,8 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# This runs as a CronJob to cleanup old pods.
+# This runs as a CronJob to cleanup old pods spawned by the KubernetesExecutor.
+# It is required to have KubernetesExecutor enabled.
 cleanup:
   enabled: false
   # Run every 15 minutes (templated).
@@ -2799,6 +3325,7 @@ cleanup:
   topologySpreadConstraints: []
   priorityClassName: ~
 
+  # Pod annotations for cleanup pods (templated)
   podAnnotations: {}
 
   # Labels specific to cleanup objects and pods
@@ -2845,10 +3372,100 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
+# This runs as a CronJob to cleanup database for old entries.
+databaseCleanup:
+  enabled: false
+  applyCustomEnv: true
+  # Run every week on Sunday at midnight (templated).
+  schedule: "0 0 * * 0"
+  # Command to use when running the database cleanup cronjob (templated).
+  command:
+    - "bash"
+  # Args to use when running the database cleanup cronjob (templated).
+  args:
+    - "-c"
+    - >-
+      CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
+      echo "Cleaning up metadata DB entries older than ${CLEAN_TS}";
+      exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes
+      {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }}
+      {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }}
+      {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }}
+      {{- with .Values.databaseCleanup.tables }} --tables {{ . | join "," }}{{ end }}
+
+  # Number of days to retain entries in the metadata database.
+  retentionDays: 90
+  # Don't preserve purged records in an archive table
+  skipArchive: false
+  # Table names to perform maintenance on. Supported values in:
+  # https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#clean
+  tables: []
+  # Maximum number of rows to delete or archive in a single transaction
+  batchSize: ~
+  # Make logging output more verbose
+  verbose: true
+
+  # jobAnnotations are annotations on the database cleanup CronJob
+  jobAnnotations: {}
+
+  # Select certain nodes for airflow database cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+
+  # Pod annotations for database cleanup pods (templated)
+  podAnnotations: {}
+
+  # Labels specific to database cleanup objects and pods
+  labels: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Create ServiceAccount
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to database cleanup cronjob kubernetes service account.
+    annotations: {}
+
+  env: []
+
+  # Detailed default security context for database cleanup for container level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+
 # Configuration for postgresql subchart
-# Not recommended for production
+# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
+# Not recommended for production - use external database instead
 postgresql:
   enabled: true
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: "16.1.0-debian-11-r15"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
@@ -2871,9 +3488,6 @@ config:
     # This is ignored when used with the official Docker image
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
-    # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
-    colored_console_log: 'False'
-    remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
@@ -2888,20 +3502,18 @@ config:
   webserver:
     # For Airflow 2.X
     enable_proxy_fix: 'True'
-    # For Airflow 1.10
-    rbac: 'True'
   celery:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
+    sync_parallelism: '{{ include "cpu_count" (((.Values.scheduler).resources).limits).cpu }}'
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
-    # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
-    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
-    statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
-    # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
-    run_duration: 41460
+  dag_processor:
+    # Dag bundle configuration list in JSON string format.
+    # This is automatically generated from .Values.dagProcessor.dagBundleConfigList using the dag_bundle_config_list helper function.
+    # Deprecated: Direct override via config.dag_processor.dag_bundle_config_list is deprecated.
+    # Use dagProcessor.dagBundleConfigList instead.
+    dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
   elasticsearch:
     json_format: 'True'
     log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"
@@ -2916,18 +3528,6 @@ config:
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
   celery_kubernetes_executor:
     kubernetes_queue: 'kubernetes'
-  # The `kubernetes` section is deprecated in Airflow >= 2.5.0 due to an airflow.cfg schema change.
-  # The `kubernetes` section can be removed once the helm chart no longer supports Airflow < 2.5.0.
-  kubernetes:
-    namespace: '{{ .Release.Namespace }}'
-    # The following `airflow_` entries are for Airflow 1, and can be removed when it is no longer supported.
-    airflow_configmap: '{{ include "airflow_config" . }}'
-    airflow_local_settings_configmap: '{{ include "airflow_config" . }}'
-    pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
-    worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
-    worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
-    multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
-  # The `kubernetes_executor` section duplicates the `kubernetes` section in Airflow >= 2.5.0 due to an airflow.cfg schema change.
   kubernetes_executor:
     namespace: '{{ .Release.Namespace }}'
     pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
@@ -3036,7 +3636,7 @@ dags:
     # sshKeySecret: airflow-ssh-secret
     #
     # Or set sshKeySecret with your key
-    # sshKey: |-
+    # sshKey: |
     #   -----BEGIN {OPENSSH PRIVATE KEY}-----
     #   ...
     #   -----END {OPENSSH PRIVATE KEY}-----
@@ -3074,6 +3674,36 @@ dags:
 
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+
+    # Git-Sync liveness service http bind port
+    httpPort: 1234
+
+    # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
+    # use a dedicated Git-Sync liveness service. In future, behaviour with value true will be
+    # default one and old one will be removed
+    recommendedProbeSetting: false
+
+    startupProbe:
+      enabled: true
+      timeoutSeconds: 1
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 10
+
+    # As Git-Sync is not service-type object, the usage of this section will be removed.
+    # By setting dags.gitSync.recommendedProbeSetting to true, you will enable future behaviour.
+    readinessProbe: {}
+
+    # The behaviour of the livenessProbe will change with the next release of Helm Chart.
+    # To enable future behaviour set dags.gitSync.recommendedProbeSetting to true.
+    # New behaviour uses the recommended liveness configuration by using Git-Sync built-in
+    # liveness service
+    livenessProbe: {}
+    #  enabled: true
+    #  timeoutSeconds: 1
+    #  initialDelaySeconds: 0
+    #  periodSeconds: 5
+    #  failureThreshold: 10
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
@@ -3116,3 +3746,5 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
+    ## the subpath of the existing PVC to use
+    subPath:

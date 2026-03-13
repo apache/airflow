@@ -23,10 +23,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 
 from tests_common.test_utils.config import conf_vars
@@ -61,7 +61,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         assert hasattr(facade, "avp_policy_store_id")
 
     @pytest.mark.parametrize(
-        "entity_id, context, user, expected_entities, expected_context, avp_response, expected",
+        ("entity_id", "context", "user", "expected_entities", "expected_context", "avp_response", "expected"),
         [
             # User with groups with no permissions
             (
@@ -173,7 +173,10 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             {
                 "policyStoreId": AVP_POLICY_STORE_ID,
                 "principal": {"entityType": "Airflow::User", "entityId": user.get_id()},
-                "action": {"actionType": "Airflow::Action", "actionId": get_action_id(entity_type, method)},
+                "action": {
+                    "actionType": "Airflow::Action",
+                    "actionId": get_action_id(entity_type, method, entity_id),
+                },
                 "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
                 "entities": {"entityList": expected_entities},
                 "context": expected_context,
@@ -193,7 +196,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             facade.is_authorized(method="GET", entity_type=AvpEntities.VARIABLE, user=test_user)
 
     @pytest.mark.parametrize(
-        "user, avp_response, expected",
+        ("user", "avp_response", "expected"),
         [
             (
                 test_user,
@@ -246,7 +249,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         single_result = {
             "request": {
                 "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
-                "action": {"actionType": "Airflow::Action", "actionId": "Connection.GET"},
+                "action": {"actionType": "Airflow::Action", "actionId": "Connection.LIST"},
                 "resource": {"entityType": "Airflow::Connection", "entityId": "*"},
             },
             "decision": "ALLOW",
@@ -257,7 +260,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 {
                     "request": {
                         "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
-                        "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
+                        "action": {"actionType": "Airflow::Action", "actionId": "Variable.LIST"},
                         "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
                     },
                     "decision": "ALLOW",

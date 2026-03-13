@@ -21,6 +21,7 @@ import re
 import sys
 import tempfile
 import zipfile
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,7 +31,7 @@ from rich.markup import escape
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.shared_options import get_dry_run
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
     from requests import Response
@@ -88,12 +89,14 @@ def download_file_from_github(
     """
     Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
 
+    In case of any error different from 404, it will exit the process with error code 1.
+
     :param reference: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
     :param github_token: GitHub token to use for authentication
     :param timeout: timeout in seconds for the download request, default is 60 seconds
-    :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
+    :return: whether the file was successfully downloaded (False if the file is missing)
     """
     import requests
 
@@ -114,7 +117,7 @@ def download_file_from_github(
                     f"   2. GitHub API rate limiting\n"
                     f"   3. Invalid or missing GitHub token"
                 )
-                return False
+                sys.exit(1)
             if response.status_code == 404:
                 get_console().print(f"[warning]The {url} has not been found. Skipping")
                 return False
@@ -122,11 +125,11 @@ def download_file_from_github(
                 get_console().print(
                     f"[error]{url} could not be downloaded. Status code {response.status_code}"
                 )
-                return False
+                sys.exit(1)
             output_file.write_bytes(response.content)
         except requests.Timeout:
             get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
-            return False
+            sys.exit(1)
     get_console().print(f"[success]Downloaded {url} to {output_file}")
     return True
 
@@ -179,7 +182,10 @@ def get_active_airflow_versions(
             get_console().print("[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
-    get_console().print("[info]All Airflow 2/3 versions")
+    get_console().print("[info]All Airflow 2/3 versions loaded from GitHub[/]")
+    if get_verbose():
+        get_console().print("[info]Found active Airflow versions:[/]")
+        get_console().print(airflow_versions)
     if confirm:
         for version in airflow_versions:
             get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
@@ -340,7 +346,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     data = workflow_runs.json()["workflow_runs"]
     sorted_data = sorted(data, key=lambda x: datetime.fromisoformat(x["created_at"]), reverse=True)
     run_id = None
-    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml, news-fragment.yml
+    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml
 
     for run in sorted_data:
         if run.get("path").endswith("ci.yml"):
@@ -350,3 +356,268 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     get_console().print(f"[info]Found run id {run_id} for PR {pr}")
 
     download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
+
+
+_CONTRIBUTING_DOCS_URL = "https://github.com/apache/airflow/blob/main/contributing-docs"
+_STATIC_CHECKS_URL = f"{_CONTRIBUTING_DOCS_URL}/08_static_code_checks.rst"
+_TESTING_URL = f"{_CONTRIBUTING_DOCS_URL}/09_testing.rst"
+
+# Patterns to categorize failing CI check names
+_CHECK_CATEGORIES: list[tuple[str, list[str], str, str]] = [
+    # (category, name_patterns, fix_instructions, doc_url)
+    (
+        "Pre-commit / static checks",
+        ["static checks", "pre-commit", "prek"],
+        "Run `prek run --from-ref main` locally to find and fix issues.",
+        _STATIC_CHECKS_URL,
+    ),
+    (
+        "Ruff (linting / formatting)",
+        ["ruff"],
+        "Run `prek run ruff --from-ref main` and `prek run ruff-format --from-ref main` to fix.",
+        f"{_STATIC_CHECKS_URL}#using-prek",
+    ),
+    (
+        "mypy (type checking)",
+        ["mypy"],
+        "",  # dynamically generated in assess_pr_checks based on which mypy hooks failed
+        f"{_STATIC_CHECKS_URL}#mypy-checks",
+    ),
+    (
+        "Unit tests",
+        ["unit test", "test-"],
+        "Run failing tests with `breeze run pytest <path> -xvs`.",
+        _TESTING_URL,
+    ),
+    (
+        "Build docs",
+        ["docs", "spellcheck-docs", "build-docs"],
+        "Run `breeze build-docs` locally to reproduce.",
+        f"{_CONTRIBUTING_DOCS_URL}/16_documentation.rst",
+    ),
+    (
+        "Helm tests",
+        ["helm"],
+        "Run Helm tests with `breeze k8s run-complete-tests`.",
+        _TESTING_URL,
+    ),
+    (
+        "Kubernetes tests",
+        ["k8s", "kubernetes"],
+        "See the K8s testing documentation.",
+        _TESTING_URL,
+    ),
+    (
+        "Image build",
+        ["build ci image", "build prod image", "ci-image", "prod-image"],
+        "Check that Dockerfiles and dependencies are correct.",
+        f"{_CONTRIBUTING_DOCS_URL}/03a_contributors_quick_start_beginners.rst",
+    ),
+    (
+        "Provider tests",
+        ["provider"],
+        "Run provider tests with `breeze run pytest <provider-test-path> -xvs`.",
+        f"{_CONTRIBUTING_DOCS_URL}/12_provider_distributions.rst",
+    ),
+]
+
+
+@dataclass
+class Violation:
+    category: str
+    explanation: str  # short description of the problem (shown in terminal)
+    severity: str  # "error" or "warning"
+    details: str = ""  # fix suggestions and doc links (included only in GitHub comment)
+
+
+@dataclass
+class PRAssessment:
+    should_flag: bool
+    should_report: bool = False
+    violations: list[Violation] = field(default_factory=list)
+    summary: str = ""
+    error: bool = False
+    error_debug_file: str = ""
+
+
+_MYPY_HOOK_RE = re.compile(r"\b(mypy-[\w-]+)\b", re.IGNORECASE)
+
+
+_ALL_MYPY_HOOKS = [
+    "mypy-airflow-core",
+    "mypy-providers",
+    "mypy-dev",
+    "mypy-task-sdk",
+    "mypy-devel-common",
+    "mypy-airflow-ctl",
+]
+
+
+def _build_mypy_fix(checks: list[str]) -> str:
+    """Build a mypy fix instruction from the list of failing mypy check names."""
+    hooks: list[str] = []
+    for check in checks:
+        m = _MYPY_HOOK_RE.search(check)
+        if m:
+            hooks.append(m.group(1).lower())
+    if not hooks:
+        hooks = _ALL_MYPY_HOOKS
+    commands = " && ".join(f"`prek --stage manual {hook} --all-files`" for hook in hooks)
+    return (
+        f"Run {commands} locally to reproduce. "
+        "You need `breeze ci-image build --python 3.10` for Docker-based mypy."
+    )
+
+
+def _categorize_check(check_name: str) -> tuple[str, str, str] | None:
+    """Match a failing check name to a category. Returns (category, fix_instructions, doc_url) or None."""
+    lower = check_name.lower()
+    for category, patterns, fix_instructions, url in _CHECK_CATEGORIES:
+        if any(p in lower for p in patterns):
+            return category, fix_instructions, url
+    return None
+
+
+def assess_pr_checks(pr_number: int, checks_state: str, failed_checks: list[str]) -> PRAssessment | None:
+    """Deterministically flag a PR if CI checks are failing. Returns None if checks pass.
+
+    Uses the statusCheckRollup.state as the authoritative signal.
+    failed_checks is a best-effort list of individual failing check names.
+    """
+    if checks_state != "FAILURE":
+        return None
+
+    violations: list[Violation] = []
+
+    if failed_checks:
+        # Group failing checks by category
+        categorized: dict[str, tuple[list[str], str, str]] = {}
+        uncategorized: list[str] = []
+
+        for check in failed_checks:
+            match = _categorize_check(check)
+            if match:
+                category, fix_instructions, url = match
+                if category not in categorized:
+                    categorized[category] = ([], fix_instructions, url)
+                categorized[category][0].append(check)
+            else:
+                uncategorized.append(check)
+
+        for category, (checks, fix_instructions, url) in categorized.items():
+            checks_list = ", ".join(checks[:5])
+            if len(checks) > 5:
+                checks_list += f" (+{len(checks) - 5} more)"
+            fix_text = _build_mypy_fix(checks) if category == "mypy (type checking)" else fix_instructions
+            violations.append(
+                Violation(
+                    category=category,
+                    explanation=f"Failing: {checks_list}.",
+                    severity="error",
+                    details=f"{fix_text} See [{category} docs]({url}).",
+                )
+            )
+
+        if uncategorized:
+            checks_list = ", ".join(uncategorized[:5])
+            if len(uncategorized) > 5:
+                checks_list += f" (+{len(uncategorized) - 5} more)"
+            violations.append(
+                Violation(
+                    category="Other failing CI checks",
+                    explanation=f"Failing: {checks_list}.",
+                    severity="error",
+                    details=(
+                        f"Run `prek run --from-ref main` locally to reproduce. "
+                        f"See [static checks docs]({_STATIC_CHECKS_URL})."
+                    ),
+                )
+            )
+
+        summary = f"PR #{pr_number} has {len(failed_checks)} failing CI check(s)."
+    else:
+        violations.append(
+            Violation(
+                category="Failing CI checks",
+                explanation="CI checks are failing (individual check names not available).",
+                severity="error",
+                details=(
+                    f"Run `prek run --from-ref main` locally to reproduce. "
+                    f"See [static checks docs]({_STATIC_CHECKS_URL}) "
+                    f"and [testing docs]({_TESTING_URL})."
+                ),
+            )
+        )
+        summary = f"PR #{pr_number} has failing CI checks."
+
+    return PRAssessment(
+        should_flag=True,
+        violations=violations,
+        summary=summary,
+    )
+
+
+def assess_pr_conflicts(
+    pr_number: int, mergeable: str, base_ref: str, commits_behind: int
+) -> PRAssessment | None:
+    """Deterministically flag a PR if it has merge conflicts. Returns None if no conflicts."""
+    if mergeable != "CONFLICTING":
+        return None
+
+    behind_note = ""
+    if commits_behind > 0:
+        behind_note = (
+            f" Your branch is {commits_behind} commit{'s' if commits_behind != 1 else ''} "
+            f"behind `{base_ref}`."
+        )
+
+    return PRAssessment(
+        should_flag=True,
+        violations=[
+            Violation(
+                category="Merge conflicts",
+                explanation=(f"This PR has merge conflicts with the `{base_ref}` branch.{behind_note}"),
+                severity="error",
+                details=(
+                    f"Please rebase your branch "
+                    f"(`git fetch origin && git rebase origin/{base_ref}`), "
+                    f"resolve the conflicts, and push again. "
+                    f"See [contributing quick start]"
+                    f"({_CONTRIBUTING_DOCS_URL}/03a_contributors_quick_start_beginners.rst)."
+                ),
+            )
+        ],
+        summary=f"PR #{pr_number} has merge conflicts.",
+    )
+
+
+def assess_pr_unresolved_comments(pr_number: int, unresolved_review_comments: int) -> PRAssessment | None:
+    """Deterministically flag a PR if it has unresolved review comments from maintainers.
+
+    Returns None if there are no unresolved comments.
+    """
+    if unresolved_review_comments <= 0:
+        return None
+
+    thread_word = "thread" if unresolved_review_comments == 1 else "threads"
+    return PRAssessment(
+        should_flag=True,
+        violations=[
+            Violation(
+                category="Unresolved review comments",
+                explanation=(
+                    f"This PR has {unresolved_review_comments} unresolved review "
+                    f"{thread_word} from maintainers."
+                ),
+                severity="warning",
+                details=(
+                    "Please review and resolve all inline review comments before requesting "
+                    "another review. You can resolve a conversation by clicking 'Resolve conversation' "
+                    "on each thread after addressing the feedback. "
+                    f"See [pull request guidelines]"
+                    f"({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
+                ),
+            )
+        ],
+        summary=f"PR #{pr_number} has {unresolved_review_comments} unresolved review {thread_word}.",
+    )

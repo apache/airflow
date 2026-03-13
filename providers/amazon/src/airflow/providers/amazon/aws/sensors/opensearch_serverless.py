@@ -19,18 +19,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerlessHook]):

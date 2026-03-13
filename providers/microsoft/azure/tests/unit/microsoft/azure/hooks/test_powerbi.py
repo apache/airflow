@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
@@ -78,7 +78,7 @@ class TestPowerBIHook:
                 await powerbi_hook.get_refresh_history(DATASET_ID, GROUP_ID)
 
     @pytest.mark.parametrize(
-        "input_data, expected_output",
+        ("input_data", "expected_output"),
         [
             (
                 {"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""},

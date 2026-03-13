@@ -48,11 +48,21 @@ const SegmentedControl = ({ defaultValues, multiple = false, onChange, options }
   useEffect(() => onChange?.(selectedOptions), [onChange, selectedOptions]);
 
   return (
-    <Group backgroundColor="bg.muted" borderRadius={8} colorPalette="gray" mb={3} p={1}>
+    <Group
+      backgroundColor="bg.muted"
+      borderColor="border.emphasized"
+      borderRadius={8}
+      borderWidth={1}
+      colorPalette="brand"
+      mb={3}
+      p={1}
+    >
       {options.map(({ disabled, label, value }: Option) => (
         <Button
-          _hover={{ backgroundColor: "bg.panel" }}
+          _hover={{ backgroundColor: "bg.emphasized" }}
           bg={selectedOptions.includes(value) ? "bg.panel" : undefined}
+          borderColor={selectedOptions.includes(value) ? "border.emphasized" : "transparent"}
+          borderWidth={selectedOptions.includes(value) ? 1 : 0}
           disabled={disabled}
           key={value}
           onClick={() => onClick(value)}

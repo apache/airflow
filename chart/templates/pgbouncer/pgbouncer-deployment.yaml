@@ -25,7 +25,7 @@
 {{- $affinity := or .Values.pgbouncer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.pgbouncer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.pgbouncer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "localPodSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
@@ -49,7 +49,7 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.pgbouncer.replicas | default "1" }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
@@ -74,7 +74,7 @@ spec:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
         {{- if .Values.pgbouncer.podAnnotations }}
-          {{- toYaml .Values.pgbouncer.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.pgbouncer.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.pgbouncer.priorityClassName }}
@@ -90,10 +90,7 @@ spec:
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       containers:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}

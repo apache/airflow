@@ -22,13 +22,10 @@ from unittest import mock
 from unittest.mock import PropertyMock, call
 
 import pytest
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition, PermissionDenied
 from google.cloud.container_v1.types import Cluster, NodePool
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
@@ -43,6 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEClusterAuthDetails,
     GKECreateClusterOperator,
@@ -104,7 +102,14 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        "use_dns_endpoint, use_internal_ip, endpoint, private_endpoint, dns_endpoint, expected_cluster_url",
+        (
+            "use_dns_endpoint",
+            "use_internal_ip",
+            "endpoint",
+            "private_endpoint",
+            "dns_endpoint",
+            "expected_cluster_url",
+        ),
         [
             (
                 False,
@@ -457,7 +462,7 @@ class TestGKECreateClusterOperator:
                 )
 
     @pytest.mark.parametrize(
-        "deprecated_field_name, deprecated_field_value",
+        ("deprecated_field_name", "deprecated_field_value"),
         [
             ("initial_node_count", 1),
             ("node_config", mock.MagicMock()),
@@ -516,6 +521,140 @@ class TestGKECreateClusterOperator:
         )
         mock_log.info.assert_called_once_with("Assuming Success: %s", expected_error_message)
         assert result == TEST_SELF_LINK
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_on_permission_denied(
+        self,
+        mock_link,
+        mock_cluster_hook,
+    ):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        permission_error = PermissionDenied("Missing container.operations.get")
+        mock_create_cluster.side_effect = permission_error
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=False,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(PermissionDenied):
+            operator.execute({})
+
+        # Cluster creation attempted.
+        mock_create_cluster.assert_called_once_with(
+            cluster=GKE_CLUSTER_CREATE_BODY_DICT,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=True,
+        )
+
+        # Cleanup attempted.
+        mock_delete_cluster.assert_called_once_with(
+            name=GKE_CLUSTER_NAME,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=False,
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_failure_does_not_mask_original_error(
+        self,
+        mock_link,
+        mock_cluster_hook,
+    ):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        # Simulate wait failure due to missing operations.get and clusters.delete.
+        permission_error = PermissionDenied("Missing container.operations.get")
+        cleanup_error = PermissionDenied("Missing container.clusters.delete")
+
+        mock_create_cluster.side_effect = permission_error
+        mock_delete_cluster.side_effect = cleanup_error
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=False,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(PermissionDenied) as exc:
+            operator.execute({})
+
+        # Original exception preserved.
+        assert exc.value is permission_error
+
+        # Creation attempted.
+        mock_create_cluster.assert_called_once()
+
+        # Cleanup attempted despite failure.
+        mock_delete_cluster.assert_called_once_with(
+            name=GKE_CLUSTER_NAME,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=False,
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("time.sleep"), return_value=None)
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_retries_on_active_operation(self, mock_link, mock_cluster_hook, mock_sleep):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        # Simulate wait failure due to missing operations.get.
+        permission_error = PermissionDenied("Missing container.operations.get")
+        mock_create_cluster.side_effect = permission_error
+
+        # First delete attempt on active operation leads to FailedPrecondition,
+        active_op_error = FailedPrecondition(
+            message="Cluster is running incompatible operation.",
+            errors={
+                "reason": "CLUSTER_ALREADY_HAS_OPERATION",
+            },
+        )
+
+        # Second delete attempt is successful.
+        mock_delete_cluster.side_effect = [
+            active_op_error,
+            None,
+        ]
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            delete_cluster_on_failure=True,
+            cleanup_timeout_seconds=120,
+        )
+
+        # Simulate PermissionDenied during execution.
+        with pytest.raises(PermissionDenied):
+            operator.execute({})
+
+        # Should retry once.
+        assert mock_delete_cluster.call_count == 2
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEOperationTrigger"))
     @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
@@ -687,7 +826,7 @@ class TestGKEStartPodOperator:
             )
 
     @pytest.mark.parametrize(
-        "kwargs, expected_attributes",
+        ("kwargs", "expected_attributes"),
         [
             (
                 {"on_finish_action": "delete_succeeded_pod"},
@@ -727,7 +866,7 @@ class TestGKEStartPodOperator:
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
-    @mock.patch(GKE_OPERATORS_PATH.format("utcnow"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
     def test_invoke_defer_method(
         self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
     ):
@@ -862,7 +1001,9 @@ class TestGKEStartJobOperator:
         mock_pod_metadata = mock.MagicMock()
         mock_pod_metadata.name = K8S_POD_NAME
         mock_pod_metadata.namespace = K8S_NAMESPACE
-        self.operator.pod = mock.MagicMock(metadata=mock_pod_metadata)
+        self.operator.pods = [
+            mock.MagicMock(metadata=mock_pod_metadata),
+        ]
 
         mock_job_metadata = mock.MagicMock()
         mock_job_metadata.name = K8S_JOB_NAME
@@ -880,7 +1021,69 @@ class TestGKEStartJobOperator:
             ssl_ca_cert=GKE_SSL_CA_CERT,
             job_name=K8S_JOB_NAME,
             job_namespace=K8S_NAMESPACE,
-            pod_name=K8S_POD_NAME,
+            pod_names=[
+                K8S_POD_NAME,
+            ],
+            pod_namespace=K8S_NAMESPACE,
+            base_container_name="base",
+            gcp_conn_id=TEST_CONN_ID,
+            poll_interval=10.0,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            get_logs=mock_get_logs,
+            do_xcom_push=False,
+        )
+        mock_defer.assert_called_once_with(
+            trigger=mock_trigger.return_value,
+            method_name="execute_complete",
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartJobOperator.defer"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEJobTrigger"))
+    def test_execute_deferrable_with_parallelism(
+        self, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+    ):
+        op = GKEStartJobOperator(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            task_id=TEST_TASK_ID,
+            name=K8S_JOB_NAME,
+            namespace=K8S_NAMESPACE,
+            image=TEST_IMAGE,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            parallelism=2,
+        )
+        mock_pod_name_1 = K8S_POD_NAME + "-1"
+        mock_pod_metadata_1 = mock.MagicMock()
+        mock_pod_metadata_1.name = mock_pod_name_1
+        mock_pod_metadata_1.namespace = K8S_NAMESPACE
+
+        mock_pod_name_2 = K8S_POD_NAME + "-2"
+        mock_pod_metadata_2 = mock.MagicMock()
+        mock_pod_metadata_2.name = mock_pod_name_2
+        mock_pod_metadata_2.namespace = K8S_NAMESPACE
+        op.pods = [mock.MagicMock(metadata=mock_pod_metadata_1), mock.MagicMock(metadata=mock_pod_metadata_2)]
+
+        mock_job_metadata = mock.MagicMock()
+        mock_job_metadata.name = K8S_JOB_NAME
+        mock_job_metadata.namespace = K8S_NAMESPACE
+        op.job = mock.MagicMock(metadata=mock_job_metadata)
+
+        mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
+        mock_get_logs = mock.MagicMock()
+        op.get_logs = mock_get_logs
+
+        op.execute_deferrable()
+
+        mock_trigger.assert_called_once_with(
+            cluster_url=GKE_CLUSTER_URL,
+            ssl_ca_cert=GKE_SSL_CA_CERT,
+            job_name=K8S_JOB_NAME,
+            job_namespace=K8S_NAMESPACE,
+            pod_names=[mock_pod_name_1, mock_pod_name_2],
             pod_namespace=K8S_NAMESPACE,
             base_container_name="base",
             gcp_conn_id=TEST_CONN_ID,

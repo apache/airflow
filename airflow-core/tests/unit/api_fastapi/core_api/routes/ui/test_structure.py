@@ -24,15 +24,16 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from airflow.models import DagBag
+from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
-from airflow.utils import timezone
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -40,6 +41,8 @@ pytestmark = pytest.mark.db_test
 DAG_ID = "dag_with_multiple_versions"
 DAG_ID_EXTERNAL_TRIGGER = "external_trigger"
 DAG_ID_RESOLVED_ASSET_ALIAS = "dag_with_resolved_asset_alias"
+DAG_ID_LINEAR_DEPTH = "linear_depth_dag"
+DAG_ID_NONLINEAR_DEPTH = "nonlinear_depth_dag"
 LATEST_VERSION_DAG_RESPONSE: dict = {
     "edges": [],
     "nodes": [
@@ -89,10 +92,8 @@ FIRST_VERSION_DAG_RESPONSE["nodes"] = [
 
 
 @pytest.fixture(autouse=True, scope="module")
-def examples_dag_bag() -> DagBag:
-    # Speed up: We don't want example dags for this module
-
-    return DagBag(include_examples=False, read_dags_from_db=True)
+def examples_dag_bag() -> DBDagBag:
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -183,6 +184,42 @@ def make_dags(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, as
     session.commit()
     dag_maker.sync_dagbag_to_db()
 
+    # Linear DAG with 5 tasks for depth testing
+    with dag_maker(
+        dag_id=DAG_ID_LINEAR_DEPTH,
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_e = EmptyOperator(task_id="task_e")
+        # Linear chain: task_a >> task_b >> task_c >> task_d >> task_e
+        task_a >> task_b >> task_c >> task_d >> task_e
+    dag_maker.sync_dagbag_to_db()
+
+    # Non-linear DAG for depth testing with branching and merging
+    with dag_maker(
+        dag_id=DAG_ID_NONLINEAR_DEPTH,
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        start = EmptyOperator(task_id="start")
+        branch_a = EmptyOperator(task_id="branch_a")
+        branch_b = EmptyOperator(task_id="branch_b")
+        intermediate = EmptyOperator(task_id="intermediate")
+        merge = EmptyOperator(task_id="merge")
+        end = EmptyOperator(task_id="end")
+        # Non-linear structure
+        start >> [branch_a, branch_b]
+        branch_a >> intermediate >> merge
+        branch_b >> merge
+        merge >> end
+    dag_maker.sync_dagbag_to_db()
+
 
 def _fetch_asset_id(asset: Asset, session: Session) -> str:
     return str(
@@ -209,7 +246,7 @@ def asset3_id(make_dags, asset3, session) -> str:
 
 class TestStructureDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {"dag_id": DAG_ID},
@@ -266,6 +303,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                6,
             ),
             (
                 {
@@ -273,6 +311,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
+                6,
             ),
             (
                 {
@@ -297,6 +336,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                6,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -335,12 +375,14 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                13,
             ),
         ],
     )
     @pytest.mark.usefixtures("make_dags")
-    def test_should_return_200(self, test_client, params, expected):
-        response = test_client.get("/structure/structure_data", params=params)
+    def test_should_return_200(self, test_client, params, expected, expected_queries_count):
+        with assert_queries_count(expected_queries_count):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -530,7 +572,8 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        response = test_client.get("/structure/structure_data", params=params)
+        with assert_queries_count(13):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -539,7 +582,7 @@ class TestStructureDataEndpoint:
         self, test_client, session
     ):
         resolved_asset = session.scalar(
-            session.query(AssetModel).filter_by(name="resolved_example_asset_alias")
+            select(AssetModel).where(AssetModel.name == "resolved_example_asset_alias")
         )
         params = {
             "dag_id": DAG_ID_RESOLVED_ASSET_ALIAS,
@@ -604,7 +647,7 @@ class TestStructureDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             pytest.param(
                 {"dag_id": DAG_ID},
@@ -656,3 +699,143 @@ class TestStructureDataEndpoint:
             response.json()["detail"]
             == "Dag with id dag_with_multiple_versions and version number 999 was not found"
         )
+
+    def test_mapped_operator_graph_view(self, dag_maker, test_client, session):
+        """
+        Ensures structure_data endpoint handles MappedOperator without AttributeError.
+        """
+        from airflow.providers.standard.operators.bash import BashOperator
+
+        with dag_maker(
+            dag_id="test_mapped_operator_dag",
+            serialized=True,
+            session=session,
+            start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        ):
+            task1 = EmptyOperator(task_id="task1")
+            mapped_task = BashOperator.partial(
+                task_id="mapped_bash_task",
+                do_xcom_push=False,
+            ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
+            task2 = EmptyOperator(task_id="task2")
+
+            task1 >> mapped_task >> task2
+
+        dag_maker.sync_dagbag_to_db()
+        response = test_client.get("/structure/structure_data", params={"dag_id": "test_mapped_operator_dag"})
+        assert response.status_code == 200
+        data = response.json()
+
+        mapped_node = next(node for node in data["nodes"] if node["id"] == "mapped_bash_task")
+        assert mapped_node["is_mapped"] is True
+        assert mapped_node["operator"] == "BashOperator"
+        assert len(data["edges"]) == 2
+
+    def test_mapped_operator_in_task_group(self, dag_maker, test_client, session):
+        """
+        Test that mapped operators within task groups are handled correctly.
+        Specifically tests task_group_to_dict function with MappedOperator instances.
+        """
+        from airflow.providers.standard.operators.python import PythonOperator
+        from airflow.sdk.definitions.taskgroup import TaskGroup
+
+        with dag_maker(
+            dag_id="test_mapped_in_group_dag",
+            serialized=True,
+            session=session,
+            start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        ):
+            with TaskGroup(group_id="processing_group"):
+                prep = EmptyOperator(task_id="prep")
+                mapped = PythonOperator.partial(
+                    task_id="process",
+                    python_callable=lambda x: print(f"Processing {x}"),
+                ).expand(op_args=[[1], [2], [3], [4]])
+
+                prep >> mapped
+
+        dag_maker.sync_dagbag_to_db()
+        response = test_client.get("/structure/structure_data", params={"dag_id": "test_mapped_in_group_dag"})
+
+        assert response.status_code == 200
+        data = response.json()
+        group_node = next(node for node in data["nodes"] if node["id"] == "processing_group")
+        assert group_node["children"] is not None
+
+        mapped_in_group = next(
+            child for child in group_node["children"] if child["id"] == "processing_group.process"
+        )
+        assert mapped_in_group["is_mapped"] is True
+        assert mapped_in_group["operator"] == "PythonOperator"
+
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 1},
+                ["task_a", "task_b"],
+                "depth=1 downstream from task_a should return task_a and task_b only",
+                id="downstream_depth_1",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 2},
+                ["task_a", "task_b", "task_c"],
+                "depth=2 downstream from task_a should return task_a, task_b, and task_c",
+                id="downstream_depth_2",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 1},
+                ["task_d", "task_e"],
+                "depth=1 upstream from task_e should return task_e and task_d only",
+                id="upstream_depth_1",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 2},
+                ["task_c", "task_d", "task_e"],
+                "depth=2 upstream from task_e should return task_e, task_d, and task_c",
+                id="upstream_depth_2",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_LINEAR_DEPTH,
+                    "root": "task_c",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "depth": 1,
+                },
+                ["task_b", "task_c", "task_d"],
+                "depth=1 both directions from task_c should return task_b, task_c, and task_d",
+                id="both_directions_depth_1",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_NONLINEAR_DEPTH,
+                    "root": "start",
+                    "include_downstream": True,
+                    "depth": 1,
+                },
+                ["branch_a", "branch_b", "start"],
+                "depth=1 downstream from start in nonlinear DAG should return start and both branches",
+                id="nonlinear_downstream_depth_1",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_NONLINEAR_DEPTH,
+                    "root": "merge",
+                    "include_upstream": True,
+                    "depth": 1,
+                },
+                ["branch_b", "intermediate", "merge"],
+                "depth=1 upstream from merge in nonlinear DAG should return merge, branch_b, and intermediate",
+                id="nonlinear_upstream_depth_1",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_structure_with_depth(self, test_client, params, expected_task_ids, description):
+        """Test that depth parameter limits the number of levels returned in various scenarios."""
+        response = test_client.get("/structure/structure_data", params=params)
+        assert response.status_code == 200
+        data = response.json()
+        task_ids = sorted([node["id"] for node in data["nodes"]])
+        assert task_ids == expected_task_ids, description

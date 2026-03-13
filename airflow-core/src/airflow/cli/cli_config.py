@@ -29,12 +29,13 @@ from typing import NamedTuple
 
 import lazy_object_proxy
 
+from airflow._shared.module_loading import import_string
+from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
+from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
-from airflow.utils.module_loading import import_string
-from airflow.utils.state import DagRunState, JobState
-from airflow.utils.timezone import parse as parsedate
+from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -166,8 +167,24 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
-ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
-ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help=(
+        "Override start_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
+ARG_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help=(
+        "Override end_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -259,11 +276,30 @@ ARG_JOB_STATE = Arg(
 )
 
 # next_execution
+ARG_TABLE = Arg(
+    ("--table",),
+    action="store_true",
+    default=False,
+    help="Show a table expected of attributes of next executions",
+)
+ARG_FIELD = Arg(
+    ("--field",),
+    choices=(
+        "logical_date",
+        "data_interval.start",
+        "data_interval.end",
+        "partition_key",
+        "partition_date",
+        "run_after",
+    ),
+    default=None,
+    help="Show given attribute of next executions",
+)
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next logical date times to show",
+    help="The number of next executions to show",
 )
 
 # misc
@@ -304,6 +340,8 @@ ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", 
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
+# teams
+ARG_TEAM_NAME = Arg(("name",), help="Team name")
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -339,6 +377,15 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
         "created for the date. Default is none."
     ),
     choices=("none", "completed", "failed"),
+)
+ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
+    ("--run-on-latest-version",),
+    help=(
+        "(Experimental) The backfill will run tasks using the latest bundle version instead of "
+        "the version that was active when the original Dag run was created. Defaults to True."
+    ),
+    action="store_true",
+    default=True,
 )
 
 
@@ -431,8 +478,10 @@ ARG_REPLACE_MICRO = Arg(
 ARG_DB_TABLES = Arg(
     ("-t", "--tables"),
     help=lazy_object_proxy.Proxy(
-        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
-        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        lambda: (
+            f"Table names to perform maintenance on (use comma-separated list).\n"
+            f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        )
     ),
     type=string_list_type,
 )
@@ -492,6 +541,18 @@ ARG_DB_BATCH_SIZE = Arg(
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
+ARG_DAG_IDS = Arg(
+    ("--dag-ids",),
+    default=None,
+    help="Only cleanup data related to the given dag_id",
+    type=string_list_type,
+)
+ARG_EXCLUDE_DAG_IDS = Arg(
+    ("--exclude-dag-ids",),
+    default=None,
+    help="Avoid cleaning up data related to the given dag_ids",
+    type=string_list_type,
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -532,7 +593,7 @@ ARG_VAR_DESCRIPTION = Arg(
 )
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
-ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from .env, .json, .yaml or .yml file")
 ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file",
@@ -543,6 +604,16 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
     help="Action to take if we encounter a variable key that already exists.",
     default="overwrite",
     choices=("overwrite", "fail", "skip"),
+)
+ARG_VAR_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show variable values. By default only variable keys are listed.",
+)
+ARG_VAR_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask variable values.",
 )
 
 # kerberos
@@ -558,7 +629,7 @@ ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task in
 # database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
-    help="timeout to wait for db to migrate ",
+    help="timeout to wait for db to migrate",
     type=int,
     default=60,
 )
@@ -658,7 +729,7 @@ ARG_SSL_KEY = Arg(
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
 )
-ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
+ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -666,6 +737,13 @@ ARG_NUM_RUNS = Arg(
     default=conf.getint("scheduler", "num_runs"),
     type=int,
     help="Set the number of runs to execute before exiting",
+)
+
+ARG_ONLY_IDLE = Arg(
+    ("-i", "--only-idle"),
+    default=conf.getboolean("scheduler", "only_idle", fallback=False),
+    help="Only count runs after the scheduler becomes idle.",
+    action="store_true",
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -693,9 +771,6 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
-ARG_CONN_ID_FILTER = Arg(
-    ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
-)
 ARG_CONN_URI = Arg(
     ("--conn-uri",), help="Connection URI, required to add a connection without conn_type", type=str
 )
@@ -747,6 +822,16 @@ ARG_CONN_OVERWRITE = Arg(
     required=False,
     action="store_true",
 )
+ARG_CONN_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show connection values (host, login, URI, etc.). By default only connection IDs are listed.",
+)
+ARG_CONN_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask sensitive values (passwords, URI credentials, extra).",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -777,6 +862,20 @@ ARG_SECTION = Arg(
 ARG_OPTION = Arg(
     ("option",),
     help="The option name",
+)
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, hide sensitive values (passwords, keys, tokens, etc.) and only show non-sensitive configuration values.",
+)
+ARG_CONFIG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help=(
+        "Show configuration values. "
+        "By default only option names are shown and values (including potentially "
+        "sensitive ones) are hidden."
+    ),
 )
 
 # lint
@@ -880,6 +979,11 @@ ARG_CAPACITY = Arg(
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
+ARG_QUEUES = Arg(
+    ("--queues",),
+    type=string_list_type,
+    help="Optional comma-separated list of task queues which the triggerer should consume from.",
+)
 
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
@@ -968,6 +1072,7 @@ BACKFILL_COMMANDS = (
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_RUN_ON_LATEST_VERSION,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),
@@ -1038,7 +1143,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TABLE, ARG_FIELD, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
@@ -1344,7 +1449,7 @@ VARIABLES_COMMANDS = (
         name="list",
         help="List variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VAR_LIST_SHOW_VALUES, ARG_VAR_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="get",
@@ -1381,11 +1486,34 @@ VARIABLES_COMMANDS = (
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),
 )
+TEAMS_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a team",
+        description=(
+            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+        ),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
+        args=(ARG_TEAM_NAME, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="delete",
+        help="Delete a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_delete"),
+        args=(ARG_TEAM_NAME, ARG_YES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="list",
+        help="List teams",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
-        help="Check if migration have finished",
-        description="Check if migration have finished (or continually check until timeout)",
+        help="Check if migrations have finished",
+        description="Check if migrations have finished (or continually check until timeout)",
         func=lazy_load_command("airflow.cli.commands.db_command.check_migrations"),
         args=(ARG_MIGRATION_TIMEOUT, ARG_VERBOSE),
     ),
@@ -1462,6 +1590,8 @@ DB_COMMANDS = (
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
             ARG_DB_BATCH_SIZE,
+            ARG_DAG_IDS,
+            ARG_EXCLUDE_DAG_IDS,
         ),
     ),
     ActionCommand(
@@ -1494,7 +1624,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_CONN_LIST_SHOW_VALUES, ARG_CONN_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",
@@ -1685,6 +1815,8 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_HIDE_SENSITIVE,
+            ARG_CONFIG_SHOW_VALUES,
         ),
     ),
     ActionCommand(
@@ -1826,6 +1958,11 @@ core_commands: list[CLICommand] = [
         subcommands=VARIABLES_COMMANDS,
     ),
     GroupCommand(
+        name="teams",
+        help="Manage teams",
+        subcommands=TEAMS_COMMANDS,
+    ),
+    GroupCommand(
         name="jobs",
         help="Manage jobs",
         subcommands=JOBS_COMMANDS,
@@ -1879,6 +2016,7 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
         args=(
             ARG_NUM_RUNS,
+            ARG_ONLY_IDLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
@@ -1886,6 +2024,7 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_SKIP_SERVE_LOGS,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
         epilog=(
             "Signals:\n"
@@ -1909,6 +2048,8 @@ core_commands: list[CLICommand] = [
             ARG_CAPACITY,
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_DEV,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(
@@ -1924,6 +2065,7 @@ core_commands: list[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
     ),
     ActionCommand(

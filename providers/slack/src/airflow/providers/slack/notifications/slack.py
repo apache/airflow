@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.slack.hooks.slack import SlackHook
+from airflow.providers.slack.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
@@ -71,8 +72,13 @@ class SlackNotifier(BaseNotifier):
         retry_handlers: list[RetryHandler] | None = None,
         unfurl_links: bool = True,
         unfurl_media: bool = True,
+        **kwargs,
     ):
-        super().__init__()
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.slack_conn_id = slack_conn_id
         self.text = text
         self.channel = channel
@@ -111,6 +117,20 @@ class SlackNotifier(BaseNotifier):
             "unfurl_media": self.unfurl_media,
         }
         self.hook.call("chat.postMessage", json=api_call_params)
+
+    async def async_notify(self, context):
+        """Send a message to a Slack Channel (async)."""
+        api_call_params = {
+            "channel": self.channel,
+            "username": self.username,
+            "text": self.text,
+            "icon_url": self.icon_url,
+            "attachments": json.dumps(self.attachments),
+            "blocks": json.dumps(self.blocks),
+            "unfurl_links": self.unfurl_links,
+            "unfurl_media": self.unfurl_media,
+        }
+        await self.hook.async_call("chat.postMessage", json=api_call_params)
 
 
 send_slack_notification = SlackNotifier

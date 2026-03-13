@@ -1,0 +1,46 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "事件",
+      "extra": "额外信息",
+      "user": "用户",
+      "when": "时间"
+    },
+    "filters": {
+      "eventType": "事件类型"
+    },
+    "title": "审计日志"
+  },
+  "xcom": {
+    "add": {
+      "error": "添加 XCom 失败",
+      "errorTitle": "错误",
+      "success": "XCom 添加成功",
+      "successTitle": "已添加 XCom",
+      "title": "添加 XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "键",
+      "value": "值"
+    },
+    "delete": {
+      "error": "删除 XCom 失败",
+      "errorTitle": "错误",
+      "success": "XCom 删除成功",
+      "successTitle": "已删除 XCom",
+      "title": "删除 XCom",
+      "warning": "确定要删除此 XCom 吗？此操作无法还原。"
+    },
+    "edit": {
+      "error": "更新 XCom 失败",
+      "errorTitle": "错误",
+      "success": "XCom 更新成功",
+      "successTitle": "已更新 XCom",
+      "title": "编辑 XCom"
+    },
+    "key": "键",
+    "title": "XCom",
+    "value": "值"
+  }
+}

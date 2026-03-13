@@ -22,7 +22,12 @@ from datetime import datetime, timedelta
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -57,7 +62,7 @@ with DAG(
     sync_azure_files_with_gcs = AzureFileShareToGCSOperator(
         task_id="sync_azure_files_with_gcs",
         share_name=AZURE_SHARE_NAME,
-        dest_gcs=BUCKET_NAME,
+        dest_gcs=f"gs://{BUCKET_NAME}/",
         directory_path=AZURE_DIRECTORY_PATH,
         replace=False,
         gzip=True,

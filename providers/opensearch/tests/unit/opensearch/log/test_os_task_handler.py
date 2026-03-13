@@ -30,7 +30,7 @@ import pendulum
 import pytest
 from opensearchpy.exceptions import NotFoundError
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.opensearch.log.os_response import OpensearchResponse
 from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchTaskHandler,
@@ -43,13 +43,10 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.opensearch.conftest import MockClient
 
 opensearchpy = pytest.importorskip("opensearchpy")
-
-ES_PROVIDER_YAML_FILE = AIRFLOW_PROVIDERS_ROOT_PATH / "elasticsearch" / "provider.yaml"
 
 
 def get_ti(dag_id, task_id, logical_date, create_task_instance):
@@ -72,6 +69,12 @@ class TestOpensearchTaskHandler:
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
+
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @pytest.fixture(autouse=True)
+    def _use_historical_filename_templates(self):
+        with conf_vars({("core", "use_historical_filename_templates"): "True"}):
+            yield
 
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
@@ -134,12 +137,7 @@ class TestOpensearchTaskHandler:
         for hosted_log in logs_by_host.values():
             message = concat_logs(hosted_log)
 
-        assert (
-            message == "Dependencies all met for dep_context=non-requeueable"
-            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
-            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
-            "on 2023-07-09 07:47:32+00:00"
-        )
+        assert message == "Some Message 1\nAnother Some Message 2"
 
     def test_client(self):
         assert self.os_task_handler.index_patterns == "_all"
@@ -197,20 +195,16 @@ class TestOpensearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        expected_msg = (
-            "Dependencies all met for dep_context=non-requeueable"
-            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
-            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
-            "on 2023-07-09 07:47:32+00:00"
-        )
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_msg = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == expected_msg
             metadata = metadatas
         else:
+            expected_msg = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
@@ -229,20 +223,16 @@ class TestOpensearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        expected_msg = (
-            "Dependencies all met for dep_context=non-requeueable"
-            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
-            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
-            "on 2023-07-09 07:47:32+00:00"
-        )
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_msg = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == expected_msg
             metadata = metadatas
         else:
+            expected_msg = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
@@ -370,21 +360,17 @@ class TestOpensearchTaskHandler:
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.os_task_handler.read(ti, 1)
 
-        expected_message = (
-            "Dependencies all met for dep_context=non-requeueable"
-            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
-            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
-            "on 2023-07-09 07:47:32+00:00"
-        )
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_message = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == expected_message
 
             metadata = metadatas
         else:
+            expected_message = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1

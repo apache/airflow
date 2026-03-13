@@ -40,6 +40,11 @@ class TestTeradataHook:
         self.db_hook.get_connection.return_value = self.connection
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
+        self.conn.login = "mock_login"
+        self.conn.password = "mock_password"
+        self.conn.host = "mock_host"
+        self.conn.schema = "mock_schema"
+        self.conn.port = 1025
         self.conn.cursor.return_value = self.cur
         self.conn.extra_dejson = {}
         conn = self.conn
@@ -53,6 +58,7 @@ class TestTeradataHook:
                 return conn
 
         self.test_db_hook = UnitTestTeradataHook(teradata_conn_id="teradata_conn_id")
+        self.test_db_hook.get_uri = mock.Mock(return_value="sqlite://")
 
     @mock.patch("teradatasql.connect")
     def test_get_conn(self, mock_connect):
@@ -62,7 +68,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
 
@@ -76,7 +82,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["tmode"] == "tera"
@@ -91,7 +97,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "require"
@@ -106,7 +112,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "verify-ca"
@@ -122,7 +128,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "verify-full"
@@ -138,7 +144,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslcrc"] == "sslcrc"
@@ -153,7 +159,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslprotocol"] == "protocol"
@@ -168,25 +174,25 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslcipher"] == "cipher"
 
-    @mock.patch("sqlalchemy.create_engine")
-    def test_get_sqlalchemy_conn(self, mock_connect):
-        self.db_hook.get_sqlalchemy_engine()
-        assert mock_connect.call_count == 1
-        args = mock_connect.call_args.args
-        assert len(args) == 1
-        expected_link = (
-            f"teradatasql://{self.connection.login}:{self.connection.password}@{self.connection.host}"
-        )
-        assert expected_link == args[0]
+    def test_get_uri_without_schema(self):
+        self.connection.schema = ""  # simulate missing schema
+        self.db_hook.get_connection.return_value = self.connection
+        uri = self.db_hook.get_uri()
+        expected_uri = f"teradatasql://{self.connection.login}:***@{self.connection.host}"
+        assert uri == expected_uri
 
     def test_get_uri(self):
         ret_uri = self.db_hook.get_uri()
-        expected_uri = f"teradata://{self.connection.login}:{self.connection.password}@{self.connection.host}/{self.connection.schema}"
+        expected_uri = (
+            f"teradatasql://{self.connection.login}:***@{self.connection.host}/{self.connection.schema}"
+            if self.connection.schema
+            else f"teradatasql://{self.connection.login}:***@{self.connection.host}"
+        )
         assert expected_uri == ret_uri
 
     def test_get_records(self):
@@ -244,6 +250,55 @@ class TestTeradataHook:
         result = self.test_db_hook.callproc("proc", True, parameters)
         assert result == parameters
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.test_db_hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.test_db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+        self.test_db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.test_db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (?)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.test_db_hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.test_db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.test_db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.test_db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     def test_set_query_band(self):
         query_band_text = "example_query_band_text"
         _handle_user_query_band_text(query_band_text)
@@ -260,7 +315,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert "query_band" not in kwargs

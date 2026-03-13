@@ -26,5 +26,5 @@ from airflow_breeze.utils.click_utils import BreezeGroup
     name="release-management",
     help="Tools that release managers can use to prepare and manage Airflow releases",
 )
-def release_management():
+def release_management_group():
     pass

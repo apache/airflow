@@ -25,29 +25,37 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsUi,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
-  useGridServiceGetLatestRun,
   UseGridServiceGetDagStructureKeyFn,
   UseGridServiceGetGridRunsKeyFn,
+  useDagServiceGetLatestRunInfo,
 } from "openapi/queries";
 
 import { useConfig } from "./useConfig";
 
 export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | undefined) => {
   const queryClient = useQueryClient();
-  const previousDagRunIdRef = useRef<string>();
+  const previousDagRunIdRef = useRef<string>("");
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
-  const { data } = useGridServiceGetLatestRun({ dagId }, undefined, {
+  const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
     enabled: Boolean(dagId) && !hasPendingRuns,
     refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
   });
 
   useEffect(() => {
-    const latestDagRun = data;
-
     const latestDagRunId = latestDagRun?.run_id;
 
-    if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
+    if (latestDagRunId !== undefined && previousDagRunIdRef.current === "") {
+      previousDagRunIdRef.current = latestDagRunId;
+
+      return;
+    }
+
+    if (
+      latestDagRunId !== undefined &&
+      previousDagRunIdRef.current !== "" &&
+      previousDagRunIdRef.current !== latestDagRunId
+    ) {
       previousDagRunIdRef.current = latestDagRunId;
 
       const queryKeys = [
@@ -64,5 +72,5 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         void queryClient.invalidateQueries({ queryKey: key });
       });
     }
-  }, [data, dagId, queryClient]);
+  }, [latestDagRun, dagId, queryClient]);
 };

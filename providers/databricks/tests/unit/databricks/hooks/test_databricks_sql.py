@@ -18,19 +18,19 @@
 #
 from __future__ import annotations
 
-import threading
 from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock, patch
+from urllib.parse import quote_plus
 
 import pandas as pd
 import polars as pl
 import pytest
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 
@@ -39,6 +39,9 @@ DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
+HTTP_PATH = "sql/protocolv1/o/1234567890123456/0123-456789-abcd123"
+SCHEMA = "test_schema"
+CATALOG = "test_catalog"
 
 
 @pytest.fixture(autouse=True)
@@ -77,10 +80,10 @@ def mock_get_requests():
     mock_patch = patch("airflow.providers.databricks.hooks.databricks_base.requests")
     mock_requests = mock_patch.start()
 
-    # Configure the mock object
+    # Configure the mock object with the current API response format ("warehouses" key)
     mock_requests.codes.ok = 200
     mock_requests.get.return_value.json.return_value = {
-        "endpoints": [
+        "warehouses": [
             {
                 "id": "1264e5078741679a",
                 "name": "Test",
@@ -107,6 +110,41 @@ def mock_timer():
         yield mock_timer
 
 
+def test_sqlachemy_url_property():
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
+    )
+    url = hook.sqlalchemy_url.render_as_string(hide_password=False)
+    expected_url = (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert url == expected_url
+
+
+def test_get_sqlalchemy_engine():
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
+    )
+    engine = hook.get_sqlalchemy_engine()
+    assert engine.url.render_as_string(hide_password=False) == (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+
+
+def test_get_uri():
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
+    )
+    uri = hook.get_uri()
+    expected_uri = (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert uri == expected_uri
+
+
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
 
@@ -116,8 +154,17 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, execution_timeout, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "execution_timeout",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -334,13 +381,85 @@ def test_query(
     ],
 )
 def test_no_query(databricks_hook, empty_statement):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="List of SQL statements is empty"):
         databricks_hook.run(sql=empty_statement)
-    assert err.value.args[0] == "List of SQL statements is empty"
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_run_hook_lineage(mock_send_lineage, mock_get_conn, mock_get_requests):
+    """Ensure run() triggers send_sql_hook_lineage via base DbApiHook._run_command."""
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(
+        rowcount=1,
+        description=[("id",), ("value",)],
+    )
+    cur.fetchall.return_value = [Row(id=1, value=2)]
+    conn.cursor.return_value = cur
+    mock_get_conn.return_value = conn
+
+    sql = "SELECT 1"
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.run(sql=sql, handler=fetch_all_handler)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+    assert call_kw["cur"] is cur
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_insert_rows_hook_lineage(mock_send_lineage, mock_get_conn):
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(rowcount=0)
+    conn.cursor.return_value = cur
+    mock_get_conn.return_value = conn
+
+    table = "table"
+    rows = [("hello",), ("world",)]
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.insert_rows(table, rows)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+    assert call_kw["row_count"] == 2
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+def test_get_df_hook_lineage(mock_get_pandas_df, mock_send_lineage, mock_get_conn):
+    sql = "SELECT 1"
+    parameters = ("x",)
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.get_df(sql, parameters=parameters)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+def test_get_df_by_chunks_hook_lineage(mock_get_pandas_df_by_chunks, mock_send_lineage, mock_get_conn):
+    sql = "SELECT 1"
+    parameters = ("x",)
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
 
 
 @pytest.mark.parametrize(
-    "row_objects, fields_names",
+    ("row_objects", "fields_names"),
     [
         pytest.param(Row("count(1)")(9714), ("_0",)),
         pytest.param(Row("1//@:()")("data"), ("_0",)),
@@ -359,7 +478,7 @@ def test_incorrect_column_names(row_objects, fields_names):
 
 
 @pytest.mark.parametrize(
-    "sql, execution_timeout, cursor_descriptions, cursor_results",
+    ("sql", "execution_timeout", "cursor_descriptions", "cursor_results"),
     [
         (
             "select * from test.test",
@@ -389,8 +508,12 @@ def test_execution_timeout_exceeded(
             description=get_cursor_descriptions(cursor_descriptions),
         )
 
-        # Simulate a timeout
-        mock_create_timeout_thread.return_value = threading.Timer(cur, execution_timeout)
+        mock_event = mock.MagicMock()
+        mock_event.is_set.return_value = True  # simulate timeout
+
+        mock_timer = mock.MagicMock()
+
+        mock_create_timeout_thread.return_value = (mock_timer, mock_event)
 
         mock_run_command.side_effect = Exception("Mocked exception")
 
@@ -412,20 +535,22 @@ def test_execution_timeout_exceeded(
     "cursor_descriptions",
     [(("id", "value"),)],
 )
-def test_create_timeout_thread(
-    mock_get_conn,
-    mock_get_requests,
-    mock_timer,
-    cursor_descriptions,
-):
+def test_create_timeout_thread(mock_get_conn, mock_get_requests, cursor_descriptions):
+
     cur = mock.MagicMock(
         rowcount=1,
         description=get_cursor_descriptions(cursor_descriptions),
     )
+
     timeout = timedelta(seconds=1)
-    thread = create_timeout_thread(cur=cur, execution_timeout=timeout)
-    mock_timer.assert_called_once_with(timeout.total_seconds(), cur.connection.cancel)
-    assert thread is not None
+
+    timer, event = create_timeout_thread(cur=cur, execution_timeout=timeout)
+
+    assert timer is not None
+    assert event is not None
+    assert not event.is_set()
+
+    timer.cancel()
 
 
 @pytest.mark.parametrize(
@@ -442,9 +567,15 @@ def test_create_timeout_thread_no_timeout(
         rowcount=1,
         description=get_cursor_descriptions(cursor_descriptions),
     )
-    thread = create_timeout_thread(cur=cur, execution_timeout=None)
+
+    timer, timeout_event = create_timeout_thread(
+        cur=cur,
+        execution_timeout=None,
+    )
+
     mock_timer.assert_not_called()
-    assert thread is None
+    assert timer is None
+    assert timeout_event is None
 
 
 def test_get_openlineage_default_schema_with_no_schema_set():
@@ -522,7 +653,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
     hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
     expected_err = (
-        "OpenLineage provider version `1.99.0` is lower than required `2.3.0`, "
+        "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
         "skipping function `emit_openlineage_events_for_databricks_queries` execution"
     )
     with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
@@ -530,7 +661,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
 
 
 @pytest.mark.parametrize(
-    "df_type, df_class, description",
+    ("df_type", "df_class", "description"),
     [
         pytest.param("pandas", pd.DataFrame, [(("col",))], id="pandas-dataframe"),
         pytest.param(
@@ -581,3 +712,83 @@ def test_get_df(df_type, df_class, description):
             assert df.row(1)[0] == result_sets[1][0]
 
         assert isinstance(df, df_class)
+
+
+class TestGetSqlEndpointByName:
+    """Tests for _get_sql_endpoint_by_name with both 'warehouses' and legacy 'endpoints' API response keys."""
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_with_warehouses_key(self, mock_requests):
+        """Test that the current API response format with 'warehouses' key works."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "warehouses": [
+                {
+                    "id": "abc123",
+                    "name": "My Warehouse",
+                    "odbc_params": {
+                        "hostname": "xx.cloud.databricks.com",
+                        "path": "/sql/1.0/warehouses/abc123",
+                    },
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="My Warehouse")
+        endpoint = hook._get_sql_endpoint_by_name("My Warehouse")
+        assert endpoint["id"] == "abc123"
+        assert endpoint["odbc_params"]["path"] == "/sql/1.0/warehouses/abc123"
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_with_legacy_endpoints_key(self, mock_requests):
+        """Test that the legacy API response format with 'endpoints' key still works."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "endpoints": [
+                {
+                    "id": "def456",
+                    "name": "Legacy Endpoint",
+                    "odbc_params": {
+                        "hostname": "xx.cloud.databricks.com",
+                        "path": "/sql/1.0/endpoints/def456",
+                    },
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Legacy Endpoint")
+        endpoint = hook._get_sql_endpoint_by_name("Legacy Endpoint")
+        assert endpoint["id"] == "def456"
+        assert endpoint["odbc_params"]["path"] == "/sql/1.0/endpoints/def456"
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_not_found(self, mock_requests):
+        """Test that a clear error is raised when the warehouse name doesn't match any warehouse."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            "warehouses": [
+                {
+                    "id": "abc123",
+                    "name": "Some Other Warehouse",
+                    "odbc_params": {"path": "/sql/1.0/warehouses/abc123"},
+                }
+            ]
+        }
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Nonexistent Warehouse")
+        with pytest.raises(ValueError, match="Can't find Databricks SQL warehouse with name"):
+            hook._get_sql_endpoint_by_name("Nonexistent Warehouse")
+
+    @patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_resolve_warehouse_name_empty_response(self, mock_requests):
+        """Test that a clear error is raised when the API returns no warehouses."""
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {}
+        type(mock_requests.get.return_value).status_code = PropertyMock(return_value=200)
+
+        hook = DatabricksSqlHook(sql_endpoint_name="Test")
+        with pytest.raises(RuntimeError, match="Can't list Databricks SQL warehouses"):
+            hook._get_sql_endpoint_by_name("Test")

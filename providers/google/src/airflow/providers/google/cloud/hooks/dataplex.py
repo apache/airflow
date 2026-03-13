@@ -46,7 +46,7 @@ from google.cloud.dataplex_v1.types import (
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,

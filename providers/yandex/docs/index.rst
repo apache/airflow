@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/yandex/tests/system/yandex/example_yandexcloud_dataproc.py>
+    Example Dags <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/yandex/tests/system/yandex/example_yandexcloud_dataproc.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-yandex/>
     Installing from sources <installing-providers-from-sources>
 
@@ -81,7 +81,7 @@ This package is for Yandex, including:
     - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 4.1.1
+Release: 4.4.0
 
 Provider package
 ----------------
@@ -92,22 +92,25 @@ All classes for this package are included in the ``airflow.providers.yandex`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-yandex``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================  ==================
-PIP package              Version required
-=======================  ==================
-``apache-airflow``       ``>=2.10.0``
-``yandexcloud``          ``>=0.308.0``
-``yandex-query-client``  ``>=0.1.4``
-=======================  ==================
+==========================================  =======================================
+PIP package                                 Version required
+==========================================  =======================================
+``apache-airflow``                          ``>=2.11.0``
+``yandexcloud``                             ``>=0.376.0; python_version >= "3.13"``
+``yandexcloud``                             ``>=0.328.0; python_version < "3.13"``
+``yandex-query-client``                     ``>=0.1.4``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``grpcio``                                  ``>=1.70.0``
+==========================================  =======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -134,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-yandex 4.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-yandex 4.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-yandex 4.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-yandex 4.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.4.0-py3-none-any.whl.sha512>`__)

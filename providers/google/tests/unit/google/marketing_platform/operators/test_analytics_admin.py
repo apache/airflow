@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
     GoogleAnalyticsAdminCreatePropertyOperator,

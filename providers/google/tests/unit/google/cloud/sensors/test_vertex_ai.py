@@ -23,7 +23,7 @@ import pytest
 
 ray = pytest.importorskip("ray")
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.vertex_ai.feature_store import FeatureViewSyncSensor
 
 TASK_ID = "test-task"

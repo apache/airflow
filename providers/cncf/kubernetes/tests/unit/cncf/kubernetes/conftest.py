@@ -18,10 +18,32 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "no_wait_patch_disabled: disable autouse WaitRetryAfterOrExponential patch"
+    )
+
+
+@pytest.fixture(autouse=True)
+def no_retry_wait(request):
+    # Skip patching if test has marker
+    if request.node.get_closest_marker("no_wait_patch_disabled"):
+        yield
+        return
+    patcher = mock.patch(
+        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
+        return_value=0,
+    )
+    patcher.start()
+    yield
+    patcher.stop()
 
 
 @pytest.fixture

@@ -21,8 +21,7 @@ Edge Worker Deployment
 Edge Workers can be deployed outside of the central Airflow infrastructure. They
 are connected to the Airflow API server via HTTP(s). The Edge Worker is a
 lightweight component that can be deployed on any machine that has outbound
-HTTP(s) access to the Airflow API server. The Edge Worker is designed to be
-lightweight and easy to deploy. It allows you to run Airflow tasks on machines
+HTTP(s) access to the Airflow API server. It allows you to run Airflow tasks on machines
 that are not part of your main data center, e.g. edge servers. This also allows to
 deploy only reduced dependencies on the edge worker.
 
@@ -46,17 +45,18 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
 
 - Section ``[api_auth]``
 
-  - ``jwt_secret``: A matching secret to that on the api-server (starting from version 3.0.0).
+  - ``jwt_secret``: A shared secret between workers and the api-server to authenticate
+    (starting from version 3.0.0).
 
 - Section ``[core]``
 
   - ``execution_api_server_url``: If not set, the base URL from ``edge.api_url`` will be used. For example,
-    when ``edge.api_url`` is set to ``https://your-hostname-and-port/edge_worker/v1/rpcapi``, it will
-    default to ``https://your-hostname-and-port/execution/``.
+    when ``edge.api_url`` is set to ``https://your-hostname-and-port/subpath/edge_worker/v1/rpcapi``, it will
+    default to ``https://your-hostname-and-port/subpath/execution/`` (starting from version Airflow version 3.0.0).
   - ``executor``: Executor must be set or added to be ``airflow.providers.edge3.executors.EdgeExecutor``
   - ``internal_api_secret_key``: An encryption key must be set on api-server and Edge Worker component as
     shared secret to authenticate traffic. It should be a random string like the fernet key
-    (for versions earlier than 3.0.0).
+    (for versions earlier than 3.0.0 - from Airflow 3.0 and above this is using ``api_auth.jwt_secret``).
 
 - Section ``[edge]``
 
@@ -66,12 +66,65 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
+**Airflow 3.2 and newer:** Once the provider is installed on the **central Airflow instance**,
+the ``EdgeDBManager`` is automatically registered via the provider's built-in ``db-managers``
+entry. Airflow's ``ProvidersManager`` discovers it at startup — no manual configuration is needed.
+
+**Airflow versions earlier than 3.2:** You must explicitly register the ``EdgeDBManager`` on the
+**central Airflow instance** so that edge3 database tables (``edge_worker``, ``edge_job``,
+``edge_logs``) are created and migrated when running ``airflow db migrate``:
+
+- Section ``[database]``
+
+  - ``external_db_managers``: Must include ``airflow.providers.edge3.models.db.EdgeDBManager``.
+
+    .. code-block:: ini
+
+        [database]
+        external_db_managers = airflow.providers.edge3.models.db.EdgeDBManager
+
+    Or via environment variable:
+
+    .. code-block:: bash
+
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS="airflow.providers.edge3.models.db.EdgeDBManager"
+
+    .. note::
+
+        If you are also using ``FabAuthManager``, include both managers as a comma-separated list:
+
+        .. code-block:: ini
+
+            [database]
+            external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager,airflow.providers.edge3.models.db.EdgeDBManager
+
+To create or migrate the edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``),
+run on the central Airflow instance:
+
+.. code-block:: bash
+
+    airflow db migrate
+
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand
 
 .. code-block:: bash
 
     airflow edge worker
+    2025-09-27T12:28:32.954316Z [info     ] Starting worker with API endpoint http://localhost:8080/edge_worker/v1/rpcapi
+      ____________       _____________
+     ____    |__( )_________  __/__  /________      __
+    ____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
+    ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
+    _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
+       ____   __           _      __         __
+      / __/__/ /__ ____   | | /| / /__  ____/ /_____ ____
+     / _// _  / _  / -_)  | |/ |/ / _ \/ __/   _/ -_) __/
+    /___/\_,_/\_, /\__/   |__/|__/\___/_/ /_/\_\\__/_/
+            /___/
+
+    2025-09-27T12:28:33.171525Z [info     ] No new job to process
+
 
 You can also start this worker in the background by running
 it as a daemonized process. Additionally, you can redirect stdout
@@ -97,9 +150,9 @@ process as and wait until all running tasks are completed. Also in a console you
 ``Ctrl-C`` to stop the worker.
 
 If you want to monitor the remote activity and worker, use the UI plugin which
-is included in the provider package and install it on the webserver and use the
+is included in the provider package and install it on the api-server / webserver and use the
 "Admin" - "Edge Worker Hosts" and "Edge Worker Jobs" pages.
-(Note: The plugin is not ported to Airflow 3.0 web UI at time of writing)
+(Note: The plugin is not available on Airflow 3.0 UI, it is only in 3.1++)
 
 If you want to check status of the worker via CLI you can use the command
 
@@ -130,14 +183,14 @@ Also please note if the worker detects that the Airflow or Edge provider package
 is not the same as the one running on the API server, it will stop accepting new tasks and shut down gracefully.
 This is to prevent running tasks with different versions of the code.
 
-Worker status can be checked via the web UI in the "Admin" - "Edge Worker Hosts" page.
+Worker status can be checked via the web UI in the "Admin" - "Edge Worker" page. Maintenance can be set on a per worker basis.
 
 .. image:: img/worker_hosts.png
 
 .. note::
 
-    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0.
-    Until this is available you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
+    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 3.1 and newer.
+    Alternatively you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
 
 
 Worker maintenance can also be triggered via the CLI command on the machine that runs the worker.
@@ -160,9 +213,7 @@ use the command
 This will show the status of the local worker instance as JSON and the tasks running on it.
 
 The status and maintenance comments will also be shown in the web UI
-in the "Admin" - "Edge Worker Hosts" page.
-
-.. image:: img/worker_maintenance.png
+in the "Admin" - "Edge Worker" page.
 
 The local worker instance can be started to fetch new tasks via the command
 
@@ -189,4 +240,8 @@ instance. The commands are:
 - ``airflow edge remote-edge-worker-update-maintenance-comment``: Updates the maintenance comment for a remote edge worker
 - ``airflow edge remote-edge-worker-exit-maintenance``: Request a remote edge worker to exit maintenance mode
 - ``airflow edge shutdown-remote-edge-worker``: Shuts down a remote edge worker gracefully
+- ``airflow edge shutdown-all-workers``: Request graceful shutdown of all registered edge workers
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
+- ``airflow edge add-worker-queues``: Add queues to an edge worker
+- ``airflow edge remove-worker-queues``: Remove queues from an edge worker
+- ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker

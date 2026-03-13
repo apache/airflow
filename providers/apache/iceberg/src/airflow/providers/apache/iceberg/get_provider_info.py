@@ -44,6 +44,16 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook",
                 "connection-type": "iceberg",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {"host": "Catalog URI", "login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {
+                        "host": "https://your-catalog.example.com/ws/v1",
+                        "login": "client_id (OAuth2 credentials)",
+                        "password": "client_secret (OAuth2 credentials)",
+                        "extra": '{"warehouse": "s3://my-warehouse/", "s3.region": "us-east-1"}',
+                    },
+                },
             }
         ],
     }

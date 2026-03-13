@@ -24,13 +24,13 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.operators.kinesis_analytics import (
     KinesisAnalyticsV2CreateApplicationOperator,
     KinesisAnalyticsV2StartApplicationOperator,
     KinesisAnalyticsV2StopApplicationOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -259,7 +259,7 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -427,7 +427,7 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

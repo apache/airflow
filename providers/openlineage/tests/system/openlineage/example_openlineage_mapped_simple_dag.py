@@ -28,7 +28,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 
@@ -73,7 +78,9 @@ with DAG(
     )
 
     check_events = OpenLineageTestOperator(
-        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID), allow_duplicate_events=True
+        task_id="check_events",
+        file_path=get_expected_event_file_path(DAG_ID),
+        allow_duplicate_events_regex="openlineage_mapped_simple_dag.add_one.event.(start|complete)",
     )
 
     sum_it(added_values) >> check_events_number >> check_events

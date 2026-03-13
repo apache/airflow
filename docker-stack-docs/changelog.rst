@@ -34,6 +34,53 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.1.4
+~~~~~~~~~~~~~
+
+In Airflow 3.1.4, the images are build without removing of .pyc and .pyo files when Python is built.
+This increases the size of the image slightly (<0.5%), but improves performance of Python in the container
+because Python does not need to recompile the files on the first run but more importantly, if you use
+``exec`` to run Health Checks, removed .pyc files caused a small but ever growing memory leak in the Unix
+kernel connected to negative ``dentries`` created when .pyc files were attempted to be compiled and failed.
+This over time could lead to out-of-memory issues on the host running the container.
+
+More information about ``dentries`` can be found in `this article <https://lwn.net/Articles/814535/>`_.
+
+Airflow 3.1.0
+~~~~~~~~~~~~~
+
+In Airflow 3.1.0 we changed the base images used for building the Airflow images. Previously the images
+were based on "official" Python images from DockerHub, however those images sometimes lag behind the
+latest security patches and their maintainers made decisions about using older setuptools and pip versions,
+however we want to be able to use the latest versions of those tools to build the images. Therefore
+we decided to use ``bookworm-slim`` images from Debian as the base images for Airflow images and we compile
+and install the latest Python version in the image based on the official packages from the Python Software
+Foundation. This change should be transparent for those who extend the images or use them "as is", however
+for those who want to build custom images, there are changes to the build-args passed to the ``docker build``
+command:
+
+* The ``PYTHON_BASE_IMAGE`` arg is no longer supported - the base image is always ``debian:bookworm-slim``
+* Instead ``AIRFLOW_PYTHON_VERSION`` arg is introduced to select the Python version to be installed in the
+  image. It should be full Python version - for example ``3.12.7`` or two-digit version like ``3.12``
+  (the latest released Python patch version will be installed in that case).
+* Python is now installed in ``/usr/python/`` directory not in ``/usr/local/`` as it was previously.
+  This should not affect regular uses because there are symlinks from ``/usr/local/bin/`` to
+  ``/usr/python/bin/``, and ``/usr/python/bin`` is first on the PATH, however if the ``/usr/local/``
+  location has been hard-coded to - for example - detect ``site-packages`` dir, the folders moved to
+  the ``/usr/python`` directory.
+
+There might be other subtle changes in the image due to the change of the base image, some packages (
+especially dev libraries installed with ``apt`` might not be installed by default if they were installed
+as a side-effect in the original image, however that should only affect those who want to customise the image.
+They should be able to install in their custom images following the :doc:`Building the image <build>`
+
+The Python 3.13 image for Airflow 3.1.0 (both slim and regular) does not contain ``fab`` provider because
+at the time of release the ``fab`` provider did not support Python 3.13. It should be possible to install
+future versions of ``fab`` provider (when they support Python 3.13) in the image using ``pip install``,
+and until it is possible - if you need ``fab`` provider (and particularly FABAuthManager) in the
+image, you should use Python 3.12 image. You can use experimental KeycloakAuthManager in Python 3.13 image
+or develop your own AuthManager.
+
 Airflow 3.0.2
 ~~~~~~~~~~~~~
 
@@ -55,6 +102,13 @@ Airflow 3.0
     have mssql metadata support any more.
   * The ``INSTALL_PACKAGES_FROM_CONTEXT`` arg changed to ``INSTALL_DISTRIBUTIONS_FROM_CONTEXT``
   * The parameter ``UPGRADE_INVALIDATION_STRING`` is renamed to ``UPGRADE_RANDOM_INDICATOR_STRING``
+
+Airflow 2.11.1
+~~~~~~~~~~~~~~
+
+  * The image does not support Python 3.9 anymore as Python 3.9 reached end of life on October 31, 2025 and
+    The Airflow 2.11.1 has been released on February 20, 2026 and Airflow 2.11.1 does not support Python 3.9.
+
 
 Airflow 2.10
 ~~~~~~~~~~~~
@@ -325,34 +379,32 @@ that invalidates the already released image, and regenerating the image makes it
 While we cannot assure 100% backwards compatibility when it happens, we at least document it
 here so that users affected can find the reason for the changes.
 
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request / Issue                   |
-+==============+=====================+=========================================+========================+================================================+
-| 24 Jun 2025  | 3.0.2               | * The ``fab`` provider                  | FAB provider user      | https://github.com/apache/airflow/issues/51854 |
-|              |                     |   upgraded from 2.2.0 to 2.2.1          | creation did not work  |                                                |
-|              |                     |                                         |                        |                                                |
-|              |                     | * ``common.messaging`` provider         | importing SQS message  | https://github.com/apache/airflow/issues/51770 |
-|              |                     |   upgraded from 1.0.2 to 1.0.3          | failed with circular   |                                                |
-|              |                     |                                         | import                 |                                                |
-|              |                     |                                         |                        |                                                |
-|              |                     | * git binary is added to the image      | git bundle need it     | https://github.com/apache/airflow/pull/51580   |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 02 Aug 2024  | 2.9.3               | * The ``apache-airflow-providers-fab``  | FAB provider logout    | https://github.com/apache/airflow/issues/40922 |
-|              |                     |   upgraded from 1.2.1 to 1.2.2          | did not work for 2.9.3 |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
-|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
-|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
-|              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
-|              |                     |                                         | key expiry fiasco      |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516   |
-|              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                                |
-|              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912   |
-|              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                                |
-|              |                     |                                         | on 17 Jan 2022         |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| Date         | Versions    | Potentially breaking change                                                       | Reason                                                | Link to Pull Request / Issue                   |
++==============+=============+===================================================================================+=======================================================+================================================+
+| 28 Feb 2026  | 2.11.1      | * The grpcio==1.78.0 is used instead of 1.78.1 in Python 3.12 images.             | The 1.78.1 version was yanked - caused major outage.  | https://github.com/grpc/grpc/issues/41725.     |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 23 Feb 2026  | 2.11.1      | * Several dependencies upgraded with minor versions/patchlevels                   | Virtualenv project pulling out released 20.37.0       | https://github.com/pypa/virtualenv/issues/3061 |
+|              |             | * See https://github.com/apache/airflow/commit/4a55543 for details                |                                                       |                                                |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 19 July 2025 | 3.0.3       | * The ``standard`` provider upgraded from 1.4.0 to 1.4.1                          | Sensor skipping issue                                 | https://github.com/apache/airflow/pull/53455   |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 24 Jun 2025  | 3.0.2       | * The ``fab`` provider upgraded from 2.2.0 to 2.2.1                               | FAB provider user creation did not work               | https://github.com/apache/airflow/issues/51854 |
+|              |             | * ``common.messaging`` provider upgraded from 1.0.2 to 1.0.3                      | importing SQS message failed with circular import     | https://github.com/apache/airflow/issues/51770 |
+|              |             | * git binary is added to the image                                                | git bundle need it                                    | https://github.com/apache/airflow/pull/51580   |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 02 Aug 2024  | 2.9.3       | * The ``apache-airflow-providers-fab`` upgraded from 1.2.1 to 1.2.2               | FAB provider logout did not work for 2.9.3            | https://github.com/apache/airflow/issues/40922 |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 12 Mar 2024  | 2.8.3       | * The image was refreshed with new dependencies (pandas < 2.2 and SMTP provider   | Both dependencies caused breaking changes             | https://github.com/apache/airflow/pull/37748   |
+|              |             |   1.6.1)                                                                          |                                                       | https://github.com/apache/airflow/pull/37701   |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 16 Dec 2023  | All 2.*     | * The AIRFLOW_GID 500 was removed                                                 | MySQL repository is removed after the key expiry      | https://github.com/apache/airflow/issues/36231 |
+|              |             | * MySQL ``apt`` repository key changed.                                           | fiasco                                                |                                                |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 17 June 2022 | 2.2.5       | * The ``Authlib`` library downgraded from 1.0.1 to 0.15.5 version                 | Flask App Builder not compatible with Authlib >= 1.0  | https://github.com/apache/airflow/pull/24516   |
+|              | 2.3.0-2.3.2 |                                                                                   |                                                       |                                                |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+
+| 18 Jan 2022  | All 2.2.*,  | * The AIRFLOW_GID 500 was removed                                                 | MySQL changed keys to sign their packages on 17 Jan   | https://github.com/apache/airflow/pull/20912   |
+|              | 2.1.*       | * MySQL ``apt`` repository key changed.                                           | 2022                                                  |                                                |
++--------------+-------------+-----------------------------------------------------------------------------------+-------------------------------------------------------+------------------------------------------------+

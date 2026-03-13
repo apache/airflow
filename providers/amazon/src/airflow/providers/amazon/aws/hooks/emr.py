@@ -26,9 +26,9 @@ import tenacity
 from botocore.exceptions import ClientError
 from tenacity import retry_if_exception, stop_after_attempt, wait_fixed
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 
 class EmrHook(AwsBaseHook):

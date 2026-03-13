@@ -25,8 +25,8 @@ from airflow.providers.amazon.aws.utils.mixins import (
     AwsHookType,
     aws_template_fields,
 )
-from airflow.providers.amazon.version_compat import BaseSensorOperator
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 
 
 class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):

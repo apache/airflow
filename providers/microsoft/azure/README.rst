@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``12.5.0``
+Release: ``13.0.1``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,12 +36,12 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-azure``
 
@@ -50,41 +50,40 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-========================================  ===================
-PIP package                               Version required
-========================================  ===================
-``apache-airflow``                        ``>=2.10.0``
-``adlfs``                                 ``>=2023.10.0``
-``azure-batch``                           ``>=8.0.0``
-``azure-cosmos``                          ``>=4.6.0``
-``azure-mgmt-cosmosdb``                   ``>=3.0.0``
-``azure-datalake-store``                  ``>=0.0.45``
-``azure-identity``                        ``>=1.3.1``
-``azure-keyvault-secrets``                ``>=4.1.0``
-``azure-mgmt-datalake-store``             ``>=0.5.0``
-``azure-mgmt-resource``                   ``>=2.2.0``
-``azure-storage-blob``                    ``>=12.14.0``
-``azure-mgmt-storage``                    ``>=16.0.0``
-``azure-storage-file-share``              ``>=12.7.0``
-``azure-servicebus``                      ``>=7.12.1``
-``azure-synapse-spark``                   ``>=0.2.0``
-``azure-synapse-artifacts``               ``>=0.17.0``
-``adal``                                  ``>=1.2.7``
-``azure-storage-file-datalake``           ``>=12.9.1``
-``azure-kusto-data``                      ``>=4.1.0,!=4.6.0``
-``azure-mgmt-datafactory``                ``>=2.0.0``
-``azure-mgmt-containerregistry``          ``>=8.0.0``
-``azure-mgmt-containerinstance``          ``>=10.1.0``
-``flask-appbuilder``                      ``>=4.0.0``
-``msgraph-core``                          ``>=1.3.3``
-``microsoft-kiota-http``                  ``>=1.9.4,<2.0.0``
-``microsoft-kiota-serialization-json``    ``>=1.9.4``
-``microsoft-kiota-serialization-text``    ``>=1.9.4``
-``microsoft-kiota-abstractions``          ``>=1.9.4,<2.0.0``
-``microsoft-kiota-authentication-azure``  ``>=1.9.4,<2.0.0``
-``msal-extensions``                       ``>=1.1.0``
-``portalocker``                           ``>=2.8.1``
-========================================  ===================
+==========================================  ===========================
+PIP package                                 Version required
+==========================================  ===========================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``adlfs``                                   ``>=2023.10.0``
+``azure-batch``                             ``>=8.0.0``
+``azure-cosmos``                            ``>=4.6.0``
+``azure-mgmt-cosmosdb``                     ``>=3.0.0``
+``azure-datalake-store``                    ``>=0.0.45``
+``azure-identity``                          ``>=1.3.1``
+``azure-keyvault-secrets``                  ``>=4.1.0``
+``azure-mgmt-datalake-store``               ``>=0.5.0``
+``azure-mgmt-resource``                     ``>=2.2.0``
+``azure-storage-blob``                      ``>=12.26.0``
+``azure-mgmt-storage``                      ``>=16.0.0``
+``azure-storage-file-share``                ``>=12.7.0``
+``azure-servicebus``                        ``>=7.12.1``
+``azure-synapse-spark``                     ``>=0.2.0``
+``azure-synapse-artifacts``                 ``>=0.17.0``
+``azure-storage-file-datalake``             ``>=12.9.1``
+``azure-kusto-data``                        ``>=4.1.0,!=4.6.0,!=5.0.0``
+``azure-mgmt-datafactory``                  ``>=2.0.0``
+``azure-mgmt-containerregistry``            ``>=8.0.0``
+``azure-mgmt-containerinstance``            ``>=10.1.0``
+``msgraph-core``                            ``>=1.3.3``
+``msgraphfs``                               ``>=0.3.0``
+``microsoft-kiota-http``                    ``>=1.9.4,<2.0.0``
+``microsoft-kiota-serialization-json``      ``>=1.9.4``
+``microsoft-kiota-serialization-text``      ``>=1.9.4``
+``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
+``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
+``msal-extensions``                         ``>=1.3.0``
+==========================================  ===========================
 
 Cross provider package dependencies
 -----------------------------------
@@ -99,14 +98,27 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                ``oracle``
-`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                    ``sftp``
-==================================================================================================================  =================
+========================================================================================================================  ====================
+Dependent package                                                                                                         Extra
+========================================================================================================================  ====================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
+`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
+========================================================================================================================  ====================
+
+Optional dependencies
+----------------------
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``amazon``            ``apache-airflow-providers-amazon``
+``oracle``            ``apache-airflow-providers-oracle``
+``sftp``              ``apache-airflow-providers-sftp``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.1/changelog.html>`_.

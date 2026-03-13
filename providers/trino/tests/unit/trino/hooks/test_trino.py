@@ -25,13 +25,13 @@ from unittest.mock import patch
 import pytest
 from trino.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -109,7 +109,10 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
+            AirflowException,
+            match=re.escape(
+                "Multiple authentication methods specified: password, kerberos. Only one is allowed."
+            ),
         ):
             TrinoHook().get_conn()
 
@@ -144,7 +147,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @pytest.mark.parametrize(
-        "jwt_file, jwt_token, error_suffix",
+        ("jwt_file", "jwt_token", "error_suffix"),
         [
             pytest.param(True, True, "provided both", id="provided-both-params"),
             pytest.param(False, False, "none of them provided", id="no-jwt-provided"),
@@ -233,7 +236,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
 
     @pytest.mark.parametrize(
-        "current_verify, expected_verify",
+        ("current_verify", "expected_verify"),
         [
             ("False", False),
             ("false", False),
@@ -330,6 +333,7 @@ class TestTrinoHook:
                 return IsolationLevel.READ_COMMITTED
 
         self.db_hook = UnitTestTrinoHook()
+        self.db_hook.get_connection = mock.Mock(return_value=Connection(conn_type="trino"))
 
     @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
     def test_insert_rows(self, mock_insert_rows):
@@ -397,6 +401,91 @@ class TestTrinoHook:
         handler = list
         self.db_hook.run(sql, autocommit, parameters, list)
         mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
+
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_defaults_no_handler(self, super_run):
+        super_run.return_value = None
+        sql = "SELECT 1"
+        result = self.db_hook.run(sql)
+        assert result is None
+        super_run.assert_called_once_with(sql, False, None, None, True, True)
+
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_with_handler_and_params(self, super_run):
+        super_run.return_value = [("ok",)]
+        sql = "SELECT 1"
+        autocommit = True
+        parameters = ("hello", "world")
+        handler = list
+        res = self.db_hook.run(
+            sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=False,
+            return_last=False,
+        )
+        assert res == [("ok",)]
+        super_run.assert_called_once_with(sql, True, parameters, handler, False, False)
+
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_multistatement_defaults_to_split(self, super_run):
+        sql = "SELECT 1; SELECT 2"
+        self.db_hook.run(sql)
+        super_run.assert_called_once_with(sql, False, None, None, True, True)
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (?)"
+        assert call_kw["row_count"] == 2
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
 
     def test_connection_success(self):
         status, msg = self.db_hook.test_connection()
@@ -470,7 +559,7 @@ def test_execute_openlineage_events():
 
 
 @pytest.mark.parametrize(
-    "conn_params, expected_uri",
+    ("conn_params", "expected_uri"),
     [
         (
             {"login": "user", "password": "pass", "host": "localhost", "port": 8080, "schema": "hive"},

@@ -21,7 +21,9 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Local virtualenv Development Environment
 ----------------------------------------
@@ -57,9 +59,9 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
--   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`_
+-   You are **STRONGLY** encouraged to also install and use `prek hooks <08_static_code_checks.rst#prek-hooks>`_
     for your local virtualenv development environment.
-    Pre-commit hooks can speed up your development cycle a lot.
+    Prek hooks can speed up your development cycle a lot.
 
 Typically you can connect your local virtualenv environments easily with your IDE
 and use it for development:
@@ -158,3 +160,6 @@ Typically, you are recommended to use multiple of these environments depending o
 
 If you want to learn more details about setting up your local virtualenv, follow to the
 `Local virtualenv <07_local_virtualenv.rst>`__ document.
+
+For detailed information about debugging Airflow components using Breeze, see the
+`Debugging Airflow Components <20_debugging_airflow_components.rst>`__ guide.

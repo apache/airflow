@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 
-from airflow.providers.pinecone.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from pinecone import Vector

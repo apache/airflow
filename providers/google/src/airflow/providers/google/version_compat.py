@@ -40,31 +40,11 @@ AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 # This is needed for DecoratedOperator compatibility
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import (
-        BaseHook,
         BaseOperator,
     )
 else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models import BaseOperator
 
-# Other SDK components: Available since 3.0+
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import (
-        BaseOperatorLink,
-        BaseSensorOperator,
-        PokeReturnValue,
-    )
-else:
-    from airflow.models import BaseOperatorLink
-    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
 # Explicitly export these imports to protect them from being removed by linters
-__all__ = [
-    "AIRFLOW_V_3_0_PLUS",
-    "AIRFLOW_V_3_1_PLUS",
-    "BaseHook",
-    "BaseOperator",
-    "BaseSensorOperator",
-    "BaseOperatorLink",
-    "PokeReturnValue",
-]
+__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseOperator"]

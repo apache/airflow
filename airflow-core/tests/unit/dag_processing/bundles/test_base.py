@@ -24,18 +24,18 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone as tz
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleUsageTrackingManager,
     BundleVersionLock,
     get_bundle_storage_root_path,
 )
-from airflow.utils import timezone as tz
 
 from tests_common.test_utils.config import conf_vars
 
@@ -51,7 +51,7 @@ def bundle_temp_dir(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "val, expected",
+    ("val", "expected"),
     [
         ("/blah", Path("/blah")),
         ("", Path(tempfile.gettempdir(), "airflow", "dag_bundles")),
@@ -202,6 +202,32 @@ class TestBundleVersionLock:
         assert b.lock_file_path is None
         assert b.lock_file is None
 
+    def test_log_exc_formats_message_correctly(self):
+        """Test that _log_exc correctly formats the log message with all parameters."""
+        from airflow.dag_processing.bundles.base import log as bundle_log
+
+        bundle_name = "test_bundle"
+        bundle_version = "v1.0.0"
+        lock = BundleVersionLock(
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+        )
+
+        test_msg = "error when attempting to acquire lock"
+
+        with patch.object(bundle_log, "exception") as mock_exception:
+            lock._log_exc(test_msg)
+
+            assert mock_exception.mock_calls == [
+                call(
+                    "%s name=%s version=%s lock_file=%s",
+                    test_msg,
+                    bundle_name,
+                    bundle_version,
+                    lock.lock_file_path,
+                )
+            ]
+
 
 class FakeBundle(BaseDagBundle):
     @property
@@ -215,7 +241,7 @@ class FakeBundle(BaseDagBundle):
 
 class TestBundleUsageTrackingManager:
     @pytest.mark.parametrize(
-        "threshold_hours, min_versions, when_hours, expected_remaining",
+        ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
         [
             (3, 0, 3, 5),
             (3, 0, 6, 2),

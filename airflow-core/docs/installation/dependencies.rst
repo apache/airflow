@@ -38,9 +38,11 @@ For the list of the extras and what they enable, see: :doc:`/extra-packages-ref`
 Provider distributions
 ''''''''''''''''''''''
 
-Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, but connected packages.
-The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
-60 providers which can be installed separately as so called ``Airflow providers``.
+Airflow is delivered in multiple, separate, but connected packages. There is the main ``apache-airflow``
+package, ``airflow-core`` package (which is a dependency of ``apache-airflow``) which implements
+main airflow functionality, ``airflow-task-sdk`` package that is used by Dag authors to implement Dags,
+and multiple so called ``Airflow providers`` packages.
+
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
 
 You can even develop and install your own providers for Airflow. For more information,
@@ -59,13 +61,13 @@ optional features to "core" Apache Airflow. One type of such optional features i
 packages, but not all optional features of Apache Airflow have corresponding providers.
 
 We are using the ``extras`` setuptools features to also install providers.
-Most of the extras are also linked (same name) with providers - for example adding ``[google]``
-extra also adds ``apache-airflow-providers-google`` as dependency. However, there are some extras that do
-not install providers (examples ``github_enterprise``, ``kerberos``, ``async`` - they add some extra
-dependencies which are needed for those ``extra`` features of Airflow mentioned. The three examples
-above add respectively GitHub Enterprise OAuth authentication, Kerberos integration or
-asynchronous workers for Gunicorn. None of those have providers, they are just extending Apache Airflow
-"core" package with new functionalities.
+Most of the extras are also linked (same name) with providers - for example using ``apache-airflow[google]``
+extra installs ``airflow-core`` and adds ``apache-airflow-providers-google`` as dependency.
+However, there are some extras that do not install providers (examples ``github_enterprise``, ``kerberos`` -
+they add some extra dependencies which are needed for those ``extra`` features of
+Airflow mentioned. The three examples above add respectively GitHub Enterprise OAuth authentication,
+Kerberos integration . None of those have providers, they are just extending Apache Airflow
+``airflow-core`` package with new functionalities.
 
 System dependencies
 '''''''''''''''''''

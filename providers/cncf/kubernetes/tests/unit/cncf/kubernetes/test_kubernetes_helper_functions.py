@@ -18,17 +18,76 @@
 from __future__ import annotations
 
 import re
+from unittest import mock
 
 import pytest
+from kubernetes.client.rest import ApiException as SyncApiException
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+from urllib3.exceptions import HTTPError
 
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    KubernetesApiException,
+    WaitRetryAfterOrExponential,
+    _should_retry_api,
+    create_unique_id,
+)
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
 
+class DummyRetryState:
+    def __init__(self, exception=None):
+        self.outcome = mock.Mock() if exception is not None else None
+        if self.outcome:
+            self.outcome.exception = mock.Mock(return_value=exception)
+
+
+def test_should_retry_api():
+    exc = HTTPError()
+    assert _should_retry_api(exc)
+
+    exc = KubernetesApiException()
+    assert _should_retry_api(exc)
+
+    exc = SyncApiException(status=500)
+    assert _should_retry_api(exc)
+
+    exc = AsyncApiException(status=500)
+    assert _should_retry_api(exc)
+
+    exc = SyncApiException(status=404)
+    assert not _should_retry_api(exc)
+
+    exc = AsyncApiException(status=404)
+    assert not _should_retry_api(exc)
+
+
+class TestWaitRetryAfterOrExponential:
+    @pytest.mark.no_wait_patch_disabled
+    @pytest.mark.parametrize(("exception"), [SyncApiException, AsyncApiException])
+    def test_call_with_retry_after_header(self, exception):
+        exc = exception(status=429)
+        exc.headers = {"Retry-After": "15"}
+        retry_state = DummyRetryState(exception=exc)
+        wait = WaitRetryAfterOrExponential()(retry_state)
+        assert wait == 15
+
+    @pytest.mark.no_wait_patch_disabled
+    @pytest.mark.parametrize(
+        ("attempt_number", "expected_wait", "exception"),
+        [(1, 1, SyncApiException), (4, 8, AsyncApiException)],
+    )
+    def test_call_without_retry_after_header(self, attempt_number, expected_wait, exception):
+        exc = exception(status=409)
+        retry_state = DummyRetryState(exception=exc)
+        retry_state.attempt_number = attempt_number
+        wait = WaitRetryAfterOrExponential()(retry_state)
+        assert wait == expected_wait
+
+
 class TestCreateUniqueId:
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             ("task-id", "task-id"),  # no problem
             ("task_id", "task-id"),  # underscores
@@ -45,7 +104,7 @@ class TestCreateUniqueId:
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             ("dag-id", "dag-id"),  # no problem
             ("dag_id", "dag-id"),  # underscores
@@ -62,7 +121,7 @@ class TestCreateUniqueId:
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize(
-        "dag_id, task_id, expected",
+        ("dag_id", "task_id", "expected"),
         [
             ("dag-id", "task-id", "dag-id-task-id"),  # no problem
             ("dag_id", "task_id", "dag-id-task-id"),  # underscores

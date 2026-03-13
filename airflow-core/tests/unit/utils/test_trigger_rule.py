@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 
 
 class TestTriggerRule:
@@ -36,7 +36,8 @@ class TestTriggerRule:
         assert TriggerRule.is_valid(TriggerRule.ALWAYS)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
         assert TriggerRule.is_valid(TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        assert len(TriggerRule.all_triggers()) == 12
+        assert TriggerRule.is_valid(TriggerRule.ALL_DONE_MIN_ONE_SUCCESS)
+        assert len(TriggerRule.all_triggers()) == 13
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="'NOT_EXIST_TRIGGER_RULE' is not a valid TriggerRule"):
             TriggerRule("NOT_EXIST_TRIGGER_RULE")

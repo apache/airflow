@@ -26,21 +26,22 @@ from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal, cast
+from urllib.parse import urlparse
 
 import pendulum
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
+from sqlalchemy import select
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ else:
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
 
 
 def getattr_nested(obj, item, default):
@@ -84,15 +86,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if not isinstance(ti, TaskInstanceKey):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
     )
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
@@ -103,7 +103,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
-
     return kwargs_dict
 
 
@@ -163,17 +162,24 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
-    ):
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ) -> None:
         os_kwargs = os_kwargs or {}
         if os_kwargs == "default_os_kwargs":
             os_kwargs = get_os_kwargs_from_config()
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.closed = False
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
         self.write_stdout = write_stdout
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
+        self.host = self.format_url(host)
         self.host_field = host_field
         self.offset_field = offset_field
         self.index_patterns = index_patterns
@@ -184,7 +190,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             http_auth=(username, password),
             **os_kwargs,
         )
-        # client = OpenSearch(hosts=[{"host": host, "port": port}], http_auth=(username, password), use_ssl=True, verify_certs=True, ca_cert="/opt/airflow/root-ca.pem", ssl_assert_hostname = False, ssl_show_warn = False)
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler
         self._doc_type_map: dict[Any, Any] = {}
@@ -209,9 +214,11 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -294,32 +301,16 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
 
-        if TYPE_CHECKING:
-            assert ti.task
-        try:
-            dag = ti.task.dag
-        except AttributeError:  # ti.task is not always set.
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-        else:
-            if TYPE_CHECKING:
-                assert dag is not None
-            # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-
         if self.json_format:
-            data_interval_start = self._clean_date(data_interval[0])
-            data_interval_end = self._clean_date(data_interval[1])
+            data_interval_start = self._clean_date(dag_run.data_interval_start)
+            data_interval_end = self._clean_date(dag_run.data_interval_end)
             logical_date = self._clean_date(dag_run.logical_date)
         else:
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            logical_date = dag_run.logical_date.isoformat()
+            data_interval_start = (
+                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
+            )
+            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
+            logical_date = dag_run.logical_date.isoformat() if dag_run.logical_date else ""
         return log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -423,8 +414,13 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
+                # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
+                    StructuredLogMessage(
+                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                    )
+                    for hits in logs_by_host.values()
+                    for hit in hits
                 ]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
@@ -581,7 +577,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            key = getattr_nested(hit, self.host_field, None) or self.host
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -597,3 +593,43 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
+
+    @property
+    def supports_external_link(self) -> bool:
+        """
+        Whether we can support external links.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return False
+
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Create an address for an external log collecting service.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return ""
+
+    @property
+    def log_name(self) -> str:
+        """The log name."""
+        return self.LOG_NAME
+
+    @staticmethod
+    def format_url(host: str) -> str:
+        """
+        Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
+
+        :params host: The host string to format and check.
+        """
+        parsed_url = urlparse(host)
+
+        if parsed_url.scheme not in ("http", "https"):
+            host = "http://" + host
+            parsed_url = urlparse(host)
+
+        if not parsed_url.netloc:
+            raise ValueError(f"'{host}' is not a valid URL.")
+
+        return host

@@ -22,12 +22,26 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 state: ready
-source-date-epoch: 1751474253
+lifecycle: production
+source-date-epoch: 1773071191
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.11.0
+  - 6.10.0
+  - 6.9.1
+  - 6.9.0
+  - 6.8.2
+  - 6.8.1
+  - 6.8.0
+  - 6.7.0
+  - 6.6.1
+  - 6.6.0
+  - 6.5.4
+  - 6.5.3
+  - 6.5.2
   - 6.5.1
   - 6.5.0
   - 6.4.0
@@ -126,15 +140,141 @@ transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst
 
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
     connection-type: snowflake
+    ui-field-behaviour:
+      hidden-fields: ["port", "host"]
+      relabeling: {}
+      placeholders:
+        extra: |
+          {
+            "authenticator": "snowflake oauth",
+            "private_key_file": "private key",
+            "session_parameters": "session parameters",
+            "client_request_mfa_token": "client request mfa token",
+            "client_store_temporary_credential": "client store temporary credential",
+            "grant_type": "refresh_token client_credentials",
+            "token_endpoint": "token endpoint",
+            "refresh_token": "refresh token",
+            "scope": "scope",
+            "proxy_host": "proxy.example.com",
+            "proxy_port": "8080",
+            "proxy_user": "proxy_username",
+            "proxy_password": "proxy_password"
+          }
+        schema: snowflake schema
+        login: snowflake username
+        password: snowflake password
+        account: snowflake account name
+        warehouse: snowflake warehouse name
+        database: snowflake db name
+        region: snowflake hosted region
+        role: snowflake role
+        private_key_file: Path of snowflake private key (PEM Format)
+        private_key_content: Content to snowflake private key (PEM format)
+        insecure_mode: insecure mode
+        proxy_host: Proxy server hostname
+        proxy_port: Proxy server port
+        proxy_user: Proxy username (optional)
+        proxy_password: Proxy password (optional)
+    conn-fields:
+      account:
+        label: Account
+        schema:
+          type:
+            - string
+            - 'null'
+      warehouse:
+        label: Warehouse
+        schema:
+          type:
+            - string
+            - 'null'
+      database:
+        label: Database
+        schema:
+          type:
+            - string
+            - 'null'
+      region:
+        label: Region
+        schema:
+          type:
+            - string
+            - 'null'
+      role:
+        label: Role
+        schema:
+          type:
+            - string
+            - 'null'
+      private_key_file:
+        label: Private key (Path)
+        schema:
+          type:
+            - string
+            - 'null'
+      private_key_content:
+        label: Private key (Text)
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+      insecure_mode:
+        label: Insecure Mode
+        schema:
+          type:
+            - boolean
+            - 'null'
+        description: Turns off OCSP certificate checks
+      proxy_host:
+        label: Proxy Host
+        schema:
+          type:
+            - string
+            - 'null'
+      proxy_port:
+        label: Proxy Port
+        schema:
+          type:
+            - integer
+            - 'null'
+      proxy_user:
+        label: Proxy User
+        schema:
+          type:
+            - string
+            - 'null'
+      proxy_password:
+        label: Proxy Password
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
 
 triggers:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.triggers.snowflake_trigger
+
+config:
+  snowflake:
+    description: |
+      Configuration for Snowflake hooks and operators.
+    options:
+      azure_oauth_scope:
+        description: |
+          The scope to use while retrieving OAuth token for Snowflake from Azure Entra authentication.
+        version_added: 6.6.0
+        type: string
+        example: ~
+        default: "api://snowflake_oauth_server/.default"

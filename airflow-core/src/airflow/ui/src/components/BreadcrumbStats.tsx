@@ -26,7 +26,7 @@ import { Breadcrumb } from "src/components/ui";
 type Links = Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }>;
 
 export const BreadcrumbStats = ({ links }: { readonly links: Links }) => (
-  <Breadcrumb.Root separator={<LiaSlashSolid />}>
+  <Breadcrumb.Root data-testid="breadcrumb-stats" separator={<LiaSlashSolid />}>
     {links.map((link, index) => (
       // eslint-disable-next-line react/no-array-index-key
       <Stat.Root gap={0} key={`${link.title}-${index}`}>

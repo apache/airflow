@@ -85,6 +85,14 @@ option_airflow_constraints_reference_build = click.option(
     help="Constraint reference to use when building the image.",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
+option_airflow_fallback_no_constraints_installation = click.option(
+    "--airflow-fallback-no-constraints-installation/--no-airflow-fallback-no-constraints-installation",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    help="Fallback to no constraints installation when constraints installation fails.",
+    envvar="AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION",
+)
 option_build_progress = click.option(
     "--build-progress",
     help="Build progress.",
@@ -212,7 +220,6 @@ option_github_token_for_images = click.option(
     help="The token used to authenticate to GitHub. You can generate it with "
     "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
     envvar="GITHUB_TOKEN",
-    required=True,
 )
 option_image_file_dir = click.option(
     "--image-file-dir",

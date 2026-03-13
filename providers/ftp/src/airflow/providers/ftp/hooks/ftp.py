@@ -23,7 +23,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, cast
 
-from airflow.providers.ftp.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class FTPHook(BaseHook):
     Errors that may occur throughout but should be handled downstream.
     You can specify mode for data transfers in the extra field of your
     connection as ``{"passive": "true"}``.
+    You can also specify encoding for the FTP connection as ``{"encoding": "cp1251"}``.
 
     :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
         reference.
@@ -49,6 +50,7 @@ class FTPHook(BaseHook):
         super().__init__()
         self.ftp_conn_id = ftp_conn_id
         self.conn: ftplib.FTP | None = None
+        self.encoding: str | None = None
 
     def __enter__(self):
         return self
@@ -62,7 +64,12 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            self.conn = ftplib.FTP()  # nosec: B321
+            encoding = params.extra_dejson.get("encoding")
+            self.encoding = encoding
+            if encoding:
+                self.conn = ftplib.FTP(encoding=encoding)  # nosec: B321
+            else:
+                self.conn = ftplib.FTP()  # nosec: B321
             if params.host:
                 port: int = int(ftplib.FTP_PORT)
                 if params.port is not None:
@@ -288,6 +295,8 @@ class FTPSHook(FTPHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
+            encoding = params.extra_dejson.get("encoding")
+            self.encoding = encoding
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
@@ -297,7 +306,12 @@ class FTPSHook(FTPHook):
             params.host = cast("str", params.host)
             params.password = cast("str", params.password)
             params.login = cast("str", params.login)
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+            if encoding:
+                self.conn = ftplib.FTP_TLS(
+                    params.host, params.login, params.password, context=context, encoding=encoding
+                )  # nosec: B321
+            else:
+                self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn

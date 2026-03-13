@@ -20,14 +20,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from datetime import datetime
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataflow import (
@@ -36,7 +37,12 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobMetricsSensor,
     DataflowJobStatusSensor,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_sensors_deferrable"
@@ -56,7 +62,7 @@ default_args = {
         "stagingLocation": GCS_STAGING,
     }
 }
-
+log = logging.getLogger(__name__)
 
 with DAG(
     DAG_ID,
@@ -101,7 +107,7 @@ with DAG(
         """Check is metric greater than equals to given value."""
 
         def callback(metrics: list[dict]) -> bool:
-            dag.log.info("Looking for '%s' >= %d", metric_name, value)
+            log.info("Looking for '%s' >= %d", metric_name, value)
             for metric in metrics:
                 context = metric.get("name", {}).get("context", {})
                 original_name = context.get("original_name", "")

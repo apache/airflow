@@ -20,6 +20,9 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
+# Placeholder for masking sensitive values in CLI output
+SENSITIVE_PLACEHOLDER = "***"
+
 if TYPE_CHECKING:
     import datetime
     from collections.abc import Collection
@@ -78,11 +81,10 @@ def fetch_dag_run_from_run_id_or_logical_date_string(
     from pendulum.parsing.exceptions import ParserError
     from sqlalchemy import select
 
-    from airflow.models.dag import DAG
+    from airflow._shared.timezones import timezone
     from airflow.models.dagrun import DagRun
-    from airflow.utils import timezone
 
-    if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
+    if dag_run := session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == value)):
         return dag_run, dag_run.logical_date
     try:
         logical_date = timezone.parse(value)

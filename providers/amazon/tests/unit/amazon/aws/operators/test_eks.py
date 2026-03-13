@@ -21,9 +21,10 @@ from typing import Any, TypedDict
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -40,6 +41,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -66,7 +68,7 @@ CREATE_CLUSTER_KWARGS = {"version": "1.22"}
 CREATE_FARGATE_PROFILE_KWARGS = {"tags": {"hello": "world"}}
 CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
-    "instanceTypes": "t3.large",
+    "instanceTypes": "t4g.large",
 }
 
 
@@ -504,7 +506,7 @@ class TestEksCreateNodegroupOperator:
             op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
             parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
         else:
-            assert "create_nodegroup_params" not in op_kwargs
+            assert "create_nodegroup_kwargs" not in op_kwargs
             parameters = self.create_nodegroup_params
 
         operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
@@ -512,31 +514,36 @@ class TestEksCreateNodegroupOperator:
         mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_not_called()
 
-        @pytest.mark.parametrize(
-            "create_nodegroup_kwargs",
-            [
-                pytest.param(None, id="without nodegroup kwargs"),
-                pytest.param(CREATE_NODEGROUP_KWARGS, id="with nodegroup kwargs"),
-            ],
-        )
-        @mock.patch.object(Waiter, "wait")
-        @mock.patch.object(EksHook, "create_nodegroup")
-        def test_execute_with_wait_when_nodegroup_does_not_already_exist(
-            self, mock_create_nodegroup, mock_waiter, create_nodegroup_kwargs
-        ):
-            op_kwargs = {**self.create_nodegroup_params}
-            if create_nodegroup_kwargs:
-                op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
-                parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
-            else:
-                assert "create_nodegroup_params" not in op_kwargs
-                parameters = self.create_nodegroup_params
+    @pytest.mark.parametrize(
+        "create_nodegroup_kwargs",
+        [
+            pytest.param(None, id="without nodegroup kwargs"),
+            pytest.param(CREATE_NODEGROUP_KWARGS, id="with nodegroup kwargs"),
+        ],
+    )
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_execute_with_wait_when_nodegroup_does_not_already_exist(
+        self, mock_create_nodegroup, mock_waiter, create_nodegroup_kwargs
+    ):
+        op_kwargs = {**self.create_nodegroup_params}
+        if create_nodegroup_kwargs:
+            op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
+            parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
+        else:
+            assert "create_nodegroup_kwargs" not in op_kwargs
+            parameters = self.create_nodegroup_params
 
-            operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
-            operator.execute({})
-            mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
-            mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
-            assert_expected_waiter_type(mock_waiter, "NodegroupActive")
+        operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator.execute({})
+        mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
+        )
+        assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
     @mock.patch.object(EksHook, "create_nodegroup")
     def test_create_nodegroup_deferrable(self, mock_create_nodegroup):
@@ -584,6 +591,92 @@ class TestEksCreateNodegroupOperator:
                 region="us-east-2",
             )
         assert m.operator.region_name == "us-east-2"
+
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_nodegroup_cleanup_on_waiter_auth_failure(
+        self,
+        mock_create_nodegroup,
+        mock_waiter,
+        mock_delete_nodegroup,
+    ):
+        # Airflow currently wraps waiter errors with AirflowException, but the code intentionally supports both.
+        waiter_error = AirflowException("Nodegroup creation failed: Waiter NodegroupActive failed")
+        mock_waiter.side_effect = waiter_error
+
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+            wait_for_completion=True,
+            delete_nodegroup_on_failure=True,
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute({})
+
+        # Nodegroup creation happened.
+        mock_create_nodegroup.assert_called_once()
+
+        # Cleanup attempted.
+        mock_delete_nodegroup.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+        )
+
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_nodegroup_cleanup_failure_does_not_mask_original_error(
+        self,
+        mock_create_nodegroup,
+        mock_waiter,
+        mock_delete_nodegroup,
+    ):
+        # Airflow currently wraps waiter errors with AirflowException, but the code intentionally supports both.
+        waiter_error = AirflowException("Nodegroup creation failed: Waiter NodegroupActive failed")
+
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "UnauthorizedOperation",
+                    "Message": "You are not authorized to perform this operation",
+                }
+            },
+            operation_name="DeleteNodegroup",
+        )
+
+        mock_waiter.side_effect = waiter_error
+        mock_delete_nodegroup.side_effect = cleanup_error
+
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+            wait_for_completion=True,
+            delete_nodegroup_on_failure=True,
+        )
+
+        with pytest.raises(AirflowException) as exc:
+            operator.execute({})
+
+        # Original error preserved.
+        assert isinstance(exc.value, AirflowException)
+        assert "Nodegroup creation failed" in str(exc.value)
+
+        # Nodegroup creation happened.
+        mock_create_nodegroup.assert_called_once()
+
+        # Cleanup attempted.
+        mock_delete_nodegroup.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+        )
 
 
 class TestEksDeleteClusterOperator:
@@ -745,11 +838,38 @@ class TestEksDeleteFargateProfileOperator:
 class TestEksPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
     def test_existing_nodegroup(
-        self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
+        self,
+        mock_eks_hook,
+        mock_get_session,
+        mock_secure_credential_context,
+        mock_generate_config_file,
+        mock_k8s_pod_operator_execute,
     ):
         ti_context = mock.MagicMock(name="ti_context")
+
+        # Mock the credential chain
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "test_access_key"
+        mock_frozen_credentials.secret_key = "test_secret_key"
+        mock_frozen_credentials.token = "test_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        # Mock the credential context manager
+        mock_credentials_file = "/tmp/test_creds.aws_creds"
+        mock_secure_credential_context.return_value.__enter__.return_value = mock_credentials_file
+
+        # Mock the config file context manager
+        mock_config_file = "/tmp/test_kubeconfig"
+        mock_generate_config_file.return_value.__enter__.return_value = mock_config_file
 
         op = EksPodOperator(
             task_id="run_pod",
@@ -763,16 +883,25 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
         op_return_value = op.execute(ti_context)
+
+        # Verify all the expected calls were made
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
         mock_eks_hook.assert_called_once_with(aws_conn_id="aws_default", region_name=None)
-        mock_generate_config_file.assert_called_once_with(
-            eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
+        mock_get_session.assert_called_once()
+        mock_session.get_credentials.assert_called_once()
+        mock_credentials.get_frozen_credentials.assert_called_once()
+        mock_secure_credential_context.assert_called_once_with(
+            "test_access_key", "test_secret_key", "test_token"
         )
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME, pod_namespace="default", credentials_file=mock_credentials_file
+        )
+
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
-        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+        assert op.config_file == mock_config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        ("compatible_kpo", "kwargs", "expected_attributes"),
         [
             (
                 True,
@@ -826,9 +955,39 @@ class TestEksPodOperator:
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
-    def test_trigger_reentry(self, mock_generate_config_file, mock_k8s_pod_operator_trigger_reentry):
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    def test_trigger_reentry(
+        self,
+        mock_eks_hook,
+        mock_get_session,
+        mock_secure_credential_context,
+        mock_generate_config_file,
+        mock_k8s_pod_operator_trigger_reentry,
+    ):
         ti_context = mock.MagicMock(name="ti_context")
         event = {"eks_cluster_name": "eks_cluster_name", "namespace": "namespace"}
+
+        # Mock the credential chain
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "test_access_key"
+        mock_frozen_credentials.secret_key = "test_secret_key"
+        mock_frozen_credentials.token = "test_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        # Mock the credential context manager
+        mock_credentials_file = "/tmp/test_creds.aws_creds"
+        mock_secure_credential_context.return_value.__enter__.return_value = mock_credentials_file
+
+        # Mock the config file context manager
+        mock_config_file = "/tmp/test_kubeconfig"
+        mock_generate_config_file.return_value.__enter__.return_value = mock_config_file
 
         op = EksPodOperator(
             task_id="run_pod",
@@ -842,8 +1001,118 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
         op.trigger_reentry(ti_context, event)
+
+        # Verify all the expected calls were made
         mock_k8s_pod_operator_trigger_reentry.assert_called_once_with(ti_context, event)
-        mock_generate_config_file.assert_called_once_with(
-            eks_cluster_name="eks_cluster_name", pod_namespace="namespace"
+        mock_get_session.assert_called_once()
+        mock_session.get_credentials.assert_called_once()
+        mock_credentials.get_frozen_credentials.assert_called_once()
+        mock_secure_credential_context.assert_called_once_with(
+            "test_access_key", "test_secret_key", "test_token"
         )
-        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name="eks_cluster_name",
+            pod_namespace="namespace",
+            credentials_file=mock_credentials_file,
+        )
+        assert op.config_file == mock_config_file
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator._refresh_cached_properties"
+    )
+    def test_refresh_cached_properties_refreshes_credentials(
+        self,
+        mock_super_refresh,
+        mock_eks_hook,
+        mock_get_session,
+        tmp_path,
+    ):
+        """Test that _refresh_cached_properties refreshes AWS credentials file."""
+        # Create a temporary credentials file
+        credentials_file = tmp_path / "test_creds.aws_creds"
+        credentials_file.write_text(
+            "export AWS_ACCESS_KEY_ID='old_key'\n"
+            "export AWS_SECRET_ACCESS_KEY='old_secret'\n"
+            "export AWS_SESSION_TOKEN='old_token'\n"
+        )
+
+        # Mock the credential chain for refresh
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "new_access_key"
+        mock_frozen_credentials.secret_key = "new_secret_key"
+        mock_frozen_credentials.token = "new_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+        # Set the credentials file path as it would be during execute()
+        op._credentials_file_path = str(credentials_file)
+
+        # Call the refresh method
+        op._refresh_cached_properties()
+
+        # Verify the credentials file was updated with new credentials
+        updated_content = credentials_file.read_text()
+        assert "new_access_key" in updated_content
+        assert "new_secret_key" in updated_content
+        assert "new_token" in updated_content
+        assert "old_key" not in updated_content
+
+        # Verify super()._refresh_cached_properties() was called
+        mock_super_refresh.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator._refresh_cached_properties"
+    )
+    def test_refresh_cached_properties_raises_when_no_credentials(
+        self,
+        mock_super_refresh,
+        mock_eks_hook,
+        mock_get_session,
+        tmp_path,
+    ):
+        """Test that _refresh_cached_properties raises when credentials cannot be retrieved."""
+        # Create a temporary credentials file
+        credentials_file = tmp_path / "test_creds.aws_creds"
+        credentials_file.write_text("export AWS_ACCESS_KEY_ID='old_key'\n")
+
+        # Mock the credential chain to return None (simulating expired/missing credentials)
+        mock_session = mock.MagicMock()
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = None
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+        op._credentials_file_path = str(credentials_file)
+
+        # Call the refresh method and expect it to raise
+        with pytest.raises(AirflowException, match="Unable to retrieve fresh AWS credentials"):
+            op._refresh_cached_properties()
+
+        # Verify super()._refresh_cached_properties() was NOT called since we raised
+        mock_super_refresh.assert_not_called()

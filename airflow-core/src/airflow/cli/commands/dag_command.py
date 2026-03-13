@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import ast
+import datetime
 import errno
 import json
 import logging
@@ -27,22 +28,25 @@ import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.timetables.base import TimeRestriction
+from airflow.utils import cli as cli_utils
+from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -51,11 +55,14 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
+
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
-    from airflow.timetables.base import DataInterval
+    from airflow import DAG
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.timetables.base import DagRunInfo
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
 
@@ -123,21 +130,18 @@ def dag_unpause(args) -> None:
 
 
 @providers_configuration_loaded
-def set_is_paused(is_paused: bool, args) -> None:
+@provide_session
+def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> None:
     """Set is_paused for DAG by a given dag_id."""
-    should_apply = True
-    with create_session() as session:
-        query = select(DagModel)
+    query = select(DagModel)
+    if args.treat_dag_id_as_regex:
+        query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
+    else:
+        query = query.where(DagModel.dag_id == args.dag_id)
 
-        if args.treat_dag_id_as_regex:
-            query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
-        else:
-            query = query.where(DagModel.dag_id == args.dag_id)
+    query = query.where(DagModel.is_paused != is_paused)
 
-        query = query.where(DagModel.is_paused != is_paused)
-
-        matched_dags = session.scalars(query).all()
-
+    matched_dags = list(session.scalars(query).all())
     if not matched_dags:
         print(f"No {'un' if is_paused else ''}paused DAGs were found")
         return
@@ -149,18 +153,20 @@ def set_is_paused(is_paused: bool, args) -> None:
             f"{','.join(dags_ids)}"
             f"\n\nAre you sure? [y/n]"
         )
-        should_apply = ask_yesno(question)
+        if not ask_yesno(question):
+            print("Operation cancelled by user")
+            return
 
-    if should_apply:
-        for dag_model in matched_dags:
-            dag_model.set_is_paused(is_paused=is_paused)
+    def _update_is_paused(dag_model: DagModel) -> bool:
+        old_is_paused = dag_model.is_paused
+        dag_model.is_paused = is_paused
+        return old_is_paused
 
-        AirflowConsole().print_as(
-            data=[{"dag_id": dag.dag_id, "is_paused": not dag.get_is_paused()} for dag in matched_dags],
-            output=args.output,
-        )
-    else:
-        print("Operation cancelled by user")
+    old_values = [
+        {"dag_id": dag_model.dag_id, "is_paused": _update_is_paused(dag_model)} for dag_model in matched_dags
+    ]
+    session.commit()
+    AirflowConsole().print_as(data=old_values, output=args.output)
 
 
 @providers_configuration_loaded
@@ -190,7 +196,11 @@ def dag_dependencies_show(args) -> None:
 @providers_configuration_loaded
 def dag_show(args) -> None:
     """Display DAG or saves its graphic representation to the file."""
-    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    if not (dag := SerializedDagModel.get_dag(dag_id=args.dag_id)):
+        raise SystemExit(f"Can not find dag {args.dag_id!r} in database")
+
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
@@ -231,22 +241,27 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
 
 def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
+    from airflow.serialization.encoders import coerce_to_core_timetable
+
+    core_timetable = coerce_to_core_timetable(dag.timetable)
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "bundle_name": dag.get_bundle_name() if hasattr(dag, "get_bundle_name") else None,
-        "bundle_version": dag.get_bundle_version() if hasattr(dag, "get_bundle_version") else None,
-        "is_paused": dag.get_is_paused() if hasattr(dag, "get_is_paused") else None,
-        "is_stale": dag.get_is_stale() if hasattr(dag, "get_is_stale") else None,
+        "bundle_name": None,
+        "bundle_version": None,
+        "is_paused": None,
+        "is_stale": None,
         "last_parsed_time": None,
+        "last_parse_duration": None,
         "last_expired": None,
         "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,
         "description": dag.description,
-        "timetable_summary": dag.timetable.summary,
-        "timetable_description": dag.timetable.description,
+        "timetable_summary": core_timetable.summary,
+        "timetable_description": core_timetable.description,
+        "timetable_partitioned": core_timetable.partitioned,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
@@ -259,7 +274,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_data_interval_end": None,
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
-        "deadline": None,
+        "allowed_run_types": dag.allowed_run_types,
     }
 
 
@@ -296,39 +311,81 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
     """
-    Return the next logical datetime of a DAG at the command line.
+    Return information of a Dag's next execution at the command line.
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
+
+    For a traditional Dag (not using partitions), this prints the logical date
+    of the next run by default. For a Dag using partitions, the next partition
+    key is printed. A different field can be printed instead using the CLI flag
+    ``--field``.
+
+    A ``--table`` CLI flag can be used instead to print all relevant fields of
+    the next execution. What fields are considered relevant depends on the
+    schedule used by the Dag.
+
+    Use ``--num-execution`` to print more than one execution.
     """
-    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    if args.table and args.field:
+        raise SystemExit("Cannot use --table and --field together")
 
     with create_session() as session:
-        last_parsed_dag: DagModel = session.scalars(
-            select(DagModel).where(DagModel.dag_id == dag.dag_id)
-        ).one()
+        dag = SerializedDagModel.get_dag(args.dag_id, session=session)
+        last_parsed_dag: DagModel | None = session.scalars(
+            select(DagModel).where(DagModel.dag_id == args.dag_id)
+        ).one_or_none()
 
-    if last_parsed_dag.get_is_paused():
+    if not dag or not last_parsed_dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in the database")
+
+    if last_parsed_dag.is_paused:
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
-    def print_execution_interval(interval: DataInterval | None):
-        if interval is None:
+    def iter_next_dagrun_info() -> Iterator[DagRunInfo | None]:
+        yield (dagrun_info := dag.timetable.next_run_info_from_dag_model(dag_model=last_parsed_dag))
+        if dagrun_info is None:
+            return
+        for _ in range(1, args.num_executions):
+            dagrun_info = dag.timetable.next_dagrun_info_v2(
+                last_dagrun_info=dagrun_info,
+                restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+            )
+            yield dagrun_info
+            if dagrun_info is None:
+                break
+
+    if args.table:
+        if last_parsed_dag.timetable_partitioned:
+            columns = ["partition_key", "partition_date", "run_after"]
+        else:
+            columns = ["logical_date", "data_interval.start", "data_interval.end", "run_after"]
+        getters = [(c, operator.attrgetter(c)) for c in columns]
+        AirflowConsole().print_as_table([{n: f(o) for n, f in getters} for o in iter_next_dagrun_info()])
+        return
+
+    if args.field:
+        getter = operator.attrgetter(args.field)
+    elif last_parsed_dag.timetable_partitioned:
+        getter = operator.attrgetter("partition_key")
+    else:
+        getter = operator.attrgetter("logical_date")
+
+    for info in iter_next_dagrun_info():
+        if info is None:
             print(
                 "[WARN] No following schedule can be found. "
                 "This DAG may have schedule interval '@once' or `None`.",
                 file=sys.stderr,
             )
             print(None)
-            return
-        print(interval.start.isoformat())
-
-    next_interval = dag.get_next_data_interval(last_parsed_dag)
-    print_execution_interval(next_interval)
-
-    for _ in range(1, args.num_executions):
-        next_info = dag.next_dagrun_info(next_interval, restricted=False)
-        next_interval = None if next_info is None else next_info.data_interval
-        print_execution_interval(next_interval)
+        else:
+            value = getter(info)
+            if isinstance(value, datetime.datetime):  # Backward compat in format.
+                value = value.isoformat()
+            print(value)
 
 
 @cli_utils.action_cli
@@ -351,6 +408,8 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
+        from airflow.dag_processing.dagbag import DagBag
+
         # Get import errors from the local area
         if args.bundle_name:
             manager = DagBundlesManager()
@@ -360,26 +419,23 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
-                    dagbag.collect_dags()
-                    dags_list.extend(list(dagbag.dags.values()))
-                    dagbag_import_errors += len(dagbag.import_errors)
+                    bundle_dagbag = BundleDagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                    )
+                    bundle_dagbag.collect_dags()
+                    dags_list.extend(list(bundle_dagbag.dags.values()))
+                    dagbag_import_errors += len(bundle_dagbag.import_errors)
         else:
             dagbag = DagBag()
             dagbag.collect_dags()
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        # Get import errors from the DB
-        dagbag = DagBag(read_dags_from_db=True)
-        dagbag.collect_dags_from_db()
-        dags_list = list(dagbag.dags.values())
-
-        query = select(func.count()).select_from(ParseImportError)
+        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
+        pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
-            query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
-
-        dagbag_import_errors = session.scalar(query)
+            pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
+        dagbag_import_errors = session.scalar(pie_stmt) or 0
 
     if dagbag_import_errors > 0:
         from rich import print as rich_print
@@ -391,22 +447,24 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         )
 
     def get_dag_detail(dag: DAG) -> dict:
-        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        if dag_model:
-            dag_detail = DAGResponse.from_orm(dag_model).model_dump()
+        if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
+            dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
             dag_detail = _get_dagbag_dag_details(dag)
         if not cols:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
+    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
 
         validate_dag_bundle_arg(bundle_names)
-        return [dag for dag in dags if dag.get_bundle_name() in bundle_names]
+        selected_dag_ids = set(
+            session.scalars(select(DagModel.dag_id).where(DagModel.bundle_name.in_(bundle_names)))
+        )
+        return (dag for dag in dags if dag.dag_id in selected_dag_ids)
 
     AirflowConsole().print_as(
         data=sorted(
@@ -450,6 +508,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
     if args.local:
         # Get import errors from local areas
+
         if args.bundle_name:
             manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
@@ -458,8 +517,10 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
-                    for filename, errors in dagbag.import_errors.items():
+                    bundle_dagbag = BundleDagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                    )
+                    for filename, errors in bundle_dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
             dagbag = DagBag()
@@ -478,9 +539,9 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
         for import_error in dagbag_import_errors:
             data.append(
                 {
-                    "bundle_name": import_error.bundle_name,
-                    "filepath": import_error.filename,
-                    "error": import_error.stacktrace,
+                    "bundle_name": import_error.bundle_name or "",
+                    "filepath": import_error.filename or "",
+                    "error": import_error.stacktrace or "",
                 }
             )
     AirflowConsole().print_as(
@@ -510,7 +571,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -614,7 +675,11 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
 
-    dag = dag or get_dag(bundle_names=args.bundle_name, dag_id=args.dag_id, dagfile_path=args.dagfile_path)
+    dag = dag or get_bagged_dag(
+        bundle_names=args.bundle_name,
+        dag_id=args.dag_id,
+        dagfile_path=args.dagfile_path,
+    )
     if not dag:
         raise AirflowException(
             f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
@@ -637,7 +702,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             )
         ).all()
 
-        dot_graph = render_dag(dag, tis=tis)
+        dot_graph = render_dag(cast("SerializedDAG", dag), tis=list(tis))
         print()
         if filename:
             _save_dot_to_file(dot_graph, filename)
@@ -670,5 +735,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
-        dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

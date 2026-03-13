@@ -41,7 +41,12 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -52,7 +57,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 SERVICE_ID = f"{DAG_ID}-service-{ENV_ID}".replace("_", "-")
 METADATA_IMPORT_ID = f"{DAG_ID}-metadata-{ENV_ID}".replace("_", "-")
 
-REGION = "europe-west1"
+REGION = "us-central1"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 TIMEOUT = 2400

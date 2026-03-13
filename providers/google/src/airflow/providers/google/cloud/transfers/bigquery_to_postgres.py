@@ -19,7 +19,11 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
+
+from psycopg2.extensions import register_adapter
+from psycopg2.extras import Json
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
@@ -27,7 +31,7 @@ from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
@@ -75,26 +79,36 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
         self.postgres_conn_id = postgres_conn_id
         self.replace_index = replace_index
 
-    def get_sql_hook(self) -> PostgresHook:
+    @cached_property
+    def postgres_hook(self) -> PostgresHook:
+        register_adapter(list, Json)
+        register_adapter(dict, Json)
         return PostgresHook(database=self.database, postgres_conn_id=self.postgres_conn_id)
 
+    def get_sql_hook(self) -> PostgresHook:
+        return self.postgres_hook
+
     def execute(self, context: Context) -> None:
-        big_query_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
+        if not self.bigquery_hook:
+            self.bigquery_hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+        # Set source_project_dataset_table here, after hooks are initialized and project_id is available
+        project_id = self.bigquery_hook.project_id
+        self.source_project_dataset_table = f"{project_id}.{self.dataset_id}.{self.table_id}"
+
         self.persist_links(context)
-        sql_hook: PostgresHook = self.get_sql_hook()
         for rows in bigquery_get_data(
             self.log,
             self.dataset_id,
             self.table_id,
-            big_query_hook,
+            self.bigquery_hook,
             self.batch_size,
             self.selected_fields,
         ):
-            sql_hook.insert_rows(
+            self.postgres_hook.insert_rows(
                 table=self.target_table_name,
                 rows=rows,
                 target_fields=self.selected_fields,

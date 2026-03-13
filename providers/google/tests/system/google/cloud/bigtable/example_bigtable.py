@@ -49,7 +49,6 @@ from datetime import datetime
 
 from google.cloud.bigtable import enums
 
-from airflow.decorators import task_group
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator,
@@ -60,9 +59,21 @@ from airflow.providers.google.cloud.operators.bigtable import (
     BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task_group
+else:
+    # Airflow 2 path
+    from airflow.decorators import task_group  # type: ignore[attr-defined,no-redef]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -85,7 +96,6 @@ CBT_CLUSTER_NODES_UPDATED = 5
 CBT_CLUSTER_STORAGE_TYPE = enums.StorageType.HDD
 CBT_TABLE_ID = "bigtable-table-id"
 CBT_POKE_INTERVAL = 60
-
 
 with DAG(
     DAG_ID,
@@ -230,7 +240,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

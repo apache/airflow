@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import textwrap
 import warnings
@@ -47,7 +48,6 @@ from airflow.providers_manager import ProvidersManager
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 from in_container_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_DOCS_PATH,
     AIRFLOW_PROVIDERS_PATH,
     AIRFLOW_ROOT_PATH,
 )
@@ -61,9 +61,6 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
-    "airflow.providers.google.cloud.hooks.datacatalog",
-    "airflow.providers.google.cloud.operators.datacatalog",
-    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -72,6 +69,7 @@ KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+    "airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook",
 ]
 
 if __name__ != "__main__":
@@ -99,6 +97,31 @@ if os.environ.get("PYTHONWARNINGS") != "default":
 suspended_providers: set[str] = set()
 suspended_logos: set[str] = set()
 suspended_integrations: set[str] = set()
+
+
+def sync_dependencies_without_dev() -> None:
+    """
+    Run uv sync --no-dev to strip development dependencies.
+
+    This ensures validation runs in an environment closer to production,
+    which helps detect cases where providers have unhandled optional
+    cross-provider dependencies.
+    """
+    console.print("[magenta]Running uv sync --no-dev to strip development dependencies...[/]")
+    result = subprocess.run(
+        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        capture_output=True,
+        text=True,
+        cwd=AIRFLOW_ROOT_PATH,
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
+        sys.exit(1)
+
+    console.print("[green]Successfully synchronized without dev dependencies[/]")
+    if result.stdout:
+        console.print(result.stdout)
 
 
 def _filepath_to_module(filepath: pathlib.Path | str) -> str:
@@ -342,14 +365,14 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
     return num_integrations, num_errors
 
 
-@run_check("Checking completeness of list of {sensors, hooks, operators, triggers}")
+@run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_modules = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -381,14 +404,14 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     return num_modules, num_errors
 
 
-@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
+@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers, bundles}")
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         resource_data = provider_data.get(resource_type, [])
         count_integrations = Counter(r.get("integration-name", "") for r in resource_data)
@@ -536,7 +559,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_integrations = len(all_integration_names)
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
@@ -589,32 +612,45 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(
-        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators/**/*.rst"),
-        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/operators/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/operators.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/sensors/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/sensors.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/transfer/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/transfer.rst"),
     )
+    expected_relative_doc_files = sorted([f.relative_to(AIRFLOW_PROVIDERS_PATH) for f in expected_doc_files])
+    console.print("Expected relative doc files:")
+    console.print(expected_relative_doc_files)
+    expected_doc_urls = {
+        f"/docs/apache-airflow-providers-{f.parts[0]}/{'/'.join(f.parts[2:])}"
+        for f in expected_relative_doc_files
+        if f.name != "index.rst" and "_partials" not in f.parts and f.parts[1] == "docs"
+    } | {
+        f"/docs/apache-airflow-providers-{f.parts[0]}-{f.parts[1]}/{'/'.join(f.parts[3:])}"
+        for f in expected_relative_doc_files
+        if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
+    }
 
     expected_doc_urls = {
-        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in expected_doc_files
-        if f.name != "index.rst"
-        and "_partials" not in f.parts
-        and not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
-    } | {
-        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators.rst")
-        if not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
+        doc_url
+        for doc_url in expected_doc_urls
+        for suspend_provider in suspended_providers
+        if suspend_provider not in doc_url
     }
+
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
         console.print()
-    expected_logo_urls = {
-        f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in (AIRFLOW_DOCS_PATH / "integration-logos").rglob("*")
-        if f.is_file()
-        and not f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}".startswith(tuple(suspended_logos))
-    }
-
+    found_logos = itertools.chain(
+        AIRFLOW_PROVIDERS_PATH.glob("**/integration-logos/*.png"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/integration-logos/*.svg"),
+    )
+    expected_logo_urls = list({f"/docs/integration-logos/{f.name}" for f in found_logos if f.is_file()})
+    expected_logo_urls = sorted(set(expected_logo_urls) - suspended_logos)
+    console.print("Expected logo urls:")
+    console.print(expected_logo_urls)
     try:
         console.print("Checking document urls")
         assert_sets_equal(
@@ -713,21 +749,24 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    sync_dependencies_without_dev()
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = [
+    provider_files_found = [
         path
-        for path in pathlib.Path(AIRFLOW_ROOT_PATH, "providers", "src", "airflow", "providers").rglob(
-            "provider.yaml"
-        )
+        for path in pathlib.Path(AIRFLOW_ROOT_PATH, "providers").rglob("provider.yaml")
         if "/.venv/" not in path.as_posix()
     ]
-    all_provider_files = sorted(str(path) for path in provider_files_pattern)
+    console.print(f"Found {len(provider_files_found)} provider.yaml files:")
+    all_provider_files = sorted(str(path) for path in provider_files_found)
     if len(sys.argv) > 1:
-        paths = [os.fspath(AIRFLOW_ROOT_PATH / f) for f in sorted(sys.argv[1:])]
+        paths = [os.fspath(AIRFLOW_ROOT_PATH / "providers" / f) for f in sorted(sys.argv[1:])]
+        console.print("Provider.yaml files were specified explicitly")
     else:
         paths = all_provider_files
+        console.print("Provider.yaml files were found in all providers")
+    console.print(paths)
 
     all_parsed_yaml_files: dict[str, dict] = _load_package_data(paths)
 
@@ -752,6 +791,16 @@ if __name__ == "__main__":
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
+
+    # remove errors related to suspended module imports.
+    print("suspended_providers ", suspended_providers)
+    if suspended_providers and errors:
+        errors = [
+            error
+            for error in errors
+            for module in suspended_providers
+            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
+        ]
 
     if errors:
         error_num = len(errors)

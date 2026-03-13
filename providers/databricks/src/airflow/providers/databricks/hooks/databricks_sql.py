@@ -33,7 +33,7 @@ from typing import (
 from databricks import sql
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
@@ -42,6 +42,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
+    from sqlalchemy.engine import URL
 
     from airflow.models.connection import Connection as AirflowConnection
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -51,14 +52,23 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
-    if execution_timeout is not None:
-        seconds_to_timeout = execution_timeout.total_seconds()
-        t = threading.Timer(seconds_to_timeout, cur.connection.cancel)
-    else:
-        t = None
+def create_timeout_thread(
+    cur, execution_timeout: timedelta | None
+) -> tuple[threading.Timer | None, threading.Event | None]:
+    """Create a timeout timer that cancels the connection and sets a timeout flag."""
+    if not execution_timeout:
+        return None, None
 
-    return t
+    timeout_event = threading.Event()
+
+    def _cancel():
+        timeout_event.set()
+        cur.connection.cancel()
+
+    timer = threading.Timer(execution_timeout.total_seconds(), _cancel)
+    timer.start()
+
+    return timer, timeout_event
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -119,12 +129,20 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_sql_endpoint_by_name(self, endpoint_name) -> dict[str, Any]:
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
-        if "endpoints" not in result:
-            raise AirflowException("Can't list Databricks SQL endpoints")
+        # The API response key depends on which endpoint path is used:
+        # - "warehouses" for the current /api/2.0/sql/warehouses path
+        # - "endpoints" for the legacy /api/2.0/sql/endpoints path
+        warehouses = result.get("warehouses") or result.get("endpoints")
+        if not warehouses:
+            raise RuntimeError(
+                "Can't list Databricks SQL warehouses. The API response contained neither "
+                "'warehouses' nor 'endpoints' key. Check that the connection has sufficient "
+                "permissions to list SQL warehouses."
+            )
         try:
-            endpoint = next(endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name)
+            endpoint = next(ep for ep in warehouses if ep["name"] == endpoint_name)
         except StopIteration:
-            raise AirflowException(f"Can't find Databricks SQL endpoint with name '{endpoint_name}'")
+            raise ValueError(f"Can't find Databricks SQL warehouse with name '{endpoint_name}'")
         else:
             return endpoint
 
@@ -170,6 +188,43 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if self._sql_conn is None:
             raise AirflowException("SQL connection is not initialized")
         return cast("AirflowConnection", self._sql_conn)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URL. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
+            )
+
+        url_query = {
+            "http_path": self._http_path,
+            "catalog": self.catalog,
+            "schema": self.schema,
+        }
+        url_query_formatted: dict[str, str] = {k: v for k, v in url_query.items() if v is not None}
+        return URL.create(
+            drivername="databricks",
+            username="token",
+            password=self._get_token(raise_error=True),
+            host=self.host,
+            query=url_query_formatted,
+        )
+
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     @overload
     def run(
@@ -248,26 +303,29 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
-            with closing(conn.cursor()) as cur:
+            with closing(conn.cursor()):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    t = create_timeout_thread(cur, execution_timeout)
+                    timer, timeout_event = create_timeout_thread(cur, execution_timeout)
 
-                    # TODO: adjust this to make testing easier
                     try:
                         self._run_command(cur, sql_statement, parameters)
+
                     except Exception as e:
-                        if t is None or t.is_alive():
-                            raise DatabricksSqlExecutionError(
-                                f"Error running SQL statement: {sql_statement}. {str(e)}"
-                            )
-                        raise DatabricksSqlExecutionTimeout(
-                            f"Timeout threshold exceeded for SQL statement: {sql_statement} was cancelled."
-                        )
+                        if timeout_event and timeout_event.is_set():
+                            raise DatabricksSqlExecutionTimeout(
+                                f"Timeout threshold exceeded for SQL statement: "
+                                f"{sql_statement} was cancelled."
+                            ) from e
+
+                        raise DatabricksSqlExecutionError(
+                            f"Error running SQL statement: {sql_statement}. {str(e)}"
+                        ) from e
+
                     finally:
-                        if t is not None:
-                            t.cancel()
+                        if timer:
+                            timer.cancel()
 
                     if query_id := cur.query_id:
                         self.log.info("Databricks query id: %s", query_id)

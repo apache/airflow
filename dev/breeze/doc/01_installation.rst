@@ -77,7 +77,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
             <img src="images/docker_socket.png" width="640" alt="Docker socket used">
         </div>
 
-Note: If you use Colima, please follow instructions at:
+Note: If you use Colima, please follow instructions in Colima section at:
 `Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
@@ -125,7 +125,7 @@ Docker in WSL 2
     If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
     Cannot create container for service airflow: not a directory`` when starting Breeze
     after the first time or an error like ``docker: Error response from daemon: not a directory.
-    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    See 'docker run --help'.`` when running the prek tests, you may need to consider
     `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
     instead of using Docker Desktop for Windows.
 
@@ -154,7 +154,7 @@ installing packages, managing workspaces and running development tools.).
 
 Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
 We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
-easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+easy to use, it is faster than any of the other tools available (way faster!) and has a lot of features
 that make it easier to work with Python.
 
 The ``gh`` cli needed for release managers
@@ -173,8 +173,8 @@ Alternative: pipx tool
 
 However, we do not want to be entirely dependent on ``uv`` as it is a software governed by a VC-backed vendor,
 so we always want to provide open-source governed alternatives for our tools. If you can't or do not want to
-use ``uv``, we got you covered. Another too you can use to manage development tools (and ``breeze`` development
-environment is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
+use ``uv``, we got you covered. Another tool you can use to manage development tools (and ``breeze`` development
+environment) is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
 Note that ``pipx`` >= 1.4.1 should be used.
@@ -430,7 +430,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-These are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup autocomplete`` command:
 
 .. image:: ./images/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_setup_autocomplete.svg

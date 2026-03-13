@@ -27,6 +27,7 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
@@ -63,7 +64,7 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
 
     def __init__(self):
         super().__init__(IntegrityError)
-        self.dialect: _DatabaseDialect.value | None = None
+        self.dialect: _DatabaseDialect | None = None
 
     def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""
@@ -73,22 +74,26 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
             for tb in traceback.format_tb(exc.__traceback__):
                 stacktrace += tb
 
-            log_message = f"Error with id {exception_id}\n{stacktrace}"
+            log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
             log.error(log_message)
             if conf.get("api", "expose_stacktrace") == "True":
                 message = log_message
+                statement = str(exc.statement)
+                orig_error = str(exc.orig)
             else:
                 message = (
                     "Serious error when handling your request. Check logs for more details - "
                     f"you will find it in api server when you look for ID {exception_id}"
                 )
+                statement = "hidden"
+                orig_error = "hidden"
 
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "reason": "Unique constraint violation",
-                    "statement": str(exc.statement),
-                    "orig_error": str(exc.orig),
+                    "statement": statement,
+                    "orig_error": orig_error,
                     "message": message,
                 },
             )
@@ -103,6 +108,18 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
-DatabaseErrorHandlers = [
-    _UniqueConstraintErrorHandler(),
-]
+class DagErrorHandler(BaseErrorHandler[DeserializationError]):
+    """Handler for Dag related errors."""
+
+    def __init__(self):
+        super().__init__(DeserializationError)
+
+    def exception_handler(self, request: Request, exc: DeserializationError):
+        """Handle Dag deserialization exceptions."""
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while trying to deserialize Dag: {exc}",
+        )
+
+
+ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]

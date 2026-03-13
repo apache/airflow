@@ -18,25 +18,23 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import warnings
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
 
-PY313 = sys.version_info >= (3, 13)
+_AIRFLOW_PATH = Path(__file__).parents[3]
 
 
 def init_views(app: FastAPI) -> None:
@@ -47,9 +45,9 @@ def init_views(app: FastAPI) -> None:
     app.include_router(ui_router)
     app.include_router(public_router)
 
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+    dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
 
-    directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
+    directory = _AIRFLOW_PATH / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 
     # During python tests or when the backend is run without having the frontend build
     # those directories might not exist. App should not fail initializing in those scenarios.
@@ -60,7 +58,7 @@ def init_views(app: FastAPI) -> None:
     if dev_mode:
         app.mount(
             "/static/i18n/locales",
-            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            StaticFiles(directory=_AIRFLOW_PATH / "airflow/ui/public/i18n/locales"),
             name="dev_i18n_static",
         )
 
@@ -112,14 +110,10 @@ def init_flask_plugins(app: FastAPI) -> None:
     """Integrate Flask plugins (plugins from Airflow 2)."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_flask_plugins()
+    blueprints, appbuilder_views, appbuilder_menu_links = plugins_manager.get_flask_plugins()
 
     # If no Airflow 2.x plugin is in the environment, no need to go further
-    if (
-        not plugins_manager.flask_blueprints
-        and not plugins_manager.flask_appbuilder_views
-        and not plugins_manager.flask_appbuilder_menu_links
-    ):
+    if not blueprints and not appbuilder_views and not appbuilder_menu_links:
         return
 
     from fastapi.middleware.wsgi import WSGIMiddleware
@@ -127,13 +121,6 @@ def init_flask_plugins(app: FastAPI) -> None:
     try:
         from airflow.providers.fab.www.app import create_app
     except ImportError:
-        if PY313:
-            log.info(
-                "Some Airflow 2 plugins have been detected in your environment. Currently FAB provider "
-                "does not support Python 3.13, so you cannot use Airflow 2 plugins with Airflow 3 until "
-                "FAB provider will be Python 3.13 compatible."
-            )
-            return
         raise AirflowException(
             "Some Airflow 2 plugins have been detected in your environment. "
             "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."
@@ -166,35 +153,30 @@ def init_config(app: FastAPI) -> None:
             allow_headers=allow_headers,
         )
 
-    # Compress responses greater than 1kB with optimal compression level as 5
-    # with level ranging from 1 to 9 with 1 (fastest, least compression)
-    # and 9 (slowest, most compression)
-    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
-
     app.state.secret_key = get_signing_key("api", "secret_key")
 
 
 def init_error_handlers(app: FastAPI) -> None:
-    from airflow.api_fastapi.common.exceptions import DatabaseErrorHandlers
+    from airflow.api_fastapi.common.exceptions import ERROR_HANDLERS
 
-    # register database error handlers
-    for handler in DatabaseErrorHandlers:
+    for handler in ERROR_HANDLERS:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
 
 def init_middlewares(app: FastAPI) -> None:
-    from airflow.configuration import conf
+    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+    from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
-    if "SimpleAuthManager" in conf.get("core", "auth_manager") and conf.getboolean(
-        "core", "simple_auth_manager_all_admins"
-    ):
+    app.add_middleware(JWTRefreshMiddleware)
+    if conf.getboolean("core", "simple_auth_manager_all_admins"):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
 
-
-def init_ui_plugins(app: FastAPI) -> None:
-    """Initialize UI plugins."""
-    from airflow import plugins_manager
-
-    plugins_manager.initialize_ui_plugins()
+    # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
+    # the full end-to-end duration including compression time.
+    # See https://github.com/apache/airflow/issues/60165
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+    # HttpAccessLogMiddleware must be outermost (added last) so it times the full
+    # request lifecycle including all inner middleware.
+    app.add_middleware(HttpAccessLogMiddleware)

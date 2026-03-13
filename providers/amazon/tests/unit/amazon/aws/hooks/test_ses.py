@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -25,46 +27,111 @@ from airflow.providers.amazon.aws.hooks.ses import SesHook
 boto3.setup_default_session()
 
 
-@mock_aws
-def test_get_conn():
-    hook = SesHook(aws_conn_id="aws_default")
-    assert hook.get_conn() is not None
+TEST_TO_ADDRESSES = [
+    pytest.param("to@domain.com", id="to=single_string"),
+    pytest.param("to1@domain.com,to2@domain.com", id="to=comma_string"),
+    pytest.param(["to1@domain.com", "to2@domain.com"], id="to=list"),
+]
+
+TEST_CC_ADDRESSES = [
+    pytest.param("cc@domain.com", id="cc=single_string"),
+    pytest.param("cc1@domain.com,cc2@domain.com", id="cc=comma_string"),
+    pytest.param(["cc1@domain.com", "cc2@domain.com"], id="cc=list"),
+]
+
+TEST_BCC_ADDRESSES = [
+    pytest.param("bcc@domain.com", id="bcc=single_string"),
+    pytest.param("bcc1@domain.com,bcc2@domain.com", id="bcc=comma_string"),
+    pytest.param(["bcc1@domain.com", "bcc2@domain.com"], id="bcc=list"),
+]
+
+TEST_FROM_ADDRESS = "test_from@domain.com"
+TEST_SUBJECT = "subject"
+TEST_HTML_CONTENT = "<html>Test</html>"
+TEST_REPLY_TO = "reply_to@domain.com"
+TEST_RETURN_PATH = "return_path@domain.com"
 
 
 @mock_aws
-@pytest.mark.parametrize(
-    "to", ["to@domain.com", ["to1@domain.com", "to2@domain.com"], "to1@domain.com,to2@domain.com"]
-)
-@pytest.mark.parametrize(
-    "cc", ["cc@domain.com", ["cc1@domain.com", "cc2@domain.com"], "cc1@domain.com,cc2@domain.com"]
-)
-@pytest.mark.parametrize(
-    "bcc", ["bcc@domain.com", ["bcc1@domain.com", "bcc2@domain.com"], "bcc1@domain.com,bcc2@domain.com"]
-)
-def test_send_email(to, cc, bcc):
-    # Given
-    hook = SesHook()
-    ses_client = hook.get_conn()
-    mail_from = "test_from@domain.com"
+def _verify_address(address: str) -> None:
+    """
+    Amazon only allows emails from verified addresses. If the address is not verified,
+    this test will raise `botocore.errorfactory.MessageRejected`.
+    """
+    SesHook().get_conn().verify_email_identity(EmailAddress=address)
 
-    # Amazon only allows to send emails from verified addresses,
-    # then we need to validate the from address before sending the email,
-    # otherwise this test would raise a `botocore.errorfactory.MessageRejected` exception
-    ses_client.verify_email_identity(EmailAddress=mail_from)
 
-    # When
-    response = hook.send_email(
-        mail_from=mail_from,
-        to=to,
-        subject="subject",
-        html_content="<html>Test</html>",
-        cc=cc,
-        bcc=bcc,
-        reply_to="reply_to@domain.com",
-        return_path="return_path@domain.com",
-    )
+@mock_aws
+class TestSesHook:
+    def test_get_conn(self):
+        hook = SesHook(aws_conn_id="aws_default")
+        assert hook.get_conn() is not None
 
-    # Then
-    assert response is not None
-    assert isinstance(response, dict)
-    assert "MessageId" in response
+    @pytest.mark.parametrize("to", TEST_TO_ADDRESSES)
+    @pytest.mark.parametrize("cc", TEST_CC_ADDRESSES)
+    @pytest.mark.parametrize("bcc", TEST_BCC_ADDRESSES)
+    def test_send_email(self, to, cc, bcc):
+        _verify_address(TEST_FROM_ADDRESS)
+        hook = SesHook()
+
+        response = hook.send_email(
+            mail_from=TEST_FROM_ADDRESS,
+            to=to,
+            subject=TEST_SUBJECT,
+            html_content=TEST_HTML_CONTENT,
+            cc=cc,
+            bcc=bcc,
+            reply_to=TEST_REPLY_TO,
+            return_path=TEST_RETURN_PATH,
+        )
+
+        assert response is not None
+        assert isinstance(response, dict)
+        assert "MessageId" in response
+
+
+@pytest.mark.asyncio
+class TestAsyncSesHook:
+    """The mock_aws decorator uses `moto` which does not currently support async SES so we mock it manually."""
+
+    @pytest.fixture
+    def mock_async_client(self):
+        return mock.AsyncMock()
+
+    @pytest.fixture
+    def mock_get_async_conn(self, mock_async_client):
+        with mock.patch.object(SesHook, "get_async_conn") as mocked_conn:
+            mocked_conn.return_value.__aenter__.return_value = mock_async_client
+            yield mocked_conn
+
+    async def test_get_async_conn(self, mock_get_async_conn, mock_async_client):
+        hook = SesHook()
+        async with await hook.get_async_conn() as async_conn:
+            assert async_conn is mock_async_client
+
+    @pytest.mark.parametrize("to", TEST_TO_ADDRESSES)
+    @pytest.mark.parametrize("cc", TEST_CC_ADDRESSES)
+    @pytest.mark.parametrize("bcc", TEST_BCC_ADDRESSES)
+    async def test_asend_email(self, mock_get_async_conn, mock_async_client, to, cc, bcc):
+        _verify_address(TEST_FROM_ADDRESS)
+        hook = SesHook()
+
+        mock_async_client.send_raw_email.return_value = {"MessageId": "test_message_id"}
+
+        response = await hook.asend_email(
+            mail_from=TEST_FROM_ADDRESS,
+            to=to,
+            subject=TEST_SUBJECT,
+            html_content=TEST_HTML_CONTENT,
+            cc=cc,
+            bcc=bcc,
+            reply_to=TEST_REPLY_TO,
+            return_path=TEST_RETURN_PATH,
+        )
+
+        assert response is not None
+        assert isinstance(response, dict)
+        assert "MessageId" in response
+        assert response["MessageId"] == "test_message_id"
+
+        mock_async_client.send_raw_email.assert_called_once()

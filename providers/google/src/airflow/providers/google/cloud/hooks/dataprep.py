@@ -28,7 +28,7 @@ import requests
 from requests import HTTPError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from airflow.providers.google.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 def _get_field(extras: dict, field_name: str) -> str | None:

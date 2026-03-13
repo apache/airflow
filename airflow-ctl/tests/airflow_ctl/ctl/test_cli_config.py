@@ -17,15 +17,20 @@
 
 from __future__ import annotations
 
-import datetime
 from argparse import BooleanOptionalAction
 from textwrap import dedent
-from typing import Any
 
 import pytest
 
-from airflowctl.api.datamodels.generated import ReprocessBehavior
-from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
+from airflowctl.ctl.cli_config import (
+    ARG_AUTH_TOKEN,
+    ActionCommand,
+    Arg,
+    CommandFactory,
+    GroupCommand,
+    add_auth_token_to_all_commands,
+    merge_commands,
+)
 
 
 @pytest.fixture
@@ -59,7 +64,7 @@ def test_args_create():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -69,7 +74,7 @@ def test_args_create():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -89,7 +94,7 @@ def test_args_create():
                 "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
-                "type": dict[str, Any],
+                "type": dict,
                 "dest": None,
             },
         ),
@@ -99,7 +104,7 @@ def test_args_create():
                 "help": "reprocess_behavior for backfill operation",
                 "action": None,
                 "default": None,
-                "type": ReprocessBehavior,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -163,6 +168,30 @@ def test_args_get():
     ]
 
 
+@pytest.fixture(scope="module")
+def test_args_delete():
+    return [
+        (
+            "--backfill-id",
+            {
+                "help": "backfill_id for delete operation in BackfillsOperations",
+                "default": None,
+                "type": str,
+                "dest": None,
+            },
+        ),
+        (
+            "--output",
+            {
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
+                "default": "json",
+                "type": str,
+                "dest": None,
+            },
+        ),
+    ]
+
+
 class TestCommandFactory:
     @classmethod
     def _save_temp_operations_py(cls, temp_file: str, file_content) -> None:
@@ -183,7 +212,9 @@ class TestCommandFactory:
         except FileNotFoundError:
             pass
 
-    def test_command_factory(self, no_op_method, test_args_create, test_args_list, test_args_get):
+    def test_command_factory(
+        self, no_op_method, test_args_create, test_args_list, test_args_get, test_args_delete
+    ):
         """
         Test the command factory.
         """
@@ -202,7 +233,7 @@ class TestCommandFactory:
                 class BackfillsOperations(BaseOperations):
                     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
                         try:
-                            self.response = self.client.post("backfills", data=backfill.model_dump())
+                            self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
                             return BackfillResponse.model_validate_json(self.response.content)
                         except ServerResponseError as e:
                             raise e
@@ -213,6 +244,9 @@ class TestCommandFactory:
                     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
                         self.response = self.client.get(f"backfills/{backfill_id}")
                         return BackfillResponse.model_validate_json(self.response.content)
+                    def delete(self, backfill_id: str) -> ServerResponseError | None:
+                        self.response = self.client.delete(f"backfills/{backfill_id}")
+                        return None
             """,
         )
 
@@ -241,6 +275,12 @@ class TestCommandFactory:
                         assert arg.kwargs["type"] == test_arg[1]["type"]
                 elif sub_command.name == "get":
                     for arg, test_arg in zip(sub_command.args, test_args_get):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
+                elif sub_command.name == "delete":
+                    for arg, test_arg in zip(sub_command.args, test_args_delete):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
                         assert arg.kwargs["default"] == test_arg[1]["default"]
@@ -323,3 +363,177 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_add_auth_token_to_all_commands(self, no_op_method):
+        """Test the add_auth_token_to_all_commands method."""
+        ARG_1 = Arg(
+            flags=("--arg1",),
+        )
+        ARG_2 = Arg(
+            flags=("--arg1",),
+        )
+        action_commands_1 = (
+            ActionCommand(
+                name="subcommand1",
+                help="This is subcommand 1",
+                func=no_op_method,
+                args=(),
+            ),
+            ActionCommand(
+                name="subcommand2",
+                help="This is subcommand 2",
+                func=no_op_method,
+                args=(ARG_1,),
+            ),
+        )
+        command_list = [
+            GroupCommand(
+                name="command1",
+                help="This is command 1 new help",
+                description="This is command 1 new description",
+                subcommands=action_commands_1,
+            ),
+            ActionCommand(
+                name="command2",
+                help="This is command 2",
+                func=no_op_method,
+                args=(ARG_1, ARG_2),
+            ),
+        ]
+
+        command_list = add_auth_token_to_all_commands(command_list)
+
+        merged_command_names = [command.name for command in command_list]
+        assert "command1" in merged_command_names
+        assert "command2" in merged_command_names
+        assert len(command_list) == 2
+
+        expected_subcommand_1_args = [ARG_AUTH_TOKEN]
+        expected_subcommand_2_args = [ARG_1, ARG_AUTH_TOKEN]
+        expected_command_2_args = [ARG_1, ARG_2, ARG_AUTH_TOKEN]
+
+        for command in command_list:
+            if command.name == "command1":
+                sub_command_names = [sc.name for sc in list(command.subcommands)]
+                assert "subcommand1" in sub_command_names
+                assert "subcommand2" in sub_command_names
+                assert len(sub_command_names) == 2
+                for sub_command in command.subcommands:
+                    if sub_command.name == "subcommand1":
+                        assert sub_command.args == expected_subcommand_1_args
+                    if sub_command.name == "subcommand2":
+                        assert sub_command.args == expected_subcommand_2_args
+            if command.name == "command2":
+                assert command.args == expected_command_2_args
+
+    def test_trigger_dag_run_defaults_logical_date_to_now(self):
+        """Test that trigger command defaults logical_date to now when not provided."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        # Simulate the logic in _get_func from cli_config.py
+        # This is the actual code path that runs when user doesn't provide --logical-date
+
+        # Step 1: Simulate CLI args being parsed (logical_date=None)
+        method_params = {
+            "trigger_dag_run": {
+                "dag_run_id": None,
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "logical_date": None,  # User did not provide --logical-date
+                "run_after": None,
+                "conf": None,
+                "note": None,
+                "partition_key": None,
+            }
+        }
+
+        # Step 2: Apply the defaulting logic (from cli_config.py lines 622-630)
+        datamodel = TriggerDAGRunPostBody
+        datamodel_param_name = "trigger_dag_run"
+
+        if (
+            datamodel.__name__ == "TriggerDAGRunPostBody"
+            and "logical_date" in method_params[datamodel_param_name]
+            and method_params[datamodel_param_name]["logical_date"] is None
+        ):
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+
+        # Step 3: Create the Pydantic model (what happens in the actual code)
+        trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
+
+        # Step 4: Verify logical_date was set to now
+        assert trigger_body.logical_date is not None, "logical_date should be defaulted to now"
+        assert isinstance(trigger_body.logical_date, datetime)
+
+        # Verify it's close to current time (within 5 seconds)
+        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
+
+        # Also verify timezone is UTC
+        assert trigger_body.logical_date.tzinfo is not None, "logical_date should have timezone info"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
+        """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with logical_date=None
+        params = {"logical_date": None, "conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        assert result["logical_date"] is not None, "logical_date should be defaulted to now"
+        assert isinstance(result["logical_date"], datetime)
+
+        # Verify it's close to current time (within 5 seconds)
+        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
+
+        # Verify timezone is UTC
+        assert result["logical_date"].tzinfo is not None, "logical_date should have timezone info"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
+        """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with an existing logical_date value
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        params = {"logical_date": specific_date, "conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        # Should preserve the provided value, not override it
+        assert result["logical_date"] == specific_date, "logical_date should not be changed when already set"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_without_logical_date(self):
+        """Test _apply_datamodel_defaults doesn't add logical_date if not present."""
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test without logical_date key
+        params = {"conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        # Should not add logical_date if it wasn't in params
+        assert "logical_date" not in result, "logical_date should not be added if not originally present"
+
+    def test_apply_datamodel_defaults_other_datamodel(self):
+        """Test _apply_datamodel_defaults doesn't modify params for other datamodels."""
+        from airflowctl.api.datamodels.generated import BackfillPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with a different datamodel (BackfillPostBody)
+        params = {"dag_id": "test_dag", "from_date": None}
+        result = command_factory._apply_datamodel_defaults(BackfillPostBody, params)
+
+        # Should return params unchanged for other datamodels
+        assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"

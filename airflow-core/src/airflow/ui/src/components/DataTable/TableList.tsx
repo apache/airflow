@@ -31,6 +31,7 @@ type DataTableProps<TData> = {
 };
 
 export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
 
   return (

@@ -21,10 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
-import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
-import ParseDag from "src/components/DagActions/ParseDag";
+import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
@@ -35,37 +36,53 @@ import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
 
+type LatestRunInfo = {
+  dag_id: string;
+  end_date: string | null;
+  logical_date: string | null;
+  run_after: string;
+  run_id: string;
+  start_date: string | null;
+  state: DagRunState;
+};
+
 export const Header = ({
   dag,
-  dagWithRuns,
-  isRefreshing,
+  latestRunInfo,
 }: {
   readonly dag?: DAGDetailsResponse;
-  readonly dagWithRuns?: DAGWithLatestDagRunsResponse;
-  readonly isRefreshing?: boolean;
+  readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
-  const latestRun = dagWithRuns?.latest_dag_runs ? dagWithRuns.latest_dag_runs[0] : undefined;
 
   const stats = [
     {
       label: translate("dagDetails.schedule"),
-      value: dagWithRuns === undefined ? undefined : <Schedule dag={dagWithRuns} />,
+      value:
+        dag === undefined ? undefined : (
+          <Schedule
+            assetExpression={dag.asset_expression}
+            dagId={dag.dag_id}
+            timetableDescription={dag.timetable_description}
+            timetablePartitioned={dag.timetable_partitioned}
+            timetableSummary={dag.timetable_summary}
+          />
+        ),
     },
     {
       label: translate("dagDetails.latestRun"),
       value:
-        Boolean(latestRun) && latestRun !== undefined ? (
+        Boolean(latestRunInfo) && latestRunInfo !== undefined ? (
           <Link asChild color="fg.info">
-            <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
+            <RouterLink to={`/dags/${latestRunInfo.dag_id}/runs/${latestRunInfo.run_id}`}>
               <DagRunInfo
-                endDate={latestRun.end_date}
-                logicalDate={latestRun.logical_date}
-                runAfter={latestRun.run_after}
-                startDate={latestRun.start_date}
-                state={latestRun.state}
+                endDate={latestRunInfo.end_date}
+                logicalDate={latestRunInfo.logical_date}
+                runAfter={latestRunInfo.run_after}
+                startDate={latestRunInfo.start_date}
+                state={latestRunInfo.state}
               />
             </RouterLink>
           </Link>
@@ -73,12 +90,19 @@ export const Header = ({
     },
     {
       label: translate("dagDetails.nextRun"),
-      value: Boolean(dagWithRuns?.next_dagrun_run_after) ? (
+      value: Boolean(dag?.next_dagrun_run_after) ? (
         <DagRunInfo
-          logicalDate={dagWithRuns?.next_dagrun_logical_date}
-          runAfter={dagWithRuns?.next_dagrun_run_after as string}
+          logicalDate={dag?.next_dagrun_logical_date}
+          runAfter={dag?.next_dagrun_run_after as string}
         />
       ) : undefined,
+    },
+    {
+      label: translate("dagDetails.maxActiveRuns"),
+      value:
+        dag?.max_active_runs === undefined
+          ? undefined
+          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
     {
       label: translate("dagDetails.owner"),
@@ -107,13 +131,13 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
-            <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
+            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
+            <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />
+            <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
           </>
         )
       }
       icon={<DagIcon />}
-      isRefreshing={isRefreshing}
       stats={stats}
       subTitle={
         dag !== undefined && (

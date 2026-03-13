@@ -17,17 +17,19 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    Discriminator,
     Field,
+    JsonValue,
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    model_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -35,7 +37,12 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
-from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
+from airflow.utils.state import (
+    DagRunState,
+    IntermediateTIState,
+    TaskInstanceState as TIState,
+    TerminalTIState,
+)
 from airflow.utils.types import DagRunType
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
@@ -66,6 +73,7 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = TerminalTIState.FAILED
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
+    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED
 
 
 class TITerminalStatePayload(StrictBaseModel):
@@ -122,7 +130,7 @@ class TIDeferredStatePayload(StrictBaseModel):
         ),
     ]
     classpath: str
-    trigger_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    trigger_kwargs: Annotated[dict[str, JsonValue] | str, Field(default_factory=dict)]
     """
     Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
 
@@ -130,9 +138,10 @@ class TIDeferredStatePayload(StrictBaseModel):
     """
 
     trigger_timeout: timedelta | None = None
+    queue: str | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
@@ -219,7 +228,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Discriminator(ti_state_discriminator),
+    Field(discriminator=ti_state_discriminator),
 ]
 
 
@@ -252,7 +261,7 @@ class AssetReferenceAssetEventDagRun(StrictBaseModel):
 
     name: str
     uri: str
-    extra: dict
+    extra: dict[str, JsonValue]
 
 
 class AssetAliasReferenceAssetEventDagRun(StrictBaseModel):
@@ -265,7 +274,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     """Schema for AssetEvent model used in DagRun."""
 
     asset: AssetReferenceAssetEventDagRun
-    extra: dict
+    extra: dict[str, JsonValue]
     source_task_id: str | None
     source_dag_id: str | None
     source_run_id: str | None
@@ -287,12 +296,49 @@ class DagRun(StrictBaseModel):
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime
-    start_date: UtcDateTime
+    start_date: UtcDateTime | None
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
-    conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    state: DagRunState
+    conf: dict[str, Any] | None = None
+    triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
+    partition_key: str | None
+    note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_dag_run_note(cls, data: Any) -> Any:
+        """Extract the `note` (`str | None` from `association_proxy("dag_run_note", "content")`) relationship from `DagRun` to prevent `DetachedInstanceError` when constructing `DagRunContext` or `TIRunContext` models."""
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.exc import NoInspectionAvailable
+        from sqlalchemy.orm.state import InstanceState
+
+        if isinstance(data, dict):
+            return data
+
+        # Check if this is a SQLAlchemy model by looking for the inspection interface
+        try:
+            insp: InstanceState = sa_inspect(data)
+        except NoInspectionAvailable:
+            # Not a SQLAlchemy object, return as-is for Pydantic to handle
+            return data
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" in insp.dict:
+            note_value: str | None = insp.dict["note"]
+        else:
+            note_value = None
+
+        # Convert to dict to avoid further lazy loading issues
+        values = {
+            field_name: getattr(data, field_name, None)
+            for field_name in cls.model_fields
+            if field_name != "note"
+        }
+        values["note"] = note_value
+        return values
 
 
 class TIRunContext(BaseModel):
@@ -312,8 +358,6 @@ class TIRunContext(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
-
-    upstream_map_indexes: dict[str, int | list[int] | None] | None = None
 
     next_method: str | None = None
     """Method to call. Set when task resumes from a trigger."""
@@ -340,10 +384,31 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
+class PreviousTIResponse(BaseModel):
+    """Schema for response with previous TaskInstance information."""
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None
+    state: str | None = None
+    try_number: int
+    map_index: int | None = -1
+    duration: float | None = None
+
+
 class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
     task_states: dict[str, Any]
+
+
+class TaskBreadcrumbsResponse(BaseModel):
+    """Response for task breadcrumbs."""
+
+    breadcrumbs: Iterable[dict[str, Any]]
 
 
 class InactiveAssetsResponse(BaseModel):

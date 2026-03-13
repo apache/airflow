@@ -20,8 +20,10 @@
 License
 ========
 
-.. image:: img/apache.jpg
+.. image:: img/asf_logo_wide.png
     :width: 150
+    :align: center
+
 
 .. code-block:: text
 

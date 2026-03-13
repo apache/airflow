@@ -3,6 +3,7 @@
     "description": "Opis",
     "key": "Klucz",
     "name": "Nazwa",
+    "team": "Zespół",
     "value": "Wartość"
   },
   "config": {
@@ -42,6 +43,7 @@
       "extraFields": "Dodatkowe pola",
       "extraFieldsJson": "Dodatkowe pola JSON",
       "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
+      "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },
@@ -54,6 +56,12 @@
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
     "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",
+    "testError": {
+      "title": "Test połączenia nieudany"
+    },
+    "testSuccess": {
+      "title": "Test połączenia udany"
+    },
     "typeMeta": {
       "error": "Nie udało się pobrać metadanych typu połączenia",
       "standardFields": {
@@ -77,8 +85,24 @@
     "tooltip": "Usuń wybrane połączenia"
   },
   "formActions": {
-    "reset": "Resetuj",
     "save": "Zapisz"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Klasa wykonawcy",
+      "hostname": "Nazwa hosta",
+      "id": "ID",
+      "jobType": "Typ zadania",
+      "latestHeartbeat": "Ostatni sygnał",
+      "unixname": "Nazwa Unixowa"
+    },
+    "filters": {
+      "allStates": "Wszystkie stany",
+      "allTypes": "Wszystkie typy",
+      "dagProcessorJob": "Zadanie procesora Dagów",
+      "schedulerJob": "Zadanie harmonogramu",
+      "triggererJob": "Zadanie cyngla"
+    }
   },
   "plugins": {
     "columns": {
@@ -142,8 +166,6 @@
       "tooltip": "Usuń wybrane zmienne"
     },
     "edit": "Edytuj zmienną",
-    "export": "Eksportuj",
-    "exportTooltip": "Eksportuj zmienne",
     "form": {
       "invalidJson": "Nieprawidłowy JSON",
       "keyMaxLength": "Klucz może zawierać maksymalnie 250 znaków",

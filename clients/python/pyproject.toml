@@ -16,7 +16,14 @@
 # under the License.
 
 [build-system]
-requires = ["hatchling==1.27.0"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [project]
@@ -24,8 +31,9 @@ name = "apache-airflow-client"
 dynamic = ["version"]
 description = "Apache Airflow API (Stable)"
 readme = "README.md"
-license-files.globs = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -41,26 +49,26 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 
 dependencies = [
     "pydantic >= 2.11.0",
     "python-dateutil",
-    "urllib3 >= 2.1.0",
+    "urllib3>=2.1.0,!=2.6.0",
 ]
 
 [project.urls]
-"Bug Tracker" = "https://github.com/apache/airflow-client-python/issues"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
 Changelog = "https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md"
 Documentation = "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html"
 Download = "https://archive.apache.org/dist/airflow/clients/python/"
 Homepage = "https://airflow.apache.org/"
-"Source Code" = "https://github.com/apache/airflow/clients/python"
+"Source Code" = "https://github.com/apache/airflow-client-python"
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -94,17 +102,20 @@ include = [
 [tool.hatch.build.targets.wheel]
 artifacts = [
     "/airflow_client",
-    "/docs",
-    "/test",
     "v2.yaml",
 ]
 include = [
     "/airflow_client",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 # make sure that pytest.ini is not read from pyproject.toml in paraent directories
-addopts = "--color=yes --cov-config=pyproject.toml --cov=airflow_client"
+addopts = [
+    "--color=yes",
+    "--cov-config=pyproject.toml",
+    "--cov=airflow_client",
+]
+
 norecursedirs = [
 ]
 log_level = "INFO"

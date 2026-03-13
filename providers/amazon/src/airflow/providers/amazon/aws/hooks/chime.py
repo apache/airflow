@@ -25,7 +25,7 @@ import re
 from functools import cached_property
 from typing import Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 
@@ -33,7 +33,7 @@ class ChimeWebhookHook(HttpHook):
     """
     Interact with Amazon Chime Webhooks to create notifications.
 
-    .. warning:: This hook is only designed to work with web hooks and not chat bots.
+    .. warning:: This hook is only designed to work with web hooks and not chatbots.
 
     :param chime_conn_id: :ref:`Amazon Chime Connection ID <howto/connection:chime>`
         with Endpoint as `https://hooks.chime.aws` and the webhook token

@@ -21,7 +21,6 @@ from unittest.mock import Mock, patch
 import pytest
 from kubernetes.client import models as k8s
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     _convert_from_dict,
     _convert_kube_model_object,
@@ -36,6 +35,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 # testcase of _convert_kube_model_object() function

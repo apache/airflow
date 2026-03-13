@@ -21,7 +21,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from airflow import settings
-from airflow.utils.file import find_path_from_directory
+from airflow._shared.module_loading import find_path_from_directory
 
 
 def populate_dir(root_path):
@@ -77,8 +77,8 @@ class TestIgnorePluginFile:
             "test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore"
-        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "regexp"):
-            file_path = Path(file_path)
+        for raw_file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "regexp"):
+            file_path = Path(raw_file_path)
             if file_path.is_file() and file_path.suffix == ".py":
                 detected_files.add(file_path.name)
         assert detected_files == should_not_ignore_files
@@ -94,17 +94,24 @@ class TestIgnorePluginFile:
         should_ignore_files = {
             "test_notload.py",
             "test_notload_sub.py",
-            "test_noneload_sub1.py",
-            "test_shouldignore.py",
+            "subdir1/test_noneload_sub1.py",
+            "subdir2/test_shouldignore.py",
+            "subdir3/test_notload_sub3.py",
         }
         should_not_ignore_files = {
             "test_load.py",
-            "test_load_sub1.py",
+            "subdir1/test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore_glob"
-        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "glob"):
-            file_path = Path(file_path)
+        print("-" * 20)
+        for raw_file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "glob"):
+            file_path = Path(raw_file_path)
             if file_path.is_file() and file_path.suffix == ".py":
-                detected_files.add(file_path.name)
+                rel_path = file_path.relative_to(plugin_folder_path).as_posix()
+                detected_files.add(rel_path)
+                print(file_path)
+
+        print("-" * 20)
+        print(detected_files)
         assert detected_files == should_not_ignore_files
         assert detected_files.isdisjoint(should_ignore_files)

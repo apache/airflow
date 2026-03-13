@@ -24,11 +24,9 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from functools import cached_property
-from logging import Logger
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -46,25 +44,22 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
 )
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import (
+    extract_failed_task_errors,
+    normalise_json_content,
+    validate_trigger_event,
+)
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.providers.databricks.operators.databricks_workflow import (
         DatabricksWorkflowTaskGroup,
     )
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.sdk import TaskGroup
+    from airflow.sdk.types import Context, Logger
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
@@ -98,17 +93,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
                 if run_state.result_state == "FAILED":
-                    failed_tasks = []
-                    for task in run_info.get("tasks", []):
-                        if task.get("state", {}).get("result_state", "") == "FAILED":
-                            task_run_id = task["run_id"]
-                            task_key = task["task_key"]
-                            run_output = hook.get_run_output(task_run_id)
-                            if "error" in run_output:
-                                error = run_output["error"]
-                            else:
-                                error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                    failed_tasks = extract_failed_task_errors(hook, run_info, run_state)
 
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
@@ -225,8 +210,17 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 method_name=DEFER_METHOD_NAME,
             )
         else:
-            if run_state.is_successful:
-                log.info("%s completed successfully.", operator.task_id)
+            failed_tasks = extract_failed_task_errors(hook, run_info, run_state)
+            operator.execute_complete(
+                context=context,
+                event={
+                    "run_id": operator.run_id,
+                    "run_page_url": run_page_url,
+                    "run_state": run_state.to_json(),
+                    "repair_run": getattr(operator, "repair_run", False),
+                    "errors": failed_tasks,
+                },
+            )
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
@@ -274,7 +268,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         https://docs.databricks.com/api/workspace/jobs/reset
 
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/create`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/create`` endpoint. The other named parameters
         (i.e. ``name``, ``tags``, ``tasks``, etc.) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -400,16 +394,12 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
-        if (access_control_list := self.json.get("access_control_list")) is not None:
-            acl_json = {"access_control_list": access_control_list}
-            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
-
         return job_id
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+    Submits a Spark job run to Databricks using the api/2.2/jobs/runs/submit API endpoint.
 
     See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
@@ -424,7 +414,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/runs/submit`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -662,14 +652,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.2/jobs/run-now API endpoint.
 
     See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.1/jobs/run-now`` endpoint and pass it directly
+    to call the ``api/2.2/jobs/run-now`` endpoint and pass it directly
     to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
     For example ::
 
@@ -747,7 +737,7 @@ class DatabricksRunNowOperator(BaseOperator):
             https://docs.databricks.com/en/workflows/jobs/settings.html#add-parameters-for-all-job-tasks
 
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -940,8 +930,13 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["job_id"] = job_id
             del self.json["job_name"]
 
-        if self.cancel_previous_runs and self.json["job_id"] is not None:
-            hook.cancel_all_runs(self.json["job_id"])
+        if self.cancel_previous_runs:
+            if (job_id := self.json.get("job_id")) is None:
+                raise ValueError(
+                    "cancel_previous_runs=True requires either job_id or job_name to be provided."
+                )
+
+            hook.cancel_all_runs(job_id)
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
@@ -1327,15 +1322,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
         return self.databricks_run_id
 
-    def _handle_terminal_run_state(self, run_state: RunState) -> None:
+    def _handle_terminal_run_state(self, run_state: RunState, errors: list) -> None:
         """Handle the terminal state of the run."""
         if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
             raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
+                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}. Errors: {errors}"
             )
         if not run_state.is_successful:
             raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}. Errors: {errors}"
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
@@ -1343,7 +1338,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+        tasks = self._hook.get_run_tasks(self.databricks_run_id)
 
         # Because the task_key remains the same across multiple runs, and the Databricks API does not return
         # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we
@@ -1417,12 +1412,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(current_task_run_id)
             run_state = RunState(**run["state"])
+
             self.log.info(
                 "Current state of the databricks task %s is %s",
                 self.databricks_task_key,
                 run_state.life_cycle_state,
             )
-        self._handle_terminal_run_state(run_state)
+
+        # Extract errors from the run response using utility function
+        errors = extract_failed_task_errors(self._hook, run, run_state)
+
+        self._handle_terminal_run_state(run_state, errors)
 
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
@@ -1450,7 +1450,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
-        self._handle_terminal_run_state(run_state)
+        errors = event.get("errors", [])
+        self._handle_terminal_run_state(run_state, errors)
 
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):

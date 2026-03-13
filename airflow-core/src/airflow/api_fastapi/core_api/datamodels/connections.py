@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
-from collections import abc
-from typing import Annotated
+import json
+from collections.abc import Iterable, Mapping
+from typing import Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
+from pydantic_core.core_schema import ValidationInfo
 
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow._shared.secrets_masker import redact, should_hide_value_for_key
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 
 
 # Response Models
@@ -38,12 +41,33 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+    team_name: str | None
+
+    @field_validator("password", mode="after")
+    @classmethod
+    def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
+        if v is None:
+            return None
+        return str(redact(v, field_info.field_name))
+
+    @field_validator("extra", mode="before")
+    @classmethod
+    def redact_extra(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            extra_dict = json.loads(v)
+            redacted_dict = redact(extra_dict)
+            return json.dumps(redacted_dict)
+        except json.JSONDecodeError:
+            # we can't redact fields in an unstructured `extra`
+            return v
 
 
 class ConnectionCollectionResponse(BaseModel):
     """Connection Collection serializer for responses."""
 
-    connections: list[ConnectionResponse]
+    connections: Iterable[ConnectionResponse]
     total_entries: int
 
 
@@ -97,7 +121,39 @@ class ConnectionHookMetaData(BaseModel):
     default_conn_name: str | None
     hook_name: str
     standard_fields: StandardHookFields | None
-    extra_fields: abc.MutableMapping | None
+    extra_fields: Mapping | None
+
+    @field_validator("extra_fields", mode="after")
+    @classmethod
+    def redact_extra_fields(cls, v: Mapping | None):
+        if v is None:
+            return None
+
+        # Check if extra_fields contains param spec structures (result of SerializedParam.dump())
+        # which have "value" and "schema" keys, or simple dictionary structures
+        has_param_spec_structure = any(
+            isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec
+            for field_spec in v.values()
+        )
+
+        if has_param_spec_structure:
+            redacted_extra_fields: dict[str, Any] = {}
+            for field_name, field_spec in v.items():
+                if isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec:
+                    if should_hide_value_for_key(field_name) and field_spec.get("value") is not None:
+                        # Mask only the value, preserve everything else including schema.type
+                        redacted_extra_fields[field_name] = {**field_spec, "value": "***"}
+                    else:
+                        # Not sensitive or no value, keep as is
+                        redacted_extra_fields[field_name] = field_spec
+                else:
+                    # Not a param spec structure, apply redact by default
+                    redacted_extra_fields[field_name] = redact(field_spec)
+
+            return redacted_extra_fields
+
+        # For simple dictionary structures, use the standard redact function
+        return redact(v)
 
 
 # Request Models
@@ -113,3 +169,30 @@ class ConnectionBody(StrictBaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+    team_name: str | None = Field(max_length=50, default=None)
+
+    @field_validator("extra")
+    @classmethod
+    def validate_extra(cls, v: str | None) -> str | None:
+        """
+        Validate that `extra` field is a JSON-encoded Python dict.
+
+        If `extra` field is not a valid JSON, it will be returned as is.
+        """
+        if v is None:
+            return v
+        if v == "":
+            return "{}"  # Backward compatibility: treat "" as empty JSON object
+        try:
+            extra_dict = json.loads(v)
+            if not isinstance(extra_dict, dict):
+                raise ValueError("The `extra` field must be a valid JSON object (e.g., {'key': 'value'})")
+        except json.JSONDecodeError:
+            raise ValueError(
+                "The `extra` field must be a valid JSON object (e.g., {'key': 'value'}), "
+                "but encountered non-JSON in `extra` field"
+            )
+        return v
+
+
+ConnectionBodyPartial = make_partial_model(ConnectionBody)

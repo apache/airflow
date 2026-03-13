@@ -147,7 +147,7 @@ was used in the failing CI run. This is a powerful tool to debug and fix CI issu
 Exporting and importing CI image cache mount
 ............................................
 
-During the build, cache of ``uv`` and ``pip`` is stored in a separate "cache mount" volum that is mounted
+During the build, cache of ``uv`` and ``pip`` is stored in a separate "cache mount" volume that is mounted
 during the build. This cache mount volume is preserved between builds and can be exported and imported
 to speed up the build process in CI - where cache is stored as artifact and can be imported in the next
 build.

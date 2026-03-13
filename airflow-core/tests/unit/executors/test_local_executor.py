@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import gc
 import multiprocessing
 import os
 from unittest import mock
@@ -25,9 +26,14 @@ import pytest
 from kgb import spy_on
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor, _execute_work
-from airflow.utils import timezone
+from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.callback import CallbackDTO
+from airflow.executors.workloads.task import TaskInstanceDTO
+from airflow.models.callback import CallbackFetchMethod
+from airflow.settings import Session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
@@ -43,21 +49,43 @@ skip_spawn_mp_start = pytest.mark.skipif(
 
 
 class TestLocalExecutor:
+    """
+    When the executor is started, end() must be called before the test finishes.
+    Otherwise, subprocesses will remain running, preventing the test from terminating and causing a timeout.
+    """
+
     TEST_SUCCESS_COMMANDS = 5
 
-    def test_supports_sentry(self):
-        assert not LocalExecutor.supports_sentry
+    def test_sentry_integration(self):
+        assert not LocalExecutor.sentry_integration
 
     def test_is_local_default_value(self):
         assert LocalExecutor.is_local
 
+    def test_supports_multi_team(self):
+        assert LocalExecutor.supports_multi_team
+
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
 
+    @skip_spawn_mp_start
+    @mock.patch.object(gc, "unfreeze")
+    @mock.patch.object(gc, "freeze")
+    def test_executor_worker_spawned(self, mock_freeze, mock_unfreeze):
+        executor = LocalExecutor(parallelism=5)
+        executor.start()
+
+        mock_freeze.assert_called_once()
+        mock_unfreeze.assert_called_once()
+
+        assert len(executor.workers) == 5
+
+        executor.end()
+
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
-    def _test_execute(self, mock_supervise, parallelism=1):
+    def test_execution(self, mock_supervise):
         success_tis = [
-            workloads.TaskInstance(
+            TaskInstanceDTO(
                 id=uuid7(),
                 dag_version_id=uuid7(),
                 task_id=f"success_{i}",
@@ -76,19 +104,24 @@ class TestLocalExecutor:
         fail_ti = success_tis[0].model_copy(update={"id": uuid7(), "task_id": "failure"})
 
         # We just mock both styles here, only one will be hit though
+        has_failed_once = False
+
         def fake_supervise(ti, **kwargs):
-            if ti.id == fail_ti.id:
+            nonlocal has_failed_once
+            if ti.id == fail_ti.id and not has_failed_once:
+                has_failed_once = True
                 raise RuntimeError("fake failure")
             return 0
 
         mock_supervise.side_effect = fake_supervise
 
-        executor = LocalExecutor(parallelism=parallelism)
-        executor.start()
-
-        assert executor.result_queue.empty()
+        executor = LocalExecutor(parallelism=2)
 
         with spy_on(executor._spawn_worker) as spawn_worker:
+            executor.start()
+
+            assert executor.result_queue.empty()
+
             for ti in success_tis:
                 executor.queue_workload(
                     workloads.ExecuteTask(
@@ -97,7 +130,8 @@ class TestLocalExecutor:
                         dag_rel_path="some/path",
                         log_path=None,
                         bundle_info=dict(name="hi", version="hi"),
-                    )
+                    ),
+                    session=mock.MagicMock(spec=Session),
                 )
 
             executor.queue_workload(
@@ -107,12 +141,16 @@ class TestLocalExecutor:
                     dag_rel_path="some/path",
                     log_path=None,
                     bundle_info=dict(name="hi", version="hi"),
-                )
+                ),
+                session=mock.MagicMock(spec=Session),
             )
+
+            # Process queued workloads to trigger worker spawning
+            executor._process_workloads(list(executor.queued_tasks.values()))
 
             executor.end()
 
-            expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
+            expected = 2
             # Depending on how quickly the tasks run, we might not need to create all the workers we could
             assert 1 <= len(spawn_worker.calls) <= expected
 
@@ -123,14 +161,6 @@ class TestLocalExecutor:
         for ti in success_tis:
             assert executor.event_buffer[ti.key][0] == State.SUCCESS
         assert executor.event_buffer[fail_ti.key][0] == State.FAILED
-
-    @skip_spawn_mp_start
-    @pytest.mark.parametrize(
-        ("parallelism",),
-        [pytest.param(2, id="limited")],
-    )
-    def test_execution(self, parallelism: int):
-        self._test_execute(parallelism=parallelism)
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
@@ -170,7 +200,7 @@ class TestLocalExecutor:
             executor.end()
 
     @pytest.mark.parametrize(
-        ["conf_values", "expected_server"],
+        ("conf_values", "expected_server"),
         [
             (
                 {
@@ -201,8 +231,11 @@ class TestLocalExecutor:
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution_api_server_url_config(self, mock_supervise, conf_values, expected_server):
         """Test that execution_api_server_url is correctly configured with fallback"""
+        from airflow.executors.base_executor import ExecutorConf
+
         with conf_vars(conf_values):
-            _execute_work(log=mock.ANY, workload=mock.MagicMock())
+            team_conf = ExecutorConf(team_name=None)
+            _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
 
             mock_supervise.assert_called_with(
                 ti=mock.ANY,
@@ -212,3 +245,126 @@ class TestLocalExecutor:
                 server=expected_server,
                 log_path=mock.ANY,
             )
+
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
+    def test_team_and_global_config_isolation(self, mock_supervise):
+        """Test that team-specific and global executors use correct configurations side-by-side"""
+        from airflow.executors.base_executor import ExecutorConf
+
+        team_name = "ml_team"
+        team_server = "http://team-ml-server:8080/execution/"
+        default_server = "http://default-server/execution/"
+
+        # Set up global configuration
+        config_overrides = {
+            ("api", "base_url"): "http://default-server",
+            ("core", "execution_api_server_url"): default_server,
+        }
+
+        # Use environment variables for team-specific config
+        import os
+
+        team_env_key = f"AIRFLOW__{team_name.upper()}___CORE__EXECUTION_API_SERVER_URL"
+
+        with mock.patch.dict(os.environ, {team_env_key: team_server}):
+            with conf_vars(config_overrides):
+                # Test team-specific config
+                team_conf = ExecutorConf(team_name=team_name)
+                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+
+                # Verify team-specific server URL was used
+                assert mock_supervise.call_count == 1
+                call_kwargs = mock_supervise.call_args[1]
+                assert call_kwargs["server"] == team_server
+
+                mock_supervise.reset_mock()
+
+                # Test global config (no team)
+                global_conf = ExecutorConf(team_name=None)
+                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=global_conf)
+
+                # Verify default server URL was used
+                assert mock_supervise.call_count == 1
+                call_kwargs = mock_supervise.call_args[1]
+                assert call_kwargs["server"] == default_server
+
+    def test_multiple_team_executors_isolation(self):
+        """Test that multiple team executors can coexist with isolated resources"""
+        team_a_executor = LocalExecutor(parallelism=2, team_name="team_a")
+        team_b_executor = LocalExecutor(parallelism=3, team_name="team_b")
+
+        team_a_executor.start()
+        team_b_executor.start()
+
+        try:
+            # Verify each executor has its own queues
+            assert team_a_executor.activity_queue is not team_b_executor.activity_queue
+            assert team_a_executor.result_queue is not team_b_executor.result_queue
+
+            # Verify each executor has its own workers dict
+            assert team_a_executor.workers is not team_b_executor.workers
+            assert len(team_a_executor.workers) == 2
+            assert len(team_b_executor.workers) == 3
+
+            # Verify each executor has its own unread_messages counter
+            assert team_a_executor._unread_messages is not team_b_executor._unread_messages
+
+            # Verify each has correct team config
+            assert team_a_executor.conf.team_name == "team_a"
+            assert team_b_executor.conf.team_name == "team_b"
+
+        finally:
+            team_a_executor.end()
+            team_b_executor.end()
+
+    def test_global_executor_without_team_name(self):
+        """Test that global executor (no team) works correctly"""
+        executor = LocalExecutor(parallelism=2)
+
+        # Verify executor has conf but no team name
+        assert hasattr(executor, "conf")
+        assert executor.conf.team_name is None
+
+        executor.start()
+
+        # Verify workers were created
+        assert len(executor.workers) == 2
+
+        executor.end()
+
+
+class TestLocalExecutorCallbackSupport:
+    def test_supports_callbacks_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_callbacks is True
+
+    @skip_spawn_mp_start
+    @mock.patch("airflow.executors.workloads.callback.execute_callback_workload")
+    def test_process_callback_workload(self, mock_execute_callback):
+        mock_execute_callback.return_value = (True, None)
+
+        executor = LocalExecutor(parallelism=1)
+        callback_data = CallbackDTO(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        executor.start()
+
+        try:
+            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor._process_workloads([callback_workload])
+            assert len(executor.queued_callbacks) == 0
+            # We can't easily verify worker execution without running the worker,
+            # but we can verify the helper is called via mock
+
+        finally:
+            executor.end()

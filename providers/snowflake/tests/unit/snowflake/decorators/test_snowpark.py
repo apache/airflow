@@ -25,7 +25,8 @@ import pytest
 
 pytest.importorskip("snowflake-snowpark-python")
 
-from airflow.decorators import task
+
+from airflow.providers.common.compat.sdk import task
 from airflow.utils import timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

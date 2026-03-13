@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils import timezone
 

@@ -19,6 +19,9 @@
 Configure AWS IAM Identity Center
 =================================
 
+.. warning::
+  The AWS auth manager is alpha/experimental at the moment and may be subject to change without warning.
+
 In order to use the AWS auth manager, you first need to configure `AWS IAM Identity Center <https://aws.amazon.com/iam/identity-center/>`_.
 AWS IAM Identity Center is used by the AWS auth manager for authentication purposes (login and logout).
 Following configuration, the Airflow environment administrator can manage users and groups with Identity Center service.
@@ -66,7 +69,7 @@ Please follow the instructions below to create the AWS IAM Identity Center appli
       Replace ``<base_url>`` by the base URL of your Airflow UI. It should be defined in ``AIRFLOW__API__BASE_URL``
       (e.g. ``localhost:8080`` if Airflow is running locally).
 
-   * **Application ACS URL**: ``<base_url>/login_callback``
+   * **Application ACS URL**: ``<base_url>/auth/login_callback``
    * **Application SAML audience**: ``aws-auth-manager-saml-client``
 
 11. Choose **Submit**. The application is now created.

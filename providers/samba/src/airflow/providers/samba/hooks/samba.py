@@ -17,14 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import posixpath
 from functools import wraps
+from pathlib import PurePosixPath, PureWindowsPath
 from shutil import copyfileobj
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import smbclient
 
-from airflow.providers.samba.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     import smbprotocol.connection
@@ -41,6 +41,8 @@ class SambaHook(BaseHook):
     :param share:
         An optional share name. If this is unset then the "schema" field of
         the connection is used in its place.
+    :param share_type:
+        An optional share type name. If this is unset then it will assume a posix share type.
     """
 
     conn_name_attr = "samba_conn_id"
@@ -48,7 +50,12 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
+    def __init__(
+        self,
+        samba_conn_id: str = default_conn_name,
+        share: str | None = None,
+        share_type: Literal["posix", "windows"] | None = None,
+    ) -> None:
         super().__init__()
         conn = self.get_connection(samba_conn_id)
 
@@ -57,6 +64,13 @@ class SambaHook(BaseHook):
 
         if not conn.password:
             self.log.info("Password not provided")
+
+        self._share_type = share_type or conn.extra_dejson.get("share_type", "posix")
+        if self._share_type not in {"posix", "windows"}:
+            self._share_type = "posix"
+            self.log.warning(
+                "Invalid share_type specified. It must be either 'posix' or 'windows'. Falling back to 'posix'"
+            )
 
         connection_cache: dict[str, smbprotocol.connection.Connection] = {}
 
@@ -84,8 +98,18 @@ class SambaHook(BaseHook):
             connection.disconnect()
         self._connection_cache.clear()
 
+    @staticmethod
+    def _join_posix_path(host: str, share: str, path: str) -> str:
+        return str(PurePosixPath("//" + host, share, path.lstrip("/")))
+
+    @staticmethod
+    def _join_windows_path(host: str, share: str, path: str) -> str:
+        return "\\{}".format(PureWindowsPath(f"\\{host}\\{share}", path.lstrip(r"\/")))
+
     def _join_path(self, path):
-        return f"//{posixpath.join(self._host, self._share, path.lstrip('/'))}"
+        if self._share_type == "windows":
+            return self._join_windows_path(self._host, self._share, path)
+        return self._join_posix_path(self._host, self._share, path)
 
     @wraps(smbclient.link)
     def link(self, src, dst, follow_symlinks=True):
@@ -128,7 +152,7 @@ class SambaHook(BaseHook):
         file_attributes=None,
         file_type="file",
     ):
-        self._open_file(
+        return self._open_file(
             path,
             mode,
             buffering,
@@ -293,6 +317,20 @@ class SambaHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["extra"],
+            "hidden_fields": [],
             "relabeling": {"schema": "Share"},
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "share_type": StringField(
+                label=lazy_gettext("Share Type"),
+                description="The share OS type (`posix` or `windows`). Used to determine the formatting of file and folder paths.",
+                default="posix",
+            )
         }

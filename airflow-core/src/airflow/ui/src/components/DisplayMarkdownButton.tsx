@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, Heading, IconButton, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog, Tooltip } from "src/components/ui";
+import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -38,24 +39,35 @@ const DisplayMarkdownButton = ({
 
   return (
     <Box>
-      <Button data-testid="markdown-button" onClick={() => setIsDocsOpen(true)} variant="outline">
-        {icon}
-        {text}
-      </Button>
+      <Tooltip content={text}>
+        <IconButton
+          aria-label={text}
+          colorPalette="brand"
+          data-testid="markdown-button"
+          onClick={() => setIsDocsOpen(true)}
+          size="md"
+          title={text}
+          variant="ghost"
+        >
+          {icon}
+        </IconButton>
+      </Tooltip>
       <Dialog.Root
         data-testid="markdown-modal"
         onOpenChange={() => setIsDocsOpen(false)}
         open={isDocsOpen}
         size="md"
       >
-        <Dialog.Content backdrop>
-          <Dialog.Header bg="blue.muted">
-            <Heading size="xl">{header}</Heading>
-            <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
-          </Dialog.Header>
-          <Dialog.Body alignItems="flex-start" as={VStack} gap="0">
-            <ReactMarkdown>{mdContent}</ReactMarkdown>
-          </Dialog.Body>
+        <Dialog.Content backdrop maxHeight="none" maxWidth="none" padding={0} width="auto">
+          <ResizableWrapper storageKey={MARKDOWN_DIALOG_STORAGE_KEY}>
+            <Dialog.Header bg="brand.muted" flexShrink={0}>
+              <Heading size="xl">{header}</Heading>
+              <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
+            </Dialog.Header>
+            <Dialog.Body alignItems="flex-start" as={VStack} flex="1" gap="0" overflow="auto">
+              <ReactMarkdown>{mdContent}</ReactMarkdown>
+            </Dialog.Body>
+          </ResizableWrapper>
         </Dialog.Content>
       </Dialog.Root>
     </Box>

@@ -20,7 +20,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 with DAG(
     dag_id="example_kubernetes_decorator",
