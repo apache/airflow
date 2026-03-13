@@ -57,6 +57,29 @@ class TestDagProcessorCommand:
             dag_processor_command.dag_processor(args)
         assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
 
+    @conf_vars({("core", "load_examples"): "False"})
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
+    @mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
+    def test_bundle_validation_runs_with_server_context(self, mock_manager_cls, mock_runner):
+        mock_runner.return_value.job_type = "DagProcessorJob"
+        captured_ctx = {}
+
+        mock_bundle = mock.MagicMock()
+        mock_bundle.name = "bundle1"
+
+        def capture_env_and_return_bundles():
+            captured_ctx["during_validation"] = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+            return [mock_bundle]
+
+        mock_manager_cls.return_value.get_all_dag_bundles.side_effect = capture_env_and_return_bundles
+
+        os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+        args = self.parser.parse_args(["dag-processor", "--bundle-name", "bundle1"])
+        dag_processor_command.dag_processor(args)
+
+        assert captured_ctx["during_validation"] == "server"
+        assert "_AIRFLOW_PROCESS_CONTEXT" not in os.environ
+
     @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_dag_processor_with_dev_flag(self, mock_reloader):
         """Ensure that dag-processor with --dev flag uses hot-reload"""
