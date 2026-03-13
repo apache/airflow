@@ -390,3 +390,169 @@ def test_logger_respects_configured_level(structlog_config):
 
     written = sio.getvalue()
     assert "[my_logger] Debug message\n" in written
+
+
+def test_excepthook_installed_when_json_output_true(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    try:
+        with structlog_config(json_output=True):
+            assert sys.excepthook is not original
+    finally:
+        sys.excepthook = original
+
+
+def test_excepthook_not_installed_when_json_output_false(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    with structlog_config(json_output=False):
+        assert sys.excepthook is original
+
+
+def test_excepthook_routes_unhandled_exception_through_structlog(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    try:
+        with structlog_config(json_output=True) as sio:
+            sys.excepthook(ValueError, ValueError("boom"), None)
+        output = sio.getvalue().decode()
+        assert "unhandled_exception" in output
+        assert "boom" in output
+    finally:
+        sys.excepthook = original
+
+
+def test_excepthook_passes_keyboard_interrupt_to_original():
+    import sys
+
+    from airflow_shared.logging.structlog import _install_excepthook
+
+    calls = []
+    original = sys.excepthook
+
+    def spy(et, ev, tb):
+        calls.append(et)
+
+    sys.excepthook = spy
+    try:
+        _install_excepthook()
+        sys.excepthook(KeyboardInterrupt, KeyboardInterrupt(), None)
+        assert calls == [KeyboardInterrupt]
+    finally:
+        sys.excepthook = original
+
+
+class TestWarningsInterceptor:
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor.reset()
+        yield
+        _WarningsInterceptor.reset()
+
+    def test_register_replaces_showwarning(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        current = warnings.showwarning
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor.register(sentinel)
+        assert warnings.showwarning is sentinel
+        assert _WarningsInterceptor._original_showwarning is current
+
+    def test_register_is_idempotent(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_register = warnings.showwarning
+        _WarningsInterceptor.register(mock.MagicMock())
+        _WarningsInterceptor.register(mock.MagicMock())
+        assert _WarningsInterceptor._original_showwarning is pre_register
+
+    def test_reset_restores_original(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_register = warnings.showwarning
+        _WarningsInterceptor.register(mock.MagicMock())
+        _WarningsInterceptor.reset()
+        assert warnings.showwarning is pre_register
+        assert _WarningsInterceptor._original_showwarning is None
+
+    def test_reset_when_not_registered_is_noop(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_reset = warnings.showwarning
+        _WarningsInterceptor.reset()
+        assert warnings.showwarning is pre_reset
+
+    def test_emit_warning_delegates_to_original(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor._original_showwarning = sentinel
+        _WarningsInterceptor.emit_warning("msg", UserWarning, "file.py", 1)
+        sentinel.assert_called_once_with("msg", UserWarning, "file.py", 1)
+        _WarningsInterceptor._original_showwarning = None
+
+    def test_emit_warning_when_not_registered_is_noop(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor._original_showwarning = None
+        _WarningsInterceptor.emit_warning("msg", UserWarning, "file.py", 1)
+
+
+class TestShowwarning:
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor.reset()
+        yield
+        _WarningsInterceptor.reset()
+
+    def test_with_file_delegates_to_original(self):
+        from airflow_shared.logging.structlog import _showwarning, _WarningsInterceptor
+
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor._original_showwarning = sentinel
+        fake_file = mock.MagicMock()
+        _showwarning("msg", UserWarning, "file.py", 42, file=fake_file)
+        sentinel.assert_called_once_with("msg", UserWarning, "file.py", 42, fake_file, None)
+        _WarningsInterceptor._original_showwarning = None
+
+    def test_without_file_logs_to_structlog(self):
+        from airflow_shared.logging.structlog import _showwarning
+
+        with structlog.testing.capture_logs() as captured:
+            _showwarning("deprecated feature", DeprecationWarning, "myfile.py", 10)
+
+        assert len(captured) == 1
+        event = captured[0]
+        assert event["log_level"] == "warning"
+        assert event["event"] == "deprecated feature"
+        assert event["category"] == "DeprecationWarning"
+        assert event["filename"] == "myfile.py"
+        assert event["lineno"] == 10
+
+    def test_without_file_uses_py_warnings_logger(self):
+        from airflow_shared.logging import structlog as structlog_module
+        from airflow_shared.logging.structlog import _showwarning
+
+        with mock.patch.object(structlog_module.structlog, "get_logger") as mock_get_logger:
+            mock_bound = mock.MagicMock()
+            mock_bound.bind.return_value = mock_bound
+            mock_get_logger.return_value = mock_bound
+            with mock.patch.object(structlog_module, "reconfigure_logger", return_value=mock_bound):
+                _showwarning("some warning", UserWarning, "foo.py", 1)
+
+        mock_get_logger.assert_called_once_with("py.warnings")
