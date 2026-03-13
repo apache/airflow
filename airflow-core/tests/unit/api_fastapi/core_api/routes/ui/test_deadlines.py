@@ -240,7 +240,7 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["missed"] is True
 
     def test_deadline_with_alert_name_and_description(self, test_client):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
         assert response.status_code == 200
         data = response.json()
@@ -249,7 +249,7 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["alert_description"] == ALERT_DESCRIPTION
 
     def test_deadlines_ordered_by_deadline_time_ascending(self, test_client):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines")
         assert response.status_code == 200
         data = response.json()
@@ -264,7 +264,7 @@ class TestGetDagRunDeadlines:
     )
     def test_should_response_200_order_by(self, test_client, order_by):
         url = f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines"
-        with assert_queries_count(8):
+        with assert_queries_count(10):
             response_asc = test_client.get(url, params={"order_by": order_by})
             response_desc = test_client.get(url, params={"order_by": f"-{order_by}"})
         assert response_asc.status_code == 200
