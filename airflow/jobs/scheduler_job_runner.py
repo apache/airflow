@@ -1317,6 +1317,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
         self._create_dag_runs(non_dataset_dags, session)
         if dataset_triggered_dags:
+            self.log.info(
+                "Dataset-triggered DAGs ready: %s",
+                {
+                    dag_id: (str(first), str(last))
+                    for dag_id, (first, last) in dataset_triggered_dag_info.items()
+                },
+            )
             self._create_dag_runs_dataset_triggered(
                 dataset_triggered_dags, dataset_triggered_dag_info, session
             )
@@ -1493,6 +1500,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
+                self.log.info(
+                    "Dataset-triggered DagRun created: dag_id=%s, exec_date=%s, "
+                    "prev_exec=%s, events_consumed=%d, event_uris=%s",
+                    dag.dag_id,
+                    exec_date,
+                    previous_dag_run.execution_date if previous_dag_run else None,
+                    len(dataset_events),
+                    sorted({e.dataset.uri for e in dataset_events}),
+                )
                 session.execute(
                     delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
