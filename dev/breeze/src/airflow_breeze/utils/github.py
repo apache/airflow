@@ -433,9 +433,11 @@ class Violation:
 @dataclass
 class PRAssessment:
     should_flag: bool
+    should_report: bool = False
     violations: list[Violation] = field(default_factory=list)
     summary: str = ""
     error: bool = False
+    error_debug_file: str = ""
 
 
 _MYPY_HOOK_RE = re.compile(r"\b(mypy-[\w-]+)\b", re.IGNORECASE)
