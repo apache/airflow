@@ -53,14 +53,6 @@ export const HistoricalMetrics = () => {
     },
   );
 
-  const dagRunTotal = data
-    ? Object.values(data.dag_run_states).reduce((partialSum, value) => partialSum + value, 0)
-    : 0;
-
-  const taskRunTotal = data
-    ? Object.values(data.task_instance_states).reduce((partialSum, value) => partialSum + value, 0)
-    : 0;
-
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit: 6,
     orderBy: [assetSortBy],
@@ -90,12 +82,8 @@ export const HistoricalMetrics = () => {
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (
               <Box>
-                <DagRunMetrics dagRunStates={data.dag_run_states} startDate={startDate} total={dagRunTotal} />
-                <TaskInstanceMetrics
-                  startDate={startDate}
-                  taskInstanceStates={data.task_instance_states}
-                  total={taskRunTotal}
-                />
+                <DagRunMetrics dagRunStates={data.dag_run_states} startDate={startDate} />
+                <TaskInstanceMetrics startDate={startDate} taskInstanceStates={data.task_instance_states} />
               </Box>
             )}
           </GridItem>

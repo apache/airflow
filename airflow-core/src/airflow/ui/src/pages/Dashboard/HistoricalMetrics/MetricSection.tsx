@@ -28,6 +28,7 @@ const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
+  readonly capped?: boolean;
   readonly endDate?: string;
   readonly kind: string;
   readonly runs: number;
@@ -36,7 +37,15 @@ type MetricSectionProps = {
   readonly total: number;
 };
 
-export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: MetricSectionProps) => {
+export const MetricSection = ({
+  capped = false,
+  endDate,
+  kind,
+  runs,
+  startDate,
+  state,
+  total,
+}: MetricSectionProps) => {
   // Calculate the given state as a percentage of total and draw a bar
   // in state's color with width as state's percentage and remaining width filed as gray
   const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
@@ -60,7 +69,8 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             {/* eslint-disable-next-line unicorn/no-null */}
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
-              {runs}
+              {}
+              {capped ? `${runs}+` : runs}
             </StateBadge>
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>

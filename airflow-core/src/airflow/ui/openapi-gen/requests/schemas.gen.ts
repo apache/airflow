@@ -7519,31 +7519,6 @@ export const $DAGRunStates = {
     description: 'DAG Run States for responses.'
 } as const;
 
-export const $DAGRunTypes = {
-    properties: {
-        backfill: {
-            type: 'integer',
-            title: 'Backfill'
-        },
-        scheduled: {
-            type: 'integer',
-            title: 'Scheduled'
-        },
-        manual: {
-            type: 'integer',
-            title: 'Manual'
-        },
-        asset_triggered: {
-            type: 'integer',
-            title: 'Asset Triggered'
-        }
-    },
-    type: 'object',
-    required: ['backfill', 'scheduled', 'manual', 'asset_triggered'],
-    title: 'DAGRunTypes',
-    description: 'DAG Run Types for responses.'
-} as const;
-
 export const $DAGWithLatestDagRunsCollectionResponse = {
     properties: {
         total_entries: {
@@ -8287,9 +8262,6 @@ export const $GridTISummaries = {
 
 export const $HistoricalMetricDataResponse = {
     properties: {
-        dag_run_types: {
-            '$ref': '#/components/schemas/DAGRunTypes'
-        },
         dag_run_states: {
             '$ref': '#/components/schemas/DAGRunStates'
         },
@@ -8298,7 +8270,7 @@ export const $HistoricalMetricDataResponse = {
         }
     },
     type: 'object',
-    required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
+    required: ['dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
 } as const;
