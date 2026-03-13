@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -61,7 +60,9 @@ Variable                                    Type                  Description
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current Dag run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
-``{{ exception }}``                         None | str             | Error occurred while running task instance. Exception | KeyboardInterrupt
+``{{ exception }}``                         None | str |          | Error occurred while running task instance.
+                                            Exception             |
+                                            KeyboardInterrupt     |
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
                                             | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
