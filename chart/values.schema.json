@@ -2332,7 +2332,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file. Use ``workers.celery.nodeSelector`` and/or ``workers.kubernetes.nodeSelector`` to separate value between Celery workers and pod-template-file.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3283,6 +3283,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes for Airflow Celery worker pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -3564,6 +3572,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes for pods created with pod-template-file.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
