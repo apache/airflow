@@ -143,11 +143,23 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/sdk/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/sdk/_shared/plugins_manager"
 "../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/sdk/_shared/providers_discovery"
+"../shared/template_rendering/src/airflow_shared/template_rendering" = "src/airflow/sdk/_shared/template_rendering"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
-exclude = ["src/airflow/__init__.py"]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
 
 [tool.ruff]
 extend = "../pyproject.toml"

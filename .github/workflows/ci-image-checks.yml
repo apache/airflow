@@ -316,6 +316,39 @@ jobs:
         with:
           name: airflow-docs
           path: './generated/_build'
+      - name: "Make sure SBOM dir exists and has the right permissions"
+        run: |
+          sudo mkdir -vp ./files/sbom
+          sudo chown -R "${USER}" .
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      - name: "Determine Airflow version for SBOMs"
+        run: |
+          AIRFLOW_VERSION=$(awk -F'"' '/^__version__ = / {print $2}' airflow-core/src/airflow/__init__.py)
+          test -n "${AIRFLOW_VERSION}"
+          echo "AIRFLOW_VERSION=${AIRFLOW_VERSION}" >> "${GITHUB_ENV}"
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      - name: "Prepare SBOMs"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          breeze sbom update-sbom-information
+          --airflow-version ${AIRFLOW_VERSION} --remote-name origin --force
+          --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
+          --airflow-constraints-reference constraints-main
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      - name: "Generated SBOM files"
+        run: |
+          echo "Generated SBOM files:"
+          find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: Check disk space available
         run: df -H
       - name: Create /mnt/airflow-site directory
