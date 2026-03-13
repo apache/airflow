@@ -10,9 +10,9 @@ This document contains rules, patterns, and guidelines for working on the Airflo
 ### 0. Minimal JavaScript
 
 - Keep JavaScript to minimum necessary
-- Theme toggle only
+- Theme toggle + progressive enhancement (filters, search)
 - No frameworks (no React, Vue, etc.)
-- Progressive enhancement approach
+- Exception: swagger-ui is vendored from `node_modules/swagger-ui-dist` for the API Explorer
 
 ## 1. Quality Standards
 
@@ -386,7 +386,9 @@ Key files in the project:
 
 - `src/css/main.css` - Main styles
 - `src/css/tokens.css` - Design tokens
-- `src/` - All page templates (index, provider-detail, providers, explore, stats)
+- `src/` - All page templates (index, provider-detail, providers, explore, stats, api-explorer)
+- `../dev/registry/registry_contract_models.py` - Pydantic contracts for all JSON payloads
+- `../dev/registry/export_registry_schemas.py` - Generates OpenAPI spec from contracts
 
 ## Development Server
 
@@ -430,7 +432,15 @@ These changes mirror the existing `/docs/*` rewrite pattern.
 
 ## Data Extraction (`dev/registry/`)
 
-The registry's JSON data is produced by four extraction scripts in `dev/registry/`.
+The registry's JSON data is produced by four extraction scripts in `dev/registry/`,
+which is a Python package (workspace member) with shared code in `registry_tools/`.
+
+**Module type definitions** live in `dev/registry/registry_tools/types.py` — this is
+the single source of truth for all module types (operator, hook, sensor, trigger, etc.).
+The three Python extraction scripts and the frontend data file (`types.json`) all derive
+from this module. To add a new type, add it to `MODULE_TYPES` in `types.py` and run
+`generate_types_json.py`.
+
 When modifying these scripts, understand the design decisions below.
 
 ### Why four separate scripts?

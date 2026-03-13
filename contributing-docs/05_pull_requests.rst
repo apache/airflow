@@ -1,4 +1,4 @@
-
+contributing-docs/05_pull_requests.rst
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -22,7 +22,9 @@ Pull Requests
 This document describes how you can create Pull Requests (PRs) and describes coding standards we use when
 implementing them.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Protect your commit identity
 ----------------------------
@@ -74,6 +76,15 @@ Pull Request guidelines
 
 Before you submit a Pull Request (PR) from your forked repo, check that it meets
 these guidelines:
+
+-   Start with **Draft**: Until you are sure that your PR passes all the quality checks and tests, keep it
+    in **Draft** status. This will signal to maintainers that the PR is not yet ready
+    for review and it will prevent maintainers from accidentally merging it before
+    it's ready. Once you are sure that your PR is ready for review, you can mark it as
+    "Ready for review" in the GitHub UI. Our regular check will convert all PRs from
+    non-collaborators that do not pass our quality gates to Draft status, so if you see
+    that your PR is in Draft status and you haven't set it to Draft. Check the
+    comments to see what needs to be fixed.
 
 -   Include tests, either as doctests, unit tests, or both, to your pull request.
 
@@ -146,6 +157,57 @@ these guidelines:
 
 -   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`_.
     This makes the lives of those who come after you (and your future self) a lot easier.
+
+.. _pull-request-quality-criteria:
+
+Pull Request quality criteria
+-----------------------------
+
+Every open PR must meet the following minimum quality criteria before maintainers will review it.
+PRs that do not meet these criteria may be automatically converted to **draft** status by project
+tooling, with a comment explaining what needs to be fixed.
+
+1. **Descriptive title** — The PR title must clearly describe the change.
+   Generic titles such as "Fix bug", "Update code", "Changes", single-word titles, or titles
+   that only reference an issue number (e.g. "Fixes #12345") do not meet this bar.
+
+2. **Meaningful description** — The PR body must contain a meaningful description of *what* the
+   PR does and *why*. An empty body, a body consisting only of the PR template
+   checkboxes/headers with no added text, or a body that merely repeats the title is not
+   sufficient.
+
+3. **Passing static checks** — The PR's static checks (pre-commit / ruff / mypy) must pass.
+   You can run them locally with ``prek run --from-ref main`` before pushing.
+
+4. **Gen-AI disclosure** — If the PR was created with the assistance of generative AI tools,
+   the description must include a disclosure (see `Gen-AI Assisted contributions`_ below).
+
+5. **Coherent changes** — The PR should contain related changes only. Completely unrelated
+   changes bundled together will be flagged.
+
+**What happens when a PR is converted to draft?**
+
+-  The comment informs you what you need to do.
+-  Fix each issue, then mark the PR as "Ready for review" in the GitHub UI - but only after making sure that all the issues are fixed.
+-  Maintainers will then proceed with a normal review.
+
+Converting a PR to draft is **not** a rejection — it is an invitation to bring the PR up to
+the project's standards so that maintainer review time is spent productively.
+
+**What happens when a PR is closed for quality violations?**
+
+If a contributor has more than 3 open PRs that are flagged for quality issues, maintainers may
+choose to **close** the PR instead of converting it to draft. Closed PRs receive the
+``closed because of multiple quality violations`` label and a comment listing the violations.
+Contributors are welcome to open a new PR that addresses the issues listed in the comment.
+
+**What happens when suspicious changes are detected?**
+
+When maintainers review a PR's diff before approving CI workflow runs and determine that it
+contains suspicious changes (e.g. attempts to exfiltrate secrets, modify CI pipelines
+maliciously, or inject harmful code), **all open PRs by the same author** will be closed
+and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
+the closure was triggered by suspicious changes found in the flagged PR.
 
 Gen-AI Assisted contributions
 -----------------------------

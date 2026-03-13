@@ -24,19 +24,18 @@
   let currentResults = [];
   let searchId = 0;
 
-  const typeLabels = {
-    operator: 'Operator',
-    hook: 'Hook',
-    sensor: 'Sensor',
-    trigger: 'Trigger',
-    transfer: 'Transfer',
-    bundle: 'Bundle',
-    notifier: 'Notifier',
-    secret: 'Secrets Backend',
-    logging: 'Log Handler',
-    executor: 'Executor',
-    decorator: 'Decorator',
-  };
+  // Type labels loaded from types.json (injected via base.njk)
+  const typeLabels = {};
+  try {
+    const typesEl = document.getElementById('types-data');
+    if (typesEl) {
+      for (const t of JSON.parse(typesEl.textContent)) {
+        typeLabels[t.id] = t.label;
+      }
+    }
+  } catch (_) {
+    // Fallback: empty object — badges will show raw type name
+  }
 
   function escapeHtml(str) {
     const div = document.createElement('div');

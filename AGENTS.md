@@ -32,8 +32,8 @@
 - **Type-check:** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
-- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --hook-stage pre-commit`
-- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --hook-stage manual`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
 
@@ -65,6 +65,18 @@ UV workspace monorepo. Key paths:
 4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**.
 5. API Server serves the React UI and handles all client-database interactions.
 6. Triggerer evaluates deferred tasks/sensors in isolated processes.
+7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
+8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
+9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+# Shared libraries
+
+- shared libraries provide implementation of some common utilities like logging, configuration where the code should be reused in different distributions (potentially in different versions)
+- we have a number of shared libraries that are separate, small Python distributions located under `shared` folder
+- each of the libraries has it's own src, tests, pyproject.toml and dependencies
+- sources of those libraries are symbolically linked to the distributions that are using them (`airflow-core`, `task-sdk` for example)
+- tests for the libraries (internal) are in the shared distribution's test and can be run from the shared distributions
+- tests of the consumers using the shared libraries are present in the distributions that use the libraries and can be run from there
 
 ## Coding Standards
 
@@ -86,6 +98,7 @@ UV workspace monorepo. Key paths:
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
 
+
 ## Commits and PRs
 
 Write commit messages focused on user impact, not implementation details.
@@ -96,6 +109,8 @@ Write commit messages focused on user impact, not implementation details.
 
 Add a newsfragment for user-visible changes:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+- NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 
 ### Creating Pull Requests
 
@@ -122,9 +137,9 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in this file.
-4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --hook-stage pre-commit`)
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
    and fix any failures.
-5. Run manual (slower) checks (`prek run --from-ref <target_branch> --hook-stage manual`) and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.

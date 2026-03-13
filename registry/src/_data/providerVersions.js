@@ -72,6 +72,7 @@ module.exports = function () {
     const latestAirflow = provider.airflow_versions && provider.airflow_versions.length > 0
       ? provider.airflow_versions[provider.airflow_versions.length - 1]
       : null;
+
     result.push({
       provider,
       version: provider.version,

@@ -70,7 +70,6 @@ jobs:
       REGISTRY_CACHE_CONTROL: public, max-age=300
     permissions:
       contents: read
-      id-token: write
     if: >
       github.event_name == 'workflow_call' ||
       contains(fromJSON('[
@@ -89,7 +88,7 @@ jobs:
         ]'), github.event.sender.login)
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
@@ -126,7 +125,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -206,12 +205,12 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
         with:
           version: 9
 
       - name: "Setup Node.js"
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
           node-version: 20
           cache: 'pnpm'
@@ -228,7 +227,7 @@ jobs:
         run: pnpm build
 
       - name: "Upload registry artifact"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: registry-site
           path: registry/_site
@@ -240,7 +239,14 @@ jobs:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
         run: |
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
-            --cache-control "${REGISTRY_CACHE_CONTROL}"
+            --cache-control "${REGISTRY_CACHE_CONTROL}" \
+            --exclude "pagefind/*"
+          # Pagefind generates content-hashed filenames (e.g. en_181da6f.pf_index).
+          # Each rebuild produces new hashes, so --delete is needed to remove stale
+          # index files. This is separate from the main sync which intentionally
+          # omits --delete to preserve files written by other steps (publish-versions).
+          aws s3 sync registry/_site/pagefind/ "${S3_BUCKET}pagefind/" \
+            --cache-control "${REGISTRY_CACHE_CONTROL}" --delete
 
       - name: "Publish version metadata"
         env:

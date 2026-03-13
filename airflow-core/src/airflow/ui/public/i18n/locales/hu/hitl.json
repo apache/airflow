@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Törzs",
-    "createdAtFrom": "Kezdő létrehozás dátum",
-    "createdAtTo": "Végső létrehozás dátum",
+    "createdAt": "Létrehozás ideje",
     "response": {
       "all": "Összes",
       "pending": "Függőben",

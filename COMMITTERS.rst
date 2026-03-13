@@ -22,7 +22,9 @@ Before reading this document, you should be familiar with the `Contributors' gui
 This document assumes that you are a bit familiar with how Airflow's community works, but you would like to learn more
 about the rules by which we add new committers and PMC members.
 
-**The outline for this document in GitHub is available at the top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Committers vs. Maintainers
 --------------------------

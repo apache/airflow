@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1770752544
+source-date-epoch: 1773070870
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 21.0.0
   - 20.0.0
   - 19.5.0
   - 19.4.0
@@ -310,12 +311,6 @@ integrations:
     external-doc-url: https://cloud.google.com/dataproc/
     logo: /docs/integration-logos/Google-Data-Proc.png
     tags: [gcp]
-  - integration-name: Google Data Catalog
-    external-doc-url: https://cloud.google.com/data-catalog/
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst
-    logo: /docs/integration-logos/Google-Data-Catalog.png
-    tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
     how-to-guide:
@@ -469,6 +464,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/ray.rst
     tags: [gcp]
+  - integration-name: Google Bid Manager API
+    external-doc-url: https://developers.google.com/bid-manager
+    logo: /docs/integration-logos/Google-Search-Ads360.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/marketing_platform/bid_manager.rst
+    tags: [gmp]
 
 operators:
   - integration-name: Google Ads
@@ -634,6 +635,9 @@ operators:
   - integration-name: Google Ray
     python-modules:
       - airflow.providers.google.cloud.operators.ray
+  - integration-name: Google Bid Manager API
+    python-modules:
+      - airflow.providers.google.marketing_platform.operators.bid_manager
 
 sensors:
   - integration-name: Google BigQuery
@@ -699,6 +703,9 @@ sensors:
   - integration-name: Google Cloud Tasks
     python-modules:
       - airflow.providers.google.cloud.sensors.tasks
+  - integration-name: Google Bid Manager API
+    python-modules:
+      - airflow.providers.google.marketing_platform.sensors.bid_manager
 
 filesystems:
   - airflow.providers.google.cloud.fs.gcs
@@ -918,6 +925,9 @@ hooks:
   - integration-name: Google Ray
     python-modules:
       - airflow.providers.google.cloud.hooks.ray
+  - integration-name: Google Bid Manager API
+    python-modules:
+      - airflow.providers.google.marketing_platform.hooks.bid_manager
 
 bundles:
   - integration-name: Google Cloud Storage (GCS)

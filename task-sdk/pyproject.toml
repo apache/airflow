@@ -147,7 +147,18 @@ path = "src/airflow/sdk/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
-exclude = ["src/airflow/__init__.py"]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
 
 [tool.ruff]
 extend = "../pyproject.toml"
