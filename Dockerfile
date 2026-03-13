@@ -1693,10 +1693,10 @@ if [[ "$MAX_SIZE_BYTES" -gt 0 ]]; then
   echo "Max log size limit: $MAX_SIZE_BYTES bytes"
 fi
 
-retention_days="${RETENTION}"
+retention_days="${RETENTION_DAYS}"
 
 while true; do
-  total_retention_minutes=$(( (RETENTION_DAYS * 1440) + RETENTION_MINUTES ))
+  total_retention_minutes=$(( (retention_days * 1440) + RETENTION_MINUTES ))
   echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
 
   find "${DIRECTORY}"/logs \
@@ -1717,7 +1717,7 @@ while true; do
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
-  retention_days="${RETENTION}"
+  retention_days="${RETENTION_DAYS}"
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
