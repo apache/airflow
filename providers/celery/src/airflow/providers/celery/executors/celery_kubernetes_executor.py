@@ -27,7 +27,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads import WorkloadType
-from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor  # noqa: TC001
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
