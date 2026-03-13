@@ -61,11 +61,13 @@ PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
+# The "custom" value allows providing an external database via AIRFLOW__DATABASE__SQL_ALCHEMY_CONN.
 SQLITE_BACKEND = "sqlite"
 MYSQL_BACKEND = "mysql"
 POSTGRES_BACKEND = "postgres"
 NONE_BACKEND = "none"
-ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+CUSTOM_BACKEND = "custom"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
@@ -769,7 +771,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.7",
+        "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

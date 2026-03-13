@@ -72,6 +72,7 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
           color: "fg",
         },
     alignItems: "center",
+    "aria-label": title,
     bg: isActive ? "brand.solid" : undefined,
     borderRadius: "md",
     borderWidth: 0,
@@ -84,7 +85,7 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
     overflow: "hidden",
     padding: 0,
     textDecoration: "none",
-    title,
+
     transition: "background-color 0.2s ease, color 0.2s ease",
     variant: "plain",
     whiteSpace: "wrap",
