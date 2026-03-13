@@ -348,6 +348,7 @@ class SbomCoreJob(SbomApplicationJob):
     include_provider_dependencies: bool
     include_python: bool
     include_npm: bool
+    constraints_reference: str | None = None
 
     def get_job_name(self) -> str:
         name = f"{self.airflow_version}"
@@ -393,8 +394,9 @@ class SbomCoreJob(SbomApplicationJob):
         else:
             source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
+            constraints_reference = self.constraints_reference or f"constraints-{self.airflow_version}"
             if not download_constraints_file(
-                constraints_reference=f"constraints-{self.airflow_version}",
+                constraints_reference=constraints_reference,
                 python_version=self.python_version,
                 airflow_constraints_mode="constraints"
                 if self.include_provider_dependencies
