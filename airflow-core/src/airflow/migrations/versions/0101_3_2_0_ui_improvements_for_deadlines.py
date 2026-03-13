@@ -73,6 +73,15 @@ DEADLINE_ALERT_REQUIRED_FIELDS = {REFERENCE_KEY, CALLBACK_KEY, INTERVAL_KEY}
 DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
 
+deadline_alert_table = sa.table(
+    "deadline_alert",
+    sa.column("reference"),
+    sa.column("interval"),
+    sa.column("callback_def"),
+    sa.column("id"),
+    sa.column("serialized_dag_id"),
+)
+
 
 def upgrade() -> None:
     """Make changes to enable adding DeadlineAlerts to the UI."""
@@ -280,11 +289,11 @@ def validate_written_data(
     #   disable validation for large deployments where performance is critical??
 
     validation_result = conn.execute(
-        sa.text("""
-                SELECT reference, interval, callback_def
-                FROM deadline_alert
-                WHERE id = :alert_id
-                """),
+        sa.select(
+            deadline_alert_table.c.reference,
+            deadline_alert_table.c.interval,
+            deadline_alert_table.c.callback_def,
+        ).where(deadline_alert_table.c.id == sa.bindparam("alert_id")),
         {"alert_id": deadline_alert_id},
     ).fetchone()
 
@@ -661,11 +670,11 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                 restored_deadline_objects = []
 
                 alert_result = conn.execute(
-                    sa.text("""
-                            SELECT reference, interval, callback_def
-                            FROM deadline_alert
-                            WHERE serialized_dag_id = :serialized_dag_id
-                            """),
+                    sa.select(
+                        deadline_alert_table.c.reference,
+                        deadline_alert_table.c.interval,
+                        deadline_alert_table.c.callback_def,
+                    ).where(deadline_alert_table.c.serialized_dag_id == sa.bindparam("serialized_dag_id")),
                     {"serialized_dag_id": serialized_dag_id},
                 ).fetchall()
 
