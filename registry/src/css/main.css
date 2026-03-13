@@ -4222,3 +4222,9 @@ main {
 .error-links a:hover {
   opacity: 0.9;
 }
+
+/* API Explorer (swagger-ui inside site layout) */
+.api-explorer-page .swagger-ui .topbar,
+.api-explorer-page .swagger-ui .scheme-container { display: none; }
+.api-explorer-page .swagger-ui .info { margin: var(--space-4) 0; }
+.api-explorer-page { padding-bottom: var(--space-8); }

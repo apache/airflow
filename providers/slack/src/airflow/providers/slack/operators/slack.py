@@ -46,6 +46,8 @@ class SlackAPIOperator(BaseOperator):
     :param base_url: A string representing the Slack API base URL. Optional
     :param proxy: Proxy to make the Slack API call. Optional
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``. Optional
+
+    :return: The Slack API response. Returned value is pushed to XCom for downstream tasks.
     """
 
     def __init__(
@@ -101,7 +103,8 @@ class SlackAPIOperator(BaseOperator):
             raise ValueError(msg)
         if not self.api_params:
             self.construct_api_call_params()
-        self.hook.call(self.method, json=self.api_params)
+        response = self.hook.call(self.method, json=self.api_params)
+        return response.data
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
@@ -128,6 +131,9 @@ class SlackAPIPostOperator(SlackAPIOperator):
         See https://api.slack.com/docs/attachments
     :param thread_ts: Provide another message's ``ts`` value to make this message a reply in a
         thread. See https://api.slack.com/messaging#threading (templated)
+
+    :return: The Slack API response data (e.g. ``ts``, ``channel``, ``message``).
+        Returned value is pushed to XCom for downstream tasks.
     """
 
     template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel", "thread_ts")
@@ -223,6 +229,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     :param thread_ts: Provide another message's ``ts`` value to upload the file as a reply in a
         thread. See https://api.slack.com/messaging#threading (templated)
+
+    :return: List of Slack API response data from ``files_upload_v2`` (one per channel).
+        Returned value is pushed to XCom for downstream tasks.
     """
 
     template_fields: Sequence[str] = (
@@ -279,7 +288,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             )
 
     def execute(self, context: Context):
-        self.hook.send_file_v1_to_v2(
+        responses = self.hook.send_file_v1_to_v2(
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
@@ -290,3 +299,4 @@ class SlackAPIFileOperator(SlackAPIOperator):
             snippet_type=self.snippet_type,
             thread_ts=self.thread_ts,
         )
+        return [r.data for r in responses]

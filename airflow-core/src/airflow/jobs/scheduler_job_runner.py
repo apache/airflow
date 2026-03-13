@@ -33,18 +33,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import (
-    and_,
-    delete,
-    exists,
-    func,
-    inspect,
-    or_,
-    select,
-    text,
-    tuple_,
-    update,
-)
+from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -822,7 +811,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 task_instance,
                             )
                             starved_tasks_task_dagrun_concurrency.add(
-                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                                (
+                                    task_instance.dag_id,
+                                    task_instance.run_id,
+                                    task_instance.task_id,
+                                )
                             )
                             continue
 
@@ -2940,43 +2933,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             == 0
         ).label("orphaned")
-        asset_reference_query = session.execute(
-            select(orphaned, AssetModel)
+        asset_reference_query = (
+            select(AssetModel)
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
             .group_by(AssetModel.id)
-            .order_by(orphaned)
         )
-        asset_orphanation: dict[bool, Collection[AssetModel]] = {
-            orphaned: [asset for _, asset in group]
-            for orphaned, group in itertools.groupby(asset_reference_query, key=operator.itemgetter(0))
-        }
-        self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
-        self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
+
+        orphan_query = asset_reference_query.having(orphaned).cte()
+        activate_query = asset_reference_query.having(~orphaned).cte()
+
+        self._orphan_unreferenced_assets(orphan_query, session=session)
+        self._activate_referenced_assets(activate_query, session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if assets:
-            session.execute(
-                delete(AssetActive).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
-                )
-            )
-        Stats.gauge("asset.orphaned", len(assets))
-
-    @staticmethod
-    def _activate_referenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if not assets:
-            return
-
-        active_assets = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
+    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+        deleted_orphaned_assets = session.execute(
+            delete(AssetActive).where(
+                exists().where(
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             )
         )
+
+        Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
+
+    @staticmethod
+    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+        active_assets_query = select(AssetActive.name, AssetActive.uri).join(
+            assets_query,
+            and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
+        )
+
+        active_assets = session.execute(active_assets_query).all()
 
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
@@ -3002,9 +2992,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in assets:
-                if (asset.name, asset.uri) in active_assets:
-                    continue
+
+            inactive_assets_query = (
+                select(AssetModel)
+                .join(
+                    assets_query,
+                    and_(
+                        assets_query.c.name == AssetModel.name,
+                        assets_query.c.uri == AssetModel.uri,
+                    ),
+                )
+                .where(
+                    ~active_assets_query.where(
+                        and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
+                    ).exists()
+                )
+            )
+
+            for asset in session.scalars(inactive_assets_query):
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
                 if existing_uri is not None and existing_uri != asset.uri:
                     yield from _generate_warning_message(asset, "name", existing_uri)
