@@ -253,6 +253,7 @@ exclude = [
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
 "../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/_shared/providers_discovery"
+"../shared/template_rendering/src/airflow_shared/template_rendering" = "src/airflow/_shared/template_rendering"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
