@@ -1160,8 +1160,6 @@ class TestOpenLineageListenerAirflow3:
                 _ti_context_from_server=TIRunContext(
                     dag_run=SdkDagRun.model_validate(
                         {
-                            "dag_id": "dag_id_from_dagrun_not_ti",
-                            "run_id": "dag_run_run_id_from_dagrun_not_ti",
                             "logical_date": timezone.datetime(2020, 1, 1, 1, 1, 1),
                             "start_date": timezone.datetime(2023, 1, 1, 13, 1, 1),
                             "end_date": timezone.datetime(2023, 1, 3, 13, 1, 1),

@@ -812,7 +812,7 @@ class TestDockerOperator:
             dag_id="test",
             task_id="test",
             image="test",
-            container_name="python_{{dag_run.dag_id}}",
+            container_name="python_{{task_instance.dag_id}}",
             mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
         )
         rendered = ti.render_templates()

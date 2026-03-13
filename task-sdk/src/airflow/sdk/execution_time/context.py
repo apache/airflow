@@ -867,7 +867,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
         (dag_run, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
-        (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
+        (task_instance, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]
 
     context_params = settings.get_airflow_context_vars(context)

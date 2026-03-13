@@ -69,8 +69,6 @@ class TestClient:
                 "/task-instances/1/run",
                 {
                     "dag_run": {
-                        "dag_id": "test_dag",
-                        "run_id": "test_run",
                         "logical_date": "2021-01-01T00:00:00Z",
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",

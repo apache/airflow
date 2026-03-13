@@ -297,7 +297,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
                 namespace="default",
             )
             def hello(**context):
-                return ["echo", context["ti"].task_id, context["dag_run"].dag_id]
+                return ["echo", context["ti"].task_id, context["ti"].dag_id]
 
             hello_task = hello()
 
@@ -328,7 +328,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
                 namespace="default",
             )
             def hello(ti=None, dag_run=None):
-                return ["echo", ti.task_id, dag_run.dag_id]
+                return ["echo", ti.task_id, ti.dag_id]
 
             hello_task = hello()
 
