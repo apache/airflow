@@ -37,6 +37,7 @@ class IBMMQHook(BaseHook):
     default_conn_name = "mq_default"
     conn_type = "mq"
     hook_name = "IBM MQ"
+    default_open_options = "MQOO_INPUT_SHARED"
 
     def __init__(
         self,
@@ -65,7 +66,7 @@ class IBMMQHook(BaseHook):
                     {
                         "queue_manager": "QM1",
                         "channel": "DEV.APP.SVRCONN",
-                        "open_options": "MQOO_INPUT_EXCLUSIVE",
+                        "open_options": cls.default_open_options,
                     },
                     indent=2,
                 ),
@@ -114,7 +115,7 @@ class IBMMQHook(BaseHook):
         if not self.open_options:
             self.open_options = getattr(
                 ibmmq.CMQC,
-                config.get("open_options", "MQOO_INPUT_EXCLUSIVE"),
+                config.get("open_options", self.default_open_options),
                 ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
             )
 
