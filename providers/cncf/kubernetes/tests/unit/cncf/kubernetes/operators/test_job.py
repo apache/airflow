@@ -856,6 +856,58 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
     @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_pod_not_found_skips_logs(self, mock_hook, mocked_write_logs):
+        """When a pod is deleted before log retrieval, the task should succeed instead of failing."""
+        from kubernetes.client.rest import ApiException
+
+        mock_ti = mock.MagicMock()
+        context = {"ti": mock_ti}
+        mock_job = mock.MagicMock()
+        event = {
+            "job": mock_job,
+            "status": "success",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": None,
+        }
+
+        mock_hook.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        KubernetesJobOperator(task_id="test_task_id", get_logs=True, do_xcom_push=False).execute_complete(
+            context=context, event=event
+        )
+
+        mock_hook.get_pod.assert_called_once_with(POD_NAME, POD_NAMESPACE)
+        mocked_write_logs.assert_not_called()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_pod_api_error_reraises(self, mock_hook, mocked_write_logs):
+        """Non-404 ApiExceptions should still be raised."""
+        from kubernetes.client.rest import ApiException
+
+        mock_ti = mock.MagicMock()
+        context = {"ti": mock_ti}
+        mock_job = mock.MagicMock()
+        event = {
+            "job": mock_job,
+            "status": "success",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": None,
+        }
+
+        mock_hook.get_pod.side_effect = ApiException(status=403, reason="Forbidden")
+
+        with pytest.raises(ApiException):
+            KubernetesJobOperator(task_id="test_task_id", get_logs=True, do_xcom_push=False).execute_complete(
+                context=context, event=event
+            )
+
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
     def test_on_kill(self, mock_client):
         mock_job = mock.MagicMock()
