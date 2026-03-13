@@ -32,6 +32,7 @@ Bug Fixes
 
 - Fix ``airflowctl pools export`` ignoring ``--output`` table/yaml/plain (#62665)
 - Fix ``airflowctl connections import`` failure when JSON omits ``extra`` field (#62662)
+- Amend compatibility issues for airflowctl (#63388)
 
 Improvements
 ^^^^^^^^^^^^

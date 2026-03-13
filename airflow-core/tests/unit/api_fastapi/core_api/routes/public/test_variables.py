@@ -49,6 +49,10 @@ TEST_VARIABLE_KEY3 = "dictionary_password"
 TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
+TEST_VARIABLE_KEY5 = "nested_dictionary_variable"
+TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key", "next_again": {"token": "some_token"}}}}'
+TEST_VARIABLE_DESCRIPTION5 = "Variable with a nested sensitive key"
+
 TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
 TEST_VARIABLE_VALUE4 = "test_variable_value"
 TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
@@ -104,6 +108,13 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_KEY5,
+        value=TEST_VARIABLE_VALUE5,
+        description=TEST_VARIABLE_DESCRIPTION5,
+        session=session,
+    )
+
 
 @provide_session
 def _create_team(session) -> None:
@@ -132,13 +143,13 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 5
+        assert len(variables) == 6
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 3
+        assert len(variables) == 4
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
@@ -211,6 +222,16 @@ class TestGetVariable(TestVariableEndpoint):
                     "team_name": None,
                 },
             ),
+            (
+                TEST_VARIABLE_KEY5,
+                {
+                    "key": TEST_VARIABLE_KEY5,
+                    "value": '{"config": {"password": "***", "next": {"api_key": "***", "next_again": {"token": "***"}}}}',
+                    "description": TEST_VARIABLE_DESCRIPTION5,
+                    "is_encrypted": True,
+                    "team_name": None,
+                },
+            ),
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
@@ -242,33 +263,36 @@ class TestGetVariables(TestVariableEndpoint):
             # Filters
             (
                 {},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
-            ({"limit": 1}, 5, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 5, [TEST_VARIABLE_KEY2]),
+            ({"limit": 1}, 6, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 6, [TEST_VARIABLE_KEY2]),
             # Sort
             (
                 {"order_by": "id"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
             (
                 {"order_by": "-id"},
-                5,
+                6,
                 [
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_KEY3,
@@ -278,9 +302,10 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "key"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY4,
@@ -289,25 +314,27 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "-key"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY3,
                 ],
             ),
             # Search
             (
                 {"variable_key_pattern": "~"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
             ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
