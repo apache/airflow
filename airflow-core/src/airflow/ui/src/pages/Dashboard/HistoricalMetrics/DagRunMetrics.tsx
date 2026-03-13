@@ -23,17 +23,16 @@ import { FiBarChart } from "react-icons/fi";
 
 import { MetricSection } from "./MetricSection";
 
-const STATE_COUNT_CAP = 1000;
-
 type DagRunMetricsProps = {
   readonly dagRunStates: DAGRunStates;
   readonly endDate?: string;
   readonly startDate: string;
+  readonly stateCountLimit: number;
 };
 
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
-export const DagRunMetrics = ({ dagRunStates, endDate, startDate }: DagRunMetricsProps) => {
+export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimit }: DagRunMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(dagRunStates).reduce((sum, count) => sum + count, 0);
 
@@ -47,7 +46,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate }: DagRunMetric
       <Stack gap={4}>
         {DAGRUN_STATES.map((state) => (
           <MetricSection
-            capped={dagRunStates[state] >= STATE_COUNT_CAP}
+            capped={dagRunStates[state] >= stateCountLimit}
             endDate={endDate}
             key={state}
             kind="dag_runs"

@@ -23,11 +23,10 @@ import { MdOutlineTask } from "react-icons/md";
 
 import { MetricSection } from "./MetricSection";
 
-const STATE_COUNT_CAP = 1000;
-
 type TaskInstanceMetricsProps = {
   readonly endDate?: string;
   readonly startDate: string;
+  readonly stateCountLimit: number;
   readonly taskInstanceStates: TaskInstanceStateCount;
 };
 
@@ -47,7 +46,12 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "no_status",
 ];
 
-export const TaskInstanceMetrics = ({ endDate, startDate, taskInstanceStates }: TaskInstanceMetricsProps) => {
+export const TaskInstanceMetrics = ({
+  endDate,
+  startDate,
+  stateCountLimit,
+  taskInstanceStates,
+}: TaskInstanceMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(taskInstanceStates).reduce((sum, count) => sum + count, 0);
 
@@ -64,7 +68,7 @@ export const TaskInstanceMetrics = ({ endDate, startDate, taskInstanceStates }: 
         ).map((state) =>
           taskInstanceStates[state] > 0 ? (
             <MetricSection
-              capped={taskInstanceStates[state] >= STATE_COUNT_CAP}
+              capped={taskInstanceStates[state] >= stateCountLimit}
               endDate={endDate}
               key={state}
               kind="task_instances"

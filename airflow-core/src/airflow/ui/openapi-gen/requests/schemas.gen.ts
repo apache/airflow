@@ -8267,10 +8267,14 @@ export const $HistoricalMetricDataResponse = {
         },
         task_instance_states: {
             '$ref': '#/components/schemas/TaskInstanceStateCount'
+        },
+        state_count_limit: {
+            type: 'integer',
+            title: 'State Count Limit'
         }
     },
     type: 'object',
-    required: ['dag_run_states', 'task_instance_states'],
+    required: ['dag_run_states', 'task_instance_states', 'state_count_limit'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
 } as const;

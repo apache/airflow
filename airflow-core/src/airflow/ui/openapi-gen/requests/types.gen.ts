@@ -2038,6 +2038,7 @@ export type GridTISummaries = {
 export type HistoricalMetricDataResponse = {
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
+    state_count_limit: number;
 };
 
 /**

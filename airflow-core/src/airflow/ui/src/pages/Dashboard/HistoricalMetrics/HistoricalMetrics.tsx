@@ -82,8 +82,16 @@ export const HistoricalMetrics = () => {
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (
               <Box>
-                <DagRunMetrics dagRunStates={data.dag_run_states} startDate={startDate} />
-                <TaskInstanceMetrics startDate={startDate} taskInstanceStates={data.task_instance_states} />
+                <DagRunMetrics
+                  dagRunStates={data.dag_run_states}
+                  startDate={startDate}
+                  stateCountLimit={data.state_count_limit}
+                />
+                <TaskInstanceMetrics
+                  startDate={startDate}
+                  stateCountLimit={data.state_count_limit}
+                  taskInstanceStates={data.task_instance_states}
+                />
               </Box>
             )}
           </GridItem>

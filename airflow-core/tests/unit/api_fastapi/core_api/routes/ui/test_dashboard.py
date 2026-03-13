@@ -260,6 +260,7 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
             (
@@ -281,6 +282,7 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
             (
@@ -302,6 +304,7 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
         ],
@@ -323,6 +326,8 @@ class TestHistoricalMetricsDataEndpoint:
             )
         assert response.status_code == 200
         data = response.json()
+
+        assert data["state_count_limit"] == 1
 
         dr_states = data["dag_run_states"]
         assert dr_states["success"] == 1

@@ -112,6 +112,7 @@ def historical_metrics(
                 **{ti_state.value: 0 for ti_state in TaskInstanceState},
                 **{row.state: row.cnt for row in ti_state_counts},
             },
+            "state_count_limit": STATE_COUNT_CAP,
         }
     )
 

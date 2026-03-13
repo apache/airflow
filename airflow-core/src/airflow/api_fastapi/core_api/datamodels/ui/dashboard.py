@@ -51,6 +51,7 @@ class HistoricalMetricDataResponse(BaseModel):
 
     dag_run_states: DAGRunStates
     task_instance_states: TaskInstanceStateCount
+    state_count_limit: int
 
 
 class DashboardDagStatsResponse(BaseModel):
