@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 import textwrap
@@ -26,9 +25,9 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
 
+import structlog
 import uvicorn
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -40,7 +39,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from argparse import Namespace
@@ -68,19 +67,6 @@ def _run_api_server_with_gunicorn(
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
     log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
-    access_log_enabled = log_level not in ("error", "critical", "fatal")
-
-    log.info(
-        textwrap.dedent(
-            f"""\
-            Running the API server with gunicorn:
-            Apps: {apps}
-            Workers: {num_workers}
-            Host: {args.host}:{args.port}
-            Timeout: {worker_timeout}
-            ================================================================="""
-        )
-    )
 
     gunicorn_app = create_gunicorn_app(
         host=args.host,
@@ -89,7 +75,6 @@ def _run_api_server_with_gunicorn(
         worker_timeout=worker_timeout,
         ssl_cert=ssl_cert,
         ssl_key=ssl_key,
-        access_log=access_log_enabled,
         log_level=log_level,
         proxy_headers=proxy_headers,
     )
@@ -122,10 +107,7 @@ def _run_api_server_with_uvicorn(
 
         setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
 
-    # Get uvicorn logging configuration from Airflow settings
     uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
-    # Control access log based on uvicorn log level - disable for ERROR and above
-    access_log_enabled = uvicorn_log_level not in ("error", "critical", "fatal")
 
     uvicorn_kwargs = {
         "host": args.host,
@@ -136,11 +118,13 @@ def _run_api_server_with_uvicorn(
         "timeout_worker_healthcheck": worker_timeout,
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
-        "access_log": access_log_enabled,
+        # HttpAccessLogMiddleware handles access logging; disable uvicorn's built-in access log.
+        "access_log": False,
         "log_level": uvicorn_log_level,
         "proxy_headers": proxy_headers,
+        # Prevent uvicorn from overriding our structlog-based logging setup.
+        "log_config": None,
     }
-    # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
     if args.log_config and args.log_config != "-":
         # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
         # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
@@ -157,41 +141,50 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     """Run the API server using the configured server type."""
     server_type = conf.get("api", "server_type", fallback="uvicorn").lower()
 
+    run = _run_api_server_with_uvicorn
     if server_type == "gunicorn":
         try:
             import gunicorn  # noqa: F401
+
+            run = _run_api_server_with_gunicorn
         except ImportError:
             raise AirflowConfigException(
                 "Gunicorn is not installed. Install it with: pip install 'apache-airflow-core[gunicorn]'"
             )
 
-        _run_api_server_with_gunicorn(
-            args=args,
+    log_file = args.log_file or None
+    if conf.getboolean("logging", "json_logs", fallback=False):
+        extra = {"logfile": log_file} if log_file else {}
+        log.info(
+            "Running the API server",
+            server=server_type,
             apps=apps,
-            num_workers=num_workers,
-            worker_timeout=worker_timeout,
-            proxy_headers=proxy_headers,
+            workers=num_workers,
+            host=f"{args.host}:{args.port}",
+            timeout=worker_timeout,
+            **extra,
         )
     else:
-        log.info(
+        print(
             textwrap.dedent(
                 f"""\
-                Running the API server with uvicorn:
+                Running the API server with {server_type}:
                 Apps: {apps}
                 Workers: {num_workers}
                 Host: {args.host}:{args.port}
                 Timeout: {worker_timeout}
-                Logfiles: {args.log_file or "-"}
-                ================================================================="""
+                Logfiles: {log_file or "-"}
+                =================================================================""",
             )
         )
-        _run_api_server_with_uvicorn(
-            args=args,
-            apps=apps,
-            num_workers=num_workers,
-            worker_timeout=worker_timeout,
-            proxy_headers=proxy_headers,
-        )
+
+    run(
+        args=args,
+        apps=apps,
+        num_workers=num_workers,
+        worker_timeout=worker_timeout,
+        proxy_headers=proxy_headers,
+    )
 
 
 def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], RT]:
@@ -221,7 +214,7 @@ def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], 
 @with_api_apps_env
 def api_server(args: Namespace):
     """Start Airflow API server."""
-    print(settings.HEADER)
+    cli_utils.print_banner()
 
     apps = args.apps
     num_workers = args.workers

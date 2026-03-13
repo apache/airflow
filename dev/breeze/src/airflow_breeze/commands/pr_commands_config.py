@@ -32,21 +32,27 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": ["--pr"],
         },
         {
+            "name": "Select people",
+            "options": [
+                "--author",
+                "--include-collaborators",
+                "--reviews-for-me",
+                "--reviews-for",
+            ],
+        },
+        {
             "name": "Filter options",
             "options": [
                 "--label",
                 "--exclude-label",
-                "--author",
                 "--created-after",
                 "--created-before",
                 "--updated-after",
                 "--updated-before",
-                "--include-collaborators",
                 "--include-drafts",
                 "--pending-approval-only",
                 "--checks-state",
                 "--min-commits-behind",
-                "--review-requested",
             ],
         },
         {

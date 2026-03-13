@@ -947,8 +947,9 @@ def check_and_run_migrations():
     if sys.stdout.isatty() and verb:
         print()
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
+        print_fn = log.info if conf.getboolean("logging", "json_logs", fallback=False) else print
         try:
-            answer = helpers.prompt_with_timeout(question, timeout=4, default=False)
+            answer = helpers.prompt_with_timeout(question, timeout=4, default=False, output_fn=print_fn)
             if answer:
                 try:
                     db_command()
@@ -969,10 +970,11 @@ def check_and_run_migrations():
     elif source_heads != db_heads:
         from airflow.version import version
 
-        print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
-            f"Make sure the command is run using Airflow version {version}.",
-            file=sys.stderr,
+        log.error(
+            "Database migration required. Please run `airflow db %s`. "
+            "Make sure the command is run using Airflow version %s.",
+            command_name,
+            version,
         )
         sys.exit(1)
 

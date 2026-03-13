@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from datetime import timedelta
 from typing import Any
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
@@ -103,6 +104,10 @@ class AwaitMessageSensor(BaseSensorOperator):
         self.commit_offset = commit_offset
 
     def execute(self, context) -> Any:
+        if isinstance(self.timeout, (int, float)):
+            timeout = timedelta(seconds=self.timeout)
+        else:
+            timeout = self.timeout
         self.defer(
             trigger=AwaitMessageTrigger(
                 topics=self.topics,
@@ -115,6 +120,7 @@ class AwaitMessageSensor(BaseSensorOperator):
                 commit_offset=self.commit_offset,
             ),
             method_name="execute_complete",
+            timeout=timeout,
         )
 
     def execute_complete(self, context, event=None):
