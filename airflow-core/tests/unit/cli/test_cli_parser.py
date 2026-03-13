@@ -44,6 +44,18 @@ from airflow.executors import executor_loader
 
 from tests_common.test_utils.config import conf_vars
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
+_celery_installed = _provider_installed("airflow.providers.celery")
+_kubernetes_installed = _provider_installed("airflow.providers.cncf.kubernetes")
+
 pytestmark = pytest.mark.db_test
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -533,13 +545,33 @@ class TestCli:
     @pytest.mark.parametrize(
         ("executor", "expected_args"),
         [
-            ("CeleryExecutor", ["celery"]),
-            ("KubernetesExecutor", ["kubernetes"]),
+            pytest.param(
+                "CeleryExecutor",
+                ["celery"],
+                marks=pytest.mark.skipif(not _celery_installed, reason="celery provider not installed"),
+            ),
+            pytest.param(
+                "KubernetesExecutor",
+                ["kubernetes"],
+                marks=pytest.mark.skipif(
+                    not _kubernetes_installed, reason="cncf.kubernetes provider not installed"
+                ),
+            ),
             ("LocalExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
-            ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
+            pytest.param(
+                "custom_executor.CustomCeleryExecutor",
+                ["celery"],
+                marks=pytest.mark.skipif(not _celery_installed, reason="celery provider not installed"),
+            ),
+            pytest.param(
+                "custom_executor.CustomKubernetesExecutor",
+                ["kubernetes"],
+                marks=pytest.mark.skipif(
+                    not _kubernetes_installed, reason="cncf.kubernetes provider not installed"
+                ),
+            ),
         ],
     )
     def test_cli_parser_executors(self, executor, expected_args):

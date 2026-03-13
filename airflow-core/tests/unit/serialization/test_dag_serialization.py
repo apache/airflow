@@ -44,6 +44,8 @@ import attrs
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
+
+pytest.importorskip("kubernetes", reason="kubernetes package required for DAG serialization tests")
 from kubernetes.client import models as k8s
 
 import airflow

@@ -181,15 +181,8 @@ will install all dependencies needed to run tests for airflow-core.
     cd airflow-core
     uv sync
 
-
-TODO(potiuk): This will not work yet - until we move some remaining provider tests from airflow-core. For
-now you need to add ``--all-package`` to install all providers and their dependencies.
-
-.. code:: bash
-
-    cd airflow-core
-    uv sync --all-packages
-
+Tests that depend on optional provider packages (e.g. ``kubernetes``, ``celery``) will be
+automatically skipped in a core-only environment.
 
 Working on individual provider dependencies
 ...........................................

@@ -24,6 +24,8 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
+
+pytest.importorskip("airflow.providers.celery", reason="celery provider required")
 from airflow.providers.celery.cli import celery_command
 
 from tests_common.test_utils.config import conf_vars

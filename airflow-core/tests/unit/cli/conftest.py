@@ -23,8 +23,6 @@ import pytest
 
 from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import local_executor
-from airflow.providers.celery.executors import celery_executor
-from airflow.providers.cncf.kubernetes.executors import kubernetes_executor
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.stream_capture_manager import (
@@ -36,15 +34,25 @@ from tests_common.test_utils.stream_capture_manager import (
 
 # Create custom executors here because conftest is imported first
 custom_executor_module = type(sys)("custom_executor")
-custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
-    "CustomCeleryExecutor", (celery_executor.CeleryExecutor,), {}
-)
 custom_executor_module.CustomLocalExecutor = type(  # type:  ignore
     "CustomLocalExecutor", (local_executor.LocalExecutor,), {}
 )
-custom_executor_module.CustomKubernetesExecutor = type(  # type:  ignore
-    "CustomKubernetesExecutor", (kubernetes_executor.KubernetesExecutor,), {}
-)
+try:
+    from airflow.providers.celery.executors import celery_executor
+
+    custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
+        "CustomCeleryExecutor", (celery_executor.CeleryExecutor,), {}
+    )
+except ImportError:
+    pass
+try:
+    from airflow.providers.cncf.kubernetes.executors import kubernetes_executor
+
+    custom_executor_module.CustomKubernetesExecutor = type(  # type:  ignore
+        "CustomKubernetesExecutor", (kubernetes_executor.KubernetesExecutor,), {}
+    )
+except ImportError:
+    pass
 sys.modules["custom_executor"] = custom_executor_module
 
 
