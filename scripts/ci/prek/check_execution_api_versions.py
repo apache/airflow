@@ -37,7 +37,7 @@ VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
 
 def get_changed_files_ci() -> list[str]:
     """Get changed files in a CI environment by comparing against the target branch."""
-    target_branch = os.environ.get("GITHUB_BASE_REF", "main")
+    target_branch = os.environ.get("GITHUB_BASE_REF") or "main"
     fetch_result = subprocess.run(
         ["git", "fetch", "origin", target_branch],
         capture_output=True,
@@ -48,8 +48,12 @@ def get_changed_files_ci() -> list[str]:
         console.print(
             f"[yellow]WARNING: Failed to fetch origin/{target_branch}: {fetch_result.stderr.strip()}[/]"
         )
+
+    is_main = not os.environ.get("GITHUB_BASE_REF")
+    diff_target = "HEAD~1" if is_main else f"origin/{target_branch}...HEAD"
+
     result = subprocess.run(
-        ["git", "diff", "--name-only", f"origin/{target_branch}...HEAD"],
+        ["git", "diff", "--name-only", diff_target],
         capture_output=True,
         text=True,
         check=False,
