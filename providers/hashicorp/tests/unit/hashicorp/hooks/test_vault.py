@@ -440,7 +440,9 @@ class TestVaultHook:
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        mock_get_credentials.return_value = ("credentials", "project_id")
+        mock_credentials = MagicMock()
+        mock_credentials.service_account_email = "service_account_email"
+        mock_get_credentials.return_value = (mock_credentials, "project_id")
 
         # Mock googleapiclient.discovery.build chain
         mock_service = MagicMock()
@@ -465,12 +467,8 @@ class TestVaultHook:
             "session": None,
         }
 
-        with patch(
-            "builtins.open", mock_open(read_data='{"client_email": "service_account_email"}')
-        ) as mock_file:
-            test_hook = VaultHook(**kwargs)
-            test_client = test_hook.get_conn()
-            mock_file.assert_called_with("path.json")
+        test_hook = VaultHook(**kwargs)
+        test_client = test_hook.get_conn()
 
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_get_scopes.assert_called_with("scope1,scope2")
@@ -495,7 +493,9 @@ class TestVaultHook:
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        mock_get_credentials.return_value = ("credentials", "project_id")
+        mock_credentials = MagicMock()
+        mock_credentials.service_account_email = "service_account_email"
+        mock_get_credentials.return_value = (mock_credentials, "project_id")
 
         # Mock googleapiclient.discovery.build chain
         mock_service = MagicMock()
@@ -522,12 +522,8 @@ class TestVaultHook:
             "role_id": "role",
         }
 
-        with patch(
-            "builtins.open", mock_open(read_data='{"client_email": "service_account_email"}')
-        ) as mock_file:
-            test_hook = VaultHook(**kwargs)
-            test_client = test_hook.get_conn()
-            mock_file.assert_called_with("path.json")
+        test_hook = VaultHook(**kwargs)
+        test_client = test_hook.get_conn()
 
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_get_scopes.assert_called_with("scope1,scope2")
@@ -552,7 +548,9 @@ class TestVaultHook:
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        mock_get_credentials.return_value = ("credentials", "project_id")
+        mock_credentials = MagicMock()
+        mock_credentials.service_account_email = "service_account_email"
+        mock_get_credentials.return_value = (mock_credentials, "project_id")
 
         # Mock googleapiclient.discovery.build chain
         mock_service = MagicMock()
