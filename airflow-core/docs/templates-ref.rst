@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -39,7 +40,7 @@ uniquely identify a Dag run triggered by an asset event.
 
 The variables listed on this page are provided via Airflow's execution-time context.
 
-When using the Task SDK, the same execution-time context is also available programmatically via the :class:`airflow.sdk.Context` object.
+When using the Task SDK, the same execution-time context is also available programmatically via the :py:class:`airflow.sdk.Context` object.
 
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
@@ -60,15 +61,15 @@ Variable                                    Type                  Description
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current Dag run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
-``{{ exception }}``                         None | str | Exception| KeyboardInterrupt  Error occurred while running task instance.
+``{{ exception }}``                         None | str             | Error occurred while running task instance. Exception | KeyboardInterrupt
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
-                                                                  | ``None``            | Added in version 2.2.
+                                            | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
-                                                                  | ``None``            | Added in version 2.2.
+                                            | ``None``            | Added in version 2.2.
 ``{{ prev_start_date_success }}``           `pendulum.DateTime`_  | Start date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
-                                                                  | ``None``
-``{{ prev_end_date_success }}``             `pendulum.DateTime`_  | End date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
-                                                                  | ``None``
+                                            | ``None``
+``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
+                                            | ``None``
 ``{{ start_date }}``                        `pendulum.DateTime`_  Datetime of when current task has been started.
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
 ``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
@@ -76,7 +77,7 @@ Variable                                    Type                  Description
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
                                                                   | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :py:class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
-``{{ task }}``                              BaseOperator          | The currently running :py:class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`.
+``{{ task }}``                              BaseOperator          | The currently running :py:class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
 ``{{ task_instance }}``                     TaskInstance          The currently running :py:class:`~airflow.models.taskinstance.TaskInstance`.
@@ -88,8 +89,12 @@ Variable                                    Type                  Description
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
 ``{{ task_instance_key_str }}``             str                   | A human-readable key to the task instance.
+                                                                  |
                                                                   | For time-based DAGs, the format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
+                                                                  |
+                                                                  | For asset-triggered DAGs, the format uses the DAG run identifier instead:
+                                                                  | ``{dag_id}__{task_id}__{dag_run.run_id}``.
 ``{{ run_id }}``                            str                   The currently running :py:class:`~airflow.models.dagrun.DagRun` run ID.
 ``{{ dag_run }}``                           DagRun                The currently running :py:class:`~airflow.models.dagrun.DagRun`.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
@@ -196,13 +201,13 @@ A few commonly used libraries and methods are made available.
 =================================   ========================================================================================================================================================================
 Variable                            Description
 =================================   ========================================================================================================================================================================
-``macros.datetime``                 The standard lib's :class:`datetime.datetime`.
+``macros.datetime``                 The standard lib's :py:class:`datetime.datetime`.
                                     Note: ``utcnow()`` is deprecated in Python 3.12+; use ``now(macros.dateutil.tz.UTC)`` instead.
-``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
+``macros.timedelta``                The standard lib's :py:class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
 ``macros.time``                     The standard lib's :mod:`time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
-``macros.random``                   The standard lib's :class:`random.random`
+``macros.random``                   The standard lib's :py:class:`random.random`
 =================================   ========================================================================================================================================================================
 
 Some Airflow specific macros are also defined:
