@@ -110,7 +110,18 @@ def action_cli(func=None, check_db=True):
                     if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
                     synchronize_log_template()
-                return f(*args, **kwargs)
+                    # Set server context so validation logic (e.g. DagBundlesManager) runs correctly
+                    original_ctx = os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+                    try:
+                        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+                        return f(*args, **kwargs)
+                    finally:
+                        if original_ctx is None:
+                            os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+                        else:
+                            os.environ["_AIRFLOW_PROCESS_CONTEXT"] = original_ctx
+                else:
+                    return f(*args, **kwargs)
             except Exception as e:
                 metrics["error"] = e
                 raise

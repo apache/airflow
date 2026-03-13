@@ -60,7 +60,7 @@ class TestDagProcessorCommand:
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     @mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
-    def test_bundle_validation_runs_with_server_context(self, mock_manager_cls, mock_runner):
+    def test_bundle_validation_runs_with_server_context(self, mock_manager_cls, mock_runner, monkeypatch):
         mock_runner.return_value.job_type = "DagProcessorJob"
         captured_ctx = {}
 
@@ -73,7 +73,7 @@ class TestDagProcessorCommand:
 
         mock_manager_cls.return_value.get_all_dag_bundles.side_effect = capture_env_and_return_bundles
 
-        os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
         args = self.parser.parse_args(["dag-processor", "--bundle-name", "bundle1"])
         dag_processor_command.dag_processor(args)
 

@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
@@ -36,15 +35,7 @@ log = logging.getLogger(__name__)
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
-        original_ctx = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
-        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
-        try:
-            cli_utils.validate_dag_bundle_arg(args.bundle_name)
-        finally:
-            if original_ctx is None:
-                os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
-            else:
-                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = original_ctx
+        cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(
