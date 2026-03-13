@@ -24,7 +24,6 @@ import time_machine
 from sqlalchemy import delete, select
 
 from airflow.configuration import conf
-from airflow.executors.workloads import WorkloadType
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
@@ -54,7 +53,7 @@ class TestEdgeExecutor:
         ti.dag_run.run_id = key.run_id
         ti.dag_run.start_date = datetime(2021, 1, 1)
         executor = EdgeExecutor()
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][key] = [None, None, None, ti]
+        executor.queued_tasks[key] = [None, None, None, ti]
 
         return (executor, key)
 

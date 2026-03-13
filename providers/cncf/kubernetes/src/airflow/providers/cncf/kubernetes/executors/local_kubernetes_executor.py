@@ -25,7 +25,6 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import WorkloadType
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -99,8 +98,8 @@ class LocalKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from local and kubernetes executor."""
-        queued_tasks = self.local_executor.executor_queues[WorkloadType.EXECUTE_TASK].copy()
-        queued_tasks.update(self.kubernetes_executor.executor_queues[WorkloadType.EXECUTE_TASK])
+        queued_tasks = self.local_executor.queued_tasks.copy()
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
 
         return queued_tasks
 

@@ -32,7 +32,6 @@ from typing import TYPE_CHECKING
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import WorkloadType
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
@@ -138,7 +137,7 @@ class AwsEcsExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+            del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
             self.running.add(key)
 

@@ -26,7 +26,6 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import WorkloadType
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor  # noqa: TC001
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -105,8 +104,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from celery and kubernetes executor."""
-        queued_tasks = self.celery_executor.executor_queues[WorkloadType.EXECUTE_TASK].copy()
-        queued_tasks.update(self.kubernetes_executor.executor_queues[WorkloadType.EXECUTE_TASK])
+        queued_tasks = self.celery_executor.queued_tasks.copy()
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)
 
         return queued_tasks  # type: ignore[return-value]
 

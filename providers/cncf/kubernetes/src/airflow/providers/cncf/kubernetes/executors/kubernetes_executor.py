@@ -42,7 +42,6 @@ from sqlalchemy import select
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import WorkloadType
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -241,7 +240,7 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+            del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
@@ -263,8 +262,8 @@ class KubernetesExecutor(BaseExecutor):
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
-        if self.executor_queues[WorkloadType.EXECUTE_TASK]:
-            self.log.debug("self.queued: %s", self.executor_queues[WorkloadType.EXECUTE_TASK])
+        if self.queued_tasks:
+            self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version: dict[str, str] = defaultdict(lambda: "0")
@@ -589,7 +588,7 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_client
             assert self.kube_scheduler
         self.running.discard(ti.key)
-        self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        self.queued_tasks.pop(ti.key, None)
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         # Build the pod selector
         base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"

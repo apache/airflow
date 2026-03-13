@@ -26,7 +26,6 @@ from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import WorkloadType
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
     CONFIG_GROUP_NAME,
@@ -209,7 +208,7 @@ class AwsLambdaExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+            del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
             self.running.add(key)
 
