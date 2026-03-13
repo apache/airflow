@@ -20,13 +20,16 @@
 Deferred vs Async Operators
 ===========================
 
-Airflow 3.2 introduces Python native async support, enabling task authors to leverage asynchronous I/O for high-throughput workloads.
+ .. versionadded:: 3.2.0
+
+Airflow contains Python native async support, enabling task authors to leverage asynchronous I/O for high-throughput workloads.
 It is important to understand how this differs from deferred operators.
 
 Deferred Operators
 ------------------
 
-A deferred operator is an operator that can pause its execution until an external trigger event occurs, without holding a worker slot.
+A deferred operator is an operator that can pause its execution until an external trigger event occurs,
+without holding a worker slot. For more details see :doc:`authoring-and-scheduling/deferring`.
 Examples include the HttpOperator in deferrable mode, sensors or operators integrated with triggers.
 
 Key characteristics:
@@ -79,10 +82,13 @@ Use async Python operators when:
   - The task needs to perform many concurrent requests or operations within a single task.
   - You want to take advantage of the shared event loop to improve throughput.
   - There is simply no deferred operator available.
+  - The logic depends on custom Python code (e.g. callables or lambdas) that cannot easily be implemented in a trigger, since triggers must be serializable and do not have access to DAG code at runtime.
 
 .. code-block:: python
 
    import asyncio
+   from aiohttp import ClientSession
+   from airflow.providers.http.hooks.http import HttpAsyncHook
    from airflow.sdk import task
 
    parameters = [
@@ -94,10 +100,6 @@ Use async Python operators when:
 
    @task
    async def get_op(parameters: list[dict[str, str]]):
-       import asyncio
-       from aiohttp import ClientSession
-       from airflow.providers.http.hooks.http import HttpAsyncHook
-
        hook = HttpAsyncHook(http_conn_id="http_conn_id", method="GET")
 
        async with ClientSession() as session:
@@ -111,6 +113,6 @@ Use async Python operators when:
 
    get_op(parameters)
 
-Dynamic Task Mapping with many deferrable operators would create unnecessary overhead, as each mapped task would run its own event loop instead of sharing a single loop.
-Dynamic Task Mapping with async operators also don't make sense, as they won't share the same event loop and thus won't improve throughput.
-For more details, see the :ref:`dynamic task mapping <sdk-dynamic-mapping>` page.
+Compared to Dynamic Task Mapping with many deferrable operators, the approach with Async Python Operator is that all execution shares one worker slot and is sharing a single event loop.
+In contrast with Dynamic Task Mapping each list element is tracked as an individual task, needs individual scheduling but on the other hand can be repeated individually.
+For more details about Dynamic Task Mapping, see the :ref:`dynamic task mapping <sdk-dynamic-mapping>` page.
