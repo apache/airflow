@@ -34,7 +34,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads import QueueableWorkload, WorkloadType
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
 from airflow.observability.metrics import stats_utils
@@ -187,7 +187,7 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
-        self.executor_queues: dict[str, dict] = defaultdict(dict)
+        self.executor_queues: dict[str, dict[WorkloadKey, QueueableWorkload]] = defaultdict(dict)
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -252,7 +252,7 @@ class BaseExecutor(LoggingMixin):
         """Add an event to the log table."""
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
-    def queue_workload(self, workload: workloads.All, session: Session) -> None:
+    def queue_workload(self, workload: QueueableWorkload, session: Session) -> None:
         if workload.type not in self.supported_workload_types:
             raise NotImplementedError(
                 f"{type(self).__name__} does not support {workload.type!r} workloads. "
@@ -261,7 +261,7 @@ class BaseExecutor(LoggingMixin):
             )
         self.executor_queues[workload.type][workload.queue_key] = workload
 
-    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
+    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, QueueableWorkload]]:
         """
         Select and return the next batch of workloads to schedule, respecting priority policy.
 
@@ -271,13 +271,13 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of available execution slots
         """
-        all_workloads: list[tuple[WorkloadKey, workloads.All]] = [
+        all_workloads: list[tuple[WorkloadKey, QueueableWorkload]] = [
             (key, workload) for queue in self.executor_queues.values() for key, workload in queue.items()
         ]
         all_workloads.sort(key=lambda item: (workloads.WORKLOAD_TYPE_TIER[item[1].type], item[1].sort_key))
         return all_workloads[:open_slots]
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[QueueableWorkload]) -> None:
         """
         Process the given workloads.
 
