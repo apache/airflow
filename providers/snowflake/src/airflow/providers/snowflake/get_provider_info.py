@@ -43,6 +43,7 @@ def get_provider_info():
                 "integration-name": "Snowflake",
                 "python-modules": [
                     "airflow.providers.snowflake.operators.snowflake",
+                    "airflow.providers.snowflake.operators.snowflake_notebook",
                     "airflow.providers.snowflake.operators.snowpark",
                 ],
             }
