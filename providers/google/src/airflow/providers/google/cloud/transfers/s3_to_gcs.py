@@ -278,6 +278,7 @@ class S3ToGCSOperator(S3ListOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 job_names=job_names,
                 poll_interval=self.poll_interval,
+                files=files,
             ),
             method_name="execute_complete",
         )
@@ -334,16 +335,18 @@ class S3ToGCSOperator(S3ListOperator):
 
         return job_names
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> list[str] | None:
         """
-        Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+        Handle the trigger callback when transfer jobs complete.
 
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        Returns the list of copied file paths when available (deferrable mode with
+        files passed via trigger), so subsequent tasks can consume them via XCom.
+        Returns None when event does not contain files (e.g. legacy triggers).
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info("%s completed with response %s ", self.task_id, event["message"])
+        return event.get("files")
 
     def get_transfer_hook(self):
         return CloudDataTransferServiceHook(
