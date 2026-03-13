@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import tomllib
+from registry_contract_models import validate_provider_version_metadata
 
 try:
     import yaml
@@ -389,17 +390,19 @@ def extract_version_data(
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
     module_counts = count_modules(modules)
 
-    return {
-        "provider_id": provider_id,
-        "version": version,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "requires_python": pyproject_data["requires_python"],
-        "dependencies": pyproject_data["dependencies"],
-        "optional_extras": pyproject_data["optional_extras"],
-        "connection_types": connection_types,
-        "module_counts": module_counts,
-        "modules": modules,
-    }
+    return validate_provider_version_metadata(
+        {
+            "provider_id": provider_id,
+            "version": version,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "requires_python": pyproject_data["requires_python"],
+            "dependencies": pyproject_data["dependencies"],
+            "optional_extras": pyproject_data["optional_extras"],
+            "connection_types": connection_types,
+            "module_counts": module_counts,
+            "modules": modules,
+        }
+    )
 
 
 def extract_and_write_version_data(provider_id: str, version: str, dir_path: str) -> dict[str, Any] | None:
