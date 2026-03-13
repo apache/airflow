@@ -1148,6 +1148,16 @@ workers:
     # Queue name for the default workers
     queue: "default"
 
+    # Override the Airflow image for Celery workers.
+    # If not set, falls back to the global `images.airflow` image.
+    # Can also be overridden per worker set in `workers.celery.sets[].image`.
+    image:
+      repository: ~
+      tag: ~
+      # Specifying digest takes precedence over tag.
+      digest: ~
+      pullPolicy: ~
+
     # List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery`
     # section.
     sets: []
@@ -1155,6 +1165,9 @@ workers:
     #   - name: highcpu
     #     replicas: 2
     #     queue: "highcpu"
+    #     image:
+    #       repository: my-custom-airflow
+    #       tag: latest
     #     resources:
     #       requests:
     #         memory: "2Gi"
