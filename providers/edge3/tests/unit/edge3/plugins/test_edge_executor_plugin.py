@@ -49,7 +49,11 @@ def test_plugin_active_apiserver():
     # create dist folder if not built locally
     (Path(edge_executor_plugin.__file__).parent / "www" / "dist").mkdir(parents=True, exist_ok=True)
 
-    with conf_vars({("edge", "api_enabled"): "true"}), patch("sys.argv", mock_cli):
+    with (
+        conf_vars({("edge", "api_enabled"): "true"}),
+        patch("sys.argv", mock_cli),
+        patch("airflow.providers.edge3.models.db.check_db_manager_config"),
+    ):
         importlib.reload(edge_executor_plugin)
 
         from airflow.providers.edge3.plugins.edge_executor_plugin import (
@@ -68,7 +72,10 @@ def test_plugin_active_apiserver():
 
 @patch("sys.argv", ["airflow", "some-other-command"])
 def test_plugin_active_non_apiserver():
-    with conf_vars({("edge", "api_enabled"): "true"}):
+    with (
+        conf_vars({("edge", "api_enabled"): "true"}),
+        patch("airflow.providers.edge3.models.db.check_db_manager_config"),
+    ):
         importlib.reload(edge_executor_plugin)
 
         from airflow.providers.edge3.plugins.edge_executor_plugin import (

@@ -75,8 +75,20 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--target-branch",
                 "--create-pr",
                 "--switch-to-base",
+                "--airflow-site",
+                "--force-k8s-schema-sync",
             ],
-        }
+        },
+        {
+            "name": "Upgrade steps",
+            "options": [
+                "--autoupdate",
+                "--pin-versions",
+                "--update-chart-dependencies",
+                "--upgrade-important-versions",
+                "--k8s-schema-sync",
+            ],
+        },
     ],
     "breeze ci set-milestone": [
         {

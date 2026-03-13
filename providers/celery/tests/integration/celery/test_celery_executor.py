@@ -42,6 +42,7 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskInstanceKey
@@ -197,7 +198,7 @@ def setup_dagrun_with_success_and_fail_tasks(dag_maker):
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
-                ti_success = workloads.TaskInstance.model_construct(
+                ti_success = TaskInstanceDTO.model_construct(
                     id=uuid7(),
                     task_id="success",
                     dag_id="id",
@@ -257,7 +258,7 @@ def setup_dagrun_with_success_and_fail_tasks(dag_maker):
             else:
                 ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
-                ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
+                ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
             )
 
             key = (task.dag.dag_id, task.task_id, ti.run_id, 0, -1)
@@ -309,7 +310,7 @@ def setup_dagrun_with_success_and_fail_tasks(dag_maker):
             else:
                 ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
-                ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
+                ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
             )
 
             key = (task.dag.dag_id, task.task_id, ti.run_id, 0, -1)

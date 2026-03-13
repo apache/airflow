@@ -118,7 +118,14 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -140,7 +147,18 @@ path = "src/airflow/sdk/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
-exclude = ["src/airflow/__init__.py"]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
 
 [tool.ruff]
 extend = "../pyproject.toml"

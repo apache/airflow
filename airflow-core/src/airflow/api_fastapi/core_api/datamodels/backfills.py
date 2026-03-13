@@ -66,7 +66,9 @@ class BackfillCollectionResponse(BaseModel):
 class DryRunBackfillResponse(BaseModel):
     """Backfill serializer for responses in dry-run mode."""
 
-    logical_date: datetime
+    logical_date: datetime | None
+    partition_key: str | None
+    partition_date: datetime | None
 
 
 class DryRunBackfillCollectionResponse(BaseModel):

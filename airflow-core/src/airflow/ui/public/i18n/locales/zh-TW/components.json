@@ -130,6 +130,7 @@
     "intervalStart": "開始",
     "loading": "正在載入 Dag 資訊...",
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
+    "manualRunDenied": "此 Dag 不允許手動執行",
     "runIdHelp": "選填 - 若未提供將會自動產生",
     "selectDescription": "觸發此 Dag 單次執行",
     "selectLabel": "單次執行",

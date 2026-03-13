@@ -136,6 +136,30 @@ def test_with_secret_key():
     assert generator.signing_arg == "abc"
 
 
+def test_secret_key_token_includes_kid_in_header():
+    """Symmetric (secret_key) tokens must include 'kid' in the JWT header so the validator accepts them."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = generator.generate({"sub": "user"})
+    header = jwt.get_unverified_header(token)
+    assert "kid" in header, "kid must always be present in the JWT header"
+    assert header["kid"] == "not-used"
+
+
+def test_secret_key_with_configured_kid():
+    """When jwt_kid is configured, symmetric key generators should use it."""
+    from unittest.mock import patch
+
+    with patch.dict(
+        "os.environ",
+        {"AIRFLOW__API_AUTH__JWT_KID": "my-custom-kid"},
+    ):
+        generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+        assert generator.kid == "my-custom-kid"
+        token = generator.generate({"sub": "user"})
+        header = jwt.get_unverified_header(token)
+        assert header["kid"] == "my-custom-kid"
+
+
 @pytest.fixture
 def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
     key = ed25519_private_key
@@ -226,6 +250,37 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
             ("api_auth", "jwt_issuer"): "http://my-issuer.localdomain",
             ("api_auth", "jwt_private_key_path"): str(priv_key),
             ("api_auth", "jwt_algorithm"): algorithm,
+            ("api_auth", "jwt_secret"): "",
+        }
+    ):
+        gen = JWTGenerator(audience="airflow1", valid_for=300)
+        token = gen.generate({"sub": "test"})
+
+        validator = JWTValidator(
+            audience="airflow1",
+            leeway=0,
+            **get_sig_validation_args(make_secret_key_if_needed=False),
+        )
+        assert await validator.avalidated_claims(token)
+
+
+@pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
+async def test_jwt_validate_roundtrip_with_jwks_and_guess_algorithm(private_key, tmp_path: pathlib.Path):
+    jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "custom-kid")]})
+
+    jwks = tmp_path.joinpath("jwks.json")
+    await anyio.Path(jwks).write_text(jwk_content)
+
+    priv_key = tmp_path.joinpath("key.pem")
+    await anyio.Path(priv_key).write_bytes(key_to_pem(private_key))
+
+    with conf_vars(
+        {
+            ("api_auth", "trusted_jwks_url"): str(jwks),
+            ("api_auth", "jwt_kid"): "custom-kid",
+            ("api_auth", "jwt_issuer"): "http://my-issuer.localdomain",
+            ("api_auth", "jwt_private_key_path"): str(priv_key),
+            ("api_auth", "jwt_algorithm"): "GUESS",
             ("api_auth", "jwt_secret"): "",
         }
     ):

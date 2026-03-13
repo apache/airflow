@@ -109,6 +109,9 @@ services:
         source: ../../../providers-summary-docs
         target: /opt/airflow/providers-summary-docs
       - type: bind
+        source: ../../../registry
+        target: /opt/airflow/registry
+      - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind

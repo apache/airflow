@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from botocore.config import Config
     from pyathena.connection import Connection as AthenaConnection
 
 
@@ -69,8 +70,30 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     hook_name = "Amazon Athena"
     supports_autocommit = True
 
-    def __init__(self, athena_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        athena_conn_id: str = default_conn_name,
+        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        verify: bool | str | None = None,
+        region_name: str | None = None,
+        client_type: str | None = None,
+        resource_type: str | None = None,
+        config: Config | dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        # AwsGenericHook.__init__() only accepts the params declared above.
+        # Connection extras like s3_staging_dir and work_group are not
+        # constructor params — they are read later from the connection in
+        # get_conn(). BaseSQLOperator.get_hook() passes all connection extras
+        # as kwargs, so we absorb them here via **kwargs and discard them.
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            verify=verify,
+            region_name=region_name,
+            client_type=client_type,
+            resource_type=resource_type,
+            config=config,
+        )
         self.athena_conn_id = athena_conn_id
 
     @classmethod

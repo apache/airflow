@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import tempfile
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -32,10 +33,11 @@ from openlineage.client.facet_v2 import (
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.lineage.entities import Column, File, Table, User
 from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectStoragePath
+from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -46,6 +48,8 @@ if TYPE_CHECKING:
         from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
     except ImportError:
         AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
+
+_SQL_FN_PATH = "airflow.providers.openlineage.utils.sql_hook_lineage.emit_lineage_from_sql_extras"
 
 
 @pytest.fixture
@@ -59,9 +63,7 @@ def hook_lineage_collector():
     if AIRFLOW_V_3_2_PLUS:
         patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
     if AIRFLOW_V_3_0_PLUS:
-        from unittest import mock
-
-        with mock.patch(patch_target, return_value=hlc):
+        with patch(patch_target, return_value=hlc):
             from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
             yield get_hook_lineage_collector()
@@ -392,3 +394,132 @@ def test_extract_inlets_and_outlets_with_sensor():
     extractor_manager.extract_inlets_and_outlets(lineage, task)
     assert lineage.inputs == inlets
     assert lineage.outputs == outlets
+
+
+def test_get_hook_lineage_with_sql_extras_only(hook_lineage_collector):
+    """When only sql_job extras are present (no assets), get_hook_lineage returns None
+    because get_lineage_from_sql_extras only emits events and returns None."""
+    hook = MagicMock()
+    hook_lineage_collector.add_extra(
+        context=hook,
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={
+            SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT 1",
+            SqlJobHookLineageExtra.VALUE__JOB_ID.value: "qid-1",
+        },
+    )
+
+    mock_ti = MagicMock()
+    extractor_manager = ExtractorManager()
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        result = extractor_manager.get_hook_lineage(
+            task_instance=mock_ti,
+            task_instance_state=TaskInstanceState.SUCCESS,
+        )
+
+    assert result is None
+    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
+    assert len(sql_extras) == 1
+    assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
+    assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__JOB_ID.value] == "qid-1"
+
+
+@skip_if_force_lowest_dependencies_marker
+def test_get_hook_lineage_with_assets_and_sql_extras(hook_lineage_collector):
+    """Asset-based lineage is returned; sql_extras only trigger event emission."""
+    hook = MagicMock()
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_extra(
+        context=hook,
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={
+            SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "INSERT INTO tbl SELECT * FROM src",
+        },
+    )
+
+    mock_ti = MagicMock()
+    extractor_manager = ExtractorManager()
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        result = extractor_manager.get_hook_lineage(
+            task_instance=mock_ti,
+            task_instance_state=TaskInstanceState.SUCCESS,
+        )
+
+    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
+    assert len(sql_extras) == 1
+    assert (
+        sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value]
+        == "INSERT INTO tbl SELECT * FROM src"
+    )
+    assert result == OperatorLineage(
+        inputs=[OpenLineageDataset(namespace="s3://bucket", name="input_key")],
+    )
+
+
+@skip_if_force_lowest_dependencies_marker
+def test_get_hook_lineage_sql_extras_multiple_queries(hook_lineage_collector):
+    hook = MagicMock()
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_extra(
+        context=hook,
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT a from src1"},
+    )
+    hook_lineage_collector.add_extra(
+        context=hook,
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT b from src2"},
+    )
+
+    mock_ti = MagicMock()
+    extractor_manager = ExtractorManager()
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        result = extractor_manager.get_hook_lineage(
+            task_instance=mock_ti,
+            task_instance_state=TaskInstanceState.SUCCESS,
+        )
+
+    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
+    assert len(sql_extras) == 2
+    assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT a from src1"
+    assert sql_extras[1].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT b from src2"
+    assert result == OperatorLineage(
+        inputs=[OpenLineageDataset(namespace="s3://bucket", name="input_key")],
+    )
+
+
+def test_get_hook_lineage_returns_none_when_nothing_collected(hook_lineage_collector):
+    extractor_manager = ExtractorManager()
+    with patch(_SQL_FN_PATH) as mock_sql_fn:
+        result = extractor_manager.get_hook_lineage(
+            task_instance=MagicMock(),
+            task_instance_state=TaskInstanceState.SUCCESS,
+        )
+
+    assert result is None
+    mock_sql_fn.assert_not_called()
+
+
+def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
+    hook = MagicMock()
+    hook_lineage_collector.add_extra(
+        context=hook,
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT 1"},
+    )
+
+    mock_ti = MagicMock()
+    extractor_manager = ExtractorManager()
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        extractor_manager.get_hook_lineage(
+            task_instance=mock_ti,
+            task_instance_state=TaskInstanceState.FAILED,
+        )
+
+    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=False)
+    sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
+    assert len(sql_extras) == 1
+    assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"

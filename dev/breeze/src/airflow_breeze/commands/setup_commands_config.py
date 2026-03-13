@@ -65,6 +65,7 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mysql-version",
                 "--terminal-multiplexer",
                 "--auth-manager",
+                "--llm-model",
                 "--cheatsheet",
                 "--asciiart",
                 "--colour",

@@ -1,0 +1,1 @@
+``workers.keda`` section is now deprecated in favor of ``workers.celery.keda``. Please update your configuration accordingly.

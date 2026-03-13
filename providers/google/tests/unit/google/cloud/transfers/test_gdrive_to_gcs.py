@@ -48,7 +48,7 @@ class TestGoogleDriveToGCSOperator:
         meta = {"id": "123xyz"}
         mock_gdrive_hook.return_value.get_file_id.return_value = meta
 
-        op.execute(context)
+        result = op.execute(context)
         mock_gdrive_hook.return_value.get_file_id.assert_called_once_with(
             folder_id=FOLDER_ID, file_name=FILE_NAME, drive_id=DRIVE_ID
         )
@@ -61,4 +61,6 @@ class TestGoogleDriveToGCSOperator:
             bucket_name=BUCKET, object_name=OBJECT
         )
 
+        # Assert list with GCS URI is returned
+        assert result == [f"gs://{BUCKET}/{OBJECT}"]
         assert op.dry_run() is None

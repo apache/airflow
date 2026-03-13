@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+13.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PowerBIDatasetRefreshOperator to properly respect wait_for_completion flag (#62842)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 13.0.0
 ......
 
@@ -42,15 +53,20 @@ Features
 ~~~~~~~~
 
 * ``Add wait_for_termination parameter and fix double-deferral in PowerBIDatasetRefreshOperator (#60369)``
+* ``Azure Message Bus - CommonMessageQueue Interface (#52712) (#61924)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Always apply proxy configuration with MSAL for KiotaRequestAdapterHook in msgraph module (#61199)``
 * ``Add protocol validation to KiotaRequestAdapterHook (#61103)``
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+   * ``Providers wave 2026-02-10 (#61746)``
 
 12.10.3
 .......

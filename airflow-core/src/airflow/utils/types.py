@@ -29,6 +29,7 @@ class DagRunType(str, enum.Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+    ASSET_MATERIALIZATION = "asset_materialization"
 
     def __str__(self) -> str:
         return self.value

@@ -355,6 +355,13 @@
                 "type": "string"
             }
         },
+        "db-managers": {
+            "type": "array",
+            "description": "DB manager class names",
+            "items": {
+                "type": "string"
+            }
+        },
         "cli": {
             "type": "array",
             "description": "CLI command functions exposed by the provider",

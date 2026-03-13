@@ -22,7 +22,7 @@
 #################################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
 {{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
@@ -48,6 +48,8 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.waitForMigrations .Values) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
+{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kerberosInitContainer .Values) }}
+{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -122,7 +124,7 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if $podAnnotations }}
-          {{- toYaml $podAnnotations | nindent 8 }}
+          {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}
@@ -177,9 +179,13 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
         {{- end }}
-        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+        {{- if .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
+          securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
+          {{- if $containerLifecycleHooksKerberosInitContainer }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
+          {{- end }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos", "-o"]
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
@@ -360,6 +366,10 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES

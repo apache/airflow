@@ -29,6 +29,7 @@ from sqlalchemy import select
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
+from airflow.cli.commands.connection_command import _mask_uri_credentials
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
@@ -94,6 +95,81 @@ class TestCliListConnections:
         for conn_id, conn_type in self.EXPECTED_CONS:
             assert conn_type in stdout
             assert conn_id in stdout
+
+    def test_cli_connections_list_default_hides_sensitive_values(self):
+        """By default list shows only conn_id and conn_type, not passwords or URI."""
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        # Should not contain full URI or password fields
+        assert "get_uri" not in stdout
+        assert "password" not in stdout
+        assert "conn_id" in stdout
+        assert "conn_type" in stdout
+
+    def test_cli_connections_list_show_values_shows_full_details(self):
+        """With --show-values, list includes connection details."""
+        args = self.parser.parse_args(["connections", "list", "--output", "json", "--show-values"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        assert "get_uri" in stdout
+        assert "conn_id" in stdout
+
+    def test_cli_connections_list_show_values_hide_sensitive_masks_values(self):
+        """With --show-values --hide-sensitive, sensitive fields are masked."""
+        args = self.parser.parse_args(
+            [
+                "connections",
+                "list",
+                "--output",
+                "json",
+                "--show-values",
+                "--hide-sensitive",
+            ]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        assert "***" in stdout
+        # Password should be masked
+        assert '"password": "***"' in stdout
+        # get_uri should be selectively masked (credentials only)
+        # Note: Default connections may not have credentials, so we check for ***
+        if "***" in stdout:
+            # If there are masked credentials, they should be in ***:*** format in get_uri
+            assert '"get_uri":' in stdout
+
+    def test_cli_connections_list_hide_sensitive_without_show_values_fails(self):
+        """--hide-sensitive without --show-values should fail."""
+        args = self.parser.parse_args(["connections", "list", "--hide-sensitive"])
+        with pytest.raises(SystemExit, match="--hide-sensitive can only be used with --show-values"):
+            connection_command.connections_list(args)
+
+
+class TestUriMasking:
+    """Test URI credential masking functionality."""
+
+    @pytest.mark.parametrize(
+        ("uri", "expected"),
+        [
+            # URIs with credentials
+            ("postgresql://user:pass@host:5432/db", "postgresql://***:***@host:5432/db"),
+            ("mysql://admin:secret@localhost:3306/test", "mysql://***:***@localhost:3306/test"),
+            ("http://api:key123@api.example.com:8080/v1", "http://***:***@api.example.com:8080/v1"),
+            # URIs without credentials
+            ("sqlite:///tmp/test.db", "sqlite:///tmp/test.db"),
+            ("filesystem://", "filesystem://"),
+            ("redis://localhost:6379/0", "redis://localhost:6379/0"),
+            # Edge cases
+            ("", ""),
+            ("invalid-uri", "***"),  # Falls back to full masking on parse error
+        ],
+    )
+    def test_mask_uri_credentials(self, uri, expected):
+        result = _mask_uri_credentials(uri)
+        assert result == expected
 
 
 class TestCliExportConnections:

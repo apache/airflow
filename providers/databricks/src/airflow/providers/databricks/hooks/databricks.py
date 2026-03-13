@@ -535,6 +535,31 @@ class DatabricksHook(BaseDatabricksHook):
         state = response["state"]
         return RunState(**state)
 
+    def get_run_tasks(self, run_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieve list of tasks performed by the run.
+
+        :param run_id: id of the run
+        :return: A list of tasks
+        """
+        has_more = True
+        all_tasks = []
+        page_token = ""
+        json: dict[str, Any] = {"run_id": run_id}
+
+        while has_more:
+            if page_token:
+                json = {**json, "page_token": page_token}
+            response = self._do_api_call(GET_RUN_ENDPOINT, json)
+            tasks = response.get("tasks", [])
+            all_tasks += tasks
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+
+        return all_tasks
+
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
@@ -863,3 +888,29 @@ class DatabricksHook(BaseDatabricksHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, _):
+        """Return Databricks-specific database info for OpenLineage namespace resolution."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=f"{self.host}{port}",
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "databricks"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return "default"

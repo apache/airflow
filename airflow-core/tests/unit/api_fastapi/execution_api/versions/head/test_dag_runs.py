@@ -129,6 +129,33 @@ class TestDagRunTrigger:
             }
         }
 
+    def test_trigger_dag_run_denied_run_type(self, client, session, dag_maker):
+        """Test that a Dag with allowed_run_types excluding 'manual' cannot be triggered."""
+        dag_id = "test_trigger_dag_run_denied"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(allowed_run_types=["scheduled"])
+        )
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": {
+                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+                "reason": "denied_run_type",
+            }
+        }
+
     def test_trigger_dag_run_already_exists(self, client, session, dag_maker):
         """Test that error is raised when a DAG Run already exists."""
 
@@ -272,6 +299,7 @@ class TestDagRunDetail:
             "start_date": "2023-01-02T00:00:00Z",
             "state": "success",
             "triggering_user_name": None,
+            "note": None,
         }
 
     def test_dag_run_not_found(self, client):
