@@ -60,17 +60,15 @@ Variable                                    Type                  Description
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current Dag run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
-``{{ exception }}``                         None | str |          | Error occurred while running task instance.
-                                            Exception             |
-                                            KeyboardInterrupt     |
+``{{ exception }}``                         None | str | Exception| KeyboardInterrupt  Error occurred while running task instance.
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
-                                            | ``None``            | Added in version 2.2.
+                                                                  | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :py:class:`~airflow.models.dagrun.DagRun`.
-                                            | ``None``            | Added in version 2.2.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
-                                            | ``None``
-``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
-                                            | ``None``
+                                                                  | ``None``            | Added in version 2.2.
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  | Start date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
+                                                                  | ``None``
+``{{ prev_end_date_success }}``             `pendulum.DateTime`_  | End date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
+                                                                  | ``None``
 ``{{ start_date }}``                        `pendulum.DateTime`_  Datetime of when current task has been started.
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
 ``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
@@ -78,7 +76,7 @@ Variable                                    Type                  Description
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
                                                                   | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :py:class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
-``{{ task }}``                              BaseOperator          | The currently running :py:class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
+``{{ task }}``                              BaseOperator          | The currently running :py:class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`.
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
 ``{{ task_instance }}``                     TaskInstance          The currently running :py:class:`~airflow.models.taskinstance.TaskInstance`.
@@ -90,7 +88,6 @@ Variable                                    Type                  Description
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
 ``{{ task_instance_key_str }}``             str                   | A human-readable key to the task instance.
-                                                                  |
                                                                   | For time-based DAGs, the format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
 ``{{ run_id }}``                            str                   The currently running :py:class:`~airflow.models.dagrun.DagRun` run ID.
