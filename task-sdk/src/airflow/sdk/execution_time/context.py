@@ -172,7 +172,13 @@ def _get_connection(conn_id: str) -> Connection:
                 type(secrets_backend).__name__,
             )
 
-    # If no backend found the connection, raise an error
+    # Parse-time fallback: try direct DB query when no SUPERVISOR_COMMS is set
+    from airflow.sdk.execution_time.supervisor import _parse_time_get_connection
+
+    conn = _parse_time_get_connection(conn_id)
+    if conn is not None:
+        _mask_connection_secrets(conn)
+        return conn
 
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
@@ -265,7 +271,20 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    # Parse-time fallback: try direct DB query when no SUPERVISOR_COMMS is set
+    # (e.g. running `python my_dag.py` with dag.test() at the bottom).
+    from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+    var_val = _parse_time_get_variable(key)
+    if var_val is not None:
+        if deserialize_json:
+            import json
+
+            var_val = json.loads(var_val)
+        if isinstance(var_val, str):
+            mask_secret(var_val, key)
+        return var_val
+
     from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
 

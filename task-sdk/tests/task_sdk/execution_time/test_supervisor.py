@@ -3240,3 +3240,89 @@ def test_nondumpable_noop_on_non_linux():
     """On non-Linux, _make_process_nondumpable returns without error."""
 
     _make_process_nondumpable()
+
+
+class TestParseTimeDbFallback:
+    """Tests for _parse_time_get_variable and _parse_time_get_connection."""
+
+    @pytest.fixture(autouse=True)
+    def _allow_db(self, monkeypatch):
+        """Remove _AIRFLOW_SKIP_DB_TESTS so the parse-time fallback is exercised."""
+        monkeypatch.delenv("_AIRFLOW_SKIP_DB_TESTS", raising=False)
+
+    def test_get_variable_returns_value(self):
+        from unittest.mock import MagicMock, patch
+
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+        mock_row = MagicMock()
+        mock_row.val = "my_val"
+
+        mock_session = MagicMock()
+        mock_session.execute.return_value.scalar_one_or_none.return_value = mock_row
+
+        with patch("airflow.settings.Session", return_value=mock_session):
+            result = _parse_time_get_variable("my_key")
+
+        assert result == "my_val"
+
+    def test_get_variable_returns_none_when_not_found(self):
+        from unittest.mock import MagicMock, patch
+
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+        mock_session = MagicMock()
+        mock_session.execute.return_value.scalar_one_or_none.return_value = None
+
+        with patch("airflow.settings.Session", return_value=mock_session):
+            result = _parse_time_get_variable("missing")
+
+        assert result is None
+
+    def test_get_connection_returns_connection(self):
+        from unittest.mock import MagicMock, patch
+
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_connection
+
+        mock_row = MagicMock()
+        mock_row.conn_id = "my_conn"
+        mock_row.conn_type = "http"
+        mock_row.host = "example.com"
+        mock_row.schema = None
+        mock_row.login = None
+        mock_row.password = None
+        mock_row.port = None
+        mock_row.extra = None
+
+        mock_session = MagicMock()
+        mock_session.execute.return_value.scalar_one_or_none.return_value = mock_row
+
+        with patch("airflow.settings.Session", return_value=mock_session):
+            result = _parse_time_get_connection("my_conn")
+
+        assert result is not None
+        assert result.conn_id == "my_conn"
+
+    def test_get_variable_returns_none_when_db_unavailable(self):
+        from unittest.mock import patch
+
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+        with patch("airflow.settings.Session", None):
+            result = _parse_time_get_variable("any_key")
+
+        assert result is None
+
+    def test_skipped_in_server_process(self, monkeypatch):
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+        monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
+        result = _parse_time_get_variable("any_key")
+        assert result is None
+
+    def test_skipped_when_db_tests_disabled(self, monkeypatch):
+        from airflow.sdk.execution_time.supervisor import _parse_time_get_variable
+
+        monkeypatch.setenv("_AIRFLOW_SKIP_DB_TESTS", "true")
+        result = _parse_time_get_variable("any_key")
+        assert result is None

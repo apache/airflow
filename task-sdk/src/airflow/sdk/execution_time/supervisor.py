@@ -1771,6 +1771,94 @@ def set_supervisor_comms(temp_comms):
             task_runner.SUPERVISOR_COMMS = old
 
 
+def _is_parse_time_db_available() -> bool:
+    """Check if we can query the DB directly at parse time (no server process, DB configured)."""
+    import os
+
+    if os.environ.get("_AIRFLOW_PROCESS_CONTEXT"):
+        return False
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS"):
+        return False
+    try:
+        from airflow.sdk.execution_time import task_runner
+
+        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+            return False
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from airflow import settings
+
+        return settings.Session is not None
+    except Exception:
+        return False
+
+
+def _parse_time_get_variable(key: str) -> str | None:
+    """Query a variable directly from the metadata DB at parse time. Returns None if unavailable."""
+    if not _is_parse_time_db_available():
+        return None
+    try:
+        from sqlalchemy import select
+
+        from airflow import settings
+        from airflow.models.variable import Variable as CoreVariable
+
+        if settings.Session is None:
+            return None
+        session = settings.Session()
+        try:
+            row = session.execute(select(CoreVariable).where(CoreVariable.key == key)).scalar_one_or_none()
+            if row is not None:
+                return row.val
+        finally:
+            session.close()
+    except BaseException:
+        # BaseException: AirflowInternalRuntimeError (inherits BaseException, not Exception)
+        # is raised when _AIRFLOW_SKIP_DB_TESTS is set but env was replaced (e.g. patch("os.environ")).
+        pass
+    return None
+
+
+def _parse_time_get_connection(conn_id: str):
+    """Query a connection directly from the metadata DB at parse time. Returns None if unavailable."""
+    if not _is_parse_time_db_available():
+        return None
+    try:
+        from sqlalchemy import select
+
+        from airflow import settings
+        from airflow.models.connection import Connection as CoreConnection
+
+        if settings.Session is None:
+            return None
+        session = settings.Session()
+        try:
+            row = session.execute(
+                select(CoreConnection).where(CoreConnection.conn_id == conn_id)
+            ).scalar_one_or_none()
+            if row is not None:
+                from airflow.sdk.definitions.connection import Connection
+
+                return Connection(
+                    conn_id=row.conn_id,
+                    conn_type=row.conn_type or "",
+                    host=row.host,
+                    schema=row.schema,
+                    login=row.login,
+                    password=row.password,
+                    port=row.port,
+                    extra=row.extra,
+                )
+        finally:
+            session.close()
+    except BaseException:
+        # BaseException: AirflowInternalRuntimeError (inherits BaseException, not Exception)
+        # is raised when _AIRFLOW_SKIP_DB_TESTS is set but env was replaced (e.g. patch("os.environ")).
+        pass
+    return None
+
+
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
     """Run a task in-process for testing."""
     # Run the task

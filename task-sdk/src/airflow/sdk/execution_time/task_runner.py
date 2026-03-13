@@ -824,6 +824,10 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
+def __getattr__(name: str):
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 # State machine!
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
