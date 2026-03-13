@@ -42,7 +42,7 @@ def get_dag_state(
     session: SessionDep,
 ) -> DagStateResponse:
     """Get a DAG Run State."""
-    dag_model: DagModel = session.get(DagModel, dag_id)
+    dag_model: DagModel | None = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import update
 
 from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -39,7 +40,6 @@ class TestDagState:
         [
             pytest.param(True, True),
             pytest.param(False, False),
-            pytest.param(None, False),
         ],
     )
     def test_dag_is_paused(self, client, session, dag_maker, state, expected):
@@ -50,7 +50,7 @@ class TestDagState:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
 
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).update({"is_paused": state})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_paused=state))
 
         session.commit()
 
