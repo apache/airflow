@@ -676,6 +676,7 @@ class RuntimeTaskInstance(TaskInstance):
     def get_dag_state(dag_id: str) -> DagStateResult:
         """Return the state of the Dag run with the given Run ID."""
         response = SUPERVISOR_COMMS.send(msg=GetDagState(dag_id=dag_id))
+        print(response)
 
         if TYPE_CHECKING:
             assert isinstance(response, DagStateResult)

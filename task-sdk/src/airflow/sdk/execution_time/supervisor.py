@@ -52,6 +52,7 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    DagStateResponse,
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
@@ -68,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagRunResult,
     DagRunStateResult,
+    DagStateResult,
     DeferTask,
     DeleteVariable,
     DeleteXCom,
@@ -1479,9 +1481,13 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
         elif isinstance(msg, GetDagState):
-            resp = self.client.dags.get_state(
+            dg_state = self.client.dags.get_state(
                 dag_id=msg.dag_id,
             )
+            if isinstance(dg_state, DagStateResponse):
+                resp = DagStateResult.from_api_response(dg_state)
+            else:
+                resp = dg_state
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
