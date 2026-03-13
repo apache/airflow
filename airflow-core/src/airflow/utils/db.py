@@ -1245,7 +1245,16 @@ def upgradedb(
         initdb(session=session)
         return
 
+    is_fresh_db = not _get_current_revision(session=session)
+
     _run_upgradedb(config, to_revision, session)
+
+    if is_fresh_db:
+        # When upgrading a fresh DB with an explicit --to-revision/--to-version,
+        # initdb() is skipped, so we need to create the default pool and sync
+        # the log template here to avoid tasks stuck in "scheduled" state.
+        add_default_pool_if_not_exists(session=session)
+        synchronize_log_template(session=session)
 
 
 def _resetdb_mysql(session: Session) -> None:

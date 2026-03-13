@@ -251,6 +251,22 @@ class TestDb:
                 f"upgrade should be called with revision='heads', got calls: {mock_upgrade.call_args_list}"
             )
 
+    def test_upgradedb_fresh_db_with_to_revision_creates_default_pool(self, mocker):
+        """When upgrading a fresh DB with an explicit to_revision, default pool must still be created."""
+        mocker.patch("alembic.command.upgrade")
+        mocker.patch("airflow.utils.db._get_alembic_config")
+        mock_add_pool = mocker.patch("airflow.utils.db.add_default_pool_if_not_exists")
+        mock_sync_log = mocker.patch("airflow.utils.db.synchronize_log_template")
+        # Simulate fresh DB: _get_current_revision returns None
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=None)
+        mocker.patch("airflow.utils.db._check_migration_errors", return_value=[])
+        mocker.patch("airflow.utils.db._run_upgradedb")
+
+        upgradedb(to_revision="abc123")
+
+        mock_add_pool.assert_called_once()
+        mock_sync_log.assert_called_once()
+
     @pytest.mark.parametrize(
         ("from_revision", "to_revision"),
         [("be2bfac3da23", "e959f08ac86c"), ("ccde3e26fe78", "2e42bb497a22")],
