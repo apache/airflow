@@ -54,6 +54,7 @@ export const TaskInstanceMetrics = ({
 }: TaskInstanceMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(taskInstanceStates).reduce((sum, count) => sum + count, 0);
+  const anyCapped = TASK_STATES.some((state) => taskInstanceStates[state] >= stateCountLimit);
 
   return (
     <Box borderRadius={5} borderWidth={1} mt={2} p={4}>
@@ -68,6 +69,7 @@ export const TaskInstanceMetrics = ({
         ).map((state) =>
           taskInstanceStates[state] > 0 ? (
             <MetricSection
+              anyCapped={anyCapped}
               capped={taskInstanceStates[state] >= stateCountLimit}
               endDate={endDate}
               key={state}
