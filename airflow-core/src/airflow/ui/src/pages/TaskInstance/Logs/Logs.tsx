@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Heading } from "@chakra-ui/react";
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -121,7 +121,7 @@ export const Logs = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
-  const searchMatchIndices = useMemo(() => {
+  const getSearchMatchIndices = () => {
     if (!searchQuery) {
       return [];
     }
@@ -149,27 +149,26 @@ export const Logs = () => {
     });
 
     return indices;
-  }, [searchQuery, fetchedData, showTimestamp, showSource, logLevelFilters, sourceFilters, translate]);
+  };
 
-  const handleSearchChange = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
-      setCurrentMatchIndex(0);
-    },
-    [setSearchQuery, setCurrentMatchIndex],
-  );
+  const searchMatchIndices = getSearchMatchIndices();
 
-  const handleSearchNext = useCallback(() => {
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentMatchIndex(0);
+  };
+
+  const handleSearchNext = () => {
     if (searchMatchIndices.length > 0) {
       setCurrentMatchIndex((prev) => (prev + 1) % searchMatchIndices.length);
     }
-  }, [searchMatchIndices.length]);
+  };
 
-  const handleSearchPrevious = useCallback(() => {
+  const handleSearchPrevious = () => {
     if (searchMatchIndices.length > 0) {
       setCurrentMatchIndex((prev) => (prev - 1 + searchMatchIndices.length) % searchMatchIndices.length);
     }
-  }, [searchMatchIndices.length]);
+  };
 
   const downloadLogs = () => {
     const logContent = getLogString();
