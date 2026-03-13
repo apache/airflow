@@ -22,43 +22,19 @@ import { BasePage } from "./BasePage";
 
 export class PluginsPage extends BasePage {
   public readonly heading: Locator;
+  public readonly nameColumn: Locator;
   public readonly rows: Locator;
+  public readonly sourceColumn: Locator;
   public readonly table: Locator;
 
   public constructor(page: Page) {
     super(page);
 
-    this.heading = page.getByRole("heading", {
-      name: /plugins/i,
-    });
+    this.heading = page.getByRole("heading", { name: /plugins/i });
     this.table = page.getByTestId("table-list");
-    this.rows = this.table.locator("tbody tr").filter({
-      has: page.locator("td"),
-    });
-  }
-
-  public async getPluginCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async getPluginNames(): Promise<Array<string>> {
-    const count = await this.rows.count();
-
-    if (count === 0) {
-      return [];
-    }
-
-    return this.rows.locator("td:first-child").allTextContents();
-  }
-
-  public async getPluginSources(): Promise<Array<string>> {
-    const count = await this.rows.count();
-
-    if (count === 0) {
-      return [];
-    }
-
-    return this.rows.locator("td:nth-child(2)").allTextContents();
+    this.rows = this.table.locator("tbody tr").filter({ has: page.locator("td") });
+    this.nameColumn = this.rows.locator("td:nth-child(1)");
+    this.sourceColumn = this.rows.locator("td:nth-child(2)");
   }
 
   public async navigate(): Promise<void> {
@@ -67,24 +43,6 @@ export class PluginsPage extends BasePage {
 
   public async waitForLoad(): Promise<void> {
     await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  public async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        const cells = table.querySelectorAll("tbody tr td");
-
-        return cells.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
   }
 }
