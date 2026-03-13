@@ -50,7 +50,7 @@ TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 TEST_VARIABLE_KEY5 = "nested_dictionary_variable"
-TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key"}, "next_again": {"token": "some_token"}}}'
+TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key", "next_again": {"token": "some_token"}}}}'
 TEST_VARIABLE_DESCRIPTION5 = "Variable with a nested sensitive key"
 
 TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
@@ -226,7 +226,7 @@ class TestGetVariable(TestVariableEndpoint):
                 TEST_VARIABLE_KEY5,
                 {
                     "key": TEST_VARIABLE_KEY5,
-                    "value": '{"config": {"password": "***", "next": {"api_key": "***"}, "next_again": {"token": "***"}}}',
+                    "value": '{"config": {"password": "***", "next": {"api_key": "***", "next_again": {"token": "***"}}}}',
                     "description": TEST_VARIABLE_DESCRIPTION5,
                     "is_encrypted": True,
                     "team_name": None,
