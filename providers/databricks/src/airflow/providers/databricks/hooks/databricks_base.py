@@ -610,7 +610,7 @@ class BaseDatabricksHook(BaseHook):
             import aiofiles
 
             return aiofiles
-        except (ImportError, ModuleNotFoundError) as err:
+        except ImportError as err:
             raise AirflowOptionalProviderFeatureException(
                 "The 'aiofiles' library is required for async Kubernetes in-cluster authentication. "
                 "Please install it with: pip install 'apache-airflow-providers-cncf-kubernetes'"
