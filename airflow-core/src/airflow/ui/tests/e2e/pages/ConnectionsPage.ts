@@ -393,41 +393,14 @@ export class ConnectionsPage extends BasePage {
   public async searchConnections(searchTerm: string): Promise<void> {
     await (searchTerm === "" ? this.searchInput.clear() : this.searchInput.fill(searchTerm));
 
-    // Wait for search to complete by checking results stability
-    await expect
-      .poll(
-        async () => {
-          const ids = await this.getConnectionIds();
+    // Wait until either rows appear or empty state shows
+    await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible({
+      timeout: 10_000,
+    });
 
-          // If we expect no results
-          const isEmptyVisible = await this.emptyState.isVisible().catch(() => false);
-
-          if (isEmptyVisible) {
-            return ids.length === 0;
-          }
-
-          // If we expect results, verify they match the search term
-          if (ids.length === 0) {
-            return false; // Still loading
-          }
-
-          if (searchTerm === "") {
-            // Get count twice to ensure it's stable
-            const count1 = ids.length;
-
-            await this.page.waitForTimeout(200);
-            const count2 = await this.getConnectionIds().then((allIds) => allIds.length);
-
-            // Stable when count doesn't change
-            return count1 === count2 && count1 > 0;
-          }
-
-          // All visible IDs should contain the search term (case-insensitive)
-          return ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
-        },
-        { message: "Search results did not match search term", timeout: 20_000 },
-      )
-      .toBeTruthy();
+    if (searchTerm !== "") {
+      await expect(this.connectionRows).toContainText(new RegExp(searchTerm, "i"));
+    }
   }
 
   // Verify connection details are displayed in the list
@@ -438,10 +411,8 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`Connection ${connectionId} not found in list`);
     }
 
-    const rowText = await row.textContent();
-
-    expect(rowText).toContain(connectionId);
-    expect(rowText).toContain(expectedType);
+    await expect(row).toContainText(connectionId);
+    await expect(row).toContainText(expectedType);
   }
 
   private async findConnectionRow(connectionId: string): Promise<Locator | null> {
@@ -486,35 +457,10 @@ export class ConnectionsPage extends BasePage {
     // Wait for either table or empty state
     await expect(table.or(this.emptyState)).toBeVisible({ timeout: 10_000 });
 
-    // If table exists, wait for rows
     if (await table.isVisible().catch(() => false)) {
-      await this.page
-        .locator("tbody tr")
-        .first()
-        .waitFor({ state: "visible", timeout: 10_000 })
-        .catch(() => {
-          // No rows found
-        });
-
-      // Wait for row count to stabilize
-      await expect
-        .poll(
-          async () => {
-            const count1 = await this.page.locator("tbody tr").count();
-
-            if (count1 === 0) return true;
-
-            await this.page.waitForTimeout(300);
-            const count2 = await this.page.locator("tbody tr").count();
-
-            return count1 === count2;
-          },
-          { timeout: 15_000 },
-        )
-        .toBeTruthy()
-        .catch(() => {
-          // Timeout - proceed anyway
-        });
+      await expect(this.connectionRows.first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
   }
 }
