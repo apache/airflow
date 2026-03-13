@@ -160,7 +160,7 @@ class TaskExecutor(LoggingMixin):
         return self.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        elapsed = time.monotonic() - self._start_time
+        elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
 
         if exc_value:
             if not isinstance(exc_value, TaskDeferred):
