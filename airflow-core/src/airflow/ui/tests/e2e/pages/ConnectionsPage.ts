@@ -399,7 +399,9 @@ export class ConnectionsPage extends BasePage {
     });
 
     if (searchTerm !== "") {
-      await expect(this.connectionRows).toContainText(new RegExp(searchTerm, "i"));
+      await expect(
+        this.connectionRows.filter({ hasText: new RegExp(searchTerm, "i") }).first(),
+      ).toBeVisible();
     }
   }
 
