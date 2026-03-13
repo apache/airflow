@@ -43,10 +43,6 @@ export class ConfigurationPage extends BasePage {
 
   public async waitForLoad(): Promise<void> {
     await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
     await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
   }
 }
