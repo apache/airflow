@@ -84,8 +84,6 @@ class TestSentryHook:
     @pytest.fixture
     def dag_run(self):
         return DagRun.model_construct(
-            dag_id=DAG_ID,
-            run_id=RUN_ID,
             logical_date=LOGICAL_DATE,
             data_interval_start=DATA_INTERVAL[0],
             data_interval_end=DATA_INTERVAL[1],
@@ -102,8 +100,8 @@ class TestSentryHook:
         return RuntimeTaskInstance.model_construct(
             id=uuid6.uuid7(),
             task_id=TASK_ID,
-            dag_id=dag_run.dag_id,
-            run_id=dag_run.run_id,
+            dag_id=DAG_ID,
+            run_id=RUN_ID,
             try_number=TRY_NUMBER,
             dag_version_id=uuid6.uuid7(),
             task=PythonOperator(task_id=TASK_ID, python_callable=bool),

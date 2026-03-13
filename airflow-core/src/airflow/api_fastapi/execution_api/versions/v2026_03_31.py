@@ -95,3 +95,14 @@ class MakeDagRunStartDateNullable(VersionChange):
         """Ensure start_date is never None in direct DagRun responses for previous API versions."""
         if response.body.get("start_date") is None:
             response.body["start_date"] = response.body.get("run_after")
+
+
+class RemoveDagIdAndRunIdFromDagRun(VersionChange):
+    """Remove `dag_id` and `run_id` from DagRun model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("dag_id").existed_as(type=str),
+        schema(DagRun).field("run_id").existed_as(type=str),
+    )

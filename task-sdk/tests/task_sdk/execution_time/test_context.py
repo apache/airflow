@@ -868,8 +868,6 @@ class TestDagRunStartDateNullable:
     def test_dag_run_model_accepts_null_start_date(self):
         """DagRun datamodel should accept start_date=None for runs that haven't started yet."""
         dag_run = DagRun(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date="2024-12-01T01:00:00Z",
             data_interval_start="2024-12-01T00:00:00Z",
             data_interval_end="2024-12-01T01:00:00Z",

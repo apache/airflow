@@ -253,7 +253,7 @@ class RuntimeTaskInstance(TaskInstance):
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
                 ),
-                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{self.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).start_date)
