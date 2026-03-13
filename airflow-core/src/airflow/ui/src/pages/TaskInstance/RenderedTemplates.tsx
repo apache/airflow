@@ -59,7 +59,7 @@ const RenderedTemplatesContent = () => {
                         },
                       }}
                     >
-                      <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
+                      <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2} whiteSpace="pre-wrap">
                         <SyntaxHighlighter
                           language={language}
                           PreTag="div" // Prevents double <pre> nesting
