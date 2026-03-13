@@ -20,6 +20,7 @@ import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
+import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 

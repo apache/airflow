@@ -27,6 +27,18 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
 )
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 def _make_compare_result():
     return SchemaCompareResult(
         mismatches=[],
@@ -36,10 +48,8 @@ def _make_compare_result():
 
 
 def _make_mock_agent(output: SchemaCompareResult):
-    mock_result = MagicMock(spec=["output"])
-    mock_result.output = output
     mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = mock_result
+    mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
 
 
@@ -51,7 +61,9 @@ class TestLLMSchemaCompareDecoratedOperator:
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_build_ctx, mock_hook_cls):
         """The user's callable return value becomes the LLM prompt."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            _make_compare_result()
+        )
 
         def my_prompt_fn():
             return "Compare schemas and flag breaking changes"
@@ -89,7 +101,9 @@ class TestLLMSchemaCompareDecoratedOperator:
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_hook_cls.return_value.create_agent.return_value = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            _make_compare_result()
+        )
 
         def my_prompt_fn(target_env):
             return f"Compare schemas for {target_env} environment"

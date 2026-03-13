@@ -23,6 +23,18 @@ import pytest
 from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
 
 
+def _make_mock_run_result(output):
+    """Create a mock AgentRunResult compatible with log_run_summary."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.usage.return_value = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+    )
+    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.all_messages.return_value = []
+    return mock_result
+
+
 class TestLLMSQLDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMSQLDecoratedOperator.custom_operator_name == "@task.llm_sql"
@@ -31,10 +43,8 @@ class TestLLMSQLDecoratedOperator:
     def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_hook_cls):
         """The user's callable return value becomes the LLM prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "SELECT 1"
-        mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt_fn():
             return "Get all users"
@@ -65,10 +75,8 @@ class TestLLMSQLDecoratedOperator:
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_result = MagicMock(spec=["output"])
-        mock_result.output = "SELECT 1"
-        mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt_fn(table_name):
             return f"Get all rows from {table_name}"

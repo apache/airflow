@@ -30,11 +30,23 @@ Three toolsets are included:
   adapter for any Airflow Hook.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
   4-tool database toolset.
+- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
+  `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
+  connections.
 
-Both implement pydantic-ai's
+All three implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+
+.. note::
+
+    ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
+    just the Airflow-native toolsets above. PydanticAI's own MCP server
+    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
+    and third-party toolsets work too. The Airflow-native toolsets add
+    connection management, secret backend integration, and the connection UI,
+    but you are not locked in.
 
 
 ``HookToolset``
@@ -184,6 +196,97 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+
+``LoggingToolset``
+------------------
+
+:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
+``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
+in real time. ``AgentOperator`` applies it automatically (see
+``enable_tool_logging``), but you can also use it directly with any pydantic-ai
+``Agent``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    sql_toolset = SQLToolset(db_conn_id="my_db")
+    logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
+
+Each tool call produces two INFO log lines (name + timing) and optional
+DEBUG-level argument logging. Exceptions are logged and re-raised.
+
+
+``MCPToolset``
+--------------
+
+Connects to an `MCP (Model Context Protocol) <https://modelcontextprotocol.io/>`__
+server configured via an Airflow connection. MCP is an open protocol that lets
+LLMs interact with external tools and data sources through a standardized
+interface.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+
+    toolset = MCPToolset(
+        mcp_conn_id="my_mcp_server",
+        tool_prefix="weather",
+    )
+
+The MCP server is resolved lazily from the Airflow connection on the first
+tool call. See :ref:`howto/connection:mcp` for connection configuration.
+
+Requires the ``mcp`` extra: ``pip install "apache-airflow-providers-common-ai[mcp]"``
+
+Parameters
+^^^^^^^^^^
+
+- ``mcp_conn_id``: Airflow connection ID for the MCP server.
+- ``tool_prefix``: Optional prefix prepended to tool names to avoid
+  collisions when using multiple MCP servers (e.g. ``"weather"`` produces
+  ``"weather_get_forecast"``).
+
+Using Multiple MCP Servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="multi_mcp",
+        prompt="Get the weather in London and run a calculation",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            MCPToolset(mcp_conn_id="weather_mcp", tool_prefix="weather"),
+            MCPToolset(mcp_conn_id="code_runner_mcp", tool_prefix="code"),
+        ],
+    )
+
+Direct PydanticAI MCP Servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For prototyping or when you want full PydanticAI control, you can pass MCP
+server instances directly — no Airflow connection needed:
+
+.. code-block:: python
+
+    from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+
+    AgentOperator(
+        task_id="direct_mcp",
+        prompt="What tools are available?",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            MCPServerStreamableHTTP("http://localhost:3001/mcp"),
+            MCPServerStdio("uvx", args=["mcp-run-python"]),
+        ],
+    )
+
+This works because PydanticAI's MCP server classes implement
+``AbstractToolset``. The tradeoff: URLs and credentials are hardcoded in DAG
+code instead of being managed through Airflow connections and secret backends.
+
 
 Security
 --------

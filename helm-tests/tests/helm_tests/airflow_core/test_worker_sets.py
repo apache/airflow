@@ -1852,16 +1852,20 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.behavior", docs[0]) == {"scaleDown": {"selectPolicy": "Max"}}
 
-    def test_overwrite_kerberos_sidecar_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_celery_values",
+        [
+            {"enableDefault": False, "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}]},
+            {
+                "kerberosSidecar": {"enabled": False},
+                "enableDefault": False,
+                "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
             },
+        ],
+    )
+    def test_overwrite_kerberos_sidecar_enabled(self, workers_celery_values):
+        docs = render_chart(
+            values={"workers": {"celery": workers_celery_values}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1936,6 +1940,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "resources": {
+                            "requests": {"cpu": "10m", "memory": "20Mi"},
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "resources": {
+                                    "limits": {"cpu": "3m", "memory": "4Mi"},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_resources(self, values):
@@ -1976,6 +2001,27 @@ class TestWorkerSets:
                     }
                 },
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "securityContexts": {
+                                    "container": {"runAsUser": 10},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "securityContexts": {
+                            "container": {"allowPrivilegeEscalation": False},
+                        }
+                    },
                     "enableDefault": False,
                     "sets": [
                         {
@@ -2040,6 +2086,25 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_container_lifecycle_hooks(self, values):
@@ -2084,6 +2149,22 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "resources": {
+                                "limits": {"cpu": "3m", "memory": "4Mi"},
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_resources(self, values):
@@ -2096,21 +2177,34 @@ class TestWorkerSets:
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
 
-    def test_overwrite_termination_grace_period_seconds(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "terminationGracePeriodSeconds": 5,
-                            }
-                        ],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
                 }
             },
+            {
+                "terminationGracePeriodSeconds": 20,
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                },
+            },
+            {
+                "celery": {
+                    "terminationGracePeriodSeconds": 20,
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_termination_grace_period_seconds(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -2351,6 +2445,13 @@ class TestWorkerSets:
             {
                 "nodeSelector": {"test": "name"},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
+                },
+            },
+            {
+                "celery": {
+                    "nodeSelector": {"test": "name"},
                     "enableDefault": False,
                     "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
                 },

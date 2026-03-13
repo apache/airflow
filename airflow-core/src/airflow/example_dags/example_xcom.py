@@ -77,12 +77,22 @@ with DAG(
         'echo "value_by_return"',
     )
 
+    # This example shows a safe way of passing XCom values to a BashOperator via environment variables.
+    # The values are templated into the bash_command and then set as environment variables for the
+    # command to use. This is a recommended pattern for passing XCom values to BashOperator, as it avoids
+    # issues with quoting and escaping that can arise when trying to directly template XCom values
+    # into.
     bash_pull = BashOperator(
         task_id="bash_pull",
         bash_command='echo "bash pull demo" && '
-        f'echo "The xcom pushed manually is {XComArg(bash_push, key="manually_pushed_value")}" && '
-        f'echo "The returned_value xcom is {XComArg(bash_push)}" && '
+        "echo \"The xcom pushed manually is '$MANUALLY_PUSHED_VALUE'\" && "
+        "echo \"The returned_value xcom is '$RETURNED_VALUE'\" && "
         'echo "finished"',
+        env={
+            "MANUALLY_PUSHED_VALUE": str(XComArg(bash_push, key="manually_pushed_value")),
+            "RETURNED_VALUE": str(XComArg(bash_push)),
+        },
+        append_env=True,
         do_xcom_push=False,
     )
 

@@ -21,15 +21,13 @@ import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 from cachetools import TTLCache, cachedmethod
-from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
-from flask import Blueprint, current_app, g
+from flask import current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -62,11 +60,6 @@ from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
-from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.providers.fab.www.extensions.init_views import (
-    _CustomErrorRequestBodyValidator,
-    _LazyResolver,
-)
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
@@ -100,7 +93,6 @@ from airflow.providers.fab.www.utils import (
     get_method_from_fab_action_map,
 )
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -252,23 +244,6 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return app
 
-    def get_api_endpoints(self) -> None | Blueprint:
-        folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
-        with folder.joinpath("openapi", "v1-flask-api.yaml").open() as f:
-            specification = safe_load(f)
-        return FlaskApi(
-            specification=specification,
-            resolver=_LazyResolver(),
-            base_path="/fab/v1",
-            options={
-                "swagger_ui": SWAGGER_ENABLED,
-                "swagger_path": SWAGGER_BUNDLE.__fspath__(),
-            },
-            strict_validation=True,
-            validate_responses=True,
-            validator_map={"body": _CustomErrorRequestBodyValidator},
-        ).blueprint
-
     def get_user(self) -> User:
         """
         Return the user associated to the user in session.
@@ -292,16 +267,29 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
+        user_id = int(token["sub"])
+
+        def _fetch_user() -> User:
+            try:
+                return self.session.scalars(select(User).where(User.id == user_id)).one()
+            except NoResultFound:
+                raise ValueError(f"User with id {token['sub']} not found")
+
         try:
-            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
-        except NoResultFound:
-            raise ValueError(f"User with id {token['sub']} not found")
+            return _fetch_user()
         except SQLAlchemyError:
             # Discard the poisoned scoped session so the next request gets a
             # fresh connection from the pool instead of a PendingRollbackError.
             with suppress(Exception):
                 self.session.remove()
-            raise
+            try:
+                return _fetch_user()
+            except SQLAlchemyError:
+                # If retry also fails, remove the scoped session again to keep
+                # future requests from reusing a broken transaction state.
+                with suppress(Exception):
+                    self.session.remove()
+                raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}

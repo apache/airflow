@@ -362,7 +362,7 @@ class DAG:
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :param max_active_tasks: the number of task instances allowed to run
-        concurrently
+        concurrently per Dag run. Note that in Airflow 2 this was a global limit on the Dag, since Airflow 3 it is per run.
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
@@ -1324,10 +1324,6 @@ class DAG:
                 triggered_by=DagRunTriggeredByType.TEST,
                 triggering_user_name="dag_test",
             )
-            # Start a mock span so that one is present and not started downstream. We
-            # don't care about otel in dag.test and starting the span during dagrun update
-            # is not functioning properly in this context anyway.
-            dr.start_dr_spans_if_needed(tis=[])
 
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check

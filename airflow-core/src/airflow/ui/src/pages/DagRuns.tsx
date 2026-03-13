@@ -45,6 +45,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  BUNDLE_VERSION: BUNDLE_VERSION_PARAM,
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
@@ -168,7 +169,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
-        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+        <RenderedJsonField collapsed content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
   },
@@ -213,6 +214,7 @@ export const DagRuns = () => {
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const bundleVersion = searchParams.get(BUNDLE_VERSION_PARAM);
   const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
   const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
   const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
@@ -230,6 +232,7 @@ export const DagRuns = () => {
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
+      bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,

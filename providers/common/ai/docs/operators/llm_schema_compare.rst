@@ -91,7 +91,7 @@ on top, concatenate them:
     LLMSchemaCompareOperator(
         task_id="compare_with_custom_rules",
         prompt="Compare schemas and flag breaking changes",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers"],
         system_prompt=DEFAULT_SYSTEM_PROMPT
@@ -162,3 +162,10 @@ Parameters
   catalog-managed sources.
 - ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
   strongly recommended for cross-system comparisons. default is ``full``
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.
