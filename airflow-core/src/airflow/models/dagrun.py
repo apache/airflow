@@ -1027,18 +1027,21 @@ class DagRun(Base, LoggingMixin):
                 "airflow.dag_id": str(self.dag_id),
                 "airflow.dag_run.run_id": self.run_id,
             }
-            if self.logical_date:
-                attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
-            if self.partition_key:
-                attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            for name in [
+                "logical_date",
+                "partition_key",
+            ]:
+                if getattr(self, name, None):
+                    attributes[f"airflow.dag_run.{name}"] = str(getattr(self, name).timestamp() * 1e9)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
-                start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
+                start_time=int((self.triggered_at or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
                 context=context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
+            span.add_event("airflow.dag_run.start_time", timestamp=int(self.start_date.timestamp() * 1e9))
             span.end()
 
     @provide_session
