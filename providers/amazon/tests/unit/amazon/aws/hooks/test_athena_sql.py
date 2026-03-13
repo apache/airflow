@@ -148,3 +148,36 @@ class TestAthenaSQLHookConn:
         hook = AthenaSQLHook(athena_conn_id=AWS_ATHENA_CONN_ID, aws_conn_id=AWS_CONN_ID)
         assert hook.athena_conn_id == AWS_ATHENA_CONN_ID
         assert hook.aws_conn_id == AWS_CONN_ID
+
+    def test_init_ignores_unexpected_kwargs(self):
+        """Verify that connection extras passed as kwargs don't crash the constructor.
+
+        BaseSQLOperator.get_hook() passes all connection extras as hook_params which
+        end up as constructor kwargs. Extras like s3_staging_dir and work_group are
+        not valid params for AwsGenericHook.__init__ and must be filtered out.
+        """
+        hook = AthenaSQLHook(
+            athena_conn_id="athena_conn",
+            s3_staging_dir="s3://mybucket/athena/",
+            work_group="primary",
+            region_name="eu-west-1",
+            driver="rest",
+        )
+        assert hook.athena_conn_id == "athena_conn"
+        # region_name is a valid AwsGenericHook param and should be passed through
+        assert hook._region_name == "eu-west-1"
+
+    def test_init_passes_valid_aws_kwargs(self):
+        """Verify that valid AwsGenericHook kwargs are still forwarded correctly."""
+        hook = AthenaSQLHook(
+            athena_conn_id="athena_conn",
+            aws_conn_id="custom_aws",
+            verify=False,
+            region_name="us-west-2",
+            config={"retries": {"max_attempts": 5}},
+        )
+        assert hook.athena_conn_id == "athena_conn"
+        assert hook.aws_conn_id == "custom_aws"
+        assert hook._verify is False
+        assert hook._region_name == "us-west-2"
+        assert hook._config is not None

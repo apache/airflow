@@ -37,17 +37,15 @@ class BaseTimetable:
 
     active_runs_limit: int | None = None
     """
-    Maximum active runs that can be active at one time for a DAG.
+    Maximum active runs that can be active at one time for a Dag.
 
-    This is called during DAG initialization, and the return value is used as
-    the DAG's default ``max_active_runs`` if not set on the DAG explicitly. This
+    This is called during Dag initialization, and the return value is used as
+    the DAG's default ``max_active_runs`` if not set on the Dag explicitly. This
     should generally return *None* (no limit), but some timetables may limit
     parallelism, such as ``ContinuousTimetable``.
     """
 
     asset_condition: BaseAsset | None = None
-
-    # TODO: AIP-76 just add partition-driven field here to differentiate the behavior
 
     def validate(self) -> None:
         """

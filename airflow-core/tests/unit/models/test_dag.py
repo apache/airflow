@@ -60,6 +60,7 @@ from airflow.models.dag import (
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
@@ -921,8 +922,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.handle_dag_callback(dag=dag, success=False)
-        dag_run.handle_dag_callback(dag=dag, success=True)
+        dag_run.execute_dag_callbacks(dag=dag, success=False)
+        dag_run.execute_dag_callbacks(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
@@ -962,8 +963,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.handle_dag_callback(dag=dag, success=False)
-            dag_run.handle_dag_callback(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False)
+            dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
@@ -1888,7 +1889,7 @@ my_postgres_conn:
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
     def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
-        """Test that a DAG with multiple deadlines stores all deadlines in the database."""
+        """Test that a Dag with multiple deadlines stores all deadlines and persists on re-serialization."""
         deadlines = [
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
@@ -1906,6 +1907,7 @@ my_postgres_conn:
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ]
+        expected_num_deadlines = 3
 
         dag = DAG(
             dag_id="test_multiple_deadlines",
@@ -1915,6 +1917,28 @@ my_postgres_conn:
 
         scheduler_dag = sync_dag_to_db(dag, session=session)
 
+        deadline_alerts = session.scalars(select(DeadlineAlertModel)).all()
+        assert len(deadline_alerts) == expected_num_deadlines
+        initial_uuids = {alert.id for alert in deadline_alerts}
+
+        # Re-serialize the Dag
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="testing",
+            session=session,
+        )
+        session.commit()
+
+        # Verify deadline alerts still exist after re-serialization
+        stored_alerts = session.scalars(
+            select(DeadlineAlertModel).where(DeadlineAlertModel.id.in_(initial_uuids))
+        ).all()
+        assert len(stored_alerts) == expected_num_deadlines
+
+        intervals = sorted([alert.interval for alert in stored_alerts])
+        assert intervals == [300.0, 600.0, 3600.0]
+
+        # Now create a dagrun and verify deadlines are created
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,
@@ -1926,8 +1950,8 @@ my_postgres_conn:
         session.flush()
         dr = session.merge(dr)
 
-        # Check that all 3 deadlines were created
-        assert len(dr.deadlines) == 3
+        # Check that all deadlines were created
+        assert len(dr.deadlines) == expected_num_deadlines
 
         # Verify each deadline has correct properties
         deadline_times = [d.deadline_time for d in dr.deadlines]
@@ -2810,7 +2834,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info for Dag {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
@@ -3581,15 +3605,17 @@ def test_get_run_data_interval_pre_aip_39():
 
 
 @pytest.mark.parametrize(
-    ("schedule", "next_run", "next_interval", "next_run_after"),
+    ("schedule", "next_run", "next_interval", "next_run_after", "next_partition_key", "next_partition_date"),
     [
         (
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            TEST_DATE + timedelta(days=1),
             None,
+            None,
+            TEST_DATE + timedelta(days=1),
+            (TEST_DATE + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
             TEST_DATE + timedelta(days=1),
         ),
         (
@@ -3597,8 +3623,12 @@ def test_get_run_data_interval_pre_aip_39():
             TEST_DATE,
             DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
             TEST_DATE + timedelta(days=1),
+            None,
+            None,
         ),
         (
+            None,
+            None,
             None,
             None,
             None,
@@ -3609,10 +3639,20 @@ def test_get_run_data_interval_pre_aip_39():
             None,
             None,
             None,
+            None,
+            None,
         ),
     ],
 )
-def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_run_after, dag_maker, session):
+def test_calculate_dagrun_date_fields(
+    schedule,
+    dag_maker,
+    next_run,
+    next_interval,
+    next_run_after,
+    next_partition_key,
+    next_partition_date,
+):
     with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
         BashOperator(task_id="hi", bash_command="yo")
 
@@ -3623,3 +3663,5 @@ def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_ru
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after
+    assert dag_model.next_dagrun_partition_key == next_partition_key
+    assert dag_model.next_dagrun_partition_date == next_partition_date

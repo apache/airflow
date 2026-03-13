@@ -48,10 +48,11 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 TEAM_SCOPED_RESOURCE_NAMES = {
-    KeycloakResource.DAG.value,
     KeycloakResource.CONNECTION.value,
-    KeycloakResource.VARIABLE.value,
+    KeycloakResource.DAG.value,
     KeycloakResource.POOL.value,
+    KeycloakResource.TEAM.value,
+    KeycloakResource.VARIABLE.value,
 }
 GLOBAL_SCOPED_RESOURCE_NAMES = {
     KeycloakResource.ASSET.value,
@@ -403,6 +404,7 @@ def _get_permissions_to_create(
                         "scope_names": ["GET", "LIST"],
                         "resources": [
                             f"{KeycloakResource.DAG.value}:{team}",
+                            f"{KeycloakResource.TEAM.value}:{team}",
                         ],
                     },
                     {
@@ -716,6 +718,10 @@ def _attach_team_permissions(
     team_dag_resources = [
         f"{KeycloakResource.DAG.value}:{team}",
     ]
+    team_readable_resources = [
+        f"{KeycloakResource.DAG.value}:{team}",
+        f"{KeycloakResource.TEAM.value}:{team}",
+    ]
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
 
     _attach_policy_to_scope_permission(
@@ -724,7 +730,7 @@ def _attach_team_permissions(
         permission_name=f"ReadOnly-{team}",
         policy_name=_team_role_policy_name(team, "Viewer"),
         scope_names=["GET", "LIST"],
-        resource_names=team_dag_resources,
+        resource_names=team_readable_resources,
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
@@ -734,7 +740,7 @@ def _attach_team_permissions(
             permission_name=f"ReadOnly-{team}",
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET", "LIST"],
-            resource_names=team_dag_resources,
+            resource_names=team_readable_resources,
             _dry_run=_dry_run,
         )
     _attach_policy_to_scope_permission(

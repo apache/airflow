@@ -377,6 +377,20 @@ class TestConnectionFromUri:
         with pytest.raises(AirflowException, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
 
+    def test_connection_constructor_with_uri(self):
+        """Test Connection(uri=..., conn_id=...) constructor form."""
+        conn = Connection(conn_id="test_conn", uri="postgres://user:pass@host:5432/db")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "postgres"
+        assert conn.host == "host"
+        assert conn.login == "user"
+        assert conn.password == "pass"
+        assert conn.port == 5432
+        assert conn.schema == "db"
+        # uri should not exist as an attribute (it's init-only)
+        assert not hasattr(conn, "uri")
+
     def test_from_uri_roundtrip(self):
         """Test that from_uri and get_uri are inverse operations."""
         original_uri = "postgres://user:pass@host:5432/db?param1=value1&param2=value2"

@@ -79,14 +79,29 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+    supports_multi_team: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
         # TODO: TaskSDK: move this type change into BaseExecutor
         queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
-    def __init__(self):
-        self.kube_config = KubeConfig()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
+        # In older Airflow versions, ExecutorConf exists but lacks methods like getint, getboolean, etc.
+        # In such cases, fall back to the global configuration object.
+        # This allows the changes to be backwards compatible with older versions of Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration (3.2+).
+        if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
+            self.conf = conf
+
+        self.kube_config = KubeConfig(executor_conf=self.conf)
+        # Override parallelism with team-aware config value
+        self.parallelism = self.kube_config.parallelism
+
         self._manager = multiprocessing.Manager()
         self.task_queue: Queue[KubernetesJob] = self._manager.Queue()
         self.result_queue: Queue[KubernetesResults] = self._manager.Queue()
@@ -96,11 +111,10 @@ class KubernetesExecutor(BaseExecutor):
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint(
+        self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
         self.completed: set[KubernetesResults] = set()
-        super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -323,6 +337,7 @@ class KubernetesExecutor(BaseExecutor):
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
+                        or (str(e.status) == "410" and "too old resource version" in message)
                         or str(e.status) == "500"
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
@@ -453,14 +468,13 @@ class KubernetesExecutor(BaseExecutor):
 
         self.event_buffer[key] = state, termination_reason
 
-    @staticmethod
-    def _get_pod_namespace(ti: TaskInstance):
+    def _get_pod_namespace(self, ti: TaskInstance):
         pod_override = ti.executor_config.get("pod_override")
         namespace = None
         with suppress(Exception):
             if pod_override is not None:
                 namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace")
+        return namespace or self.conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         messages = []

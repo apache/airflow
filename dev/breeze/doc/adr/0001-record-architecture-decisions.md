@@ -19,13 +19,14 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [1. Record architecture decisions](#1-record-architecture-decisions)
   - [Status](#status)
   - [Context](#context)
   - [Decision](#decision)
   - [Consequences](#consequences)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # 1. Record architecture decisions
 

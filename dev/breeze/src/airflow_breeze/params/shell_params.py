@@ -104,6 +104,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
@@ -167,6 +168,7 @@ class ShellParams:
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
+    custom_db_url: str = ""
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
@@ -346,7 +348,7 @@ class ShellParams:
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-no-volume.yml"
         else:
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
-        if backend in ("sqlite", "none") or not self.forward_ports:
+        if backend in ("sqlite", "none", "custom") or not self.forward_ports:
             return [backend_docker_compose_file]
         if self.project_name == "prek":
             # do not forward ports for prek - to not clash with running containers from breeze
@@ -387,6 +389,7 @@ class ShellParams:
 
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH)
         self.add_docker_in_docker(compose_file_list)
+        self.add_git_worktree_mount(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH)
         if os.environ.get("CI", "false") == "true":
@@ -534,6 +537,26 @@ class ShellParams:
             # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH)
 
+    def add_git_worktree_mount(self, compose_file_list: list[Path]):
+        main_git_directory = get_main_git_dir_for_worktree()
+        if main_git_directory:
+            get_console().print(
+                f"[info]Detected git worktree. Mounting main git directory: {main_git_directory}[/]"
+            )
+            generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml"
+            generated_compose_file.write_text(
+                f"""---
+services:
+  airflow:
+    volumes:
+      - type: bind
+        source: "{main_git_directory}"
+        target: "{main_git_directory}"
+        read_only: true
+"""
+            )
+            compose_file_list.append(generated_compose_file)
+
     @cached_property
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
@@ -603,6 +626,8 @@ class ShellParams:
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
+        if self.backend == "custom":
+            _set_var(_env, "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", self.custom_db_url or None)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")

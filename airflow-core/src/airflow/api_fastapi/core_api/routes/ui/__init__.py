@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.routes.ui.deadlines import deadlines_router
 from airflow.api_fastapi.core_api.routes.ui.dependencies import dependencies_router
 from airflow.api_fastapi.core_api.routes.ui.gantt import gantt_router
 from airflow.api_fastapi.core_api.routes.ui.grid import grid_router
+from airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs import partitioned_dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
 from airflow.api_fastapi.core_api.routes.ui.teams import teams_router
 
@@ -36,6 +37,7 @@ ui_router = AirflowRouter(prefix="/ui", include_in_schema=False)
 
 ui_router.include_router(auth_router)
 ui_router.include_router(assets_router)
+ui_router.include_router(partitioned_dag_runs_router)
 ui_router.include_router(config_router)
 ui_router.include_router(connections_router)
 ui_router.include_router(dags_router)

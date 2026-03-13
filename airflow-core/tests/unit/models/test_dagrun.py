@@ -23,10 +23,11 @@ from collections.abc import Mapping
 from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import ANY, call
 
 import pendulum
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
@@ -51,11 +52,10 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
@@ -433,9 +433,16 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=True, reason="success")]
+        assert execute_dag_callbacks.mock_calls == [
+            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success")
+        ]
+        # Make sure the correct TI is passed on success
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
+        assert ti_passed.task_id == "test_state_succeeded2"
+
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
@@ -460,11 +467,60 @@ class TestDagRun:
         dag_task1.set_downstream(dag_task2)
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=False, reason="task_failure")]
+        assert execute_dag_callbacks.mock_calls == [
+            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure")
+        ]
+        # Make sure the correct TI is passed on failure
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
+        assert ti_passed.task_id == "test_state_failed2"
+
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        assert callback is None
+
+    def test_dagrun_failure_callback_on_tasks_deadlocked(self, dag_maker, session):
+        def on_failure_callable(context):
+            assert context["dag_run"].dag_id == "test_dagrun_failure_callback_on_tasks_deadlocked"
+
+        with dag_maker(
+            dag_id="test_dagrun_failure_callback_on_tasks_deadlocked",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        ):
+            up = EmptyOperator(task_id="upstream")
+            middle = EmptyOperator(task_id="wrong")
+            down = EmptyOperator(task_id="downstream")
+
+            middle.trigger_rule = TriggerRule.ONE_FAILED
+            middle.set_upstream(up)
+            middle.set_downstream(down)
+
+        dr = dag_maker.create_dagrun()
+
+        ti_up: TI = dr.get_task_instance(task_id=up.task_id, session=session)
+        ti_middle: TI = dr.get_task_instance(task_id=middle.task_id, session=session)
+        ti_up.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_middle.set_state(state=None, session=session)
+        ti_middle.task.trigger_rule = "invalid"
+
+        serialized_dag = dr.get_dag()
+
+        with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
+            _, callback = dr.update_state(execute_callbacks=True)
+        assert execute_dag_callbacks.mock_calls == [
+            mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
+        ]
+        # Make sure the correct TI is passed on deadlock
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
+        assert ti_passed.task_id == "wrong"
+
+        assert dr.state == DagRunState.FAILED
+        # Callbacks is None as execute_callbacks=True
         assert callback is None
 
     def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
@@ -502,142 +558,6 @@ class TestDagRun:
         assert task.state == TaskInstanceState.SKIPPED
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
-
-    def test_start_dr_spans_if_needed_new_span(self, dag_maker, session):
-        with dag_maker(
-            dag_id="test_start_dr_spans_if_needed_new_span",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.QUEUED,
-            "test_task2": TaskInstanceState.QUEUED,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        tis = dag_run.get_task_instances()
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-        assert dag_run.span_status == SpanStatus.NOT_STARTED
-
-        dag_run.start_dr_spans_if_needed(tis=tis)
-
-        assert dag_run.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-
-    def test_start_dr_spans_if_needed_span_with_continuance(self, dag_maker, session):
-        with dag_maker(
-            dag_id="test_start_dr_spans_if_needed_span_with_continuance",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.RUNNING,
-            "test_task2": TaskInstanceState.QUEUED,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
-
-        tis = dag_run.get_task_instances()
-
-        first_ti = tis[0]
-        first_ti.span_status = SpanStatus.NEEDS_CONTINUANCE
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is None
-        assert dag_run.span_status == SpanStatus.NEEDS_CONTINUANCE
-        assert first_ti.span_status == SpanStatus.NEEDS_CONTINUANCE
-
-        dag_run.start_dr_spans_if_needed(tis=tis)
-
-        assert dag_run.span_status == SpanStatus.ACTIVE
-        assert first_ti.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is not None
-
-    def test_end_dr_span_if_needed(self, testing_dag_bundle, dag_maker, session):
-        with dag_maker(
-            dag_id="test_end_dr_span_if_needed",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.SUCCESS,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        from airflow.observability.trace import Trace
-
-        dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
-
-        active_spans.set("dr:" + str(dag_run.id), dr_span)
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-
-        dag_run.end_dr_span_if_needed()
-
-        assert dag_run.span_status == SpanStatus.ENDED
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-
-    def test_end_dr_span_if_needed_with_span_from_another_scheduler(
-        self, testing_dag_bundle, dag_maker, session
-    ):
-        with dag_maker(
-            dag_id="test_end_dr_span_if_needed_with_span_from_another_scheduler",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.SUCCESS,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        dag_run.span_status = SpanStatus.ACTIVE
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-
-        dag_run.end_dr_span_if_needed()
-
-        assert dag_run.span_status == SpanStatus.SHOULD_END
 
     def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
         def on_success_callable(context):
@@ -681,13 +601,12 @@ class TestDagRun:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dag_run,
-                last_ti=dag_run.get_last_ti(dag, session),
+                last_ti=dag_run.get_task_instance(task_id="test_state_succeeded2"),
             ),
             msg="success",
         )
 
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
-
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
@@ -731,7 +650,7 @@ class TestDagRun:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dag_run,
-                last_ti=dag_run.get_last_ti(dag, session),
+                last_ti=dag_run.get_task_instance(task_id="test_state_failed2"),
             ),
         )
 
@@ -942,6 +861,33 @@ class TestDagRun:
         dagrun.verify_integrity(dag_version_id=DagVersion.get_latest_version(dag.dag_id, session=session).id)
         task = dagrun.get_task_instances()[0]
         assert task.queue == "queue1"
+
+    def test_task_instance_mutation_hook_has_run_id(self, dag_maker, session):
+        """Test that task_instance_mutation_hook receives a TI with run_id set (not None).
+
+        Regression test for https://github.com/apache/airflow/issues/61945
+        """
+        observed_run_ids = []
+
+        def mutate_task_instance(task_instance):
+            observed_run_ids.append(task_instance.run_id)
+            if task_instance.run_id and task_instance.run_id.startswith("manual__"):
+                task_instance.pool = "manual_pool"
+
+        with mock.patch.object(
+            get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+        ) as mock_hook:
+            mock_hook.side_effect = mutate_task_instance
+            with dag_maker(
+                dag_id="test_mutation_hook_run_id", schedule=datetime.timedelta(days=1), session=session
+            ) as dag:
+                EmptyOperator(task_id="mutated_task", owner="test")
+
+            self.create_dag_run(dag, session=session)
+        # The hook should have been called during TI creation with run_id set
+        assert any(rid is not None for rid in observed_run_ids), (
+            f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
+        )
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),
@@ -1311,11 +1257,16 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [
-            mock.call(dag=scheduler_dag, success=True, reason="success")
+        assert execute_dag_callbacks.mock_calls == [
+            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success")
         ]
+        # Make sure the correct TI is passed on success
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
+        assert ti_passed.task_id == "task_2"
+
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
@@ -2150,6 +2101,84 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     empty_ti = next(x for x in tis if x.task_id == "empty_task")
     assert real_ti.try_number == 1
     assert empty_ti.try_number == 1
+
+
+def test_schedule_tis_try_number_mismatch_logs_warning(dag_maker, session: Session, monkeypatch):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    original_execute = session.execute
+
+    class _FakeSelectResult:
+        def all(self):
+            return [(ti.id, ti.try_number + 2, TaskInstanceState.SCHEDULED)]
+
+    def execute_with_mismatch(statement, *args, **kwargs):
+        if getattr(statement, "is_select", False):
+            return _FakeSelectResult()
+        return original_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute_with_mismatch)
+
+    with (
+        mock.patch.object(dr.log, "isEnabledFor", return_value=True),
+        mock.patch.object(dr.log, "warning") as warning_mock,
+    ):
+        dr.schedule_tis((ti,), session=session)
+
+    assert any(
+        "schedule_tis: try_number mismatch after scheduling" in call.args[0]
+        for call in warning_mock.call_args_list
+    )
+
+
+def test_schedule_tis_try_number_match_has_no_warning(dag_maker, session: Session):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    with (
+        mock.patch.object(dr.log, "isEnabledFor", return_value=True),
+        mock.patch.object(dr.log, "warning") as warning_mock,
+    ):
+        dr.schedule_tis((ti,), session=session)
+
+    assert all(
+        "schedule_tis: try_number mismatch after scheduling" not in call.args[0]
+        for call in warning_mock.call_args_list
+    )
+
+
+def test_schedule_tis_try_number_check_is_debug_only(dag_maker, session: Session, monkeypatch):
+    with dag_maker(session=session):
+        BaseOperator(task_id="task_1")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task_1", session=session)
+    assert ti is not None
+
+    original_execute = session.execute
+    select_calls = 0
+
+    def execute_with_counter(statement, *args, **kwargs):
+        nonlocal select_calls
+        if getattr(statement, "is_select", False):
+            select_calls += 1
+        return original_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute_with_counter)
+
+    with mock.patch.object(dr.log, "isEnabledFor", return_value=False):
+        dr.schedule_tis((ti,), session=session)
+
+    assert select_calls == 0
 
 
 @pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
@@ -3001,103 +3030,11 @@ def test_teardown_and_fail_fast(dag_maker):
     }
 
 
-class TestDagRunGetLastTi:
-    def test_get_last_ti_with_multiple_tis(self, dag_maker, session):
-        """Test get_last_ti returns the last TI (first created) when multiple TIs exist"""
-        with dag_maker("test_dag", session=session) as dag:
-            BashOperator(task_id="task1", bash_command="echo 1")
-            BashOperator(task_id="task2", bash_command="echo 2")
-            BashOperator(task_id="task3", bash_command="echo 3")
-
-        dr = dag_maker.create_dagrun()
-
-        tis = dr.get_task_instances(session=session)
-        assert len(tis) == 3
-
-        # Mark some TIs with different states
-        tis[0].state = TaskInstanceState.SUCCESS
-        tis[1].state = TaskInstanceState.FAILED
-        tis[2].state = TaskInstanceState.RUNNING
-        session.commit()
-
-        last_ti = dr.get_last_ti(dag, session=session)
-
-        # Should return the last TI in the list (index -1)
-        assert last_ti is not None
-        assert last_ti == tis[-1]
-        assert last_ti.task_id == "task3"
-
-    def test_get_last_ti_filters_none_state_in_partial_dag(self, dag_maker, session):
-        """Test get_last_ti filters out NONE state TIs when dag is partial"""
-        with dag_maker("test_dag", session=session) as dag:
-            BashOperator(task_id="task1", bash_command="echo 1")
-            BashOperator(task_id="task2", bash_command="echo 2")
-
-        dr = dag_maker.create_dagrun()
-
-        dag.partial = True
-
-        # Create task instances with different states
-        tis = dr.get_task_instances(session=session)
-        tis[0].state = State.NONE  # Should be filtered out in partial DAG
-        tis[1].state = TaskInstanceState.RUNNING
-        session.commit()
-
-        last_ti = dr.get_last_ti(dag, session=session)
-
-        assert last_ti is not None
-        assert last_ti.state != State.NONE
-        assert last_ti.task_id == "task2"
-
-    def test_get_last_ti_filters_removed_tasks(self, dag_maker, session):
-        """Test get_last_ti filters out REMOVED task instances"""
-        with dag_maker("test_dag", session=session) as dag:
-            BashOperator(task_id="task1", bash_command="echo 1")
-            BashOperator(task_id="task2", bash_command="echo 2")
-            BashOperator(task_id="task3", bash_command="echo 3")
-
-        dr = dag_maker.create_dagrun()
-
-        tis = dr.get_task_instances(session=session)
-        assert len(tis) == 3
-
-        ti_by_id = {ti.task_id: ti for ti in tis}
-
-        # Mark some TIs as removed
-        ti_by_id["task1"].state = TaskInstanceState.REMOVED
-        ti_by_id["task2"].state = TaskInstanceState.REMOVED
-        ti_by_id["task3"].state = TaskInstanceState.SUCCESS
-        session.commit()
-
-        last_ti = dr.get_last_ti(dag, session=session)
-
-        # Should return the TI that is not REMOVED
-        assert last_ti is not None
-        assert last_ti.state != TaskInstanceState.REMOVED
-        assert last_ti.task_id == "task3"
-
-    def test_get_last_ti_with_single_ti(self, dag_maker, session):
-        """Test get_last_ti works with single task instance"""
-        with dag_maker("test_dag", session=session) as dag:
-            BashOperator(task_id="single_task", bash_command="echo 1")
-
-        dr = dag_maker.create_dagrun()
-
-        tis = dr.get_task_instances(session=session)
-        assert len(tis) == 1
-
-        last_ti = dr.get_last_ti(dag, session=session)
-
-        assert last_ti is not None
-        assert last_ti == tis[0]
-        assert last_ti.task_id == "single_task"
-
-
 class TestDagRunHandleDagCallback:
-    """Test the handle_dag_callback method (only uses in dag.test)."""
+    """Test the execute_dag_callbacks method (only uses in dag.test)."""
 
-    def test_handle_dag_callback_success(self, dag_maker, session):
-        """Test handle_dag_callback executes success callback with RuntimeTaskInstance context"""
+    def test_execute_dag_callbacks_success(self, dag_maker, session):
+        """Test execute_dag_callbacks executes success callback with RuntimeTaskInstance context"""
         called = False
         context_received = None
 
@@ -3114,7 +3051,9 @@ class TestDagRunHandleDagCallback:
         dag.on_success_callback = on_success
         dag.has_on_success_callback = True
 
-        dr.handle_dag_callback(dag, success=True, reason="test_success")
+        dr.execute_dag_callbacks(
+            dag, success=True, relevant_ti=dr.get_task_instance("test_task"), reason="test_success"
+        )
 
         assert called is True
         assert context_received is not None
@@ -3126,8 +3065,8 @@ class TestDagRunHandleDagCallback:
         assert "ts" in context_received
         assert "params" in context_received
 
-    def test_handle_dag_callback_failure(self, dag_maker, session):
-        """Test handle_dag_callback executes failure callback with RuntimeTaskInstance context"""
+    def test_execute_dag_callbacks_failure(self, dag_maker, session):
+        """Test execute_dag_callbacks executes failure callback with RuntimeTaskInstance context"""
         called = False
         context_received = None
 
@@ -3144,7 +3083,9 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+        dr.execute_dag_callbacks(
+            dag, success=False, relevant_ti=dr.get_task_instance("test_task"), reason="test_failure"
+        )
 
         assert called is True
         assert context_received is not None
@@ -3156,8 +3097,8 @@ class TestDagRunHandleDagCallback:
         assert "ts" in context_received
         assert "params" in context_received
 
-    def test_handle_dag_callback_multiple_callbacks(self, dag_maker, session):
-        """Test handle_dag_callback executes multiple callbacks"""
+    def test_execute_dag_callbacks_multiple_callbacks(self, dag_maker, session):
+        """Test execute_dag_callbacks executes multiple callbacks"""
         call_count = 0
 
         def on_failure_1(context):
@@ -3176,12 +3117,17 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = [on_failure_1, on_failure_2]
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+        dr.execute_dag_callbacks(
+            dag,
+            success=False,
+            relevant_ti=dr.get_task_instance("test_task"),
+            reason="test_failure",
+        )
 
         assert call_count == 2
 
-    def test_handle_dag_callback_context_has_correct_ti_info(self, dag_maker, session):
-        """Test handle_dag_callback context contains correct task instance information"""
+    def test_execute_dag_callbacks_context_has_correct_ti_info(self, dag_maker, session):
+        """Test execute_dag_callbacks context contains correct task instance information"""
         context_received = None
 
         def on_failure(context):
@@ -3196,10 +3142,171 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+        dr.execute_dag_callbacks(
+            dag,
+            success=False,
+            relevant_ti=dr.get_task_instance("test_task"),
+            reason="test_failure",
+        )
 
         assert context_received is not None
         # Check that context contains correct task info
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
+
+
+class TestDagRunTracing:
+    """Tests for DagRun OpenTelemetry span behavior."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.dagrun")
+        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+            yield
+
+    def test_context_carrier_set_on_init(self, dag_maker):
+        """DagRun.__init__ should populate context_carrier with a W3C traceparent."""
+        with dag_maker("test_tracing_init"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+
+        assert dr.context_carrier is not None
+        assert isinstance(dr.context_carrier, dict)
+        assert "traceparent" in dr.context_carrier
+
+    def test_context_carrier_unique_per_dagrun(self, dag_maker):
+        """Each DagRun should get a distinct trace context."""
+        with dag_maker("test_tracing_unique1"):
+            EmptyOperator(task_id="t1")
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker("test_tracing_unique2"):
+            EmptyOperator(task_id="t1")
+        dr2 = dag_maker.create_dagrun()
+
+        assert dr1.context_carrier["traceparent"] != dr2.context_carrier["traceparent"]
+
+    @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_emit_dagrun_span_called_on_completion(self, dag_maker, session, final_state):
+        """_emit_dagrun_span should be called exactly once when a dag run finishes."""
+        with dag_maker("test_tracing_emit", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = (
+            TaskInstanceState.SUCCESS if final_state == DagRunState.SUCCESS else TaskInstanceState.FAILED
+        )
+        session.flush()
+
+        dr.dag = dag
+
+        with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
+            dr.update_state(session=session)
+
+        mock_emit.assert_called_once_with(state=final_state)
+
+    def test_emit_dagrun_span_not_called_while_running(self, dag_maker, session):
+        """_emit_dagrun_span should not be called while the dag run is still running."""
+        with dag_maker("test_tracing_no_emit_running", session=session) as dag:
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            if ti.task_id == "t1":
+                ti.state = TaskInstanceState.SUCCESS
+            else:
+                ti.state = TaskInstanceState.RUNNING
+        session.flush()
+
+        dr.dag = dag
+
+        with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
+            dr.update_state(session=session)
+
+        mock_emit.assert_not_called()
+
+    def test_emit_dagrun_span_uses_context_carrier_ids(self, dag_maker, session):
+        """The emitted span should inherit trace_id/span_id from the context_carrier."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        from airflow.observability.traces import OverrideableRandomIdGenerator
+
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_ids", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        dr.dag = dag
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr.update_state(session=session)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        # Decode the expected trace_id/span_id from the stored context_carrier
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        from opentelemetry import trace as otel_trace
+
+        stored_span = otel_trace.get_current_span(context=ctx)
+        stored_ctx = stored_span.get_span_context()
+
+        assert span.context.trace_id == stored_ctx.trace_id
+        assert span.context.span_id == stored_ctx.span_id
+
+    @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_emit_dagrun_span_attributes_and_status(self, dag_maker, session, final_state):
+        """The emitted span should have the correct name, attributes, and status code."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace import StatusCode
+
+        from airflow.observability.traces import OverrideableRandomIdGenerator
+
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_attrs", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = (
+            TaskInstanceState.SUCCESS if final_state == DagRunState.SUCCESS else TaskInstanceState.FAILED
+        )
+        session.flush()
+        dr.dag = dag
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr.update_state(session=session)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        assert span.name == f"dag_run.{dr.dag_id}"
+        assert span.attributes["airflow.dag_id"] == dr.dag_id
+        assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+
+        expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
+        assert span.status.status_code == expected_status

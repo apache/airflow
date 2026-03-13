@@ -22,6 +22,7 @@
   "backfill_other": "Reompliments",
   "browse": {
     "auditLog": "Registre d'auditoria",
+    "jobs": "Processos",
     "requiredActions": "Accions requerides",
     "xcoms": "XComs"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
     "lastSchedulingDecision": "Última decisió de programació",
+    "mappedPartitionKey": "Clau de partició mapejada",
     "partitionKey": "Clau de partició",
     "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
@@ -159,6 +161,13 @@
     "placeholder": "Afegir una nota...",
     "taskInstance": "Nota de la instància de la tasca"
   },
+  "partitionedDagRun_one": "Execució de Dag particionada",
+  "partitionedDagRun_other": "Execucions de Dag particionades",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Esdeveniments d'Asset rebuts"
+  },
+  "pendingDagRun_one": "{{count}} execució de Dag pendent",
+  "pendingDagRun_other": "{{count}} execucions de Dag pendents",
   "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {

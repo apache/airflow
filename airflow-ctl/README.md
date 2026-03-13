@@ -33,7 +33,8 @@ A command-line tool for interacting with Apache Airflow instances through the Ai
 
 - Python 3.10 or later (compatible with Python >= 3.10 and < 3.13)
 - Network access to an Apache Airflow instance with REST API enabled
-- Keyring backend installed in operating system for secure token storage
+- \[Recommended\] Keyring backend installed in operating system for secure token storage.
+  - In case there's no keyring available (common in headless environments) you can provide the token to each command. See the [Security page](https://airflow.apache.org/docs/apache-airflow-ctl/stable/security.html) for more information.
 
 ## Usage
 

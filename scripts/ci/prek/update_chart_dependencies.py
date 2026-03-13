@@ -42,8 +42,13 @@ VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart" / "values.schema.json"
 def get_latest_prometheus_statsd_exporter_version() -> str:
     quay_data = requests.get("https://quay.io/api/v1/repository/prometheus/statsd-exporter/tag/").json()
     for version in quay_data["tags"]:
-        if version["name"].startswith("v"):
-            return version["name"]
+        name = version["name"]
+        if not name.startswith("v"):
+            continue
+        # Skip "v0"
+        if name == "v0":
+            continue
+        return name
     raise RuntimeError("ERROR! No version found")
 
 

@@ -793,6 +793,23 @@ class TestGetDagRuns:
         body = response.json()
         assert body["detail"] == expected_detail
 
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @pytest.mark.parametrize(
+        ("dag_id", "query_params", "expected_dag_run_ids"),
+        [
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash1"}, ["run1"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("dag_with_multiple_versions", {"bundle_version": "some_commit_hash3"}, ["run3"]),
+            ("~", {"bundle_version": "some_commit_hash2"}, ["run2"]),
+            ("~", {"bundle_version": "does_not_exist"}, []),
+        ],
+    )
+    def test_filter_by_bundle_version(self, test_client, dag_id, query_params, expected_dag_run_ids):
+        response = test_client.get(f"/dags/{dag_id}/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_run_ids
+
     def test_invalid_state(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
         assert response.status_code == 422
@@ -1733,11 +1750,25 @@ class TestTriggerDagRun:
                     ]
                 },
             ),
+            (
+                [],
+                {
+                    "detail": [
+                        {
+                            "type": "model_attributes_type",
+                            "loc": ["body"],
+                            "msg": "Input should be a valid dictionary or object to extract fields from",
+                            "input": [],
+                        }
+                    ]
+                },
+            ),
         ],
     )
     def test_invalid_data(self, test_client, post_body, expected_detail):
-        now = timezone.utcnow().isoformat()
-        post_body["logical_date"] = now
+        if isinstance(post_body, dict):
+            now = timezone.utcnow().isoformat()
+            post_body["logical_date"] = now
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail

@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_builder,
     option_clean_airflow_installation,
+    option_custom_db_url,
     option_db_reset,
     option_debug_components,
     option_debugger,
@@ -121,6 +122,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    COMMON_AI_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
@@ -308,6 +310,7 @@ option_load_default_connections = click.option(
 @option_answer
 @option_auth_manager
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_celery_broker
 @option_celery_flower
@@ -370,6 +373,7 @@ def shell(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -445,6 +449,7 @@ def shell(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
@@ -538,6 +543,7 @@ option_executor_start_airflow = click.option(
 @option_auth_manager
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_clean_airflow_installation
 @option_celery_broker
@@ -589,6 +595,7 @@ def start_airflow(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     debug_components: tuple[str, ...],
     debugger: str,
@@ -653,7 +660,7 @@ def start_airflow(
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
         # Compile provider assets if needed
-        additional_assets = []
+        additional_assets = [COMMON_AI_PLUGIN_PREK_HOOK]
         if executor and EDGE_EXECUTOR in executor:
             additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
         if auth_manager == FAB_AUTH_MANAGER:
@@ -689,6 +696,7 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         debug_components=debug_components,
         debugger=debugger,
         db_reset=db_reset,
@@ -1068,6 +1076,7 @@ def doctor(ctx):
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_docker_host
 @option_dry_run
@@ -1089,6 +1098,7 @@ def run(
     command_args: tuple,
     backend: str,
     builder: str,
+    custom_db_url: str | None,
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
@@ -1131,7 +1141,12 @@ def run(
     from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
     from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.ci_group import ci_group
-    from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
+    from airflow_breeze.utils.docker_command_utils import (
+        bring_compose_project_down,
+        execute_command_in_shell,
+        fix_ownership_using_docker,
+        remove_docker_networks,
+    )
     from airflow_breeze.utils.platforms import get_normalized_platform
 
     # Generate a unique project name to avoid conflicts with other running instances
@@ -1152,6 +1167,7 @@ def run(
     shell_params = ShellParams(
         backend=backend,
         builder=builder,
+        custom_db_url=custom_db_url or "",
         docker_host=docker_host,
         force_build=force_build,
         forward_credentials=forward_credentials,
@@ -1178,21 +1194,22 @@ def run(
     # Build or pull the CI image if needed
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
 
-    # Execute the command in the shell
-    with ci_group(f"Running command: {command}"):
-        result = execute_command_in_shell(
-            shell_params=shell_params,
-            project_name=unique_project_name,
-            command=full_command,
-            # Always preserve the backend specified by user (or resolved from default)
-            preserve_backend=True,
-            forward_ports=forward_ports,
-        )
-
-    # Clean up ownership
-    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
-
-    fix_ownership_using_docker()
+    # Execute the command in the shell, cleaning up Docker resources afterward
+    try:
+        with ci_group(f"Running command: {command}"):
+            result = execute_command_in_shell(
+                shell_params=shell_params,
+                project_name=unique_project_name,
+                command=full_command,
+                # Always preserve the backend specified by user (or resolved from default)
+                preserve_backend=True,
+                forward_ports=forward_ports,
+            )
+    finally:
+        # Clean up ownership, the unique compose project and its network
+        bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+        remove_docker_networks([f"{unique_project_name}_default"])
+        fix_ownership_using_docker()
 
     # Exit with the same code as the command
     sys.exit(result.returncode)

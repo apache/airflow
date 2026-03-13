@@ -22,22 +22,31 @@ import { useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridTI } from "./GridTI";
+import { DagVersionIndicator } from "./VersionIndicator";
 import type { GridTask } from "./utils";
 
 type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
 const ROW_HEIGHT = 20;
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: Props) => {
+export const TaskInstancesColumn = ({
+  nodes,
+  onCellClick,
+  run,
+  showVersionIndicatorMode,
+  virtualItems,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const isSelected = runId === run.run_id;
   const { data: gridTISummaries } = useGridTiSummaries({
@@ -52,11 +61,17 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
   const taskInstances = gridTISummaries?.task_instances ?? [];
+
   const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
   for (const ti of taskInstances) {
     taskInstanceMap.set(ti.task_id, ti);
   }
+
+  const versionNumbers = new Set(
+    taskInstances.map((ti) => ti.dag_version_number).filter((vn) => vn !== null && vn !== undefined),
+  );
+  const hasMixedVersions = versionNumbers.size > 1;
 
   const isHovered = hoveredRunId === run.run_id;
 
@@ -72,7 +87,7 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
       transition="background-color 0.2s"
       width="18px"
     >
-      {itemsToRender.map((virtualItem) => {
+      {itemsToRender.map((virtualItem, idx) => {
         const node = nodes[virtualItem.index];
 
         if (!node) {
@@ -95,6 +110,23 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
           );
         }
 
+        let hasVersionChangeFlag = false;
+
+        if (
+          hasMixedVersions &&
+          (showVersionIndicatorMode === VersionIndicatorOptions.DAG_VERSION ||
+            showVersionIndicatorMode === VersionIndicatorOptions.ALL) &&
+          idx > 0
+        ) {
+          const prevVirtualItem = itemsToRender[idx - 1];
+          const prevNode = prevVirtualItem ? nodes[prevVirtualItem.index] : undefined;
+          const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
+
+          hasVersionChangeFlag = Boolean(
+            prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+          );
+        }
+
         return (
           <Box
             key={node.id}
@@ -103,6 +135,12 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
             top={0}
             transform={`translateY(${virtualItem.start}px)`}
           >
+            {hasVersionChangeFlag && (
+              <DagVersionIndicator
+                dagVersionNumber={taskInstance.dag_version_number ?? undefined}
+                orientation="horizontal"
+              />
+            )}
             <GridTI
               dagId={dagId}
               instance={taskInstance}

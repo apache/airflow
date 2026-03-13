@@ -28,6 +28,19 @@ from airflow.sdk.exceptions import AirflowSkipException
 
 @dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
 def example_bash_decorator():
+    """
+    ### Bash TaskFlow Decorator Example
+    This DAG demonstrates the `@task.bash` decorator for running shell commands from TaskFlow tasks.
+    It includes:
+    - Basic bash tasks and loops using `override`
+    - Jinja templating and context variables
+    - Skip behavior via non-zero exit codes and conditional branching
+    - Parameterized environment variables and dynamic command construction
+
+    For details, see the Bash decorator documentation
+    [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html).
+    """
+
     @task.bash
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
         return f"echo {task_instance_key_str} && sleep {sleep_seconds}"

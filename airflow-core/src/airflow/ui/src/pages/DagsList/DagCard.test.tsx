@@ -109,6 +109,7 @@ const mockDag = {
   relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "Every minute",
+  timetable_partitioned: false,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 

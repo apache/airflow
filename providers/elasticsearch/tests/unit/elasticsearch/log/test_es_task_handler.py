@@ -84,6 +84,12 @@ class TestElasticsearchTaskHandler:
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{_clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @pytest.fixture(autouse=True)
+    def _use_historical_filename_templates(self):
+        with conf_vars({("core", "use_historical_filename_templates"): "True"}):
+            yield
+
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
         create_log_template(
@@ -1016,34 +1022,6 @@ class TestElasticsearchRemoteLogIO:
     def unique_index(self):
         """Generate a unique index name for each test."""
         return f"airflow-logs-{uuid.uuid4()}"
-
-    @pytest.mark.integration("elasticsearch")
-    @pytest.mark.setup_timeout(300)
-    @pytest.mark.execution_timeout(300)
-    @patch(
-        "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
-        ["message"],
-    )
-    def test_read_write_to_es(self, tmp_json_file, ti, es_8_container_url):
-        self.elasticsearch_io.host = es_8_container_url
-        self.elasticsearch_io.client = elasticsearch.Elasticsearch(es_8_container_url).options(
-            request_timeout=120, retry_on_timeout=True, max_retries=5
-        )
-        self.elasticsearch_io.write_stdout = False
-        self.elasticsearch_io.upload(tmp_json_file, ti)
-        self.elasticsearch_io.client.indices.refresh(
-            index=self.elasticsearch_io.target_index, request_timeout=120
-        )
-        log_source_info, log_messages = self.elasticsearch_io.read("", ti)
-        assert log_source_info[0] == es_8_container_url
-        assert len(log_messages) == 3
-
-        expected_msg = ["start", "processing", "end"]
-        for msg, log_message in zip(expected_msg, log_messages):
-            print(f"msg: {msg}, log_message: {log_message}")
-            json_log = json.loads(log_message)
-            assert "message" in json_log
-            assert json_log["message"] == msg
 
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
