@@ -1,0 +1,254 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Build & Publish Registry
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: "Publish to live or staging S3 bucket"
+        required: true
+        type: choice
+        options:
+          - staging
+          - live
+        default: staging
+      provider:
+        description: "Provider ID(s) for incremental build (space-separated, empty = full build)"
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      destination:
+        description: "Publish to live or staging S3 bucket"
+        required: false
+        type: string
+        default: staging
+      provider:
+        description: "Provider ID(s) for incremental build (space-separated, empty = full build)"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID:
+        required: true
+      DOCS_AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish-registry:
+    timeout-minutes: 30
+    name: "Build & Publish Registry"
+    runs-on: ubuntu-latest
+    env:
+      EXISTING_REGISTRY_DIR: /tmp/existing-registry
+      REGISTRY_DATA_DIR: dev/registry
+      REGISTRY_PROVIDERS_JSON: providers.json
+      REGISTRY_MODULES_JSON: modules.json
+      REGISTRY_SITE_DATA_DIR: registry/src/_data
+      REGISTRY_SITE_VERSIONS_DIR: registry/src/_data/versions
+      REGISTRY_SITE_LOGOS_DIR: registry/public/logos
+      REGISTRY_CACHE_CONTROL: public, max-age=300
+    permissions:
+      contents: read
+    if: >
+      github.event_name == 'workflow_call' ||
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login)
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      # --- Breeze setup ---
+      # All three extraction scripts run inside breeze so that
+      # extract_parameters.py and extract_connections.py can import provider
+      # classes at runtime.  extract_metadata.py also runs in breeze for
+      # consistency — it writes to dev/registry/ (mounted) so the other two
+      # scripts can read providers.json / modules.json from there.
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "3.12"
+
+      - name: "Build CI image"
+        # Fallback to raw docker buildx when breeze cache is stale — same
+        # pattern as publish-docs-to-s3.yml.
+        run: >
+          breeze ci-image build --python 3.12 ||
+          docker buildx build --load --builder default --progress=auto --pull
+          --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
+          --build-arg AIRFLOW_USE_UV=true --build-arg BUILD_PROGRESS=auto
+          --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
+          --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
+          -t ghcr.io/apache/airflow/main/ci/python3.12:latest --target main .
+          -f Dockerfile.ci --platform linux/amd64
+
+      - name: "Install AWS CLI v2"
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: "Determine S3 destination"
+        id: destination
+        env:
+          DESTINATION: ${{ inputs.destination || 'staging' }}
+        run: |
+          if [[ "${DESTINATION}" == "live" ]]; then
+            echo "bucket=s3://live-docs-airflow-apache-org/registry/" >> "${GITHUB_OUTPUT}"
+          else
+            echo "bucket=s3://staging-docs-airflow-apache-org/registry/" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "Publishing registry to ${DESTINATION}"
+
+      # --- Incremental: download existing data from S3 ---
+      - name: "Download existing registry data from S3"
+        id: download-existing
+        if: inputs.provider != ''
+        env:
+          S3_BUCKET: ${{ steps.destination.outputs.bucket }}
+        run: |
+          mkdir -p "${EXISTING_REGISTRY_DIR}"
+          PROVIDERS_URL="${S3_BUCKET}api/${REGISTRY_PROVIDERS_JSON}"
+          MODULES_URL="${S3_BUCKET}api/${REGISTRY_MODULES_JSON}"
+          if aws s3 cp \
+            "${PROVIDERS_URL}" \
+            "${EXISTING_REGISTRY_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            2>/dev/null; then
+            echo "found=true" >> "${GITHUB_OUTPUT}"
+            aws s3 cp "${MODULES_URL}" "${EXISTING_REGISTRY_DIR}/${REGISTRY_MODULES_JSON}" || true
+          else
+            echo "found=false" >> "${GITHUB_OUTPUT}"
+            echo "No existing registry data on S3"
+          fi
+
+      # --- Extract provider metadata ---
+      - name: "Extract registry data (breeze)"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: |
+          if [[ -n "${PROVIDER}" ]]; then
+            breeze registry extract-data --python 3.12 --provider "${PROVIDER}"
+          else
+            breeze registry extract-data --python 3.12
+          fi
+
+      # --- Incremental: merge new data with existing ---
+      - name: "Merge with existing registry data"
+        if: inputs.provider != '' && steps.download-existing.outputs.found == 'true'
+        run: |
+          uv run dev/registry/merge_registry_data.py \
+            --existing-providers "${EXISTING_REGISTRY_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            --existing-modules "${EXISTING_REGISTRY_DIR}/${REGISTRY_MODULES_JSON}" \
+            --new-providers "${REGISTRY_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            --new-modules "${REGISTRY_DATA_DIR}/${REGISTRY_MODULES_JSON}" \
+            --output "${REGISTRY_DATA_DIR}/"
+
+      - name: "Copy breeze output to registry data"
+        run: |
+          mkdir -p "${REGISTRY_SITE_VERSIONS_DIR}"
+          cp \
+            "${REGISTRY_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}" \
+            "${REGISTRY_SITE_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}"
+          cp \
+            "${REGISTRY_DATA_DIR}/${REGISTRY_MODULES_JSON}" \
+            "${REGISTRY_SITE_DATA_DIR}/${REGISTRY_MODULES_JSON}"
+          if [ -d "${REGISTRY_DATA_DIR}/output/versions" ]; then
+            cp -r "${REGISTRY_DATA_DIR}/output/versions/"* "${REGISTRY_SITE_VERSIONS_DIR}/"
+          fi
+          # Copy provider logos extracted from providers/*/docs/integration-logos/
+          if [ -d "${REGISTRY_DATA_DIR}/logos" ]; then
+            mkdir -p "${REGISTRY_SITE_LOGOS_DIR}"
+            cp -r "${REGISTRY_DATA_DIR}/logos/"* "${REGISTRY_SITE_LOGOS_DIR}/"
+          fi
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
+        with:
+          version: 9
+
+      - name: "Setup Node.js"
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: 'registry/pnpm-lock.yaml'
+
+      - name: "Install Node.js dependencies"
+        working-directory: registry
+        run: pnpm install --frozen-lockfile
+
+      - name: "Build registry site"
+        working-directory: registry
+        env:
+          REGISTRY_PATH_PREFIX: "/registry/"
+        run: pnpm build
+
+      - name: "Upload registry artifact"
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: registry-site
+          path: registry/_site
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: "Sync registry to S3"
+        env:
+          S3_BUCKET: ${{ steps.destination.outputs.bucket }}
+        run: |
+          aws s3 sync registry/_site/ "${S3_BUCKET}" \
+            --cache-control "${REGISTRY_CACHE_CONTROL}" \
+            --exclude "pagefind/*"
+          # Pagefind generates content-hashed filenames (e.g. en_181da6f.pf_index).
+          # Each rebuild produces new hashes, so --delete is needed to remove stale
+          # index files. This is separate from the main sync which intentionally
+          # omits --delete to preserve files written by other steps (publish-versions).
+          aws s3 sync registry/_site/pagefind/ "${S3_BUCKET}pagefind/" \
+            --cache-control "${REGISTRY_CACHE_CONTROL}" --delete
+
+      - name: "Publish version metadata"
+        env:
+          S3_BUCKET: ${{ steps.destination.outputs.bucket }}
+        run: breeze registry publish-versions --s3-bucket "${S3_BUCKET}"

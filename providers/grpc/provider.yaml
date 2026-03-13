@@ -62,6 +62,7 @@ versions:
 integrations:
   - integration-name: gRPC
     external-doc-url: https://grpc.io/
+    logo: /docs/integration-logos/gRPC.png
     tags: [protocol]
 
 operators:

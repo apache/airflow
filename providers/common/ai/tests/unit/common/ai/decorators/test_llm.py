@@ -44,7 +44,7 @@ class TestLLMDecoratedOperator:
         """The callable's return value becomes the LLM prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("This is a summary.")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt():
             return "Summarize this text"
@@ -76,7 +76,7 @@ class TestLLMDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(topic):
             return f"Summarize {topic}"

@@ -60,4 +60,5 @@ repos:
         pass_filenames: false
         files:
           (?x)
-          ^src/airflowctl/api/operations\.py$
+          ^src/airflowctl/api/operations\.py$|
+          ^docs/images/command_hashes.txt$

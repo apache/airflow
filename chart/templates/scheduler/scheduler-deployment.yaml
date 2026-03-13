@@ -109,10 +109,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.podAnnotations }}
-          {{- toYaml .Values.scheduler.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.scheduler.priorityClassName }}
@@ -287,6 +287,10 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES

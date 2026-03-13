@@ -36,6 +36,7 @@ from airflow_e2e_tests.constants import (
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
+    XCOM_BUCKET,
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
@@ -48,12 +49,17 @@ class _E2ETestState:
     airflow_logs_path: Path | None = None
 
 
-def _setup_s3_integration(dot_env_file, tmp_dir):
+def _copy_localstack_files(tmp_dir):
+    """Copy localstack compose file and init script into the temp directory."""
     copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
 
     copyfile(AWS_INIT_PATH, tmp_dir / "init-aws.sh")
     current_permissions = os.stat(tmp_dir / "init-aws.sh").st_mode
     os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
+
+
+def _setup_s3_integration(dot_env_file, tmp_dir):
+    _copy_localstack_files(tmp_dir)
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
@@ -64,6 +70,27 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
         "AIRFLOW__LOGGING__DELETE_LOCAL_LOGS=true\n"
         "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://test-airflow-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
+    _copy_localstack_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # XComObjectStorageBackend requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY as env vars
+        # because `universal-path` uses boto3's native S3 client, which relies on environment variables
+        # for authentication rather than parsing credentials from the connection URI
+        "AWS_ACCESS_KEY_ID=test\n"
+        "AWS_SECRET_ACCESS_KEY=test\n"
+        "AWS_DEFAULT_REGION=us-east-1\n"
+        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
+        "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
+        f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
+        "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
+        "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -97,6 +124,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "xcom_object_storage":
+        compose_file_names.append("localstack.yml")
+        _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

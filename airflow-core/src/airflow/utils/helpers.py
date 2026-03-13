@@ -63,12 +63,12 @@ def validate_key(k: str, max_length: int = 250):
         )
 
 
-def ask_yesno(question: str, default: bool | None = None) -> bool:
+def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:
     """Get a yes or no answer from the user."""
     yes = {"yes", "y"}
     no = {"no", "n"}
 
-    print(question)
+    output_fn(question)
     while True:
         choice = input().lower()
         if choice == "" and default is not None:
@@ -77,10 +77,10 @@ def ask_yesno(question: str, default: bool | None = None) -> bool:
             return True
         if choice in no:
             return False
-        print("Please respond with y/yes or n/no.")
+        output_fn("Please respond with y/yes or n/no.")
 
 
-def prompt_with_timeout(question: str, timeout: int, default: bool | None = None) -> bool:
+def prompt_with_timeout(question: str, timeout: int, default: bool | None = None, output_fn=print) -> bool:
     """Ask the user a question and timeout if they don't respond."""
 
     def handler(signum, frame):
@@ -89,7 +89,7 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
     signal.signal(signal.SIGALRM, handler)
     signal.alarm(timeout)
     try:
-        return ask_yesno(question, default)
+        return ask_yesno(question, default, output_fn=output_fn)
     finally:
         signal.alarm(0)
 

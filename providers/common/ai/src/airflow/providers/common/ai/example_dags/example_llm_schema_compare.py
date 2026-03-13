@@ -29,7 +29,7 @@ def example_llm_schema_compare_basic():
     LLMSchemaCompareOperator(
         task_id="detect_schema_drift",
         prompt="Identify schema mismatches that would break data loading between systems",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_default", "snowflake_default"],
         table_names=["customers"],
     )
@@ -49,7 +49,7 @@ def example_llm_schema_compare_full_context():
             "Compare schemas and generate a migration plan. "
             "Flag any differences that would break nightly ETL loads."
         ),
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers", "orders"],
         context_strategy="full",
@@ -74,7 +74,7 @@ def example_llm_schema_compare_with_object_storage():
     LLMSchemaCompareOperator(
         task_id="compare_s3_vs_db",
         prompt="Compare S3 Parquet schema against the Postgres table and flag breaking changes",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_default"],
         table_names=["customers"],
         data_sources=[s3_source],
@@ -90,7 +90,7 @@ example_llm_schema_compare_with_object_storage()
 @dag
 def example_llm_schema_compare_decorator():
     @task.llm_schema_compare(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers"],
     )
@@ -109,7 +109,7 @@ example_llm_schema_compare_decorator()
 @dag
 def example_llm_schema_compare_conditional():
     @task.llm_schema_compare(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_source", "snowflake_target"],
         table_names=["customers"],
         context_strategy="full",

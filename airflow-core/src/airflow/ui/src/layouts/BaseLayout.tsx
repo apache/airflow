@@ -32,6 +32,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
   const { i18n } = useTranslation();
   const { data: pluginData } = usePluginServiceGetPlugins();
+  const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
 
   const baseReactPlugins =
     pluginData?.plugins
@@ -58,6 +59,47 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       i18n.off("languageChanged", updateHtml);
     };
   }, [i18n]);
+
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+
+    if (!link) {
+      return undefined;
+    }
+
+    const defaultFavicon = link.href;
+    const darkIcon = theme?.icon_dark_mode;
+    const lightIcon = theme?.icon;
+    // favicon color theme should follow system color scheme, not the one set in Airflow UI.
+    // (tab colors in browsers are based on system color scheme, not the one set in the website)
+    const darkModeQuery = globalThis.matchMedia("(prefers-color-scheme: dark)");
+
+    const updateFavicon = () => {
+      const customIcon =
+        darkModeQuery.matches && typeof darkIcon === "string" && darkIcon.length > 0 ? darkIcon : lightIcon;
+
+      if (typeof customIcon === "string" && customIcon.length > 0) {
+        link.href = customIcon;
+
+        const img = new Image();
+
+        img.addEventListener("error", () => {
+          link.href = defaultFavicon;
+        });
+        img.src = customIcon;
+      } else {
+        link.href = defaultFavicon;
+      }
+    };
+
+    updateFavicon();
+    darkModeQuery.addEventListener("change", updateFavicon);
+
+    return () => {
+      darkModeQuery.removeEventListener("change", updateFavicon);
+      link.href = defaultFavicon;
+    };
+  }, [theme?.icon, theme?.icon_dark_mode]);
 
   return (
     <LocaleProvider locale={i18n.language || "en"}>

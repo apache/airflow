@@ -86,20 +86,15 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => {
-      const [latestRun] = original.latest_dag_runs;
-
-      return (
-        <Schedule
-          assetExpression={original.asset_expression}
-          dagId={original.dag_id}
-          latestRunAfter={latestRun?.run_after}
-          timetableDescription={original.timetable_description}
-          timetablePartitioned={original.timetable_partitioned}
-          timetableSummary={original.timetable_summary}
-        />
-      );
-    },
+    cell: ({ row: { original } }) => (
+      <Schedule
+        assetExpression={original.asset_expression}
+        dagId={original.dag_id}
+        timetableDescription={original.timetable_description}
+        timetablePartitioned={original.timetable_partitioned}
+        timetableSummary={original.timetable_summary}
+      />
+    ),
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },

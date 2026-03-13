@@ -22,7 +22,7 @@
 #################################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
 {{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
@@ -124,7 +124,7 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if $podAnnotations }}
-          {{- toYaml $podAnnotations | nindent 8 }}
+          {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}
@@ -366,6 +366,10 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES

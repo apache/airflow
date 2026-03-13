@@ -535,6 +535,31 @@ class DatabricksHook(BaseDatabricksHook):
         state = response["state"]
         return RunState(**state)
 
+    def get_run_tasks(self, run_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieve list of tasks performed by the run.
+
+        :param run_id: id of the run
+        :return: A list of tasks
+        """
+        has_more = True
+        all_tasks = []
+        page_token = ""
+        json: dict[str, Any] = {"run_id": run_id}
+
+        while has_more:
+            if page_token:
+                json = {**json, "page_token": page_token}
+            response = self._do_api_call(GET_RUN_ENDPOINT, json)
+            tasks = response.get("tasks", [])
+            all_tasks += tasks
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+
+        return all_tasks
+
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
