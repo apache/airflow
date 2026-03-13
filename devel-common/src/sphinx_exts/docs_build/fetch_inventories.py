@@ -157,9 +157,8 @@ def fetch_inventories(
     to_download = [
         (pkg_name, url, path)
         for pkg_name, url, path in to_download
-        if _is_outdated(path)
-        or should_be_refreshed(pkg_name, refresh_airflow_inventories)
-        or url not in exclude_inventory_urls
+        if (_is_outdated(path) or should_be_refreshed(pkg_name, refresh_airflow_inventories))
+        and url not in exclude_inventory_urls
     ]
     if not to_download:
         print("Nothing to do")

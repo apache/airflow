@@ -355,4 +355,4 @@ def get_excluded_inventory_urls_for_availability() -> list[str]:
     # Please add related issue or explain the reason above exclusion in the code comment for each excluded URL.
     # Pandas exclusion https://github.com/pandas-dev/pandas/issues/64584
 
-    return ["https://pandas.pydata.org/docs/"]
+    return ["https://pandas.pydata.org/pandas-docs/stable/objects.inv"]
