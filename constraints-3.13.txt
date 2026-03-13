@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-11T20:02:34.101255
+# This constraints file was automatically generated on 2026-03-13T02:31:43.637192
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -50,7 +50,7 @@ MarkupSafe==3.0.3
 PyAthena==3.30.0
 PyGithub==2.8.1
 PyHive==0.7.0
-PyJWT==2.11.0
+PyJWT==2.12.0
 PyMySQL==1.1.2
 PyNaCl==1.6.2
 PyYAML-ft==8.0.0
@@ -167,10 +167,10 @@ atlassian-python-api==4.0.7
 attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.38.2
+azure-core==1.38.3
 azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
-azure-identity==1.25.2
+azure-identity==1.25.3
 azure-keyvault-secrets==4.10.0
 azure-kusto-data==6.0.2
 azure-mgmt-compute==37.2.0
@@ -197,7 +197,7 @@ bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.0
-black==26.3.0
+black==26.3.1
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.42.61
@@ -260,7 +260,7 @@ fastapi==0.135.1
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.25.1
+filelock==3.25.2
 flask-appbuilder==5.2.0
 flask-babel==4.0.0
 flower==2.0.1
@@ -281,7 +281,7 @@ google-api-core==2.30.0
 google-api-python-client==2.192.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.3.0
-google-auth==2.49.0
+google-auth==2.49.1
 google-cloud-aiplatform==1.141.0
 google-cloud-alloydb==0.8.0
 google-cloud-appengine-logging==1.8.0
@@ -293,7 +293,7 @@ google-cloud-bigquery-storage==2.36.2
 google-cloud-bigquery==3.40.1
 google-cloud-bigtable==2.35.0
 google-cloud-build==3.35.0
-google-cloud-compute==1.45.0
+google-cloud-compute==1.46.0
 google-cloud-container==2.63.0
 google-cloud-core==2.5.0
 google-cloud-datacatalog==3.29.0
@@ -311,7 +311,7 @@ google-cloud-memcache==1.14.0
 google-cloud-monitoring==2.29.1
 google-cloud-orchestration-airflow==1.19.0
 google-cloud-os-login==2.19.0
-google-cloud-pubsub==2.35.0
+google-cloud-pubsub==2.36.0
 google-cloud-redis==2.20.0
 google-cloud-resource-manager==1.16.0
 google-cloud-run==0.15.0
@@ -328,7 +328,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.1
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.66.0
+google-genai==1.67.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.73.0
 graphviz==0.21
@@ -346,7 +346,7 @@ gunicorn==25.0.3
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
-hf-xet==1.4.0
+hf-xet==1.4.1
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -413,11 +413,11 @@ mdurl==0.1.2
 memray==1.19.1
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.9
-microsoft-kiota-authentication-azure==1.9.9
-microsoft-kiota-http==1.9.9
-microsoft-kiota-serialization-json==1.9.9
-microsoft-kiota-serialization-text==1.9.9
+microsoft-kiota-abstractions==1.9.10
+microsoft-kiota-authentication-azure==1.9.10
+microsoft-kiota-http==1.9.10
+microsoft-kiota-serialization-json==1.9.10
+microsoft-kiota-serialization-text==1.9.10
 mistune==3.2.0
 mmh3==5.2.1
 more-itertools==10.8.0
@@ -484,11 +484,11 @@ pexpect==4.9.0
 pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
-pinotdb==9.0.0
+pinotdb==9.1.0
 platformdirs==4.9.4
 pluggy==1.6.0
-polars-runtime-32==1.38.1
-polars==1.38.1
+polars-runtime-32==1.39.0
+polars==1.39.0
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -585,7 +585,7 @@ setuptools==82.0.1
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
-slack_sdk==3.40.1
+slack_sdk==3.41.0
 smart_open==7.5.1
 smbprotocol==1.16.0
 smmap==5.0.3
