@@ -62,6 +62,7 @@ from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDagRunBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
     DAGRunPatchBody,
@@ -163,7 +164,7 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
 )
 def bulk_dag_runs(
     dag_id: str,
-    request: BulkBody[DAGRunPatchBody],
+    request: BulkBody[BulkDagRunBody],
     session: SessionDep,
 ) -> BulkResponse:
     """Run bulk operations on DAG runs; only delete is implemented."""

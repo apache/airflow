@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody, DAGRunPatchStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDagRunBody, DAGRunPatchStates
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -106,17 +106,25 @@ class DagRunWaiter:
             yield "\n"
 
 
-class BulkDagRunService(BulkService[DAGRunPatchBody]):
+class BulkDagRunService(BulkService[BulkDagRunBody]):
     """Service for handling bulk operations on dag runs."""
 
     def __init__(
         self,
         session: SessionDep,
-        request: BulkBody[DAGRunPatchBody],
+        request: BulkBody[BulkDagRunBody],
         dag_id: str,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
+
+    def _extract_dag_run_identifiers(self, entity: str | BulkDagRunBody) -> DagRunKey | None:
+        if isinstance(entity, str):
+            if self.dag_id == "~":
+                return None
+            return self.dag_id, entity
+
+        return entity.dag_id, entity.dag_run_id
 
     def categorize_dag_runs(
         self, dag_run_keys: set[DagRunKey]
@@ -130,7 +138,7 @@ class BulkDagRunService(BulkService[DAGRunPatchBody]):
         return dag_runs_map, matched_keys, not_found_keys
 
     def handle_bulk_create(
-        self, action: BulkCreateAction[DAGRunPatchBody], results: BulkActionResponse
+        self, action: BulkCreateAction[BulkDagRunBody], results: BulkActionResponse
     ) -> None:
         results.errors.append(
             {
@@ -140,7 +148,7 @@ class BulkDagRunService(BulkService[DAGRunPatchBody]):
         )
 
     def handle_bulk_update(
-        self, action: BulkUpdateAction[DAGRunPatchBody], results: BulkActionResponse
+        self, action: BulkUpdateAction[BulkDagRunBody], results: BulkActionResponse
     ) -> None:
         results.errors.append(
             {
@@ -150,19 +158,24 @@ class BulkDagRunService(BulkService[DAGRunPatchBody]):
         )
 
     def handle_bulk_delete(
-        self, action: BulkDeleteAction[DAGRunPatchBody], results: BulkActionResponse
+        self, action: BulkDeleteAction[BulkDagRunBody], results: BulkActionResponse
     ) -> None:
         dag_run_keys: set[DagRunKey] = set()
         for dag_run_entity in action.entities:
-            if not isinstance(dag_run_entity, str):
+            dag_run_key = self._extract_dag_run_identifiers(dag_run_entity)
+            if dag_run_key is None:
                 results.errors.append(
                     {
-                        "error": "DagRun bulk delete requires entities to be dag_run_id strings",
+                        "error": (
+                            "When using wildcard in path, dag_id must be specified in BulkDagRunBody object, "
+                            f"not as string for dag_run_id: {dag_run_entity}"
+                        ),
                         "status_code": status.HTTP_400_BAD_REQUEST,
                     }
                 )
-                return
-            dag_run_keys.add((self.dag_id, dag_run_entity))
+                continue
+
+            dag_run_keys.add(dag_run_key)
 
         dag_runs_map, matched_keys, not_found_keys = self.categorize_dag_runs(dag_run_keys)
 

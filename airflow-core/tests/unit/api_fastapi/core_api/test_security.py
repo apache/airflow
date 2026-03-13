@@ -34,7 +34,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDagRunBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
@@ -220,7 +220,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        request = BulkBody[DAGRunPatchBody].model_validate(
+        request = BulkBody[BulkDagRunBody].model_validate(
             {
                 "actions": [
                     {
@@ -229,11 +229,15 @@ class TestFastApiSecurity:
                     },
                     {
                         "action": "create",
-                        "entities": [{}],
+                        "entities": [
+                            {"dag_id": "test_dag", "dag_run_id": "run_3"},
+                        ],
                     },
                     {
                         "action": "update",
-                        "entities": [{"state": "failed"}],
+                        "entities": [
+                            {"dag_id": "test_dag", "dag_run_id": "run_4"},
+                        ],
                     },
                 ]
             }
@@ -244,6 +248,11 @@ class TestFastApiSecurity:
 
         auth_manager.batch_is_authorized_dag.assert_called_once_with(
             requests=[
+                {
+                    "method": "DELETE",
+                    "access_entity": DagAccessEntity.RUN,
+                    "details": DagDetails(id="test_dag", team_name="team1"),
+                },
                 {
                     "method": "DELETE",
                     "access_entity": DagAccessEntity.RUN,

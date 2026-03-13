@@ -607,6 +607,32 @@ The response includes a list of successful keys and any errors encountered durin
 This structure helps users understand which key actions succeeded and which failed.`
 } as const;
 
+export const $BulkBody_BulkDagRunBody_ = {
+    properties: {
+        actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/BulkCreateAction_BulkDagRunBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkUpdateAction_BulkDagRunBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteAction_BulkDagRunBody_'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Actions'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['actions'],
+    title: 'BulkBody[BulkDagRunBody]'
+} as const;
+
 export const $BulkBody_BulkTaskInstanceBody_ = {
     properties: {
         actions: {
@@ -659,32 +685,6 @@ export const $BulkBody_ConnectionBody_ = {
     title: 'BulkBody[ConnectionBody]'
 } as const;
 
-export const $BulkBody_DAGRunPatchBody_ = {
-    properties: {
-        actions: {
-            items: {
-                oneOf: [
-                    {
-                        '$ref': '#/components/schemas/BulkCreateAction_DAGRunPatchBody_'
-                    },
-                    {
-                        '$ref': '#/components/schemas/BulkUpdateAction_DAGRunPatchBody_'
-                    },
-                    {
-                        '$ref': '#/components/schemas/BulkDeleteAction_DAGRunPatchBody_'
-                    }
-                ]
-            },
-            type: 'array',
-            title: 'Actions'
-        }
-    },
-    additionalProperties: false,
-    type: 'object',
-    required: ['actions'],
-    title: 'BulkBody[DAGRunPatchBody]'
-} as const;
-
 export const $BulkBody_PoolBody_ = {
     properties: {
         actions: {
@@ -735,6 +735,33 @@ export const $BulkBody_VariableBody_ = {
     type: 'object',
     required: ['actions'],
     title: 'BulkBody[VariableBody]'
+} as const;
+
+export const $BulkCreateAction_BulkDagRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'create',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDagRunBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be created.'
+        },
+        action_on_existence: {
+            '$ref': '#/components/schemas/BulkActionOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkCreateAction[BulkDagRunBody]'
 } as const;
 
 export const $BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -791,33 +818,6 @@ export const $BulkCreateAction_ConnectionBody_ = {
     title: 'BulkCreateAction[ConnectionBody]'
 } as const;
 
-export const $BulkCreateAction_DAGRunPatchBody_ = {
-    properties: {
-        action: {
-            type: 'string',
-            const: 'create',
-            title: 'Action',
-            description: 'The action to be performed on the entities.'
-        },
-        entities: {
-            items: {
-                '$ref': '#/components/schemas/DAGRunPatchBody'
-            },
-            type: 'array',
-            title: 'Entities',
-            description: 'A list of entities to be created.'
-        },
-        action_on_existence: {
-            '$ref': '#/components/schemas/BulkActionOnExistence',
-            default: 'fail'
-        }
-    },
-    additionalProperties: false,
-    type: 'object',
-    required: ['action', 'entities'],
-    title: 'BulkCreateAction[DAGRunPatchBody]'
-} as const;
-
 export const $BulkCreateAction_PoolBody_ = {
     properties: {
         action: {
@@ -870,6 +870,58 @@ export const $BulkCreateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkCreateAction[VariableBody]'
+} as const;
+
+export const $BulkDagRunBody = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_id', 'dag_run_id'],
+    title: 'BulkDagRunBody',
+    description: 'Request body for bulk delete dag runs.'
+} as const;
+
+export const $BulkDeleteAction_BulkDagRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDagRunBody'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entity id/key or entity objects to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteAction[BulkDagRunBody]'
 } as const;
 
 export const $BulkDeleteAction_BulkTaskInstanceBody_ = {
@@ -938,40 +990,6 @@ export const $BulkDeleteAction_ConnectionBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkDeleteAction[ConnectionBody]'
-} as const;
-
-export const $BulkDeleteAction_DAGRunPatchBody_ = {
-    properties: {
-        action: {
-            type: 'string',
-            const: 'delete',
-            title: 'Action',
-            description: 'The action to be performed on the entities.'
-        },
-        entities: {
-            items: {
-                anyOf: [
-                    {
-                        type: 'string'
-                    },
-                    {
-                        '$ref': '#/components/schemas/DAGRunPatchBody'
-                    }
-                ]
-            },
-            type: 'array',
-            title: 'Entities',
-            description: 'A list of entity id/key or entity objects to be deleted.'
-        },
-        action_on_non_existence: {
-            '$ref': '#/components/schemas/BulkActionNotOnExistence',
-            default: 'fail'
-        }
-    },
-    additionalProperties: false,
-    type: 'object',
-    required: ['action', 'entities'],
-    title: 'BulkDeleteAction[DAGRunPatchBody]'
 } as const;
 
 export const $BulkDeleteAction_PoolBody_ = {
@@ -1176,6 +1194,48 @@ export const $BulkTaskInstanceBody = {
     description: 'Request body for bulk update, and delete task instances.'
 } as const;
 
+export const $BulkUpdateAction_BulkDagRunBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'update',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDagRunBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkUpdateAction[BulkDagRunBody]'
+} as const;
+
 export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
     properties: {
         action: {
@@ -1258,48 +1318,6 @@ export const $BulkUpdateAction_ConnectionBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[ConnectionBody]'
-} as const;
-
-export const $BulkUpdateAction_DAGRunPatchBody_ = {
-    properties: {
-        action: {
-            type: 'string',
-            const: 'update',
-            title: 'Action',
-            description: 'The action to be performed on the entities.'
-        },
-        entities: {
-            items: {
-                '$ref': '#/components/schemas/DAGRunPatchBody'
-            },
-            type: 'array',
-            title: 'Entities',
-            description: 'A list of entities to be updated.'
-        },
-        update_mask: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Update Mask',
-            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
-        },
-        action_on_non_existence: {
-            '$ref': '#/components/schemas/BulkActionNotOnExistence',
-            default: 'fail'
-        }
-    },
-    additionalProperties: false,
-    type: 'object',
-    required: ['action', 'entities'],
-    title: 'BulkUpdateAction[DAGRunPatchBody]'
 } as const;
 
 export const $BulkUpdateAction_PoolBody_ = {

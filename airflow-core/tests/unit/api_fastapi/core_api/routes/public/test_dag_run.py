@@ -1367,7 +1367,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": [DAG1_RUN1_ID],
+                            "entities": [{"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID}],
                         }
                     ]
                 },
@@ -1384,7 +1384,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": ["missing_run"],
+                            "entities": [{"dag_id": DAG1_ID, "dag_run_id": "missing_run"}],
                             "action_on_non_existence": "skip",
                         }
                     ]
@@ -1402,7 +1402,7 @@ class TestBulkDagRuns:
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": ["missing_run"],
+                            "entities": [{"dag_id": DAG1_ID, "dag_run_id": "missing_run"}],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -1430,6 +1430,35 @@ class TestBulkDagRuns:
             assert response_data[key] == value
         _check_last_log(session, dag_id=DAG1_ID, event="bulk_dag_runs", logical_date=None)
 
+    def test_bulk_dag_runs_across_multiple_dags(self, test_client, session):
+        response = test_client.patch(
+            "/dags/~/dagRuns",
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                        ],
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        delete_result = response.json()["delete"]
+        assert sorted(delete_result["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG2_ID}.{DAG2_RUN1_ID}"]
+        )
+        assert delete_result["errors"] == []
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagRun).where(DagRun.dag_id.in_([DAG1_ID, DAG2_ID]))
+            )
+            == 2
+        )
+
     def test_bulk_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
         with dag_maker(dag_id="test_running_dag"):
             EmptyOperator(task_id="t1")
@@ -1444,7 +1473,7 @@ class TestBulkDagRuns:
             "actions": [
                 {
                     "action": "delete",
-                    "entities": ["test_running"],
+                    "entities": [{"dag_id": "test_running_dag", "dag_run_id": "test_running"}],
                 }
             ]
         }
@@ -1463,14 +1492,22 @@ class TestBulkDagRuns:
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
             f"/dags/{DAG1_ID}/dagRuns",
-            json={"actions": [{"action": "delete", "entities": [DAG1_RUN1_ID]}]},
+            json={
+                "actions": [
+                    {"action": "delete", "entities": [{"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID}]}
+                ]
+            },
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(
             f"/dags/{DAG1_ID}/dagRuns",
-            json={"actions": [{"action": "delete", "entities": [DAG1_RUN1_ID]}]},
+            json={
+                "actions": [
+                    {"action": "delete", "entities": [{"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID}]}
+                ]
+            },
         )
         assert response.status_code == 403
 
