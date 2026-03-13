@@ -69,6 +69,17 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
+_DAG_CALLBACK_ATTRS = (
+    "sla_miss_callback",
+    "on_success_callback",
+    "on_failure_callback",
+    "on_retry_callback",
+    "on_execute_callback",
+    "on_skipped_callback",
+    "has_on_success_callback",
+    "has_on_failure_callback",
+)
+
 
 # TODO (GH-52141): Share definition with SDK?
 class EdgeInfoType(TypedDict):
@@ -1183,10 +1194,9 @@ def _create_orm_dagrun(
     run.dag = dag
     if use_resolved_dag:
         resolved_dag = dag_version.serialized_dag.dag
-        if hasattr(dag, "on_failure_callback"):
-            resolved_dag.on_failure_callback = dag.on_failure_callback  # type: ignore[attr-defined]
-        if hasattr(dag, "on_success_callback"):
-            resolved_dag.on_success_callback = dag.on_success_callback  # type: ignore[attr-defined]
+        for attr in _DAG_CALLBACK_ATTRS:
+            if hasattr(dag, attr):
+                setattr(resolved_dag, attr, getattr(dag, attr))  # type: ignore[attr-defined]
         run.dag = resolved_dag
     # create the associated task instances
     # state is None at the moment of creation
