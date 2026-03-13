@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
 import time
 from datetime import datetime, timezone
 
@@ -59,10 +58,7 @@ class TestRemoteLoggingElasticsearch:
         for _ in range(self.max_retries):
             response = elasticsearch_session.post(
                 f"{self.elasticsearch_url}/{self.target_index}/_search",
-                json={
-                    "size": 200,
-                    "query": {"match_all": {}},
-                },
+                json={"size": 200, "query": {"match_all": {}}},
             )
             if response.status_code == 404:
                 time.sleep(self.retry_interval_in_seconds)
