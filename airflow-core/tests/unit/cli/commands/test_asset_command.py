@@ -146,6 +146,8 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
         "logical_date": None,
         "queued_at": None,
         "run_after": "2025-02-12T19:27:59.066046Z",
+        "triggered_at": "2025-02-12T19:27:59.066046Z",
+        "triggering_user_name": "any",
     }
 
     assert run_list[0] | undeterministic == undeterministic | {
@@ -162,8 +164,9 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
-        "triggering_user_name": "root",
+        "triggering_user_name": "any",
         "run_after": "2025-02-12T19:27:59.066046Z",
+        "triggered_at": "2025-02-12T19:27:59.066046Z",
     }
 
 
@@ -184,7 +187,9 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
         "data_interval_start": None,
         "logical_date": None,
         "queued_at": None,
+        "triggering_user_name": "any",
         "run_after": "2025-02-12T19:27:59.066046Z",
+        "triggered_at": "2025-02-12T19:27:59.066046Z",
     }
 
     assert run_list[0] | undeterministic == undeterministic | {
@@ -201,6 +206,7 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
-        "triggering_user_name": "root",
+        "triggering_user_name": "any",
         "run_after": "2025-02-12T19:27:59.066046Z",
+        "triggered_at": "2025-02-12T19:27:59.066046Z",
     }
