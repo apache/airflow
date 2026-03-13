@@ -9,21 +9,21 @@
   "group": "Группа",
   "health": {
     "dagProcessor": "Процессор Дага",
-    "health": "Здоровье",
-    "healthy": "Здоровый",
+    "health": "Состояние",
+    "healthy": "Исправный",
     "lastHeartbeat": "Последний hearbeat-сигнал",
     "metaDatabase": "Метабаза данных",
     "scheduler": "Планировщик",
     "status": "Статус",
     "triggerer": "Триггер",
-    "unhealthy": "Нездоровый"
+    "unhealthy": "Неисправный"
   },
   "history": "История",
   "importErrors": {
     "dagImportError_one": "Ошибка импорта Дагов",
     "dagImportError_other": "Ошибки импорта Дагов",
     "searchByFile": "Поиск по файлу",
-    "timestamp": "Временная метка"
+    "timestamp": "Отметка времени"
   },
   "managePools": "Управление пулами",
   "noAssetEvents": "Нет найденных событий активов.",
@@ -36,12 +36,12 @@
   "source": "Источник",
   "stats": {
     "activeDags": "Активные Даги",
-    "failedDags": "Неудавшиеся Даги",
+    "failedDags": "Даги с ошибками",
     "queuedDags": "Даги в очереди",
     "requiredActions": "Необходимые действия",
-    "runningDags": "Запущенные Даги",
+    "runningDags": "Выполняющиеся Даги",
     "stats": "Статистика"
   },
-  "uri": "Uri",
+  "uri": "URI",
   "welcome": "Добро пожаловать"
 }
