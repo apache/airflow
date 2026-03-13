@@ -43,6 +43,8 @@ from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
@@ -195,6 +197,14 @@ class AwsLambdaExecutor(BaseExecutor):
                 )
         except Exception:
             self.log.exception("An error occurred while syncing tasks")
+
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask

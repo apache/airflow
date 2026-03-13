@@ -166,9 +166,12 @@ class TestCeleryExecutor:
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_workloads")
+    @mock.patch(
+        "airflow.providers.celery.executors.celery_executor.CeleryExecutor."
+        + ("trigger_workloads" if AIRFLOW_V_3_2_PLUS else "trigger_tasks")
+    )
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_workloads, mock_sync):
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [

@@ -424,8 +424,6 @@ class TestAwsEcsExecutor:
         workload.ti.key = mock_airflow_key()
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
-        workload.type = "ExecuteTask"
-        workload.queue_key = workload.ti.key
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 

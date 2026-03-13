@@ -52,6 +52,8 @@ from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -123,6 +125,14 @@ class AwsEcsExecutor(BaseExecutor):
             AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
         )
+
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask

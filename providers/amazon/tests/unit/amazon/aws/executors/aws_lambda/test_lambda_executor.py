@@ -142,8 +142,6 @@ class TestAwsLambdaExecutor:
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = airflow_key
         workload.ti.executor_config = executor_config
-        workload.type = "ExecuteTask"
-        workload.queue_key = airflow_key
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
