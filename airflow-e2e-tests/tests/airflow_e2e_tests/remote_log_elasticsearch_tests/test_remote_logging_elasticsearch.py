@@ -35,6 +35,17 @@ class TestRemoteLoggingElasticsearch:
     elasticsearch_url = "http://localhost:9200"
     expected_log_id_prefix = f"{dag_id}-{task_id}-"
 
+    def _matches_expected_log(self, log_source: dict, run_id: str) -> bool:
+        log_id = log_source.get("log_id", "")
+        log_message = log_source.get("event", "")
+        if not isinstance(log_message, str):
+            log_message = log_source.get("message", "")
+        return (
+            log_id.startswith(self.expected_log_id_prefix)
+            and run_id in log_id
+            and self.expected_message in log_message
+        )
+
     def test_remote_logging_elasticsearch(self):
         """Test that a DAG using remote logging to Elasticsearch completes successfully."""
 
@@ -67,16 +78,7 @@ class TestRemoteLoggingElasticsearch:
             response.raise_for_status()
             hits = response.json()["hits"]["hits"]
             matching_logs = [
-                hit["_source"]
-                for hit in hits
-                if hit["_source"].get("log_id", "").startswith(self.expected_log_id_prefix)
-                and run_id in hit["_source"].get("log_id", "")
-                and self.expected_message
-                in (
-                    hit["_source"].get("event", "")
-                    if isinstance(hit["_source"].get("event", ""), str)
-                    else hit["_source"].get("message", "")
-                )
+                hit["_source"] for hit in hits if self._matches_expected_log(hit["_source"], run_id)
             ]
             if matching_logs:
                 break
