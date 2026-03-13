@@ -70,9 +70,10 @@ _QUERY_SCHEMA: dict[str, Any] = {
 
 # DataFusion python bindings don't expose any native exception types, it uses rust exceptions.
 # So we have to rely on error message parsing with regex.
+_RETRYABLE_IDENTIFIER = r"""(?:['"][^'"]+['"]|\w+)"""
 _RETRYABLE_QUERY_ERROR_PATTERNS = (
-    re.compile(r"""column\s+['"][^'"]+['"]\s+not\s+found""", re.IGNORECASE),
-    re.compile(r"""table\s+['"][^'"]+['"]\s+not\s+found""", re.IGNORECASE),
+    re.compile(rf"""column\s+{_RETRYABLE_IDENTIFIER}\s+not\s+found""", re.IGNORECASE),
+    re.compile(rf"""table\s+{_RETRYABLE_IDENTIFIER}\s+not\s+found""", re.IGNORECASE),
 )
 
 

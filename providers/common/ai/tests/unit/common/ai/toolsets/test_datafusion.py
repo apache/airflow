@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,7 +26,10 @@ from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
-from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+from airflow.providers.common.ai.toolsets.datafusion import (
+    _RETRYABLE_QUERY_ERROR_PATTERNS,
+    DataFusionToolset,
+)
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
 
@@ -270,6 +272,20 @@ class TestDataFusionToolsetGetSchemaErrors:
 
 
 class TestDataFusionToolsetQueryErrors:
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            ("DataFusion error: column 'name' not found", True),
+            ("DataFusion error: column name not found", True),
+            ("DataFusion error: table tripss not found", True),
+            ("DataFusion error: table 'tripss' not found", True),
+            ("DataFusion error: access denied", False),
+        ],
+    )
+    def test_retryable_query_error_patterns_match_expected_messages(self, message: str, expected: bool):
+        matches = any(pattern.search(message) for pattern in _RETRYABLE_QUERY_ERROR_PATTERNS)
+        assert matches is expected
+
     def test_query_execution_exception_returns_error_json(self):
         from airflow.providers.common.sql.datafusion.exceptions import QueryExecutionException
 
@@ -291,71 +307,43 @@ class TestDataFusionToolsetQueryErrors:
         assert "execution failed" in data["error"]
         assert data["query"] == "SELECT x FROM t"
 
-    def test_column_not_found_raises_model_retry(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("pickup_date,id\n2024-01-01,1\n")
-            csv_path = f.name
+    @pytest.mark.parametrize(
+        ("sql", "expected_substring"),
+        [
+            ("SELECT name FROM trips", "column 'name' not found"),
+            ("SELECT * FROM tripss", "table 'tripss' not found"),
+        ],
+    )
+    def test_retryable_query_errors_raise_model_retry(
+        self, tmp_path: Path, sql: str, expected_substring: str
+    ):
+        csv_path = tmp_path / "trips.csv"
+        csv_path.write_text("pickup_date,id\n2024-01-01,1\n")
 
-        try:
-            ts = DataFusionToolset(
-                [
-                    DataSourceConfig(
-                        conn_id="",
-                        table_name="trips",
-                        uri=f"file://{csv_path}",
-                        format="csv",
-                    )
-                ]
+        ts = DataFusionToolset(
+            [
+                DataSourceConfig(
+                    conn_id="",
+                    table_name="trips",
+                    uri=f"file://{csv_path}",
+                    format="csv",
+                )
+            ]
+        )
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": sql},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
             )
 
-            with pytest.raises(ModelRetry) as exc_info:
-                asyncio.run(
-                    ts.call_tool(
-                        "query",
-                        {"sql": "SELECT name FROM trips"},
-                        ctx=MagicMock(spec=RunContext),
-                        tool=MagicMock(spec=ToolsetTool),
-                    )
-                )
-
-            assert "column 'name' not found" in exc_info.value.message
-            assert "get_schema" in exc_info.value.message
-            assert "list_tables" in exc_info.value.message
-        finally:
-            os.unlink(csv_path)
-
-    def test_table_not_found_raises_model_retry(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("pickup_date,id\n2024-01-01,1\n")
-            csv_path = f.name
-
-        try:
-            ts = DataFusionToolset(
-                [
-                    DataSourceConfig(
-                        conn_id="",
-                        table_name="trips",
-                        uri=f"file://{csv_path}",
-                        format="csv",
-                    )
-                ]
-            )
-
-            with pytest.raises(ModelRetry) as exc_info:
-                asyncio.run(
-                    ts.call_tool(
-                        "query",
-                        {"sql": "SELECT * FROM tripss"},
-                        ctx=MagicMock(spec=RunContext),
-                        tool=MagicMock(spec=ToolsetTool),
-                    )
-                )
-
-            assert "table 'tripss' not found" in exc_info.value.message
-            assert "get_schema" in exc_info.value.message
-            assert "list_tables" in exc_info.value.message
-        finally:
-            os.unlink(csv_path)
+        assert expected_substring in exc_info.value.message
+        assert "get_schema" in exc_info.value.message
+        assert "list_tables" in exc_info.value.message
 
     def test_unexpected_exception_propagates(self):
         cfg = _make_mock_datasource_config()
