@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 from abc import ABC
-from enum import StrEnum
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
 
 
-class WorkloadType(StrEnum):
-    """Central registry of all workload types."""
+class WorkloadType(str, Enum):
+    """Central registry of executor workload types."""
 
     EXECUTE_TASK = "ExecuteTask"
     EXECUTE_CALLBACK = "ExecuteCallback"

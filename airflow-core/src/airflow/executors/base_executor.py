@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ import pendulum
 from airflow._shared.observability.metrics.stats import Stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads import WorkloadType
@@ -185,7 +187,7 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
-        self.executor_queues: dict[str, dict] = defaultdict(dict)
+        self.executor_queues: dict[str, dict[WorkloadKey, workloads.All]] = defaultdict(dict)
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -215,16 +217,32 @@ class BaseExecutor(LoggingMixin):
     @property
     def queued_tasks(self) -> dict:
         """Backward-compat property: delegates to ``executor_queues[WorkloadType.EXECUTE_TASK]``."""
+        warnings.warn(
+            "queued_tasks is deprecated. Use executor_queues[WorkloadType.EXECUTE_TASK] instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
         return self.executor_queues[WorkloadType.EXECUTE_TASK]
 
     @property
     def queued_callbacks(self) -> dict:
         """Backward-compat property: delegates to ``executor_queues[WorkloadType.EXECUTE_CALLBACK]``."""
+        warnings.warn(
+            "queued_callbacks is deprecated. Use executor_queues[WorkloadType.EXECUTE_CALLBACK] instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
         return self.executor_queues[WorkloadType.EXECUTE_CALLBACK]
 
     @property
     def supports_callbacks(self) -> bool:
         """Backward-compat property: True if EXECUTE_CALLBACK is in supported_workload_types."""
+        warnings.warn(
+            "supports_callbacks is deprecated. "
+            "Use WorkloadType.EXECUTE_CALLBACK in supported_workload_types instead.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
         return WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
 
     def start(self):  # pragma: no cover

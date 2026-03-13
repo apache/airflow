@@ -582,13 +582,11 @@ class TestExecutorConf:
 class TestCallbackSupport:
     def test_supports_callbacks_flag_default_false(self):
         executor = BaseExecutor()
-        assert executor.supports_callbacks is False
         assert WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types
 
     def test_local_executor_supports_callbacks_true(self):
         """Test that LocalExecutor sets supports_callbacks to True."""
         executor = LocalExecutor()
-        assert executor.supports_callbacks is True
         assert WorkloadType.EXECUTE_CALLBACK in executor.supported_workload_types
 
     @pytest.mark.db_test
@@ -631,8 +629,8 @@ class TestCallbackSupport:
 
         executor.queue_workload(callback_workload, session)
 
-        assert len(executor.queued_callbacks) == 1
-        assert callback_data.id in executor.queued_callbacks
+        assert len(executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]) == 1
+        assert callback_data.id in executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
 
     @pytest.mark.db_test
     def test_get_workloads_prioritizes_callbacks(self, dag_maker, session):
@@ -664,6 +662,58 @@ class TestCallbackSupport:
         assert len(workloads_to_schedule) == 4  # 1 callback + 3 tasks
         _, first_workload = workloads_to_schedule[0]
         assert isinstance(first_workload, workloads.ExecuteCallback)  # Assert callback comes first
+
+
+class TestBackwardCompatProperties:
+    """Tests for the backward-compat properties (queued_tasks, queued_callbacks, supports_callbacks)."""
+
+    def test_queued_tasks_delegates_to_executor_queues(self):
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["key1"] = "workload1"
+
+        with pytest.warns(DeprecationWarning, match="queued_tasks is deprecated"):
+            result = executor.queued_tasks
+
+        assert result is executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert "key1" in result
+
+    def test_queued_callbacks_delegates_to_executor_queues(self):
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]["cb1"] = "callback1"
+
+        with pytest.warns(DeprecationWarning, match="queued_callbacks is deprecated"):
+            result = executor.queued_callbacks
+
+        assert result is executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
+        assert "cb1" in result
+
+    def test_supports_callbacks_delegates_to_supported_workload_types(self):
+        executor = BaseExecutor()
+
+        with pytest.warns(DeprecationWarning, match="supports_callbacks is deprecated"):
+            assert executor.supports_callbacks is False
+
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
+
+        with pytest.warns(DeprecationWarning, match="supports_callbacks is deprecated"):
+            assert executor.supports_callbacks is True
+
+    def test_queued_tasks_dict_operations(self):
+        """Verify dict operations through the backward-compat property work correctly."""
+        executor = BaseExecutor()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["k1"] = "w1"
+        executor.executor_queues[WorkloadType.EXECUTE_TASK]["k2"] = "w2"
+
+        with pytest.warns(DeprecationWarning, match="queued_tasks is deprecated"):
+            qt = executor.queued_tasks
+
+        # All standard dict operations should work on the returned reference
+        assert len(qt) == 2
+        assert "k1" in qt
+        qt.pop("k1")
+        assert len(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
 
 
 class TestExecuteCallbackWorkload:
