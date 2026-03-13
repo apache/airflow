@@ -113,13 +113,18 @@ def _prepare_span(
     if ti and ti.map_index >= 0:
         span_name += f"_{ti.map_index}"
     attributes = {
-        "airflow.dag_id": ti.dag_id,
-        "airflow.task_id": ti.task_id,
-        "airflow.dag_run.run_id": ti.run_id,
-        "airflow.task_instance.try_number": ti.try_number,
-        "airflow.task_instance.map_index": ti.map_index,
         "airflow.trigger.name": name,
     }
+    if ti:
+        attributes = {
+            **attributes,
+            "airflow.dag_id": ti.dag_id,
+            "airflow.task_id": ti.task_id,
+            "airflow.dag_run.run_id": ti.run_id,
+            "airflow.task_instance.try_number": ti.try_number,
+            "airflow.task_instance.map_index": ti.map_index,
+        }
+
     return tracer.start_as_current_span(span_name, attributes=attributes, context=parent_context)
 
 
