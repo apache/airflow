@@ -103,7 +103,8 @@ dependencies = [
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "lazy-object-proxy>=1.2.0",
-    'libcst >=1.8.2',
+    'libcst >=1.8.2; python_version < "3.14"',
+    'libcst >=1.8.6; python_version >= "3.14"',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
@@ -173,7 +174,8 @@ dependencies = [
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=25.4.1",
-    "greenlet>=3.1.0",
+    "greenlet>=3.1.0; python_version < '3.14'",
+    "greenlet>=3.3.2; python_version >= '3.14'",
     "greenback>=1.2.1",
 ]
 "graphviz" = [
