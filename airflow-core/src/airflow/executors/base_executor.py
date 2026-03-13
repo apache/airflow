@@ -528,14 +528,14 @@ class BaseExecutor(LoggingMixin):
         return tis
 
     @property
-    def slots_occupied(self):
-        """Number of workloads this executor instance is currently managing."""
-        return len(self.running) + sum(len(q) for q in self.executor_queues.values())
-
-    @property
     def slots_available(self):
         """Number of new workloads this executor instance can accept."""
         return self.parallelism - self.slots_occupied
+
+    @property
+    def slots_occupied(self):
+        """Number of workloads this executor instance is currently managing."""
+        return len(self.running) + sum(len(q) for q in self.executor_queues.values())
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
