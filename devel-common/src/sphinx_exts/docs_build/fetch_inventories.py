@@ -33,7 +33,10 @@ from requests.adapters import DEFAULT_POOLSIZE
 from rich import print
 
 from airflow.utils.helpers import partition
-from sphinx_exts.docs_build.docs_builder import get_available_providers_distributions
+from sphinx_exts.docs_build.docs_builder import (
+    get_available_providers_distributions,
+    get_excluded_inventory_urls_for_availability,
+)
 from sphinx_exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 AIRFLOW_ROOT_PATH = Path(os.path.abspath(__file__)).parents[4]
@@ -156,7 +159,7 @@ def fetch_inventories(
         for pkg_name, url, path in to_download
         if _is_outdated(path)
         or should_be_refreshed(pkg_name, refresh_airflow_inventories)
-        and url not in exclude_inventory_urls
+        or url not in exclude_inventory_urls
     ]
     if not to_download:
         print("Nothing to do")
@@ -212,4 +215,6 @@ if __name__ == "__main__":
     else:
         print("[bright_blue]Just fetching inventories without cleaning cache")
         clean_build = False
-    fetch_inventories(clean_build=clean_build)
+    fetch_inventories(
+        clean_build=clean_build, exclude_inventory_urls=get_excluded_inventory_urls_for_availability()
+    )
