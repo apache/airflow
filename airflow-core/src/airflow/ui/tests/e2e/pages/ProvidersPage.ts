@@ -45,6 +45,7 @@ export class ProvidersPage extends BasePage {
 
   public async waitForLoad(): Promise<void> {
     await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.rows.first().locator("td a").waitFor({ state: "visible", timeout: 30_000 });
+    await this.table.locator("tbody tr").first().waitFor({ state: "visible", timeout: 30_000 });
+    await this.table.locator("tbody tr td a").first().waitFor({ state: "visible", timeout: 30_000 });
   }
 }
