@@ -297,6 +297,43 @@ def pr_group():
     pass
 
 
+_TRUSTED_REPOSITORIES = {"apache/airflow"}
+
+# answer-triage values that auto-confirm destructive actions without user review
+_DANGEROUS_ANSWER_VALUES = {"d", "c", "y"}
+
+
+def _validate_llm_safety(github_repository: str, answer_triage: str | None) -> None:
+    """Verify safety preconditions before starting LLM assessment threads.
+
+    LLM assessments feed directly into triage actions (draft, close, comment) that
+    modify PRs on GitHub. To prevent accidental damage we require:
+    1. The target repository is a trusted repository.
+    2. No --answer-triage value is set that would auto-confirm destructive actions.
+    """
+    console = get_console()
+
+    if github_repository not in _TRUSTED_REPOSITORIES:
+        console.print(
+            f"[error]LLM assessment refused: repository '{github_repository}' is not trusted.\n"
+            f"Trusted repositories: {', '.join(sorted(_TRUSTED_REPOSITORIES))}.\n"
+            f"Use --github-repository apache/airflow or run without LLM "
+            f"(--check-mode api).[/]"
+        )
+        sys.exit(1)
+
+    if answer_triage and answer_triage.lower() in _DANGEROUS_ANSWER_VALUES:
+        label = {"d": "draft", "c": "close", "y": "yes (auto-confirm)"}
+        console.print(
+            f"[error]LLM assessment refused: --answer-triage={answer_triage} "
+            f"({label.get(answer_triage.lower(), answer_triage)}) would auto-confirm "
+            f"destructive actions on PRs based on LLM output without user review.\n"
+            f"Remove --answer-triage or use a safe value (s=skip, q=quit, n=no) "
+            f"to proceed with LLM assessment.[/]"
+        )
+        sys.exit(1)
+
+
 def _resolve_github_token(github_token: str | None) -> str | None:
     """Resolve GitHub token from option, environment, or gh CLI."""
     if github_token:
@@ -1586,6 +1623,14 @@ def _compute_default_action(
     pr: PRData, assessment, author_flagged_count: dict[str, int]
 ) -> tuple[TriageAction, str]:
     """Compute the suggested default triage action and reason for a flagged PR."""
+    # If LLM potentially flagged for reporting, default to skip
+    # so the user can review the report details before taking action manually
+    if getattr(assessment, "should_report", False):
+        reason = "Potentially flagged for reporting to GitHub"
+        if assessment.summary:
+            reason += f" — {assessment.summary.lower()}"
+        return TriageAction.SKIP, f"{reason} — review details before deciding"
+
     reason_parts: list[str] = []
 
     has_conflicts = pr.mergeable == "CONFLICTING"
@@ -1789,11 +1834,20 @@ def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
     _display_pr_info_panels(pr, author_profile)
 
     violation_lines = []
+    if getattr(assessment, "should_report", False):
+        violation_lines.append(
+            "[yellow]*** POTENTIALLY FLAGGED — This PR may warrant reporting to GitHub "
+            "(possible prompt injection, automated spam, or ToS violation). "
+            "Please review carefully before deciding. ***[/yellow]\n"
+        )
     for v in assessment.violations:
         color = "red" if v.severity == "error" else "yellow"
         violation_lines.append(f"[{color}][{v.severity.upper()}][/{color}] {v.category}: {v.explanation}")
+    border_style = "bold yellow" if getattr(assessment, "should_report", False) else "red"
     console.print(
-        Panel("\n".join(violation_lines), title=f"Assessment: {assessment.summary}", border_style="red")
+        Panel(
+            "\n".join(violation_lines), title=f"Assessment: {assessment.summary}", border_style=border_style
+        )
     )
 
 
@@ -1943,12 +1997,20 @@ def _collect_llm_results(
         assessment = future.result()
         if assessment.error:
             llm_errors.append(pr.number)
+            msg = f"  [warning]PR {_pr_link(pr)} LLM assessment failed ({assessment.summary})."
+            if assessment.error_debug_file:
+                msg += f" Raw response saved to {assessment.error_debug_file}"
+            get_console().print(f"{msg}[/]")
             continue
         if not assessment.should_flag:
             llm_passing.append(pr)
             get_console().print(f"  [success]PR {_pr_link(pr)} passes LLM quality check.[/]")
             continue
         llm_assessments[pr.number] = assessment
+        if assessment.should_report:
+            get_console().print(
+                f"  [yellow]PR {_pr_link(pr)} potentially flagged for reporting to GitHub.[/yellow]"
+            )
 
 
 @dataclass
@@ -2217,6 +2279,12 @@ def _prompt_and_execute_flagged_pr(
         ctx.stats.quit_early = True
         return
 
+    # If user takes action on a should_report PR (anything other than skip),
+    # downgrade it from "report" to regular "flagged" — user has reviewed and decided.
+    if action != TriageAction.SKIP and getattr(assessment, "should_report", False):
+        assessment.should_report = False
+        get_console().print("  [info]Report status cleared — PR marked as flagged.[/]")
+
     # For actions that post comments, let the user select violations and preview the comment
     draft_comment = ""
     close_comment = ""
@@ -2453,7 +2521,7 @@ def _filter_candidate_prs(
 
 
 def _enrich_candidate_details(
-    token: str, github_repository: str, candidate_prs: list[PRData], *, run_ci: bool
+    token: str, github_repository: str, candidate_prs: list[PRData], *, run_api: bool
 ) -> None:
     """Fetch check details, resolve unknown mergeable status, and fetch review comments."""
     if not candidate_prs:
@@ -2489,7 +2557,7 @@ def _enrich_candidate_details(
         else:
             get_console().print(f"  [dim]All {resolved} resolved.[/]")
 
-    if run_ci:
+    if run_api:
         get_console().print(
             f"[info]Fetching review thread details for {len(candidate_prs)} "
             f"candidate {'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
@@ -2984,7 +3052,14 @@ def _review_llm_flagged_prs(ctx: TriageContext, llm_candidates: list[PRData]) ->
             for pr in llm_candidates
             if pr.number in ctx.llm_assessments and pr.number not in llm_presented
         ]
-        new_flagged.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
+        # should_report PRs first (0 sorts before 1), then by author, then PR number
+        new_flagged.sort(
+            key=lambda pair: (
+                0 if pair[1].should_report else 1,
+                pair[0].author_login.lower(),
+                pair[0].number,
+            )
+        )
 
         if new_flagged:
             remaining = len(ctx.llm_future_to_pr) - len(ctx.llm_completed)
@@ -3234,6 +3309,7 @@ def _display_triage_summary(
     total_deterministic_flags: int,
     total_llm_flagged: int,
     total_llm_errors: int,
+    total_llm_report: int,
     total_skipped_collaborator: int,
     total_skipped_bot: int,
     total_skipped_accepted: int,
@@ -3273,6 +3349,8 @@ def _display_triage_summary(
     summary_table.add_row("PRs assessed", str(len(candidate_prs)))
     summary_table.add_row("Flagged by CI/conflicts/comments", str(total_deterministic_flags))
     summary_table.add_row("Flagged by LLM", str(total_llm_flagged))
+    if total_llm_report:
+        summary_table.add_row("[red]Potentially flagged for report[/red]", f"[red]{total_llm_report}[/red]")
     summary_table.add_row("LLM errors (skipped)", str(total_llm_errors))
     summary_table.add_row("Total flagged", str(total_flagged))
     summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
@@ -3662,10 +3740,10 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
 # --- Assessment options ---
 @click.option(
     "--check-mode",
-    type=click.Choice(["both", "ci", "llm"]),
+    type=click.Choice(["both", "api", "llm"]),
     default="both",
     show_default=True,
-    help="Which checks to run: 'both' (CI + LLM), 'ci' (deterministic only), 'llm' (LLM only).",
+    help="Which checks to run: 'both' (API + LLM), 'api' (deterministic only), 'llm' (LLM only).",
 )
 @click.option(
     "--llm-concurrency",
@@ -3720,6 +3798,7 @@ def auto_triage(
         _check_cli_available,
         _resolve_cli_provider,
         assess_pr,
+        check_llm_cli_safety,
     )
 
     token = _resolve_github_token(github_token)
@@ -3730,13 +3809,24 @@ def auto_triage(
         )
         sys.exit(1)
 
-    run_ci = check_mode in ("both", "ci")
+    run_api = check_mode in ("both", "api")
     run_llm = check_mode in ("both", "llm")
 
-    # Validate CLI tool is available early (only when LLM checks are enabled)
+    console = get_console()
+    mode_desc = {"both": "API + LLM", "api": "API only", "llm": "LLM only"}
+    console.print(
+        f"[info]Check mode: [bold]{check_mode}[/bold] ({mode_desc.get(check_mode, check_mode)}). "
+        f"Change with --check-mode (api|llm|both).[/]"
+    )
+
+    # Validate CLI tool is available and safe early (only when LLM checks are enabled)
     if run_llm:
-        provider, _model = _resolve_cli_provider(llm_model)
+        provider, model = _resolve_cli_provider(llm_model)
         _check_cli_available(provider)
+        if not check_llm_cli_safety(provider, model):
+            run_llm = False
+        else:
+            _validate_llm_safety(github_repository, answer_triage)
 
     dry_run = get_dry_run()
 
@@ -3927,7 +4017,7 @@ def auto_triage(
 
     # Enrich candidate PRs with check details, mergeable status, and review comments
     t_enrich_start = time.monotonic()
-    _enrich_candidate_details(token, github_repository, candidate_prs, run_ci=run_ci)
+    _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
     t_enrich_end = time.monotonic()
 
     # Phase 3: Deterministic checks + categorize PRs
@@ -3957,7 +4047,7 @@ def auto_triage(
         else:
             llm_candidates.append(pr)
 
-    if run_ci:
+    if run_api:
         for pr in candidate_prs:
             t_det_start = time.monotonic()
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
@@ -4058,7 +4148,7 @@ def auto_triage(
     if not run_llm:
         if llm_candidates:
             get_console().print(
-                f"\n[info]--check-mode=ci: skipping LLM assessment for {len(llm_candidates)} "
+                f"\n[info]--check-mode=api: skipping LLM assessment for {len(llm_candidates)} "
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
             )
             passing_prs.extend(llm_candidates)
@@ -4245,14 +4335,14 @@ def auto_triage(
             continue
 
         # Enrich and assess
-        _enrich_candidate_details(token, github_repository, candidate_prs, run_ci=run_ci)
+        _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
 
         batch_assessments: dict[int, PRAssessment] = {}
         batch_llm_candidates: list[PRData] = []
         batch_passing: list[PRData] = []
         batch_pending: list[PRData] = []
 
-        if run_ci:
+        if run_api:
             for pr in candidate_prs:
                 ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
                 if (
@@ -4370,6 +4460,7 @@ def auto_triage(
         total_deterministic_flags=total_deterministic_flags,
         total_llm_flagged=len(llm_assessments),
         total_llm_errors=len(llm_errors),
+        total_llm_report=sum(1 for a in llm_assessments.values() if a.should_report),
         total_skipped_collaborator=total_skipped_collaborator,
         total_skipped_bot=total_skipped_bot,
         total_skipped_accepted=total_skipped_accepted,
