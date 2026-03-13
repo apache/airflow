@@ -196,7 +196,9 @@ class IBMMQHook(BaseHook):
         try:
             async with self.get_conn() as qmgr:
                 if self.log.isEnabledFor(logging.INFO):
-                    flag_names = self.get_open_options_flags(self.open_options or ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE)
+                    flag_names = self.get_open_options_flags(
+                        self.open_options or ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE
+                    )
                     self.log.info(
                         "Opening MQ queue '%s' with open_options=%s (%s)",
                         queue_name,
