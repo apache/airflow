@@ -71,7 +71,6 @@ Variable                                    Type                  Description
                                             | ``None``
 ``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :py:class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
-``{{ start_date }}``                        `pendulum.DateTime`_  Datetime of when current task has been started.
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
 ``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
