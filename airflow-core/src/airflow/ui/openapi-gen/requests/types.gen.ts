@@ -690,6 +690,7 @@ export type DAGRunResponse = {
     state: DagRunState;
     triggered_by: DagRunTriggeredByType | null;
     triggering_user_name: string | null;
+    triggered_at: string;
     conf: {
     [key: string]: unknown;
 } | null;

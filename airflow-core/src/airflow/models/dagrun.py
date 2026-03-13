@@ -199,6 +199,8 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    triggered_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    """When the dag run was last triggered (created or cleared for re-run)."""
     backfill_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("backfill.id"), nullable=True)
     """
     The backfill this DagRun is currently associated with.
@@ -364,6 +366,7 @@ class DagRun(Base, LoggingMixin):
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
+        self.triggered_at = timezone.utcnow()
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None

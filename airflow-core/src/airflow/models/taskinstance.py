@@ -394,9 +394,10 @@ def clear_task_instances(
         ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
-            # Always update clear_number and queued_at when clearing tasks, regardless of state
+            # Always update clear_number, queued_at, and triggered_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
+            dr.triggered_at = timezone.utcnow()
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 

@@ -10728,6 +10728,10 @@ components:
           - type: string
           - type: 'null'
           title: Triggering User Name
+        triggered_at:
+          type: string
+          format: date-time
+          title: Triggered At
         conf:
           anyOf:
           - additionalProperties: true
@@ -10774,6 +10778,7 @@ components:
       - state
       - triggered_by
       - triggering_user_name
+      - triggered_at
       - conf
       - note
       - dag_versions
