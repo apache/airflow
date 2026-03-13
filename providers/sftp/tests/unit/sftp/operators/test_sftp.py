@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import contextlib
+import errno
+import logging
 import os
 import socket
 from base64 import b64encode
@@ -565,6 +567,39 @@ class TestSFTPOperator:
         assert mock_delete.call_count == 1
         args, _ = mock_delete.call_args_list[0]
         assert args == (remote_filepath,)
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.delete_file")
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.isdir")
+    def test_delete_missing_file_warns(self, mock_isdir, mock_delete, caplog):
+        mock_isdir.return_value = False
+        mock_delete.side_effect = FileNotFoundError("missing")
+        remote_filepath = "/tmp/missing"
+        sftp_op = SFTPOperator(
+            task_id="test_missing_file_delete_warns",
+            sftp_hook=self.sftp_hook,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.DELETE,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            sftp_op.execute(None)
+
+        assert "does not exist. Skipping delete." in caplog.text
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.delete_file")
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.isdir")
+    def test_delete_permission_error_raises(self, mock_isdir, mock_delete):
+        mock_isdir.return_value = False
+        mock_delete.side_effect = PermissionError(errno.EACCES, "denied")
+        remote_filepath = "/tmp/protected"
+
+        with pytest.raises(AirflowException):
+            SFTPOperator(
+                task_id="test_permission_error_delete_raises",
+                sftp_hook=self.sftp_hook,
+                remote_filepath=remote_filepath,
+                operation=SFTPOperation.DELETE,
+            ).execute(None)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.delete_file")
     def test_local_filepath_exists_error_delete(self, mock_delete):

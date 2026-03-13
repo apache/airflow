@@ -17,10 +17,17 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
+from flask_appbuilder import const
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from airflow.providers.fab.auth_manager.models import (
+    Permission,
+    Role,
+)
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
@@ -32,6 +39,46 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="test_admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm._is_permission_assigned_to_role = Mock(return_value=True)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        assert mock_session.rollback.mock_calls == [call()]
+        assert sm._is_permission_assigned_to_role.mock_calls == [call(role_id=1, permission_view_id=2)]
+        assert mock_log.error.mock_calls == []
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="Admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_error = IntegrityError("stmt", {}, Exception("duplicate key"))
+        mock_session.commit.side_effect = mock_error
+
+        sm._is_permission_assigned_to_role = Mock(return_value=False)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        mock_session.rollback.assert_called_once_with()
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
+        mock_log.error.assert_called_once_with(
+            const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+            f"Failed to add '{permission}' permission to the '{role}' role Error: {mock_error}",
+        )
+
     def test_load_user(self):
         sm = EmptySecurityManager()
         sm.get_user_by_id = Mock()

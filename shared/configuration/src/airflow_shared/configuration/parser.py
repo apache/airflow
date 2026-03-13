@@ -43,6 +43,34 @@ from .exceptions import AirflowConfigException
 log = logging.getLogger(__name__)
 
 
+def _build_kwarg_env_prefix(section: str, kwargs_key: str) -> str:
+    """
+    Build env prefix for per-key backend kwargs.
+
+    ("secrets",  "backend_kwargs")         -> "AIRFLOW__SECRETS__BACKEND_KWARG__"
+    ("workers",  "secrets_backend_kwargs") -> "AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__"
+    """
+    singular_key = kwargs_key.replace("_kwargs", "_kwarg")
+    return f"{ENV_VAR_PREFIX}{section.upper()}__{singular_key.upper()}__"
+
+
+def _collect_kwarg_env_vars(prefix: str) -> dict[str, str]:
+    """
+    Scan os.environ for per-key secrets backend kwargs.
+
+    AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID -> {"role_id": value}
+    Values are raw strings (not JSON-parsed).
+    Empty keys (trailing __ with no suffix) are ignored.
+    """
+    overrides: dict[str, str] = {}
+    for env_var, value in os.environ.items():
+        if env_var.startswith(prefix):
+            kwarg_key = env_var[len(prefix) :].lower()
+            if kwarg_key:
+                overrides[kwarg_key] = value
+    return overrides
+
+
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
@@ -408,6 +436,10 @@ class AirflowConfigParser(ConfigParser):
         except ValueError:
             log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
             backend_kwargs = {}
+
+        # Collect per-key overrides; they take precedence over the JSON blob.
+        env_prefix = _build_kwarg_env_prefix(section, kwargs_key)
+        backend_kwargs.update(_collect_kwarg_env_vars(env_prefix))
 
         return secrets_backend_cls(**backend_kwargs)
 
@@ -886,6 +918,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from command execution."""
+        if kwargs.get("team_name", None):
+            # Commands based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -909,6 +944,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from secrets backend."""
+        if kwargs.get("team_name", None):
+            # Secrets based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_secret_option(section, key)
         if option:
             return option

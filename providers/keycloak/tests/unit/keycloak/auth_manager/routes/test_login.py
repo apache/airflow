@@ -82,10 +82,14 @@ class TestLoginRouter:
     @pytest.mark.parametrize(
         ("id_token", "logout_callback_url"),
         [
-            (None, "http://testserver/auth/logout_callback"),
+            (None, "/auth/logout_callback"),
             (
                 "id_token",
-                "logout_url?post_logout_redirect_uri=http://testserver/auth/logout_callback&id_token_hint=id_token",
+                "/auth/logout_callback",
+            ),
+            (
+                "id_token.real.value",
+                "logout_url?post_logout_redirect_uri=/auth/logout_callback&id_token_hint=id_token.real.value",
             ),
         ],
     )

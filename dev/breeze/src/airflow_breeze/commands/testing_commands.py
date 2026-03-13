@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_browser,
     option_clean_airflow_installation,
     option_core_integration,
+    option_custom_db_url,
     option_db_reset,
     option_debug_e2e,
     option_debug_resources,
@@ -86,6 +87,7 @@ from airflow_breeze.commands.release_management_commands import option_distribut
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
+    ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
     all_selective_core_test_types,
@@ -572,6 +574,16 @@ option_test_type_helm = click.option(
     show_default=True,
     type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.HELM]),
 )
+# Strip "v" prefix from ALLOWED_KUBERNETES_VERSIONS for helm tests (schemas use bare versions)
+_HELM_K8S_VERSIONS = [v.lstrip("v") for v in ALLOWED_KUBERNETES_VERSIONS]
+option_helm_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version to validate helm templates against",
+    default=_HELM_K8S_VERSIONS[0],
+    envvar="HELM_TEST_KUBERNETES_VERSION",
+    show_default=True,
+    type=BetterChoice(_HELM_K8S_VERSIONS),
+)
 option_test_type_task_sdk_group = click.option(
     "--test-type",
     help="Type of test to run for task SDK",
@@ -623,6 +635,7 @@ option_total_test_timeout = click.option(
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -685,6 +698,7 @@ def core_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -974,6 +988,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -995,6 +1010,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
 def core_integration_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1015,6 +1031,7 @@ def core_integration_tests(
         test_group=GroupOfTests.INTEGRATION_CORE,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1055,6 +1072,7 @@ def core_integration_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1076,6 +1094,7 @@ def core_integration_tests(
 def integration_providers_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1096,6 +1115,7 @@ def integration_providers_tests(
         test_group=GroupOfTests.INTEGRATION_PROVIDERS,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1136,6 +1156,7 @@ def integration_providers_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1164,6 +1185,7 @@ def integration_providers_tests(
 def system_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1191,6 +1213,7 @@ def system_tests(
         test_group=GroupOfTests.SYSTEM,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=True,
@@ -1243,6 +1266,7 @@ def system_tests(
 @option_test_timeout
 @option_parallelism
 @option_test_type_helm
+@option_helm_kubernetes_version
 @option_use_xdist
 @option_verbose
 @option_dry_run
@@ -1253,6 +1277,7 @@ def helm_tests(
     github_repository: str,
     test_timeout: int,
     test_type: str,
+    kubernetes_version: str,
     parallelism: int,
     use_xdist: bool,
 ):
@@ -1263,6 +1288,7 @@ def helm_tests(
         test_type=test_type,
     )
     env = shell_params.env_variables_for_docker_commands
+    env["HELM_TEST_KUBERNETES_VERSION"] = kubernetes_version
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1297,6 +1323,7 @@ def helm_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_no_db_cleanup
@@ -1316,6 +1343,7 @@ def helm_tests(
 def python_api_client_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     no_db_cleanup: bool,
     enable_coverage: bool,
@@ -1334,6 +1362,7 @@ def python_api_client_tests(
         test_group=GroupOfTests.PYTHON_API_CLIENT,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1373,7 +1402,7 @@ option_e2e_test_mode = click.option(
     default="basic",
     show_default=True,
     envvar="E2E_TEST_MODE",
-    type=click.Choice(["basic", "remote_log"], case_sensitive=False),
+    type=click.Choice(["basic", "remote_log", "xcom_object_storage"], case_sensitive=False),
 )
 
 
@@ -1518,6 +1547,7 @@ def ui_e2e_tests(
         env_vars = {
             "AIRFLOW_UID": str(os.getuid()),
             "AIRFLOW__CORE__LOAD_EXAMPLES": "true",
+            "AIRFLOW__API__EXPOSE_CONFIG": "true",
             "AIRFLOW_IMAGE_NAME": image_name,
         }
 
@@ -1593,17 +1623,18 @@ def ui_e2e_tests(
         if report_path.exists():
             get_console().print(f"[info]Report: file://{report_path}[/]")
 
-        stop_docker_compose(tmp_dir)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
         if result.returncode != 0:
             sys.exit(result.returncode)
 
+    except KeyboardInterrupt:
+        get_console().print("\n[warning]Interrupted by user.[/]")
+        sys.exit(1)
     except Exception as e:
         get_console().print(f"[error]{str(e)}[/]")
+        sys.exit(1)
+    finally:
         stop_docker_compose(tmp_dir)
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        sys.exit(1)
 
 
 class TimeoutHandler:
@@ -1700,6 +1731,7 @@ def _run_test_command(
     allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None = None,
     clean_airflow_installation: bool,
     db_reset: bool,
     debug_resources: bool,
@@ -1754,6 +1786,7 @@ def _run_test_command(
         allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         clean_airflow_installation=clean_airflow_installation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,

@@ -79,10 +79,12 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       name={`element_${name}`}
       onChange={handleChange}
       options={
-        (param.schema.examples ?? param.schema.enum)?.map((value) => ({
-          label: labelLookup(value, param.schema.values_display),
-          value,
-        })) ?? []
+        (param.schema.examples ?? param.schema.enum)
+          ?.filter((value): value is boolean | number | string => value !== null)
+          .map((value) => ({
+            label: labelLookup(String(value), param.schema.values_display),
+            value: String(value),
+          })) ?? []
       }
       placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"

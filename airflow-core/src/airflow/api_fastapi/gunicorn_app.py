@@ -30,14 +30,16 @@ The pattern follows gunicorn's recommended extension approach:
 
 from __future__ import annotations
 
-import logging
 import signal
 import sys
 import time
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from gunicorn.app.base import BaseApplication
 from gunicorn.arbiter import Arbiter
+from gunicorn.glogging import Logger as GunicornLogger
+from uvicorn.workers import UvicornWorker
 
 from airflow.configuration import conf
 
@@ -45,7 +47,39 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from gunicorn.app.base import Application
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
+
+
+class AirflowGunicornLogger(GunicornLogger):
+    """
+    Gunicorn logger that routes all output through Airflow's logging setup.
+
+    Gunicorn's default Logger.setup() installs its own StreamHandler with a custom
+    formatter on ``gunicorn.error`` and ``gunicorn.access``, bypassing any root-level
+    handler (including our structlog ProcessorFormatter). Overriding setup() to do
+    nothing lets records propagate to root where Airflow's handler picks them up.
+    """
+
+    def setup(self, cfg) -> None:
+        self.error_log.propagate = True
+        self.access_log.propagate = True
+
+
+class AirflowUvicornWorker(UvicornWorker):
+    """
+    Uvicorn worker that preserves Airflow's structlog-based logging setup.
+
+    Uvicorn workers normally call ``logging.config.dictConfig(LOGGING_CONFIG)`` on startup
+    which would override any structlog configuration applied before gunicorn starts.
+    Setting ``log_config=None`` prevents that. ``access_log=False`` disables uvicorn's
+    built-in access logger because ``HttpAccessLogMiddleware`` handles access logging.
+    """
+
+    CONFIG_KWARGS = {
+        **UvicornWorker.CONFIG_KWARGS,
+        "log_config": None,
+        "access_log": False,
+    }
 
 
 class AirflowArbiter(Arbiter):
@@ -170,10 +204,20 @@ class AirflowGunicornApp(BaseApplication):
         super().__init__()
 
     def load_config(self) -> None:
-        """Load configuration from options dict into gunicorn config."""
+        """Load configuration from options dict, then GUNICORN_CMD_ARGS env var."""
         for key, value in self.options.items():
             if key in self.cfg.settings and value is not None:
                 self.cfg.set(key.lower(), value)
+
+        cmd_args = self.cfg.get_cmd_args_from_env()
+        if cmd_args:
+            log.info("Applying GUNICORN_CMD_ARGS: %s", cmd_args)
+            parser = self.cfg.parser()
+            env_args = parser.parse_args(cmd_args)
+            for k, v in vars(env_args).items():
+                if v is None or k == "args":
+                    continue
+                self.cfg.set(k.lower(), v)
 
     def load(self) -> Any:
         """Load and return the WSGI/ASGI application."""
@@ -188,8 +232,7 @@ class AirflowGunicornApp(BaseApplication):
         try:
             AirflowArbiter(self).run()
         except RuntimeError as e:
-            print(f"\nError: {e}\n", file=sys.stderr)
-            sys.stderr.flush()
+            log.error("Gunicorn failed to start", error=str(e))
             sys.exit(1)
 
 
@@ -200,7 +243,6 @@ def create_gunicorn_app(
     worker_timeout: int,
     ssl_cert: str | None = None,
     ssl_key: str | None = None,
-    access_log: bool = True,
     log_level: str = "info",
     proxy_headers: bool = False,
 ) -> AirflowGunicornApp:
@@ -213,18 +255,18 @@ def create_gunicorn_app(
     :param worker_timeout: Worker timeout in seconds
     :param ssl_cert: Path to SSL certificate file
     :param ssl_key: Path to SSL key file
-    :param access_log: Whether to enable access logging
     :param log_level: Log level (debug, info, warning, error, critical)
     :param proxy_headers: Whether to trust proxy headers
     """
     options = {
         "bind": f"{host}:{port}",
         "workers": num_workers,
-        "worker_class": "uvicorn.workers.UvicornWorker",
+        "worker_class": "airflow.api_fastapi.gunicorn_app.AirflowUvicornWorker",
         "timeout": worker_timeout,
         "graceful_timeout": worker_timeout,
         "keepalive": worker_timeout,
         "loglevel": log_level,
+        "logger_class": "airflow.api_fastapi.gunicorn_app.AirflowGunicornLogger",
         "preload_app": True,
         # Use our gunicorn_config module for hooks (post_worker_init, worker_exit)
         "config": "python:airflow.api_fastapi.gunicorn_config",
@@ -233,9 +275,6 @@ def create_gunicorn_app(
     if ssl_cert and ssl_key:
         options["certfile"] = ssl_cert
         options["keyfile"] = ssl_key
-
-    if access_log:
-        options["accesslog"] = "-"  # Log to stdout
 
     if proxy_headers:
         options["forwarded_allow_ips"] = "*"

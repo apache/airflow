@@ -145,21 +145,45 @@ Some examples of valid multiple executor configuration:
     executor = KubernetesExecutor,my.custom.module.ExecutorClass
 
 
-.. note::
-    Using two instances of the _same_ executor class is not currently supported.
+Aliases
+"""""""
 
-To make it easier to specify executors on tasks and Dags, executor configuration now supports aliases. You may then use this alias to refer to the executor in your Dags (see below).
+To make it easier to specify executors on tasks and Dags, executor configuration supports aliases. You may then use this alias to refer to the executor in your Dags (see below).
+
+Aliases work with both custom executor module paths and built-in core executors:
 
 .. code-block:: ini
 
     [core]
-    executor = LocalExecutor,ShortName:my.custom.module.ExecutorClass
+    executor = LocalExecutor,short_name:my.custom.module.ExecutorClass
+
+.. code-block:: ini
+
+    [core]
+    executor = my_local_exec:LocalExecutor,my_celery_exec:CeleryExecutor
+
+Aliasing core executors is particularly useful when the same executor is used at both the global and team level when
+running Multi-Team Airflow, since it allows tasks to explicitly target a specific instance by alias:
+
+.. code-block:: ini
+
+    [core]
+    executor = global_celery_exec:CeleryExecutor;team1=team_celery_exec:CeleryExecutor
+
+
+.. note::
+    Using two instances of the same Executor class is only supported in multi-team Airflow. For example: Two separate
+    teams can both use the CeleryExecutor but one single team cannot use two instances of the CeleryExecutor. An executor
+    can also be used globally and in teams at the same time. Please see the :doc:`Multi-Team Airflow documentation </core-concepts/multi-team>` for
+    more details on this.
+
+
+Writing Dags and Tasks
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
     If a Dag specifies a task to use an executor that is not configured, the Dag will fail to parse and a warning dialog will be shown in the Airflow UI. Please ensure that all executors you wish to use are specified in Airflow configuration on *any* host/container that is running an Airflow component (scheduler, workers, etc).
 
-Writing Dags and Tasks
-^^^^^^^^^^^^^^^^^^^^^^
 
 To specify an executor for a task, make use of the executor parameter on Airflow Operators:
 

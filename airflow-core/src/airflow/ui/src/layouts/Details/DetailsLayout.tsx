@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -50,6 +52,7 @@ import {
   showGanttKey,
   triggeringUserFilterKey,
 } from "src/constants/localStorage";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
@@ -88,6 +91,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(showGanttKey(dagId), false);
+  // Global setting: applies to all Dags (intentionally not scoped to dagId)
+  const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage<VersionIndicatorOptions>(
+    `version_indicator_display_mode`,
+    VersionIndicatorOptions.ALL,
+  );
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -161,8 +169,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setLimit={setLimit}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
+                  setShowVersionIndicatorMode={setShowVersionIndicatorMode}
                   setTriggeringUserFilter={setTriggeringUserFilter}
                   showGantt={showGantt}
+                  showVersionIndicatorMode={showVersionIndicatorMode}
                   triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
@@ -174,6 +184,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       limit={limit}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
+                      showVersionIndicatorMode={showVersionIndicatorMode}
                       triggeringUser={triggeringUserFilter}
                     />
                     {showGantt ? (

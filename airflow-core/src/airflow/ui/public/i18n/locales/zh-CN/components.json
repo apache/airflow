@@ -10,6 +10,7 @@
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
+    "permissionDenied": "预演失败：用户没有权限创建回填作业。",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
     "selectDescription": "为指定的日期范围补上 Dag 执行",
@@ -49,6 +50,13 @@
     "warning_one": "1 个警告",
     "warning_other": "{{count}} 个警告"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "日期格式无效。",
+      "invalidTimeFormat": "时间格式无效。",
+      "startBeforeEnd": "开始日期/时间必须早于结束日期/时间"
+    }
+  },
   "durationChart": {
     "duration": "持续时间 (秒)",
     "lastDagRun_one": "最近 1 次 Dag 执行",
@@ -87,9 +95,13 @@
   },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",
+  "limitedList.allTags_one": "所有标签 (1)",
+  "limitedList.allTags_other": "所有标签 ({{count}})",
   "limitedList.clickToInteract": "点击标签以筛选 Dags",
   "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
+  "limitedList.showingItems_one": "显示 1 项",
+  "limitedList.showingItems_other": "显示 {{count}} 项",
   "logs": {
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
@@ -99,17 +111,34 @@
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
   "taskTries": "任务尝试次数",
+  "taskTryPlaceholder": "任务尝试",
+  "team": {
+    "selector": {
+      "helperText": "选填。仅限指定团队使用。",
+      "label": "团队",
+      "placeHolder": "选择团队"
+    }
+  },
   "toggleCardView": "显示卡片视图",
   "toggleTableView": "显示表格视图",
   "triggerDag": {
     "button": "触发",
+    "dataInterval": "数据区间",
+    "dataIntervalAuto": "根据逻辑日期和时间表自动推断",
+    "dataIntervalManual": "手动指定",
+    "intervalEnd": "结束",
+    "intervalStart": "开始",
     "loading": "正在加载 Dag 信息...",
     "loadingFailed": "加载 Dag 信息失败，请重试。",
+    "manualRunDenied": "此 Dag 不允许手动执行",
     "runIdHelp": "选填 - 若未提供将会自动生成",
     "selectDescription": "触发此 Dag 单次执行",
     "selectLabel": "单次执行",
     "title": "触发 Dag",
     "toaster": {
+      "error": {
+        "title": "触发 Dag 失败"
+      },
       "success": {
         "description": "已成功触发 Dag 执行。",
         "title": "已触发 Dag 执行"
@@ -131,6 +160,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
+    "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }

@@ -1,0 +1,1 @@
+../../../../../airflow-core/src/airflow/_shared/AGENTS..md

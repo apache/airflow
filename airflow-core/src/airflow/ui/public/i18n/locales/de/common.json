@@ -161,6 +161,13 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
+  "partitionedDagRun_one": "Partitionierter Dag Lauf",
+  "partitionedDagRun_other": "Partitionierte Dag Läufe",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
+  },
+  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {

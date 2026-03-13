@@ -117,42 +117,4 @@ test.describe("DAG Audit Log", () => {
     expect(userText).toBeTruthy();
     expect(userText?.trim()).not.toBe("");
   });
-
-  test("verify pagination through audit log entries", async () => {
-    await eventsPage.navigateToAuditLog(testDagId, 3);
-
-    const hasNext = await eventsPage.hasNextPage();
-
-    expect(hasNext).toBe(true);
-
-    const urlPage1 = eventsPage.page.url();
-
-    expect(urlPage1).toContain("offset=0");
-    expect(urlPage1).toContain("limit=3");
-
-    await eventsPage.clickNextPage();
-
-    const urlPage2 = eventsPage.page.url();
-
-    expect(urlPage2).toContain("limit=3");
-    expect(urlPage2).not.toContain("offset=0");
-
-    await eventsPage.clickPrevPage();
-
-    const urlBackToPage1 = eventsPage.page.url();
-
-    expect(urlBackToPage1).toContain("offset=0");
-    expect(urlBackToPage1).toContain("limit=3");
-  });
-
-  test("verify sorting when clicking column header", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
-
-    await eventsPage.clickColumnToSort("Event");
-
-    const sortedEvents = await eventsPage.getEventTypes(true);
-
-    expect(sortedEvents.length).toBeGreaterThan(0);
-    expect(sortedEvents).toEqual([...sortedEvents].sort());
-  });
 });

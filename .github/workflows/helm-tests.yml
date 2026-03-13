@@ -32,6 +32,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Stringified JSON array of helm test packages to test"
         required: true
         type: string
+      helm-test-kubernetes-versions:
+        description: "Stringified JSON array of Kubernetes versions to validate against"
+        required: true
+        type: string
       default-python-version:
         description: "Which version of python should be used by default"
         required: true
@@ -45,13 +49,16 @@ permissions:
 jobs:
   tests-helm:
     timeout-minutes: 80
-    name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
+    name: >-
+      Unit tests Helm: ${{ matrix.helm-test-package }}
+      (K8S ${{ matrix.kubernetes-version }})
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       max-parallel: 20
       matrix:
         helm-test-package: ${{ fromJSON(inputs.helm-test-packages) }}
+        kubernetes-version: ${{ fromJSON(inputs.helm-test-kubernetes-versions) }}
     env:
       # Always use default Python version of CI image for preparing packages
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -69,7 +76,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -79,10 +86,14 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
-      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
+      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }} (K8S ${{ matrix.kubernetes-version }})"
         env:
           HELM_TEST_PACKAGE: "${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --test-type "${HELM_TEST_PACKAGE}"
+          HELM_TEST_KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
+        run: >
+          breeze testing helm-tests
+          --test-type "${HELM_TEST_PACKAGE}"
+          --kubernetes-version "${HELM_TEST_KUBERNETES_VERSION}"
 
   tests-helm-release:
     timeout-minutes: 80
@@ -96,7 +107,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -138,7 +149,7 @@ jobs:
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2
           --previous-release helm-chart/1.15.0 --current-release helm-chart/1.16.0 --verbose
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: Helm artifacts
           path: ./dist/airflow-*

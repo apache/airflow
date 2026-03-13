@@ -3,29 +3,194 @@
 
 # AGENTS instructions
 
-The main developer documentation lives in the `contributing-docs` directory. The following points summarise
-how to set up the environment, run checks, build docs and follow the PR workflow.
+## Environment Setup
 
-## Local virtualenv and Breeze
+- Install prek: `uv tool install prek`
+- Enable commit hooks: `prek install`
+- **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`.
+- Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
-- [`07_local_virtualenv.rst`](contributing-docs/07_local_virtualenv.rst) explains how to prepare a local Python environment using `uv`. The tool creates and syncs a `.venv` and installs dependencies with commands such as `uv venv` and `uv sync`.
-- [`06_development_environments.rst`](contributing-docs/06_development_environments.rst) compares the local virtualenv with the Docker based Breeze environment. Breeze replicates CI and includes services like databases for integration tests.
+## Commands
 
-## Prek hooks
+`<PROJECT>` is folder where pyproject.toml of the package you want to test is located. For example, `airflow-core` or `providers/amazon`.
+`<target_branch>` is the branch the PR will be merged into — usually `main`, but could be `v3-1-test` when creating a PR for the 3.1 branch.
 
-- Installation and usage of `prek` are described in [`03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst). Install with `uv tool install prek` and run checks via `prek --all-files`.
-- [`08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst) provides more details on the available hooks and prerequisites. Enable the hooks with `prek install` so they run automatically on each commit.
+- **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
+- **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`
+- **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`
+- **If uv tests fail with missing system dependencies, run the tests with breeze**: `breeze run pytest <tests> -xvs`
+- **Run a Python script:** `uv run --project <PROJECT> python dev/my_script.py`
+- **Run core or provider tests suite in parallel:** `breeze testing <test_group> --run-in-parallel` (test groups: `core-tests`, `providers-tests`)
+- **Run core or provider db tests suite in parallel:** `breeze testing <test_group> --run-db-tests-only --run-in-parallel` (test groups: `core-tests`, `providers-tests`)
+- **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)
+- **Run single provider complete test suite:** `breeze testing providers-tests --test-type "Providers[PROVIDERS_LIST]"` (e.g., `Providers[google]` or `Providers[amazon]` or "Providers[amazon,google]")
+- **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`
+- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
+- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
+- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`
+- **Run Airflow CLI:** `breeze run airflow dags list`
+- **Type-check:** `breeze run mypy path/to/code`
+- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
+- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
+- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
+- **Build docs:** `breeze build-docs`
+- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
 
-## Running tests
+SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
-- [`03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst) shows running tests inside Breeze. Use `pytest` inside the container for individual files or invoke `breeze testing` commands to run full suites, e.g. `breeze --backend postgres --python 3.10 testing tests --test-type All`.
+## Repository Structure
 
-## Building documentation
+UV workspace monorepo. Key paths:
 
-- Documentation can be built locally using `uv run --group docs build-docs` as described in [`11_documentation_building.rst`](contributing-docs/11_documentation_building.rst). Within Breeze the equivalent command is `breeze build-docs`.
+- `airflow-core/src/airflow/` — core scheduler, API, CLI, models
+  - `models/` — SQLAlchemy models (DagModel, TaskInstance, DagRun, Asset, etc.)
+  - `jobs/` — scheduler, triggerer, Dag processor runners
+  - `api_fastapi/core_api/` — public REST API v2, UI endpoints
+  - `api_fastapi/execution_api/` — task execution communication API
+  - `dag_processing/` — Dag parsing and validation
+  - `cli/` — command-line interface
+  - `ui/` — React/TypeScript web interface (Vite)
+- `task-sdk/` — lightweight SDK for Dag authoring and task execution runtime
+  - `src/airflow/sdk/execution_time/` — task runner, supervisor
+- `providers/` — 100+ provider packages, each with its own `pyproject.toml`
+- `airflow-ctl/` — management CLI tool
+- `chart/` — Helm chart for Kubernetes deployment
 
-## Pull request guidelines
+## Architecture Boundaries
 
-- Follow the PR guidance in [`05_pull_requests.rst`](contributing-docs/05_pull_requests.rst). Always add tests, keep your branch rebased instead of merged, and adhere to the commit message recommendations from [cbea.ms/git-commit](https://cbea.ms/git-commit/).
+1. Users author Dags with the Task SDK (`airflow.sdk`).
+2. Dag Processor parses Dag files in isolated processes and stores serialized Dags in the metadata DB.
+3. Scheduler reads serialized Dags — **never runs user code** — and creates Dag runs / task instances.
+4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**.
+5. API Server serves the React UI and handles all client-database interactions.
+6. Triggerer evaluates deferred tasks/sensors in isolated processes.
+7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
+8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
+9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
 
-For advanced topics such as packaging providers and API versioning see [`12_provider_distributions.rst`](contributing-docs/12_provider_distributions.rst) and [`19_execution_api_versioning.rst`](contributing-docs/19_execution_api_versioning.rst).
+# Shared libraries
+
+- shared libraries provide implementation of some common utilities like logging, configuration where the code should be reused in different distributions (potentially in different versions)
+- we have a number of shared libraries that are separate, small Python distributions located under `shared` folder
+- each of the libraries has it's own src, tests, pyproject.toml and dependencies
+- sources of those libraries are symbolically linked to the distributions that are using them (`airflow-core`, `task-sdk` for example)
+- tests for the libraries (internal) are in the shared distribution's test and can be run from the shared distributions
+- tests of the consumers using the shared libraries are present in the distributions that use the libraries and can be run from there
+
+## Coding Standards
+
+- No `assert` in production code.
+- `time.monotonic()` for durations, not `time.time()`.
+- In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
+- Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
+- Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
+- Apache License header on all new files (prek enforces this).
+
+## Testing Standards
+
+- Add tests for new behavior — cover success, failure, and edge cases.
+- Use pytest patterns, not `unittest.TestCase`.
+- Use `spec`/`autospec` when mocking.
+- Use `time_machine` for time-dependent tests.
+- Use `@pytest.mark.parametrize` for multiple similar inputs.
+- Use `@pytest.mark.db_test` for tests that require database access.
+- Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
+- Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
+
+
+## Commits and PRs
+
+Write commit messages focused on user impact, not implementation details.
+
+- **Good:** `Fix airflow dags test command failure without serialized Dags`
+- **Good:** `UI: Fix Grid view not refreshing after task actions`
+- **Bad:** `Initialize DAG bundles in CLI get_dag function`
+
+Add a newsfragment for user-visible changes:
+`echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+- NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
+
+### Creating Pull Requests
+
+**Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
+directly to `main`.
+
+Before pushing, determine the fork remote. Check `git remote -v` — if `origin` does **not**
+point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
+`apache/airflow`, look for another remote that points to the user's fork. If no fork remote
+exists, create one:
+
+```bash
+gh repo fork apache/airflow --remote --remote-name fork
+```
+
+Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
+in [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst) and the
+code review checklist in [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md):
+
+1. Review the full diff (`git diff main...HEAD`) and verify every change is intentional and
+   related to the task — remove any unrelated changes.
+2. Read `.github/instructions/code-review.instructions.md` and check your diff against every
+   rule — architecture boundaries, database correctness, code quality, testing requirements,
+   API correctness, and AI-generated code signals. Fix any violations before pushing.
+3. Confirm the code follows the project's coding standards and architecture boundaries
+   described in this file.
+4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
+   and fix any failures.
+5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
+6. Run relevant individual tests and confirm they pass.
+7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
+8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
+Then push the branch to the fork remote and open the PR creation page in the browser
+with the body pre-filled (including the generative AI disclosure already checked):
+
+```bash
+git push -u <fork-remote> <branch-name>
+gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
+Brief description of the changes.
+
+closes: #ISSUE  (if applicable)
+
+---
+
+##### Was generative AI tooling used to co-author this PR?
+
+- [X] Yes — <Agent Name and Version>
+
+Generated-by: <Agent Name and Version> following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
+
+EOF
+)"
+```
+
+The `--web` flag opens the browser so the user can review and submit. The `--body` flag
+pre-fills the PR template with the generative AI disclosure already completed.
+
+Remind the user to:
+
+1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
+2. Add a brief description of the changes at the top of the body.
+3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
+
+## Boundaries
+
+- **Ask first**
+  - Large cross-package refactors.
+  - New dependencies with broad impact.
+  - Destructive data or migration changes.
+- **Never**
+  - Commit secrets, credentials, or tokens.
+  - Edit generated files by hand when a generation workflow exists.
+  - Use destructive git operations unless explicitly requested.
+
+## References
+
+- [`contributing-docs/03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst)
+- [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst)
+- [`contributing-docs/07_local_virtualenv.rst`](contributing-docs/07_local_virtualenv.rst)
+- [`contributing-docs/08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst)
+- [`contributing-docs/12_provider_distributions.rst`](contributing-docs/12_provider_distributions.rst)
+- [`contributing-docs/19_execution_api_versioning.rst`](contributing-docs/19_execution_api_versioning.rst)

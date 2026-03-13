@@ -127,9 +127,11 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _defer_task,
     _execute_task,
+    _make_task_span,
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
+    get_startup_details,
     parse,
     run,
     startup,
@@ -363,9 +365,10 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
 
 @mock.patch("builtins.exit", side_effect=lambda code: (_ for _ in ()).throw(SystemExit(code)))
 @mock.patch("airflow.sdk.execution_time.task_runner.startup")
+@mock.patch("airflow.sdk.execution_time.task_runner.get_startup_details")
 @mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
 def test_main_sends_reschedule_task_when_startup_reschedules(
-    mock_comms_decoder_cls, mock_startup, mock_exit, time_machine
+    mock_comms_decoder_cls, mock_get_startup_details, mock_startup, mock_exit, time_machine, make_ti_context
 ):
     """
     If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
@@ -377,6 +380,23 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     mock_comms_instance = mock.Mock()
     mock_comms_instance.socket = None
     mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            context_carrier={},
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mock_get_startup_details.return_value = what
     mock_startup.side_effect = AirflowRescheduleException(reschedule_date=reschedule_date)
 
     # Move time
@@ -390,6 +410,102 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     assert mock_comms_instance.mock_calls == [
         call.send(msg=RescheduleTask(reschedule_date=reschedule_date, end_date=ts))
     ]
+
+
+def test_task_span_is_child_of_dag_run_span(make_ti_context):
+    """Task span must be a child of the dag run span propagated via context_carrier."""
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+    # Build a real SDK provider and exporter so we can inspect finished spans.
+    in_mem_exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+
+    # Create a "dag run" span whose context we will propagate into the task.
+    dag_run_tracer = provider.get_tracer("dag_run")
+    with dag_run_tracer.start_as_current_span("dag_run.test_dag") as dag_run_span:
+        carrier: dict[str, str] = {}
+        TraceContextTextMapPropagator().inject(carrier)
+        dag_run_span_ctx = dag_run_span.get_span_context()
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            context_carrier=carrier,
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    task_tracer = provider.get_tracer("airflow.sdk.execution_time.task_runner")
+    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", task_tracer):
+        with _make_task_span(what) as span:
+            task_span_ctx = span.get_span_context()
+
+    # The task span must share the dag run's trace ID.
+    assert task_span_ctx.trace_id == dag_run_span_ctx.trace_id
+
+    # The task span's parent must be the dag run span.
+    finished = in_mem_exporter.get_finished_spans()
+    task_spans = [s for s in finished if s.name == "task_run.my_task"]
+    assert len(task_spans) == 1
+    assert task_spans[0].parent is not None
+    assert task_spans[0].parent.span_id == dag_run_span_ctx.span_id
+
+    # Span attributes are set correctly.
+    attrs = task_spans[0].attributes
+    assert attrs["airflow.dag_id"] == "test_dag"
+    assert attrs["airflow.task_id"] == "my_task"
+    assert attrs["airflow.dag_run.run_id"] == "test_run"
+    assert attrs["airflow.task_instance.try_number"] == 1
+
+
+def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
+    """When context_carrier is absent, the task span should be a root span (no parent)."""
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    in_mem_exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="standalone_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            context_carrier=None,
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    task_tracer = provider.get_tracer("airflow.sdk.execution_time.task_runner")
+    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", task_tracer):
+        with _make_task_span(what):
+            pass
+
+    finished = in_mem_exporter.get_finished_spans()
+    assert len(finished) == 1
+    assert finished[0].parent is None
 
 
 def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
@@ -927,7 +1043,7 @@ def test_startup_and_run_dag_with_rtif(
 
     mock_supervisor_comms._get_response.return_value = what
 
-    run(*startup())
+    run(*startup(get_startup_details()))
     expected_calls = [
         mock.call.send(SetRenderedFields(rendered_fields=expected_rendered_fields)),
         mock.call.send(
@@ -977,7 +1093,7 @@ def test_task_run_with_user_impersonation(
     mock_supervisor_comms.socket.fileno.return_value = 42
 
     with mock.patch.dict(os.environ, {}, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
@@ -1026,7 +1142,7 @@ def test_task_run_with_user_impersonation_default_user(
     mock_get_user.return_value = "default_user"
 
     with mock.patch.dict(os.environ, {}, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert "_AIRFLOW__REEXECUTED_PROCESS" not in os.environ
         assert "_AIRFLOW__STARTUP_MSG" not in os.environ
@@ -1069,7 +1185,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
         "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
     }
     with mock.patch.dict("os.environ", mock_os_env, clear=True):
-        startup()
+        startup(get_startup_details())
 
         assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
@@ -1241,7 +1357,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     )
 
     monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
-    ti, _, _ = startup()
+    ti, _, _ = startup(get_startup_details())
 
     # Presence of `conditional_task` below means Dag ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
@@ -3596,7 +3712,7 @@ class TestTaskRunnerCallsListeners:
         mock_supervisor_comms._get_response.return_value = what
         mocked_parse(what, "basic_dag", task)
 
-        runtime_ti, context, log = startup()
+        runtime_ti, context, log = startup(get_startup_details())
         assert runtime_ti is not None
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
