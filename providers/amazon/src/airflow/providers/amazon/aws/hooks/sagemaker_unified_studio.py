@@ -113,6 +113,8 @@ class SageMakerNotebookHook(BaseHook):
 
     def _get_sagemaker_studio_config(self):
         config = ClientConfig()
+        if self.domain_region:
+            config.region = self.domain_region
         config.overrides["execution"] = {
             "local": is_local_runner(),
             "domain_identifier": self.domain_id,
