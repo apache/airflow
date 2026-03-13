@@ -786,14 +786,14 @@ def upgrade(
     # Define all upgrade commands to run (all run with check=False to continue on errors)
     upgrade_commands: list[tuple[str, str]] = [
         ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        ("pin-versions", "prek --all-files --verbose --hook-stage manual pin-versions"),
+        ("pin-versions", "prek --all-files --verbose --stage manual pin-versions"),
         (
             "update-chart-dependencies",
-            "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual update-chart-dependencies",
+            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
         ),
         (
             "upgrade-important-versions",
-            "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual upgrade-important-versions",
+            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
         ),
     ]
     step_enabled = {

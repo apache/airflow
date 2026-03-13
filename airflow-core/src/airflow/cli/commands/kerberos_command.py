@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.security import kerberos as krb
 from airflow.security.kerberos import KerberosMode
@@ -30,7 +29,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def kerberos(args):
     """Start a kerberos ticket renewer."""
-    print(settings.HEADER)
+    cli_utils.print_banner()
 
     mode = KerberosMode.STANDARD
     if args.one_time:

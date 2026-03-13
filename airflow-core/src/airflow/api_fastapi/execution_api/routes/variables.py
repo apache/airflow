@@ -26,14 +26,14 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.models.variable import Variable
 
 
 async def has_variable_access(
     request: Request,
     variable_key: str = Path(),
-    token=JWTBearerDep,
+    token=CurrentTIToken,
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}

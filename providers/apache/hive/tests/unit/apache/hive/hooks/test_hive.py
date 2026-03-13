@@ -697,6 +697,27 @@ class TestHiveServer2Hook:
                 database="default",
             )
 
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_none_auth(self, mock_connect):
+        """Test that password is passed through even when auth_mechanism is NONE."""
+        conn_id = "conn_none_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://user:mypassword@localhost:10000/default"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="NONE",
+                kerberos_service_name=None,
+                username="user",
+                password="mypassword",
+                database="default",
+            )
+
     @pytest.mark.parametrize(
         ("host", "port", "schema", "message"),
         [
@@ -1023,18 +1044,22 @@ class TestHiveCli:
         [
             (
                 {"high_availability": "true"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
             (
                 {"high_availability": "false"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
-            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            (
+                {"high_availability": "true", "ssl": "false", "zoo_keeper_namespace": "custom_hive_server"},
+                "serviceDiscoveryMode=zooKeeper;ssl=false;zooKeeperNamespace=custom_hive_server",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2"),
             # with proxy user
             (
                 {"proxy_user": "a_user_proxy", "high_availability": "true"},
                 "hive.server2.proxy.user=a_user_proxy;"
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
         ],
     )

@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_builder,
     option_clean_airflow_installation,
+    option_custom_db_url,
     option_db_reset,
     option_debug_components,
     option_debugger,
@@ -121,6 +122,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    COMMON_AI_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
@@ -308,6 +310,7 @@ option_load_default_connections = click.option(
 @option_answer
 @option_auth_manager
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_celery_broker
 @option_celery_flower
@@ -370,6 +373,7 @@ def shell(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -445,6 +449,7 @@ def shell(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
@@ -538,6 +543,7 @@ option_executor_start_airflow = click.option(
 @option_auth_manager
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_clean_airflow_installation
 @option_celery_broker
@@ -589,6 +595,7 @@ def start_airflow(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     debug_components: tuple[str, ...],
     debugger: str,
@@ -653,7 +660,7 @@ def start_airflow(
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
         # Compile provider assets if needed
-        additional_assets = []
+        additional_assets = [COMMON_AI_PLUGIN_PREK_HOOK]
         if executor and EDGE_EXECUTOR in executor:
             additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
         if auth_manager == FAB_AUTH_MANAGER:
@@ -689,6 +696,7 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         debug_components=debug_components,
         debugger=debugger,
         db_reset=db_reset,
@@ -1068,6 +1076,7 @@ def doctor(ctx):
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_docker_host
 @option_dry_run
@@ -1089,6 +1098,7 @@ def run(
     command_args: tuple,
     backend: str,
     builder: str,
+    custom_db_url: str | None,
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
@@ -1157,6 +1167,7 @@ def run(
     shell_params = ShellParams(
         backend=backend,
         builder=builder,
+        custom_db_url=custom_db_url or "",
         docker_host=docker_host,
         force_build=force_build,
         forward_credentials=forward_credentials,

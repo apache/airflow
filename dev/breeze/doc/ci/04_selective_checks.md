@@ -160,7 +160,7 @@ providers.
 
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
-separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
+separated by spaces. This is to accommodate for the way how outputs of this kind can be easily used by
 GitHub Actions to pass the list of parameters to a command to execute
 
 
@@ -185,7 +185,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | docker-cache                                            | Which cache should be used for images ("registry", "local" , "disabled")                                | registry                                 |      |
 | docs-build                                              | Whether to build documentation ("true"/"false")                                                         | true                                     |      |
 | docs-list-as-string                                     | What filter to apply to docs building - based on which documentation packages should be built           | apache-airflow helm-chart google         | *    |
-| excluded-providers-as-string   c                        | List of providers that should be excluded from the build as space-separated string                      | amazon google                            | *    |
+| excluded-providers-as-string                            | List of providers that should be excluded from the build as space-separated string                      | amazon google                            | *    |
 | force-pip                                               | Whether pip should be forced in the image build instead of uv ("true"/"false")                          | false                                    |      |
 | full-tests-needed                                       | Whether this build runs complete set of tests or only subset (for faster PR builds) \[1\]               | false                                    |      |
 | generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                            | false                                    |      |

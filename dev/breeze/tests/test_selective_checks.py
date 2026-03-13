@@ -1321,11 +1321,7 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps(
-                {
-                    "3.13": ["fab"],
-                }
-            ),
+            "excluded-providers-as-string": json.dumps({}),
         },
         str(stderr),
     )

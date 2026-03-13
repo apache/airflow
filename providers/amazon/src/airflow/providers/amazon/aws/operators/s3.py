@@ -150,7 +150,7 @@ class S3GetBucketTaggingOperator(AwsBaseOperator[S3Hook]):
     template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
-    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
+    def __init__(self, bucket_name: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
 

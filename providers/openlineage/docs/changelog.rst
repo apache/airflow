@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+2.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add DagRun note to OL events (#62347)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.11.0
 ......
 
