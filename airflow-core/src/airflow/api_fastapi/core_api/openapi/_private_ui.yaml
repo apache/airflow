@@ -583,25 +583,35 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
-  /ui/deadlines:
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines:
     get:
       tags:
       - Deadlines
       summary: Get Deadlines
-      description: Get all deadlines across DAG runs, with optional filtering.
+      description: 'Get deadlines for a DAG run.
+
+
+        This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
+        Deadlines for all
+
+        DAGs and DAG runs.'
       operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
       - name: dag_id
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: missed
         in: query
         required: false
@@ -667,74 +677,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineWithDagRunCollectionResponse'
-        '422':
-          description: Validation Error
+        '400':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines:
-    get:
-      tags:
-      - Deadlines
-      summary: Get Dag Run Deadlines
-      description: Get all deadlines for a specific DAG run.
-      operationId: get_dag_run_deadlines
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 50
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, alert_name`'
-          default:
-          - deadline_time
-          title: Order By
-        description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, alert_name`'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeadlineCollectionResponse'
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2329,57 +2277,6 @@ components:
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
-    DeadlineCollectionResponse:
-      properties:
-        deadlines:
-          items:
-            $ref: '#/components/schemas/DeadlineResponse'
-          type: array
-          title: Deadlines
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - deadlines
-      - total_entries
-      title: DeadlineCollectionResponse
-      description: Deadline Collection serializer for responses.
-    DeadlineResponse:
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        deadline_time:
-          type: string
-          format: date-time
-          title: Deadline Time
-        missed:
-          type: boolean
-          title: Missed
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-        alert_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Name
-        alert_description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Description
-      type: object
-      required:
-      - id
-      - deadline_time
-      - missed
-      - created_at
-      title: DeadlineResponse
-      description: Deadline serializer for responses.
     DeadlineWithDagRunCollectionResponse:
       properties:
         deadlines:

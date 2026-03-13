@@ -227,6 +227,8 @@ class TestGetDagRunDeadlines:
         assert deadline1["missed"] is False
         assert deadline1["alert_name"] is None
         assert deadline1["alert_description"] is None
+        assert deadline1["dag_id"] == DAG_ID
+        assert deadline1["dag_run_id"] == RUN_SINGLE
         assert "id" in deadline1
         assert "created_at" in deadline1
 
@@ -313,15 +315,15 @@ class TestGetDagRunDeadlines:
 
 
 class TestGetDeadlines:
-    """Tests for GET /deadlines (global deadlines list)."""
+    """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines with ~ wildcards."""
 
     # ------------------------------------------------------------------
     # 200 – happy paths
     # ------------------------------------------------------------------
 
     def test_returns_all_deadlines(self, test_client):
-        """All deadlines across all runs are returned when no filters are applied."""
-        response = test_client.get("/deadlines")
+        """All deadlines across all runs are returned when both dag_id and dag_run_id are ~."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 200
         data = response.json()
         # Fixture creates: 1 (run_single) + 1 (run_missed) + 1 (run_alert) + 3 (run_multi) + 1 (run_other) = 7
@@ -330,7 +332,7 @@ class TestGetDeadlines:
 
     def test_response_includes_dag_and_run_ids(self, test_client):
         """Each deadline includes dag_id and dag_run_id for linking."""
-        response = test_client.get("/deadlines", params={"dag_id": DAG_ID, "limit": 1})
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines", params={"limit": 1})
         assert response.status_code == 200
         dl = response.json()["deadlines"][0]
         assert dl["dag_id"] == DAG_ID
@@ -340,8 +342,8 @@ class TestGetDeadlines:
         assert "missed" in dl
 
     def test_filter_by_dag_id(self, test_client):
-        """Filtering by dag_id returns only that DAG's deadlines."""
-        response = test_client.get("/deadlines", params={"dag_id": DAG_ID})
+        """Specifying a dag_id path param (with ~ for dag_run_id) returns only that DAG's deadlines."""
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 7
@@ -350,7 +352,7 @@ class TestGetDeadlines:
 
     def test_filter_missed_true(self, test_client):
         """Only missed deadlines are returned when missed=true."""
-        response = test_client.get("/deadlines", params={"missed": "true"})
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"missed": "true"})
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 1
@@ -358,7 +360,7 @@ class TestGetDeadlines:
 
     def test_filter_missed_false(self, test_client):
         """Only non-missed (pending) deadlines are returned when missed=false."""
-        response = test_client.get("/deadlines", params={"missed": "false"})
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"missed": "false"})
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 6
@@ -367,7 +369,9 @@ class TestGetDeadlines:
 
     def test_filter_deadline_time_gte(self, test_client):
         """deadline_time_gte filters out deadlines before the given time."""
-        response = test_client.get("/deadlines", params={"deadline_time_gte": "2025-02-01T00:00:00Z"})
+        response = test_client.get(
+            "/dags/~/dagRuns/~/deadlines", params={"deadline_time_gte": "2025-02-01T00:00:00Z"}
+        )
         assert response.status_code == 200
         data = response.json()
         # Deadline times at/after 2025-02-01: run_multi 2025-02-01, 2025-03-01, run_other 2025-06-01 = 3
@@ -375,7 +379,9 @@ class TestGetDeadlines:
 
     def test_filter_deadline_time_lte(self, test_client):
         """deadline_time_lte filters out deadlines after the given time."""
-        response = test_client.get("/deadlines", params={"deadline_time_lte": "2024-12-31T23:59:59Z"})
+        response = test_client.get(
+            "/dags/~/dagRuns/~/deadlines", params={"deadline_time_lte": "2024-12-31T23:59:59Z"}
+        )
         assert response.status_code == 200
         data = response.json()
         # Only run_missed's 2024-12-01 is before 2025
@@ -383,25 +389,29 @@ class TestGetDeadlines:
 
     def test_ordered_by_deadline_time_ascending_by_default(self, test_client):
         """Deadlines are ordered by deadline_time ascending by default."""
-        response = test_client.get("/deadlines")
+        response = test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 200
         times = [dl["deadline_time"] for dl in response.json()["deadlines"]]
         assert times == sorted(times)
 
     def test_pagination(self, test_client):
         """limit and offset work correctly."""
-        all_resp = test_client.get("/deadlines")
+        all_resp = test_client.get("/dags/~/dagRuns/~/deadlines")
         all_ids = [dl["id"] for dl in all_resp.json()["deadlines"]]
 
-        page1 = test_client.get("/deadlines", params={"limit": 3, "offset": 0}).json()["deadlines"]
-        page2 = test_client.get("/deadlines", params={"limit": 3, "offset": 3}).json()["deadlines"]
+        page1 = test_client.get("/dags/~/dagRuns/~/deadlines", params={"limit": 3, "offset": 0}).json()[
+            "deadlines"
+        ]
+        page2 = test_client.get("/dags/~/dagRuns/~/deadlines", params={"limit": 3, "offset": 3}).json()[
+            "deadlines"
+        ]
 
         assert [dl["id"] for dl in page1] == all_ids[:3]
         assert [dl["id"] for dl in page2] == all_ids[3:6]
 
     def test_alert_name_present_when_linked(self, test_client):
         """Deadlines linked to a DeadlineAlert include alert_name and alert_description."""
-        response = test_client.get("/deadlines", params={"dag_id": DAG_ID})
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
         assert response.status_code == 200
         deadlines = response.json()["deadlines"]
         alerts = [dl for dl in deadlines if dl["alert_name"] is not None]
@@ -411,20 +421,25 @@ class TestGetDeadlines:
 
     def test_filter_nonexistent_dag_returns_empty(self, test_client):
         """Filtering by a dag_id that doesn't exist returns an empty list."""
-        response = test_client.get("/deadlines", params={"dag_id": "nonexistent_dag"})
+        response = test_client.get("/dags/nonexistent_dag/dagRuns/~/deadlines")
         assert response.status_code == 200
         assert response.json() == {"deadlines": [], "total_entries": 0}
+
+    def test_dag_run_id_without_dag_id_returns_400(self, test_client):
+        """Specifying a concrete dag_run_id with dag_id=~ is a bad request."""
+        response = test_client.get(f"/dags/~/dagRuns/{RUN_SINGLE}/deadlines")
+        assert response.status_code == 400
 
     # ------------------------------------------------------------------
     # 401 / 403
     # ------------------------------------------------------------------
 
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/deadlines")
+        response = unauthenticated_test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/deadlines")
+        response = unauthorized_test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 403
 
 

@@ -26,7 +26,6 @@ from airflow.api_fastapi.core_api.routes.ui.connections import connections_route
 from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 from airflow.api_fastapi.core_api.routes.ui.deadlines import (
-    all_deadlines_router,
     deadline_alerts_router,
     deadlines_router,
 )
@@ -47,7 +46,6 @@ ui_router.include_router(connections_router)
 ui_router.include_router(dags_router)
 ui_router.include_router(dependencies_router)
 ui_router.include_router(dashboard_router)
-ui_router.include_router(all_deadlines_router)
 ui_router.include_router(deadlines_router)
 ui_router.include_router(deadline_alerts_router)
 ui_router.include_router(structure_router)

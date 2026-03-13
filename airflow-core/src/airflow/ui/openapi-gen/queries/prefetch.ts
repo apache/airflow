@@ -1561,9 +1561,13 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (queryClient: QueryC
 export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseDashboardServiceDagStatsKeyFn(), queryFn: () => DashboardService.dagStats() });
 /**
 * Get Deadlines
-* Get all deadlines across DAG runs, with optional filtering.
+* Get deadlines for a DAG run.
+*
+* This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
+* DAGs and DAG runs.
 * @param data The data for the request.
 * @param data.dagId
+* @param data.dagRunId
 * @param data.missed
 * @param data.deadlineTimeGte
 * @param data.deadlineTimeLte
@@ -1573,34 +1577,16 @@ export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
 * @returns DeadlineWithDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient, { dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
-  dagId?: string;
+export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
+  dagId: string;
+  dagRunId: string;
   deadlineTimeGte?: string;
   deadlineTimeLte?: string;
   limit?: number;
   missed?: boolean;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }) });
-/**
-* Get Dag Run Deadlines
-* Get all deadlines for a specific DAG run.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.limit
-* @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
-* @returns DeadlineCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseDeadlinesServiceGetDagRunDeadlines = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy }: {
-  dagId: string;
-  dagRunId: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }) });
 /**
 * Get Dag Deadline Alerts
 * Get all deadline alerts defined on a DAG.
