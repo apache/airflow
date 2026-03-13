@@ -1041,7 +1041,11 @@ class DagRun(Base, LoggingMixin):
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
-            span.add_event("airflow.dag_run.start_time", timestamp=int(self.start_date.timestamp() * 1e9))
+            span.add_event(
+                "airflow.dag_run.start_time",
+                attributes=attributes,
+                timestamp=int(self.start_date.timestamp() * 1e9),
+            )
             span.end()
 
     @provide_session
