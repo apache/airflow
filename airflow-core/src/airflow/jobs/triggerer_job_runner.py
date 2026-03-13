@@ -35,6 +35,9 @@ from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, T
 import anyio
 import attrs
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
@@ -87,6 +90,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from opentelemetry.util._decorator import _AgnosticContextManager
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
@@ -96,6 +100,28 @@ if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+def _prepare_span(
+    ti: TaskInstanceDTO | None, trigger_id: int, name: str
+) -> _AgnosticContextManager[trace.Span]:
+    parent_context = (
+        TraceContextTextMapPropagator().extract(ti.context_carrier) if ti and ti.context_carrier else None
+    )
+    span_name = f"trigger_run.{ti.task_id}" if ti else f"trigger_run.{trigger_id}"
+    if ti and ti.map_index >= 0:
+        span_name += f"_{ti.map_index}"
+    attributes = {
+        "airflow.dag_id": ti.dag_id,
+        "airflow.task_id": ti.task_id,
+        "airflow.dag_run.run_id": ti.run_id,
+        "airflow.task_instance.try_number": ti.try_number,
+        "airflow.task_instance.map_index": ti.map_index,
+        "airflow.trigger.name": name,
+    }
+    return tracer.start_as_current_span(span_name, attributes=attributes, context=parent_context)
+
 
 __all__ = [
     "TriggerRunner",
@@ -694,6 +720,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     ti=ser_ti,  # type: ignore
                 )
 
+                ser_ti.context_carrier = new_trigger_orm.task_instance.dag_run.context_carrier
                 workload.ti = ser_ti
                 workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
 
@@ -1179,30 +1206,36 @@ class TriggerRunner:
 
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
-        try:
-            async for event in trigger.run():
-                await self.log.ainfo(
-                    "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
-                )
-                self.triggers[trigger_id]["events"] += 1
-                self.events.append((trigger_id, event))
-        except asyncio.CancelledError:
-            # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
-            # message about it
-            if timeout := timeout_after:
-                timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
-                if timeout < timezone.utcnow():
-                    await self.log.aerror("Trigger cancelled due to timeout")
-            raise
-        finally:
-            # CancelledError will get injected when we're stopped - which is
-            # fine, the cleanup process will understand that, but we want to
-            # allow triggers a chance to cleanup, either in that case or if
-            # they exit cleanly. Exception from cleanup methods are ignored.
-            with suppress(Exception):
-                await trigger.cleanup()
 
-            await self.log.ainfo("trigger completed", name=name)
+        with _prepare_span(ti=trigger.task_instance, trigger_id=trigger_id, name=name) as span:
+            try:
+                async for event in trigger.run():
+                    await self.log.ainfo(
+                        event="Trigger fired event",
+                        name=name,
+                        result=event,
+                    )
+                    self.triggers[trigger_id]["events"] += 1
+                    self.events.append((trigger_id, event))
+                span.set_status(Status(StatusCode.OK))
+            except asyncio.CancelledError as e:
+                # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
+                # message about it
+                if timeout := timeout_after:
+                    timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
+                    if timeout < timezone.utcnow():
+                        await self.log.aerror("Trigger cancelled due to timeout")
+                span.set_status(Status(StatusCode.ERROR), description=str(e))
+                raise
+            finally:
+                # CancelledError will get injected when we're stopped - which is
+                # fine, the cleanup process will understand that, but we want to
+                # allow triggers a chance to cleanup, either in that case or if
+                # they exit cleanly. Exception from cleanup methods are ignored.
+                with suppress(Exception):
+                    await trigger.cleanup()
+
+                await self.log.ainfo("trigger completed", name=name)
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
