@@ -605,7 +605,10 @@ class TestDagRunOperatorAF2:
 
             dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert mock_warning.mock_calls == [
-                mock.call("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+                mock.call(
+                    "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
+                    ", ".join(task.attributes_not_suppported_in_airflow_2),
+                )
             ]
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
