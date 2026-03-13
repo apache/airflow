@@ -46,11 +46,9 @@ export const MetricSection = ({
   state,
   total,
 }: MetricSectionProps) => {
-  // Calculate the given state as a percentage of total and draw a bar
-  // in state's color with width as state's percentage and remaining width filed as gray
-  const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
-  const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
+  const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
+  const statePercent = capped ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
 
   const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
@@ -75,7 +73,7 @@ export const MetricSection = ({
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>
         </HStack>
-        <Text color="fg.muted"> {statePercent}% </Text>
+        {statePercent === undefined ? undefined : <Text color="fg.muted"> {statePercent}% </Text>}
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
