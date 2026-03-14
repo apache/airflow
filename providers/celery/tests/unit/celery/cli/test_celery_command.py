@@ -647,6 +647,170 @@ def test_bundle_cleanup_main_is_picklable():
     pickle.dumps(_bundle_cleanup_main)
 
 
+class TestWorkerHealthCheck:
+    """Tests for the worker-health-check command that detects catatonic worker state."""
+
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_passes_when_worker_is_alive_and_consuming(self, mock_inspect):
+        """Worker is alive and has queue consumers — health check must pass."""
+        hostname = "celery@healthy-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {hostname: {"ok": "pong"}}
+        mock_instance.active_queues.return_value = {
+            hostname: [{"name": "default"}, {"name": "high_priority"}],
+        }
+        mock_inspect.return_value = mock_instance
+
+        # Should complete without raising SystemExit
+        celery_command.worker_health_check(args)
+
+        mock_instance.ping.assert_called_once()
+        mock_instance.active_queues.assert_called_once()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_ping_returns_none(self, mock_inspect):
+        """Worker does not respond to ping — health check must fail (worker is down)."""
+        hostname = "celery@dead-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = None
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert exc_info.value.code != 0
+        # active_queues must NOT be called if ping already failed
+        mock_instance.active_queues.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_worker_not_in_ping_result(self, mock_inspect):
+        """Ping result does not include target worker — health check must fail."""
+        hostname = "celery@unreachable-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        # Ping returns something, but not for our worker
+        mock_instance.ping.return_value = {"celery@other-host": {"ok": "pong"}}
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert exc_info.value.code != 0
+        mock_instance.active_queues.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_active_queues_returns_none(self, mock_inspect):
+        """
+        Worker responds to ping but active_queues returns None — catatonic state.
+
+        This is the primary bug scenario: after a Redis broker restart, the worker
+        reconnects at transport level (ping works) but loses its queue consumer
+        registrations (active_queues returns None). The health check must fail so
+        that the container orchestrator restarts the worker.
+
+        See: https://github.com/apache/airflow/issues/63580
+        """
+        hostname = "celery@catatonic-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {hostname: {"ok": "pong"}}
+        # Simulates catatonic state: worker is alive but has no queue registrations
+        mock_instance.active_queues.return_value = None
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert exc_info.value.code != 0
+        mock_instance.ping.assert_called_once()
+        mock_instance.active_queues.assert_called_once()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_worker_not_in_active_queues(self, mock_inspect):
+        """
+        Worker responds to ping but is absent from active_queues result — catatonic state.
+
+        Variant of the catatonic state where active_queues returns a result but the
+        specific worker is not listed (other workers appear but not ours).
+        """
+        hostname = "celery@catatonic-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {hostname: {"ok": "pong"}}
+        # Worker is absent from active_queues — other workers appear, but not ours
+        mock_instance.active_queues.return_value = {"celery@other-host": [{"name": "default"}]}
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert exc_info.value.code != 0
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_active_queues_list_is_empty(self, mock_inspect):
+        """
+        Worker responds to ping but has an empty queue list — catatonic state variant.
+
+        Another variant where active_queues returns the worker key but with an empty
+        list, indicating no queue consumers are registered.
+        """
+        hostname = "celery@catatonic-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {hostname: {"ok": "pong"}}
+        # Worker entry exists but has empty queue list
+        mock_instance.active_queues.return_value = {hostname: []}
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert exc_info.value.code != 0
+
+    @pytest.mark.db_test
+    @mock.patch("socket.gethostname")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_defaults_hostname_from_socket(self, mock_inspect, mock_gethostname):
+        """When --celery-hostname is omitted, the check uses celery@<socket.gethostname()>."""
+        mock_gethostname.return_value = "my-worker-host"
+        expected_hostname = "celery@my-worker-host"
+
+        args = self.parser.parse_args(["celery", "worker-health-check"])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {expected_hostname: {"ok": "pong"}}
+        mock_instance.active_queues.return_value = {
+            expected_hostname: [{"name": "default"}],
+        }
+        mock_inspect.return_value = mock_instance
+
+        celery_command.worker_health_check(args)
+
+        # Verify inspect was targeted at the auto-resolved hostname
+        mock_inspect.assert_called_once_with(destination=[expected_hostname])
+
+
 class TestLoggerSetupHandler:
     """Tests for logger_setup_handler that configures celery logging."""
 
