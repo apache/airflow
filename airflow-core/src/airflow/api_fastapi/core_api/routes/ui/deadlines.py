@@ -107,11 +107,10 @@ def get_deadlines(
         if not dag_run:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
-                f"No DAG run found for dag_id={dag_id!r} dag_run_id={dag_run_id!r}",
+                f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
         query = query.where(Deadline.dagrun_id == dag_run.id)
-
-    if dag_id != "~":
+    elif dag_id != "~":
         query = query.where(DagRun.dag_id == dag_id)
 
     if missed is not None:
