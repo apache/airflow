@@ -20,16 +20,16 @@
 Deferred vs Async Operators
 ===========================
 
- .. versionadded:: 3.2.0
+.. versionadded:: 3.2.0
 
-Airflow contains Python native async support, enabling task authors to leverage asynchronous I/O for high-throughput workloads.
-It is important to understand how this differs from deferred operators.
+Airflow 3.2 introduces Python-native async support for tasks, allowing concurrent I/O within a single worker slot.
+This page explains how async operators differ from deferred operators and when to use each.
 
 Deferred Operators
 ------------------
 
 A deferred operator is an operator that can pause its execution until an external trigger event occurs,
-without holding a worker slot. For more details see :doc:`authoring-and-scheduling/deferring`.
+without holding a worker slot. For more details see :doc:`airflow:authoring-and-scheduling/deferring`.
 Examples include the HttpOperator in deferrable mode, sensors or operators integrated with triggers.
 
 Key characteristics:
@@ -37,8 +37,7 @@ Key characteristics:
   - Execution is paused while waiting for external events or resources.
   - Worker slots are freed during the wait, improving resource efficiency.
   - Ideal for scenarios where a single external event or a small number of events dictate task completion.
-
-Typically simpler to use, as no custom async logic is required as this is all handled by the deferred operator.
+  - Typically simpler to use, as the deferred operator handles all async logic.
 
 Async Python Operators
 ----------------------
@@ -63,16 +62,23 @@ Prefer a deferred operator when:
 
 .. code-block:: python
 
+   from airflow.sdk import dag
    from airflow.providers.http.operators.http import HttpOperator
 
-   task_get_op = HttpOperator(
-       http_conn_id="http_conn_id",
-       task_id="get_op",
-       method="GET",
-       endpoint="get",
-       data={"param1": "value1", "param2": "value2"},
-       deferrable=True,
-   )
+   @dag(schedule=None)
+   def deferred_http_operator_dag():
+
+       get_op_task = HttpOperator(
+           http_conn_id="http_conn_id",
+           task_id="get_op",
+           method="GET",
+           endpoint="get",
+           data={"param1": "value1", "param2": "value2"},
+           deferrable=True,
+       )
+
+
+   deferred_http_operator_dag()
 
 When to Use Async Python Operators
 ----------------------------------
@@ -84,12 +90,70 @@ Use async Python operators when:
   - There is simply no deferred operator available.
   - The logic depends on custom Python code (e.g. callables or lambdas) that cannot easily be implemented in a trigger, since triggers must be serializable and do not have access to DAG code at runtime.
 
+.. note::
+
+   The :class:`~airflow.providers.http.hooks.http.HttpAsyncHook` depends on ``aiohttp``,
+   which is installed automatically with the `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_ provider.
+
+Simple Async Example
+~~~~~~~~~~~~~~~~~~~~
+
+The following example demonstrates the basic syntax for writing an async task
+using ``async``/``await``.
+
+.. note::
+
+   For a single request like this, a deferrable operator (such as
+   :class:`~airflow.providers.http.operators.http.HttpOperator` with
+   ``deferrable=True``) is usually preferred. Deferred operators release the
+   worker slot while waiting for the external request to complete.
+
+   This example is provided mainly to illustrate the structure of an async
+   task. Async operators become most useful when performing many concurrent
+   operations within the same task (see the multiplexing example below), or
+   when implementing logic such as pagination where multiple requests need to
+   be executed sequentially or concurrently within a single task instance.
+
+.. code-block:: python
+
+   from aiohttp import ClientSession
+   from airflow.providers.http.hooks.http import HttpAsyncHook
+   from airflow.sdk import dag, task
+
+
+   @dag(schedule=None)
+   def async_http_operator_dag():
+
+       @task
+       async def get_op():
+           hook = HttpAsyncHook(http_conn_id="http_conn_id", method="GET")
+
+           async with ClientSession() as session:
+               response = await hook.run(
+                   session=session,
+                   endpoint="get",
+                   data={"param1": "value1", "param2": "value2"},
+               )
+               return await response.json()
+
+       get_op()
+
+
+   async_http_operator_dag()
+
+Async Multiplexing Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Async operators become particularly useful when making many concurrent requests
+within a single task. The following example executes multiple HTTP requests
+concurrently using ``asyncio.gather`` while limiting concurrency with a semaphore.
+
 .. code-block:: python
 
    import asyncio
    from aiohttp import ClientSession
    from airflow.providers.http.hooks.http import HttpAsyncHook
-   from airflow.sdk import task
+   from airflow.sdk import dag, task
 
    parameters = [
        {"param1": "value1", "param2": "value2"},
@@ -98,21 +162,71 @@ Use async Python operators when:
        {"param1": "value7", "param2": "value8"},
    ]
 
-   @task
-   async def get_op(parameters: list[dict[str, str]]):
-       hook = HttpAsyncHook(http_conn_id="http_conn_id", method="GET")
+   @dag(schedule=None)
+   def async_http_multiplex_dag():
 
-       async with ClientSession() as session:
-           tasks = [
-               hook.run(session=session, endpoint="get", data=params)
-               for params in parameters
-           ]
-           # Run all requests concurrently in the shared event loop for high throughput
-           responses = await asyncio.gather(*tasks)
-           return [await r.json() for r in responses]
+       @task
+       async def get_op(parameters: list[dict[str, str]]):
+           hook = HttpAsyncHook(http_conn_id="http_conn_id", method="GET")
 
-   get_op(parameters)
+           # Limit concurrent requests to avoid overwhelming downstream services
+           semaphore = asyncio.Semaphore(5)
 
-Compared to Dynamic Task Mapping with many deferrable operators, the approach with Async Python Operator is that all execution shares one worker slot and is sharing a single event loop.
-In contrast with Dynamic Task Mapping each list element is tracked as an individual task, needs individual scheduling but on the other hand can be repeated individually.
-For more details about Dynamic Task Mapping, see the :ref:`dynamic task mapping <sdk-dynamic-mapping>` page.
+           async def fetch(session, params):
+               async with semaphore:
+                   response = await hook.run(
+                       session=session,
+                       endpoint="get",
+                       data=params,
+                   )
+                   return await response.json()
+
+           async with ClientSession() as session:
+               tasks = [fetch(session, params) for params in parameters]
+
+               # Run requests concurrently in the shared event loop
+               return await asyncio.gather(*tasks)
+
+       get_op(parameters)
+
+
+   async_http_multiplex_dag()
+
+.. note::
+
+   The upcoming *Dynamic Task Iteration* feature will simplify patterns like this.
+   Instead of manually managing concurrency with constructs such as
+   ``asyncio.gather`` and ``asyncio.Semaphore``, authors will be able to iterate
+   over asynchronous results directly in downstream tasks while still benefiting
+   from a shared event loop. This will make high-throughput patterns such as
+   pagination or request multiplexing easier to implement.
+
+Comparison with Dynamic Task Mapping
+------------------------------------
+
+Async operators and Dynamic Task Mapping solve different problems and have different trade-offs.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Aspect
+     - Async ``@task``
+     - Dynamic Task Mapping (deferrable)
+   * - Worker slots
+     - 1 worker slot (shared event loop)
+     - N worker slots (one per mapped task instance)
+   * - Concurrency model
+     - Async I/O inside a single task
+     - Parallel task instances scheduled by the scheduler
+   * - Retry behavior
+     - Whole task retries
+     - Individual mapped tasks can retry independently
+   * - UI visibility
+     - Appears as a single task
+     - Each mapped task is visible separately
+   * - Scheduler overhead
+     - Minimal
+     - Scheduler must manage N task instances
+
+For more details about Dynamic Task Mapping, see the
+:ref:`dynamic task mapping <sdk-dynamic-task-mapping>` page.
