@@ -25,14 +25,23 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-openai",
         "name": "OpenAI",
-        "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__\n",
+        "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.\nEnables interaction with OpenAI APIs for text generation, embeddings,\nand other AI-powered workflows directly from Airflow DAGs.\n",
         "integrations": [
             {
                 "integration-name": "OpenAI",
                 "external-doc-url": "https://platform.openai.com/docs/introduction",
                 "logo": "/docs/integration-logos/OpenAI.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-openai/operators/openai.rst"],
-                "tags": ["software"],
+                "tags": [
+                    "ai",
+                    "openai",
+                    "machine-learning",
+                    "generative-ai",
+                    "llm",
+                    "text-generation",
+                    "embeddings",
+                    "ai-inference",
+                ],
             }
         ],
         "hooks": [

@@ -62,6 +62,7 @@ CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = "job-name"
+TASK_KEY = "task-key"
 PIPELINE_NAME = "some pipeline name"
 PIPELINE_ID = "its-a-pipeline-id"
 STATEMENT_ID = "statement_id"
@@ -87,6 +88,7 @@ GET_RUN_RESPONSE = {
     "job_id": JOB_ID,
     "run_page_url": RUN_PAGE_URL,
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
+    "tasks": [{"task_key": TASK_KEY}],
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 CLUSTER_STATE = "TERMINATED"
@@ -691,6 +693,29 @@ class TestDatabricksHook:
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
         state_message = self.hook.get_run_state_message(RUN_ID)
         assert state_message == STATE_MESSAGE
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_run_tasks_success_multiple_pages(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({**GET_RUN_RESPONSE, "next_page_token": "PAGETOKEN"}),
+            create_successful_response_mock(GET_RUN_RESPONSE),
+        ]
+
+        tasks = self.hook.get_run_tasks(RUN_ID)
+
+        assert mock_requests.get.call_count == 2
+
+        first_call_args = mock_requests.method_calls[0]
+        assert first_call_args[1][0] == get_run_endpoint(HOST)
+        assert first_call_args[2]["params"] == {"run_id": RUN_ID}
+
+        second_call_args = mock_requests.method_calls[1]
+        assert second_call_args[1][0] == get_run_endpoint(HOST)
+        assert second_call_args[2]["params"] == {"run_id": RUN_ID, "page_token": "PAGETOKEN"}
+
+        assert len(tasks) == 2
+        assert tasks == GET_RUN_RESPONSE["tasks"] * 2
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):

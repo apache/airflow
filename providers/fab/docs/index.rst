@@ -42,6 +42,7 @@
     :caption: Internal DB details
 
     Database Migrations <migrations-ref>
+    Database ERD Schema <database-erd-ref>
 
 .. toctree::
     :hidden:

@@ -70,7 +70,6 @@ __all__ = [
     "TaskGroup",
     "TaskInstance",
     "TaskInstanceState",
-    "Trace",
     "TriggerRule",
     "Variable",
     "WeeklyMapper",
@@ -157,7 +156,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.sdk.observability.trace import Trace
     from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
@@ -214,7 +212,6 @@ __lazy_imports: dict[str, str] = {
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstance": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
-    "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeeklyMapper": ".definitions.partition_mappers.temporal",

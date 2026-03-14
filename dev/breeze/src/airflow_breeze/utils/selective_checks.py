@@ -135,6 +135,7 @@ class FileGroupForCi(Enum):
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
     UI_ENGLISH_TRANSLATION_FILES = auto()
+    SCRIPTS_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -332,6 +333,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
             r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
+        ],
+        FileGroupForCi.SCRIPTS_FILES: [
+            r"^scripts/ci/.*\.py$",
+            r"^scripts/cov/.*\.py$",
+            r"^scripts/tools/.*\.py$",
+            r"^scripts/tests/.*\.py$",
         ],
     }
 )
@@ -944,6 +951,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
             FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
         )
+
+    @cached_property
+    def run_scripts_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.SCRIPTS_FILES)
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:

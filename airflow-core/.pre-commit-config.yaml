@@ -264,15 +264,6 @@ repos:
           (?x)
           ^src/airflow/migrations/versions/.*\.py$|
           ^docs/migrations-ref\.rst$
-      - id: update-er-diagram
-        name: Update ER diagram
-        language: python
-        entry: ../scripts/ci/prek/update_er_diagram.py
-        pass_filenames: false
-        files:
-          (?x)
-          ^src/airflow/migrations/versions/.*\.py$|
-          ^docs/migrations-ref\.rst$
       - id: check-default-configuration
         name: Check the default configuration
         entry: ../scripts/ci/prek/check_default_configuration.py
