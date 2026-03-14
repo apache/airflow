@@ -22,10 +22,11 @@ the core check_file logic here and test it against the same rules.
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import yaml
+
+ACTIONS_CHECKOUT_V4 = "actions/checkout@v4"
 
 
 def check_file(the_file: Path) -> int:
@@ -57,101 +58,92 @@ def check_file(the_file: Path) -> int:
     return error_num
 
 
-def _write_workflow(content: dict) -> Path:
-    """Write a workflow dict as YAML to a temp file and return its Path."""
-    f = tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False)
-    yaml.dump(content, f)
-    f.flush()
-    f.close()
-    return Path(f.name)
-
-
 class TestCheckFile:
-    def test_checkout_with_persist_credentials_false(self):
+    def test_checkout_with_persist_credentials_false(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"persist-credentials": False},
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0
 
-    def test_checkout_without_with_clause(self):
+    def test_checkout_without_with_clause(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 1
 
-    def test_checkout_without_persist_credentials(self):
+    def test_checkout_without_persist_credentials(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"fetch-depth": 0},
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 1
 
-    def test_checkout_with_persist_credentials_true(self):
+    def test_checkout_with_persist_credentials_true(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"persist-credentials": True},
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 1
 
-    def test_constraints_path_exception(self):
+    def test_constraints_path_exception(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout constraints",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"path": "constraints"},
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0
 
-    def test_backport_id_exception(self):
+    def test_backport_id_exception(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
@@ -159,17 +151,17 @@ class TestCheckFile:
                         {
                             "name": "Checkout for backport",
                             "id": "checkout-for-backport",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"fetch-depth": 0},
                         }
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0
 
-    def test_non_checkout_step_ignored(self):
+    def test_non_checkout_step_ignored(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
@@ -182,10 +174,10 @@ class TestCheckFile:
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0
 
-    def test_job_without_steps(self):
+    def test_job_without_steps(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
@@ -193,38 +185,38 @@ class TestCheckFile:
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0
 
-    def test_multiple_errors(self):
+    def test_multiple_errors(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout 1",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                         },
                         {
                             "name": "Checkout 2",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"persist-credentials": True},
                         },
                     ]
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 2
 
-    def test_multiple_jobs(self):
+    def test_multiple_jobs(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                             "with": {"persist-credentials": False},
                         }
                     ]
@@ -233,16 +225,16 @@ class TestCheckFile:
                     "steps": [
                         {
                             "name": "Checkout",
-                            "uses": "actions/checkout@v4",
+                            "uses": ACTIONS_CHECKOUT_V4,
                         }
                     ]
                 },
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 1
 
-    def test_run_step_without_uses(self):
+    def test_run_step_without_uses(self, write_workflow_file):
         workflow = {
             "jobs": {
                 "build": {
@@ -255,5 +247,5 @@ class TestCheckFile:
                 }
             }
         }
-        path = _write_workflow(workflow)
+        path = write_workflow_file(workflow)
         assert check_file(path) == 0

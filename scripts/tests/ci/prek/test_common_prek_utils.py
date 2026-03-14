@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import tempfile
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -35,6 +33,9 @@ from ci.prek.common_prek_utils import (
     temporary_tsc_project,
 )
 
+PROVIDERS_AMAZON_S3_PATH = "providers/amazon/hooks/s3.py"
+AIRFLOW_MODELS_DAG_PATH = "airflow/models/dag.py"
+
 
 class TestPreProcessMypyFiles:
     def test_excludes_conftest(self):
@@ -44,10 +45,10 @@ class TestPreProcessMypyFiles:
         assert "tests/test_foo.py" in result
 
     def test_excludes_init(self):
-        files = ["airflow/__init__.py", "airflow/models/dag.py"]
+        files = ["airflow/__init__.py", AIRFLOW_MODELS_DAG_PATH]
         result = pre_process_mypy_files(files)
         assert "airflow/__init__.py" not in result
-        assert "airflow/models/dag.py" in result
+        assert AIRFLOW_MODELS_DAG_PATH in result
 
     def test_excludes_both(self):
         files = ["conftest.py", "__init__.py", "test_foo.py"]
@@ -59,96 +60,82 @@ class TestPreProcessMypyFiles:
 
     def test_on_non_main_branch_excludes_providers(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_BRANCH", "v2-10-stable")
-        files = ["providers/amazon/hooks/s3.py", "airflow/models/dag.py"]
+        files = [PROVIDERS_AMAZON_S3_PATH, AIRFLOW_MODELS_DAG_PATH]
         result = pre_process_mypy_files(files)
-        assert "providers/amazon/hooks/s3.py" not in result
-        assert "airflow/models/dag.py" in result
+        assert PROVIDERS_AMAZON_S3_PATH not in result
+        assert AIRFLOW_MODELS_DAG_PATH in result
 
     def test_on_main_branch_keeps_providers(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_BRANCH", "main")
-        files = ["providers/amazon/hooks/s3.py", "airflow/models/dag.py"]
+        files = [PROVIDERS_AMAZON_S3_PATH, AIRFLOW_MODELS_DAG_PATH]
         result = pre_process_mypy_files(files)
-        assert "providers/amazon/hooks/s3.py" in result
-        assert "airflow/models/dag.py" in result
+        assert PROVIDERS_AMAZON_S3_PATH in result
+        assert AIRFLOW_MODELS_DAG_PATH in result
 
     def test_no_default_branch_keeps_providers(self, monkeypatch):
         monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
-        files = ["providers/amazon/hooks/s3.py"]
+        files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
-        assert "providers/amazon/hooks/s3.py" in result
+        assert PROVIDERS_AMAZON_S3_PATH in result
 
 
 class TestGetImportsFromFile:
-    def _write_temp(self, code: str) -> Path:
-        f = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
-        f.write(textwrap.dedent(code))
-        f.flush()
-        f.close()
-        return Path(f.name)
-
-    def test_simple_import(self):
-        path = self._write_temp("import os\nimport sys\n")
+    def test_simple_import(self, write_python_file):
+        path = write_python_file("import os\nimport sys\n")
         result = get_imports_from_file(path, only_top_level=True)
         assert "os" in result
         assert "sys" in result
 
-    def test_from_import(self):
-        path = self._write_temp("from collections import defaultdict\n")
+    def test_from_import(self, write_python_file):
+        path = write_python_file("from collections import defaultdict\n")
         result = get_imports_from_file(path, only_top_level=True)
         assert "collections.defaultdict" in result
 
-    def test_skips_future_imports(self):
-        path = self._write_temp("from __future__ import annotations\nimport os\n")
+    def test_skips_future_imports(self, write_python_file):
+        path = write_python_file("from __future__ import annotations\nimport os\n")
         result = get_imports_from_file(path, only_top_level=True)
         assert not any("__future__" in imp for imp in result)
         assert "os" in result
 
-    def test_top_level_only_excludes_nested(self):
+    def test_top_level_only_excludes_nested(self, write_python_file):
         code = """\
         import os
 
         def inner():
             import json
         """
-        path = self._write_temp(code)
+        path = write_python_file(code)
         top_level = get_imports_from_file(path, only_top_level=True)
         assert "os" in top_level
         assert "json" not in top_level
 
-    def test_all_levels_includes_nested(self):
+    def test_all_levels_includes_nested(self, write_python_file):
         code = """\
         import os
 
         def inner():
             import json
         """
-        path = self._write_temp(code)
+        path = write_python_file(code)
         all_level = get_imports_from_file(path, only_top_level=False)
         assert "os" in all_level
         assert "json" in all_level
 
-    def test_multiple_from_imports(self):
-        path = self._write_temp("from pathlib import Path, PurePath\n")
+    def test_multiple_from_imports(self, write_python_file):
+        path = write_python_file("from pathlib import Path, PurePath\n")
         result = get_imports_from_file(path, only_top_level=True)
         assert "pathlib.Path" in result
         assert "pathlib.PurePath" in result
 
-    def test_empty_file(self):
-        path = self._write_temp("")
+    def test_empty_file(self, write_python_file):
+        path = write_python_file("")
         result = get_imports_from_file(path, only_top_level=True)
         assert result == []
 
 
 class TestInsertDocumentation:
-    def _write_file(self, content: str) -> Path:
-        f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
-        f.write(content)
-        f.flush()
-        f.close()
-        return Path(f.name)
-
-    def test_replaces_content_between_header_and_footer(self):
-        path = self._write_file("before\n<!-- START -->\nold content\n<!-- END -->\nafter\n")
+    def test_replaces_content_between_header_and_footer(self, write_text_file):
+        path = write_text_file("before\n<!-- START -->\nold content\n<!-- END -->\nafter\n")
         result = insert_documentation(
             path,
             content=["new line 1\n", "new line 2\n"],
@@ -163,8 +150,8 @@ class TestInsertDocumentation:
         assert "before" in text
         assert "after" in text
 
-    def test_returns_false_when_content_unchanged(self):
-        path = self._write_file("before\n<!-- START -->\nkept\n<!-- END -->\nafter\n")
+    def test_returns_false_when_content_unchanged(self, write_text_file):
+        path = write_text_file("before\n<!-- START -->\nkept\n<!-- END -->\nafter\n")
         result = insert_documentation(
             path,
             content=["kept\n"],
@@ -173,8 +160,8 @@ class TestInsertDocumentation:
         )
         assert result is False
 
-    def test_exits_when_header_not_found(self):
-        path = self._write_file("no markers here\n")
+    def test_exits_when_header_not_found(self, write_text_file):
+        path = write_text_file("no markers here\n")
         with pytest.raises(SystemExit):
             insert_documentation(
                 path,
@@ -183,8 +170,8 @@ class TestInsertDocumentation:
                 footer="<!-- END -->",
             )
 
-    def test_add_comment_prefixes_lines(self):
-        path = self._write_file("before\n# START\nold\n# END\nafter\n")
+    def test_add_comment_prefixes_lines(self, write_text_file):
+        path = write_text_file("before\n# START\nold\n# END\nafter\n")
         result = insert_documentation(
             path,
             content=["line one\n", "line two\n"],
@@ -197,8 +184,8 @@ class TestInsertDocumentation:
         assert "# line one\n" in text
         assert "# line two\n" in text
 
-    def test_add_comment_handles_blank_lines(self):
-        path = self._write_file("# START\nold\n# END\n")
+    def test_add_comment_handles_blank_lines(self, write_text_file):
+        path = write_text_file("# START\nold\n# END\n")
         result = insert_documentation(
             path,
             content=["\n"],
@@ -210,8 +197,8 @@ class TestInsertDocumentation:
         text = path.read_text()
         assert "#\n" in text
 
-    def test_preserves_header_and_footer_lines(self):
-        path = self._write_file("<!-- START -->\nold\n<!-- END -->\n")
+    def test_preserves_header_and_footer_lines(self, write_text_file):
+        path = write_text_file("<!-- START -->\nold\n<!-- END -->\n")
         insert_documentation(
             path,
             content=["new\n"],
@@ -222,8 +209,8 @@ class TestInsertDocumentation:
         assert "<!-- START -->" in text
         assert "<!-- END -->" in text
 
-    def test_header_with_leading_whitespace(self):
-        path = self._write_file("  <!-- START -->\nold\n  <!-- END -->\n")
+    def test_header_with_leading_whitespace(self, write_text_file):
+        path = write_text_file("  <!-- START -->\nold\n  <!-- END -->\n")
         result = insert_documentation(
             path,
             content=["new\n"],
@@ -233,8 +220,8 @@ class TestInsertDocumentation:
         assert result is True
         assert "new" in path.read_text()
 
-    def test_multiple_content_lines(self):
-        path = self._write_file("header line\n## BEGIN\nreplaced\n## FINISH\nfooter line\n")
+    def test_multiple_content_lines(self, write_text_file):
+        path = write_text_file("header line\n## BEGIN\nreplaced\n## FINISH\nfooter line\n")
         insert_documentation(
             path,
             content=["a\n", "b\n", "c\n"],
@@ -335,25 +322,13 @@ class TestCheckListSorted:
 
 
 class TestGetProviderIdFromPath:
-    def _create_provider_tree(self, tmp_path: Path, relative_path: str) -> Path:
-        """Create a directory tree with provider.yaml and return a file path inside it."""
-        provider_dir = tmp_path / relative_path
-        provider_dir.mkdir(parents=True, exist_ok=True)
-        (provider_dir / "provider.yaml").touch()
-        # Create a file inside the provider
-        hooks_dir = provider_dir / "hooks"
-        hooks_dir.mkdir(exist_ok=True)
-        test_file = hooks_dir / "hook.py"
-        test_file.touch()
-        return test_file
-
-    def test_simple_provider(self, tmp_path):
-        file_path = self._create_provider_tree(tmp_path, "providers/amazon")
+    def test_simple_provider(self, create_provider_tree):
+        file_path = create_provider_tree("providers/amazon")
         result = get_provider_id_from_path(file_path)
         assert result == "amazon"
 
-    def test_nested_provider(self, tmp_path):
-        file_path = self._create_provider_tree(tmp_path, "providers/apache/hive")
+    def test_nested_provider(self, create_provider_tree):
+        file_path = create_provider_tree("providers/apache/hive")
         result = get_provider_id_from_path(file_path)
         assert result == "apache.hive"
 

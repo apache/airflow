@@ -16,52 +16,40 @@
 # under the License.
 from __future__ import annotations
 
-import tempfile
-import textwrap
-
 from ci.prek.unittest_testcase import check_test_file
 
 
-def _write_temp_file(code: str) -> str:
-    """Write code to a temp file and return the path."""
-    f = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
-    f.write(textwrap.dedent(code))
-    f.flush()
-    f.close()
-    return f.name
-
-
 class TestCheckTestFile:
-    def test_no_testcase_inheritance(self):
-        path = _write_temp_file("""\
+    def test_no_testcase_inheritance(self, write_python_file):
+        path = write_python_file("""\
         class TestFoo:
             def test_something(self):
                 pass
         """)
-        assert check_test_file(path) == 0
+        assert check_test_file(str(path)) == 0
 
-    def test_direct_testcase_inheritance(self):
-        path = _write_temp_file("""\
+    def test_direct_testcase_inheritance(self, write_python_file):
+        path = write_python_file("""\
         from unittest import TestCase
 
         class TestFoo(TestCase):
             def test_something(self):
                 pass
         """)
-        assert check_test_file(path) == 1
+        assert check_test_file(str(path)) == 1
 
-    def test_attribute_testcase_inheritance(self):
-        path = _write_temp_file("""\
+    def test_attribute_testcase_inheritance(self, write_python_file):
+        path = write_python_file("""\
         import unittest
 
         class TestFoo(unittest.TestCase):
             def test_something(self):
                 pass
         """)
-        assert check_test_file(path) == 1
+        assert check_test_file(str(path)) == 1
 
-    def test_multiple_testcase_classes(self):
-        path = _write_temp_file("""\
+    def test_multiple_testcase_classes(self, write_python_file):
+        path = write_python_file("""\
         from unittest import TestCase
 
         class TestFoo(TestCase):
@@ -70,10 +58,10 @@ class TestCheckTestFile:
         class TestBar(TestCase):
             pass
         """)
-        assert check_test_file(path) == 2
+        assert check_test_file(str(path)) == 2
 
-    def test_inherited_from_local_testcase_class(self):
-        path = _write_temp_file("""\
+    def test_inherited_from_local_testcase_class(self, write_python_file):
+        path = write_python_file("""\
         from unittest import TestCase
 
         class TestBase(TestCase):
@@ -83,23 +71,23 @@ class TestCheckTestFile:
             pass
         """)
         # TestBase is detected first, then TestChild inherits from known class
-        assert check_test_file(path) == 2
+        assert check_test_file(str(path)) == 2
 
-    def test_no_classes(self):
-        path = _write_temp_file("""\
+    def test_no_classes(self, write_python_file):
+        path = write_python_file("""\
         def test_something():
             pass
         """)
-        assert check_test_file(path) == 0
+        assert check_test_file(str(path)) == 0
 
-    def test_class_with_other_base(self):
-        path = _write_temp_file("""\
+    def test_class_with_other_base(self, write_python_file):
+        path = write_python_file("""\
         class TestFoo(SomeOtherBase):
             def test_something(self):
                 pass
         """)
-        assert check_test_file(path) == 0
+        assert check_test_file(str(path)) == 0
 
-    def test_empty_file(self):
-        path = _write_temp_file("")
-        assert check_test_file(path) == 0
+    def test_empty_file(self, write_python_file):
+        path = write_python_file("")
+        assert check_test_file(str(path)) == 0

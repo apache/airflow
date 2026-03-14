@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import textwrap
 
+import pytest
 from ci.prek.new_session_in_provide_session import (
     _annotation_has_none,
     _get_session_arg_and_default,
@@ -40,6 +41,17 @@ def _parse_expr(code: str) -> ast.expr:
     """Parse a single expression."""
     node = ast.parse(code, mode="eval").body
     return node
+
+
+@pytest.fixture
+def check_session_code(write_python_file):
+    """Factory fixture: write code to a temp file and check for incorrect NEW_SESSION usages."""
+
+    def _check(code: str) -> list[ast.FunctionDef]:
+        path = write_python_file(code)
+        return list(_iter_incorrect_new_session_usages(path))
+
+    return _check
 
 
 class TestGetSessionArgAndDefault:
@@ -161,82 +173,71 @@ class TestAnnotationHasNone:
 
 
 class TestIterIncorrectNewSessionUsages:
-    def _check_code(self, code: str) -> list[ast.FunctionDef]:
-        """Write code to a temp file and check it."""
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(textwrap.dedent(code))
-            f.flush()
-            import pathlib
-
-            return list(_iter_incorrect_new_session_usages(pathlib.Path(f.name)))
-
-    def test_correct_provide_session(self):
+    def test_correct_provide_session(self, check_session_code):
         code = """\
         @provide_session
         def foo(session=NEW_SESSION):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_incorrect_new_session_without_decorator(self):
+    def test_incorrect_new_session_without_decorator(self, check_session_code):
         code = """\
         def foo(session=NEW_SESSION):
             pass
         """
-        errors = self._check_code(code)
+        errors = check_session_code(code)
         assert len(errors) == 1
         assert errors[0].name == "foo"
 
-    def test_no_session_arg(self):
+    def test_no_session_arg(self, check_session_code):
         code = """\
         def foo(x, y):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_session_no_default(self):
+    def test_session_no_default(self, check_session_code):
         code = """\
         def foo(session):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_none_default_with_none_annotation(self):
+    def test_none_default_with_none_annotation(self, check_session_code):
         code = """\
         def foo(session: Session | None = None):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_none_default_without_none_annotation(self):
+    def test_none_default_without_none_annotation(self, check_session_code):
         code = """\
         def foo(session: Session = None):
             pass
         """
-        errors = self._check_code(code)
+        errors = check_session_code(code)
         assert len(errors) == 1
 
-    def test_overload_allows_new_session(self):
+    def test_overload_allows_new_session(self, check_session_code):
         code = """\
         @overload
         def foo(session=NEW_SESSION):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_abstractmethod_allows_new_session(self):
+    def test_abstractmethod_allows_new_session(self, check_session_code):
         code = """\
         @abstractmethod
         def foo(session=NEW_SESSION):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []
 
-    def test_other_default_value_is_ignored(self):
+    def test_other_default_value_is_ignored(self, check_session_code):
         code = """\
         def foo(session="default"):
             pass
         """
-        assert self._check_code(code) == []
+        assert check_session_code(code) == []

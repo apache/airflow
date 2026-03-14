@@ -28,6 +28,9 @@ from ci.prek.check_deprecations import (
     resolve_name,
 )
 
+GOOGLE_BIGQUERY_HOOK_PATH = "airflow/providers/google/cloud/hooks/bigquery.py"
+AIRFLOW_PROVIDER_DEPRECATION_WARNING = "AirflowProviderDeprecationWarning"
+
 
 class TestResolveName:
     def test_simple_name(self):
@@ -180,24 +183,24 @@ class TestGetDecoratorArgument:
 class TestIsFileUnderEolDeprecation:
     def test_google_provider_with_matching_warning(self):
         assert is_file_under_eol_deprecation(
-            "airflow/providers/google/cloud/hooks/bigquery.py",
-            "AirflowProviderDeprecationWarning",
+            GOOGLE_BIGQUERY_HOOK_PATH,
+            AIRFLOW_PROVIDER_DEPRECATION_WARNING,
         )
 
     def test_google_provider_with_non_matching_warning(self):
         assert not is_file_under_eol_deprecation(
-            "airflow/providers/google/cloud/hooks/bigquery.py",
+            GOOGLE_BIGQUERY_HOOK_PATH,
             "DeprecationWarning",
         )
 
     def test_non_google_provider(self):
         assert not is_file_under_eol_deprecation(
             "airflow/providers/amazon/aws/hooks/s3.py",
-            "AirflowProviderDeprecationWarning",
+            AIRFLOW_PROVIDER_DEPRECATION_WARNING,
         )
 
     def test_core_airflow_file(self):
         assert not is_file_under_eol_deprecation(
             "airflow/models/dag.py",
-            "AirflowProviderDeprecationWarning",
+            AIRFLOW_PROVIDER_DEPRECATION_WARNING,
         )
