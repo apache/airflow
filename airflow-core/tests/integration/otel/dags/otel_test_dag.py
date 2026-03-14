@@ -19,10 +19,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from opentelemetry import trace
-
 from airflow import DAG
 from airflow.sdk import task
+from airflow.sdk.observability import trace
 
 logger = logging.getLogger("airflow.otel_test_dag")
 

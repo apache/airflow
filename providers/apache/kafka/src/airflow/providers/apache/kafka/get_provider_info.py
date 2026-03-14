@@ -74,6 +74,13 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.kafka.hooks.base.KafkaBaseHook",
                 "connection-type": "kafka",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "password", "port", "host"],
+                    "relabeling": {"extra": "Config Dict"},
+                    "placeholders": {
+                        "extra": '{"bootstrap.servers": "localhost:9092", "group.id": "my-group"}'
+                    },
+                },
             }
         ],
         "queues": ["airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider"],

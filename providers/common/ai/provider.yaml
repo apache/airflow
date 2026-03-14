@@ -24,6 +24,7 @@ description: |
 state: not-ready
 lifecycle: incubation
 source-date-epoch: 1770463465
+build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 0.0.1
@@ -53,6 +54,11 @@ hooks:
     python-modules:
       - airflow.providers.common.ai.hooks.mcp
 
+plugins:
+  - name: hitl_review
+    plugin-class: airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin
+
+
 connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
     connection-type: pydanticai
@@ -69,6 +75,176 @@ connection-types:
       model:
         label: Model
         description: "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)"
+        schema:
+          type:
+            - string
+            - 'null'
+  - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
+    connection-type: pydanticai-azure
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+      relabeling:
+        password: API Key
+        host: Azure Endpoint
+      placeholders:
+        host: "https://<resource>.openai.azure.com"
+    conn-fields:
+      model:
+        label: Model
+        description: "Azure model identifier (e.g. azure:gpt-4o)"
+        schema:
+          type:
+            - string
+            - 'null'
+      api_version:
+        label: API Version
+        description: "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION."
+        schema:
+          type:
+            - string
+            - 'null'
+  - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
+    connection-type: pydanticai-bedrock
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - host
+        - password
+      relabeling: {}
+      placeholders: {}
+    conn-fields:
+      model:
+        label: Model
+        description: "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)"
+        schema:
+          type:
+            - string
+            - 'null'
+      region_name:
+        label: AWS Region
+        description: "AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION env var."
+        schema:
+          type:
+            - string
+            - 'null'
+      aws_access_key_id:
+        label: AWS Access Key ID
+        description: "IAM access key. Leave empty to use instance role / environment credential chain."
+        schema:
+          type:
+            - string
+            - 'null'
+      aws_secret_access_key:
+        label: AWS Secret Access Key
+        description: "IAM secret key."
+        schema:
+          type:
+            - string
+            - 'null'
+      aws_session_token:
+        label: AWS Session Token
+        description: "Temporary session token (optional)."
+        schema:
+          type:
+            - string
+            - 'null'
+      profile_name:
+        label: AWS Profile Name
+        description: "Named AWS credentials profile (optional)."
+        schema:
+          type:
+            - string
+            - 'null'
+      api_key:
+        label: Bearer Token
+        description: "AWS bearer token (alt. to IAM key/secret). Falls back to AWS_BEARER_TOKEN_BEDROCK."
+        schema:
+          type:
+            - string
+            - 'null'
+      base_url:
+        label: Custom Endpoint URL
+        description: "Override the Bedrock runtime endpoint URL (optional)."
+        schema:
+          type:
+            - string
+            - 'null'
+      aws_read_timeout:
+        label: Read Timeout (s)
+        description: "boto3 read timeout in seconds (float, optional)."
+        schema:
+          type:
+            - number
+            - 'null'
+      aws_connect_timeout:
+        label: Connect Timeout (s)
+        description: "boto3 connect timeout in seconds (float, optional)."
+        schema:
+          type:
+            - number
+            - 'null'
+  - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
+    connection-type: pydanticai-vertex
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - host
+        - password
+      relabeling: {}
+      placeholders: {}
+    conn-fields:
+      model:
+        label: Model
+        description: "Google model identifier (e.g. google-vertex:gemini-2.0-flash)"
+        schema:
+          type:
+            - string
+            - 'null'
+      project:
+        label: GCP Project
+        description: "Google Cloud project ID. Falls back to GOOGLE_CLOUD_PROJECT env var."
+        schema:
+          type:
+            - string
+            - 'null'
+      location:
+        label: Location / Region
+        description: "Vertex AI region (e.g. us-central1). Falls back to GOOGLE_CLOUD_LOCATION env var."
+        schema:
+          type:
+            - string
+            - 'null'
+      vertexai:
+        label: Force Vertex AI Mode
+        description: "Force Vertex AI mode. Auto-detected when project/location/credentials are set."
+        schema:
+          type:
+            - boolean
+            - 'null'
+      api_key:
+        label: API Key
+        description: "Google API key for Gen Language API or Vertex AI. Falls back to GOOGLE_API_KEY."
+        schema:
+          type:
+            - string
+            - 'null'
+      service_account_info:
+        label: Service Account Info
+        description: "Service account key as inline dict (JSON with type, project_id, private_key, etc.)."
+        schema:
+          type:
+            - object
+            - 'null'
+      base_url:
+        label: Custom Endpoint URL
+        description: "Override the Google API base URL (optional)."
         schema:
           type:
             - string

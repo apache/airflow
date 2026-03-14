@@ -84,29 +84,35 @@
                         "type": "string"
                     },
                     "tags": {
-                        "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
+                        "description": "List of tags describing the integration.",
                         "type": "array",
                         "items": {
                             "type": "string",
                             "enum": [
                                 "ai",
+                                "ai-inference",
                                 "alibaba",
                                 "apache",
                                 "aws",
                                 "azure",
                                 "dbt",
+                                "embeddings",
                                 "gcp",
+                                "generative-ai",
                                 "gmp",
                                 "google",
                                 "kafka",
+                                "llm",
+                                "machine-learning",
+                                "openai",
                                 "protocol",
                                 "service",
                                 "software",
+                                "text-generation",
                                 "yandex"
                             ]
                         },
-                        "minItems": 1,
-                        "maxItems": 1
+                        "minItems": 1
                     }
                 },
                 "additionalProperties": false,
