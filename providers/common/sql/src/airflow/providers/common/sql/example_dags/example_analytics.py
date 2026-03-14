@@ -30,6 +30,20 @@ datasource_config_local = DataSourceConfig(
     conn_id="", table_name="users_data", uri="file:///path/to/", format="parquet"
 )
 
+datasource_config_gcs = DataSourceConfig(
+    conn_id="google_cloud_default",
+    table_name="sales_data",
+    uri="gs://bucket/sales/",
+    format="parquet",
+)
+
+datasource_config_azure = DataSourceConfig(
+    conn_id="wasb_default",
+    table_name="events_data",
+    uri="az://container/events/",
+    format="parquet",
+)
+
 datasource_config_iceberg = DataSourceConfig(
     conn_id="iceberg_default",
     table_name="users_data",
@@ -78,8 +92,23 @@ with DAG(
         datasource_configs=[datasource_config_local],
         queries=["SELECT * FROM users_data", "SELECT count(*) FROM users_data"],
     )
-    analytics_with_s3 >> analytics_with_local
     # [END howto_analytics_operator_with_local]
+
+    # [START howto_analytics_operator_with_gcs]
+    analytics_with_gcs = AnalyticsOperator(
+        task_id="analytics_with_gcs",
+        datasource_configs=[datasource_config_gcs],
+        queries=["SELECT * FROM sales_data", "SELECT count(*) FROM sales_data"],
+    )
+    # [END howto_analytics_operator_with_gcs]
+
+    # [START howto_analytics_operator_with_azure]
+    analytics_with_azure = AnalyticsOperator(
+        task_id="analytics_with_azure",
+        datasource_configs=[datasource_config_azure],
+        queries=["SELECT * FROM events_data", "SELECT count(*) FROM events_data"],
+    )
+    # [END howto_analytics_operator_with_azure]
 
     # [START howto_analytics_decorator]
     @task.analytics(datasource_configs=[datasource_config_s3])
@@ -96,4 +125,11 @@ with DAG(
 
     # [END howto_analytics_iceberg]
 
-    analytics_with_local >> get_user_summary_queries() >> get_users_product_queries_from_iceberg_catalog()
+    (
+        analytics_with_s3
+        >> analytics_with_local
+        >> analytics_with_gcs
+        >> analytics_with_azure
+        >> get_user_summary_queries()
+        >> get_users_product_queries_from_iceberg_catalog()
+    )
