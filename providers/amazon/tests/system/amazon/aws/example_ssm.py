@@ -211,14 +211,14 @@ with DAG(
 
     # [START howto_sensor_run_command]
     await_run_command = SsmRunCommandCompletedSensor(
-        task_id="await_run_command", command_id="{{ ti.xcom_pull(task_ids='run_command') }}"
+        task_id="await_run_command", command_id=run_command.output
     )
     # [END howto_sensor_run_command]
 
     # [START howto_operator_get_command_invocation]
     get_command_output = SsmGetCommandInvocationOperator(
         task_id="get_command_output",
-        command_id="{{ ti.xcom_pull(task_ids='run_command') }}",
+        command_id=run_command.output,
         instance_id=instance_id,
     )
     # [END howto_operator_get_command_invocation]
@@ -237,7 +237,7 @@ with DAG(
 
     wait_command_async = SsmRunCommandCompletedSensor(
         task_id="wait_command_async",
-        command_id="{{ ti.xcom_pull(task_ids='run_command_async') }}",
+        command_id=run_command_async.output,
         fail_on_nonzero_exit=False,
     )
     # [END howto_operator_ssm_enhanced_async]
@@ -258,7 +258,7 @@ with DAG(
     # [START howto_operator_ssm_exit_code_routing]
     get_exit_code_output = SsmGetCommandInvocationOperator(
         task_id="get_exit_code_output",
-        command_id="{{ ti.xcom_pull(task_ids='run_command_async') }}",
+        command_id=run_command_async.output,
         instance_id=instance_id,
     )
 
@@ -292,7 +292,7 @@ with DAG(
 
     wait_command_traditional = SsmRunCommandCompletedSensor(
         task_id="wait_command_traditional",
-        command_id="{{ ti.xcom_pull(task_ids='run_command_traditional') }}",
+        command_id=run_command_traditional.output,
     )
     # [END howto_operator_ssm_traditional]
 
