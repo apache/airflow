@@ -38,14 +38,11 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import requests
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, read_allowed_kubernetes_versions
 
 KUBERNETES_VERSIONS = read_allowed_kubernetes_versions()
