@@ -27,6 +27,15 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIRunContext,
 )
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+
+
+class ValidateTaskIdentityTokenClaims(VersionChange):
+    """Validate TIToken claims with a typed claims model instead of a raw dict."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIToken).field("claims").had(type=dict[str, Any]),)
 
 
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
