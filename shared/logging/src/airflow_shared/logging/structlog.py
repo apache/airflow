@@ -231,7 +231,7 @@ def _make_safe_enc_hook(default):
         if default is not None:
             try:
                 return default(obj)
-            except TypeError:
+            except (TypeError, ValueError):
                 pass
         return str(obj)
 
@@ -332,7 +332,16 @@ def structlog_processors(
                 **msg,
             }
 
-            return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
+            try:
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
+            except UnicodeEncodeError:
+                # Surrogate characters in strings can't be encoded to UTF-8 JSON.
+                # Replace them and retry.
+                def _sanitize(v):
+                    return v.encode("utf-8", errors="replace").decode("utf-8") if isinstance(v, str) else v
+
+                msg = {k: _sanitize(v) for k, v in msg.items()}
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 

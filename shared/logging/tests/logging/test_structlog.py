@@ -307,6 +307,30 @@ def test_safe_enc_hook_with_none_default():
     assert hook(object()).startswith("<object object at")
 
 
+def test_safe_enc_hook_catches_value_error():
+    """ValueError (including UnicodeEncodeError) from enc_hook falls back to str()."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    def bad_default(obj):
+        raise ValueError("surrogates not allowed")
+
+    hook = _make_safe_enc_hook(bad_default)
+    assert hook(42) == "42"
+
+
+def test_json_unicode_surrogate_in_value(structlog_config):
+    """Surrogate characters in log values don't crash JSON serialization."""
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", text="before \udce2 after")
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    # Surrogates are replaced with the Unicode replacement character
+    assert "\udce2" not in written["text"]
+    assert "before" in written["text"]
+
+
 @pytest.mark.parametrize(
     ("get_logger"),
     [
