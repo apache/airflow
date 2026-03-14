@@ -589,6 +589,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     last_dag_id = ""
 
     conn = op.get_bind()
+    engine = conn.engine
     dialect = conn.dialect.name
 
     # Count all dags - we'll filter in the loop for those with deadline data
@@ -643,60 +644,57 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
             processed_dags.append(dag_id)
             last_dag_id = dag_id
 
-            # Create a savepoint for this Dag to allow rollback on error.
-            savepoint = conn.begin_nested()
-
             try:
-                dag_data = get_dag_data(data, data_compressed)
-                deadline_uuids = dag_data[DAG_KEY][DEADLINE_KEY]
+                with engine.begin() as dag_conn:
+                    dag_data = get_dag_data(data, data_compressed)
+                    deadline_uuids = dag_data[DAG_KEY][DEADLINE_KEY]
 
-                if not isinstance(deadline_uuids, list) or not deadline_uuids:
-                    continue
+                    if not isinstance(deadline_uuids, list) or not deadline_uuids:
+                        continue
 
-                if not all(isinstance(uuid_val, str) for uuid_val in deadline_uuids):
-                    log.warning("Dag has non-string deadline values, skipping", dag_id=dag_id)
-                    continue
+                    if not all(isinstance(uuid_val, str) for uuid_val in deadline_uuids):
+                        log.warning("Dag has non-string deadline values, skipping", dag_id=dag_id)
+                        continue
 
-                dags_with_deadlines.add(dag_id)
-                restored_deadline_objects = []
+                    dags_with_deadlines.add(dag_id)
+                    restored_deadline_objects = []
 
-                alert_result = conn.execute(
-                    sa.text("""
-                            SELECT reference, interval, callback_def
-                            FROM deadline_alert
-                            WHERE serialized_dag_id = :serialized_dag_id
-                            """),
-                    {"serialized_dag_id": serialized_dag_id},
-                ).fetchall()
+                    alert_result = dag_conn.execute(
+                        sa.text("""
+                                SELECT reference, interval, callback_def
+                                FROM deadline_alert
+                                WHERE serialized_dag_id = :serialized_dag_id
+                                """),
+                        {"serialized_dag_id": serialized_dag_id},
+                    ).fetchall()
 
-                if not alert_result:
-                    dags_with_errors[dag_id].append(
-                        f"Could not find deadline_alert for serialized_dag {serialized_dag_id}"
-                    )
-                    continue
+                    if not alert_result:
+                        dags_with_errors[dag_id].append(
+                            f"Could not find deadline_alert for serialized_dag {serialized_dag_id}"
+                        )
+                        continue
 
-                for alert in alert_result:
-                    deadline_object = {
-                        Encoding.TYPE: ENCODING_TYPE,
-                        Encoding.VAR: {
-                            REFERENCE_KEY: alert.reference,
-                            INTERVAL_KEY: float(alert.interval),
-                            CALLBACK_KEY: alert.callback_def,
-                        },
-                    }
-                    restored_deadline_objects.append(deadline_object)
-                    restored_alerts_count += 1
+                    for alert in alert_result:
+                        deadline_object = {
+                            Encoding.TYPE: ENCODING_TYPE,
+                            Encoding.VAR: {
+                                REFERENCE_KEY: alert.reference,
+                                INTERVAL_KEY: float(alert.interval),
+                                CALLBACK_KEY: alert.callback_def,
+                            },
+                        }
+                        restored_deadline_objects.append(deadline_object)
+                        restored_alerts_count += 1
 
-                # Replace the UUID array with the restored objects.
-                if restored_deadline_objects:
-                    update_dag_deadline_field(conn, serialized_dag_id, restored_deadline_objects, dialect)
-
-                # Commit the savepoint if everything succeeded for this Dag.
-                savepoint.commit()
+                    # Replace the UUID array with the restored objects.
+                    if restored_deadline_objects:
+                        update_dag_deadline_field(
+                            dag_conn, serialized_dag_id, restored_deadline_objects, dialect
+                        )
 
             except Exception as e:
-                dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
-                savepoint.rollback()
+                log.error("Could not restore deadline for dag %s: %s", dag_id, e)
+                dags_with_errors[dag_id].append(str(e))
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
