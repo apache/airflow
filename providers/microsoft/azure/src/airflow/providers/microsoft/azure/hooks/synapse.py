@@ -65,7 +65,7 @@ class AzureSynapseHook(BaseHook):
     """
     A hook to interact with Azure Synapse.
 
-    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:azure_synapse>`.
     :param spark_pool: The Apache Spark pool used to submit the job
     """
 
@@ -249,7 +249,7 @@ class BaseAzureSynapseHook(BaseHook):
     """
     A base hook class to create session and connection to Azure Synapse using connection id.
 
-    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:azure_synapse>`.
     """
 
     conn_type: str = "azure_synapse"
@@ -299,7 +299,7 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
     """
     A hook to interact with Azure Synapse Pipeline.
 
-    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:azure_synapse>`.
     :param azure_synapse_workspace_dev_endpoint: The Azure Synapse Workspace development endpoint.
     """
 
@@ -453,7 +453,7 @@ class AzureSynapsePipelineAsyncHook(AzureSynapsePipelineHook):
     """
     An asynchronous hook to interact with Azure Synapse Pipeline.
 
-    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:azure_synapse>`.
     :param azure_synapse_workspace_dev_endpoint: The Azure Synapse Workspace development endpoint.
     """
 

@@ -29,7 +29,7 @@ and presents them to the LLM as a constrained enum via pydantic-ai structured
 output. No text parsing or manual validation is needed.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------
