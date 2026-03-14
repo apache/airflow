@@ -479,14 +479,34 @@ class ReferenceModels:
             )
 
     class JobStartDateDeadline(BaseDeadlineReference):
-        """A deadline that returns a Job's start date."""
+        """A deadline that returns the start date of the latest active SchedulerJob."""
 
-        required_kwargs = {"id"}
+        # By setting this to an empty set, we tell the system this reference
+        # doesn't need an 'id' or any other data from the DAG definition.
+        required_kwargs: set[str] = set()
 
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
+            """Find the start date of the most recently started running SchedulerJob."""
+            from sqlalchemy import desc
+
             from airflow.jobs.job import Job
 
-            return _fetch_from_db(Job.start_date, session=session, **kwargs)
+            # We query the job table directly for the newest SchedulerJob that is still 'running'.
+            # This ensures we are always measuring against the current active platform engine.
+            stmt = (
+                select(Job.start_date)
+                .where(
+                    Job.job_type == "SchedulerJob",
+                    Job.state == "running",
+                )
+                .order_by(desc(Job.start_date))
+                .limit(1)
+            )
+
+            # Execute the query. scalar() returns the start_date or None if not found.
+            start_date = session.execute(stmt).scalar()
+
+            return start_date
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

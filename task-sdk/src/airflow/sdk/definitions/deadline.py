@@ -126,14 +126,8 @@ class DeadlineReference:
         # Deadlines that should be created when the DagRun is queued.
         DAGRUN_QUEUED: DeadlineReferenceTypes = (ReferenceModels.DagRunQueuedAtDeadline,)
 
-        # Deadlines related to background Jobs (Scheduler, etc.)
-        JOB: DeadlineReferenceTypes = (ReferenceModels.JobStartDateDeadline,)
-
         # All DagRun-related deadline types.
         DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
-
-        # INCLUDE JOBS IN THE GLOBAL LIST
-        # ALL: DeadlineReferenceTypes = DAGRUN + JOB
 
     from airflow.models.deadline import ReferenceModels
 

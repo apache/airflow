@@ -170,6 +170,33 @@ class SerializedReferenceModels:
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
+    class JobStartDateDeadline(SerializedBaseDeadlineReference):
+        """A deadline that returns a background Job's start date."""
+
+        required_kwargs: set[str] = set()
+
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
+            """Find the baseline timestamp by querying the latest running SchedulerJob."""
+            # 1. Construct a query to look into the 'job' table.
+            # We target 'SchedulerJob' specifically because this is the primary
+            # engine responsible for DAG execution and heartbeat management.
+            from sqlalchemy import desc
+
+            from airflow.jobs.job import Job
+
+            stmt = (
+                select(Job.start_date)
+                .where(Job.job_type == "SchedulerJob")  # Remove state == "running"
+                .order_by(desc(Job.start_date))
+                .limit(1)
+            )
+            # 5. Execute and retrieve the start_date.
+            # If no running scheduler is found (extremely rare if code is running),
+            # scalar() returns None, and the deadline evaluation is safely skipped.
+            start_date = session.execute(stmt).scalar()
+
+            return start_date
+
     @dataclass
     class AverageRuntimeDeadline(SerializedBaseDeadlineReference):
         """A deadline that calculates the average runtime from past DAG runs."""
@@ -256,6 +283,7 @@ SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
     SerializedReferenceModels.DagRunLogicalDateDeadline,
     SerializedReferenceModels.FixedDatetimeDeadline,
     SerializedReferenceModels.AverageRuntimeDeadline,
+    SerializedReferenceModels.JobStartDateDeadline,
 )
 SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.DagRunQueuedAtDeadline,)
 SerializedReferenceModels.TYPES.DAGRUN = (
