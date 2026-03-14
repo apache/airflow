@@ -28,6 +28,17 @@
 
 Changelog
 ---------
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  - The ``pyspark`` package is no longer included by default, so only the spark-connect connection will works by default.
+    If you want to keep using other spark connection types you must install the airflow spark provider
+    with the  ``pyspark`` extra
+
+    example: ``apache-airflow-providers-apache-spark[pyspark]==X.Y.Z``
+
+  - The minimum pyspark and spark-connect version is now 4.0.0
 
 5.6.0
 .....
