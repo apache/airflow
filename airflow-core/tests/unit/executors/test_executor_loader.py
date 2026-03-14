@@ -854,3 +854,286 @@ class TestExecutorLoader:
             )
             assert executor.team_name is None
             assert executor.supports_multi_team is False
+
+    # ---Tests for ExecutorLoader.find_executor() method.
+
+    @staticmethod
+    def _make_executor(
+        alias: str | None = None,
+        module_path: str = "airflow.executors.local_executor.LocalExecutor",
+        team_name: str | None = None,
+    ) -> mock.MagicMock:
+        """Create a mock executor with the given name and team."""
+        executor = mock.MagicMock(spec=["name", "team_name"])
+        executor.name = ExecutorName(module_path=module_path, alias=alias, team_name=team_name)
+        executor.team_name = team_name
+        return executor
+
+    # --- executor_name is None, no team ---
+
+    def test_find_executor_no_name_no_team_returns_first_executor(self):
+        """When no executor_name and no team, the first (default) executor is returned."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+        exec2 = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([exec1, exec2], None, None)
+        assert result is exec1
+
+    def test_find_executor_no_name_no_team_empty_list_returns_none(self):
+        """When no executor_name, no team, and empty executor list, None is returned."""
+        result = executor_loader.ExecutorLoader.find_executor([], None, None)
+        assert result is None
+
+    def test_find_executor_no_name_no_team_single_executor(self):
+        """With a single executor, no name, no team returns that executor."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+        result = executor_loader.ExecutorLoader.find_executor([exec1], None, None)
+        assert result is exec1
+
+    # --- executor_name is None, with team ---
+
+    def test_find_executor_no_name_with_team_finds_team_executor(self):
+        """When no executor_name but a team is specified, Returns the team's executor."""
+        global_exec = self._make_executor(alias="LocalExecutor")
+        team_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([global_exec, team_exec], None, "team_a")
+        assert result is team_exec
+
+    def test_find_executor_no_name_with_team_falls_back_to_global_default(self):
+        """When a team has no dedicated executor, falls back to the global default (first)."""
+        global_exec = self._make_executor(alias="LocalExecutor")
+        team_a_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([global_exec, team_a_exec], None, "team_b")
+        assert result is global_exec
+
+    def test_find_executor_no_name_with_team_empty_list_returns_none(self):
+        """When a team is requested but no executors exist, returns None."""
+        result = executor_loader.ExecutorLoader.find_executor([], None, "team_a")
+        assert result is None
+
+    def test_find_executor_no_name_with_team_returns_first_matching_team_executor(self):
+        """When a team has multiple executors, returns the first match."""
+        global_exec = self._make_executor(alias="LocalExecutor")
+        team_exec1 = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+        team_exec2 = self._make_executor(
+            alias="K8sExecutor",
+            module_path="airflow.providers.cncf.kubernetes.executors.KubernetesExecutor",
+            team_name="team_a",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor(
+            [global_exec, team_exec1, team_exec2], None, "team_a"
+        )
+        assert result is team_exec1
+
+    # --- executor_name specified, search by alias ---
+
+    def test_find_executor_by_alias_global(self):
+        """Find an executor by its alias when no team is specified."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+        exec2 = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([exec1, exec2], "CeleryExecutor", None)
+        assert result is exec2
+
+    def test_find_executor_by_alias_with_team_returns_global_executor(self):
+        """When a team is specified but only a global executor matches, returns the global one."""
+        global_exec = self._make_executor(alias="LocalExecutor")
+
+        result = executor_loader.ExecutorLoader.find_executor([global_exec], "LocalExecutor", "team_a")
+        assert result is global_exec
+
+    def test_find_executor_by_alias_with_team_prefers_team_executor(self):
+        """When both global and team executors match by alias, the team executor is returned
+        if it appears first in the list, otherwise the global one is returned first."""
+        global_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+        team_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+
+        # Global comes first in list — find_executor returns the first match
+        result = executor_loader.ExecutorLoader.find_executor(
+            [global_exec, team_exec], "CeleryExecutor", "team_a"
+        )
+        assert result is global_exec
+
+        # Team comes first in list
+        result = executor_loader.ExecutorLoader.find_executor(
+            [team_exec, global_exec], "CeleryExecutor", "team_a"
+        )
+        assert result is team_exec
+
+    # --- executor_name specified, search by module path ---
+
+    def test_find_executor_by_module_path(self):
+        """Find an executor by its full module path."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+
+        result = executor_loader.ExecutorLoader.find_executor(
+            [exec1], "airflow.executors.local_executor.LocalExecutor", None
+        )
+        assert result is exec1
+
+    # --- executor_name specified, search by class name ---
+
+    def test_find_executor_by_class_name(self):
+        """Find an executor by the last component of its module path (class name)."""
+        exec1 = self._make_executor(
+            alias="my_celery",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([exec1], "CeleryExecutor", None)
+        assert result is exec1
+
+    # --- executor_name specified, no match ---
+
+    def test_find_executor_no_match_returns_none(self):
+        """When the requested executor name does not match any executor, returns None."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+
+        result = executor_loader.ExecutorLoader.find_executor([exec1], "NonExistentExecutor", None)
+        assert result is None
+
+    def test_find_executor_no_match_with_team_returns_none(self):
+        """When a team executor is requested but no executor matches the name, returns None."""
+        exec1 = self._make_executor(alias="LocalExecutor")
+        team_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([exec1, team_exec], "NonExistent", "team_a")
+        assert result is None
+
+    def test_find_executor_name_matches_but_wrong_team_returns_none(self):
+        """An executor matching by name but assigned to a different team is not returned
+        when a specific team is queried."""
+        team_b_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_b",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([team_b_exec], "CeleryExecutor", "team_a")
+        assert result is None
+
+    # --- executor with name=None is skipped ---
+
+    def test_find_executor_with_no_name_attribute_is_skipped(self):
+        """An executor whose name attribute is None is skipped during search by name."""
+        nameless_exec = mock.MagicMock(spec=["name", "team_name"])
+        nameless_exec.name = None
+        nameless_exec.team_name = None
+
+        named_exec = self._make_executor(alias="LocalExecutor")
+
+        result = executor_loader.ExecutorLoader.find_executor(
+            [nameless_exec, named_exec], "LocalExecutor", None
+        )
+        assert result is named_exec
+
+    # --- multi-team scenarios with multiple executors ---
+
+    def test_find_executor_multi_team_find_global_default_among_many(self):
+        """In a multi-team setup with global + team executors, no name/no team returns global default."""
+        global_celery = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+        global_local = self._make_executor(alias="LocalExecutor")
+        team_a_exec = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+        team_b_exec = self._make_executor(
+            alias="LocalExecutor",
+            team_name="team_b",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor(
+            [global_celery, global_local, team_a_exec, team_b_exec], None, None
+        )
+        assert result is global_celery
+
+    def test_find_executor_multi_team_find_by_name_for_specific_team(self):
+        """In a multi-team setup, find a named executor for a specific team."""
+        global_exec = self._make_executor(alias="LocalExecutor")
+        team_a_celery = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+            team_name="team_a",
+        )
+        team_b_local = self._make_executor(
+            alias="LocalExecutor",
+            team_name="team_b",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor(
+            [global_exec, team_a_celery, team_b_local], "CeleryExecutor", "team_a"
+        )
+        assert result is team_a_celery
+
+    def test_find_executor_multi_team_find_by_name_falls_back_to_global(self):
+        """Search by name with a team that has no dedicated match falls back to global executor."""
+        global_celery = self._make_executor(
+            alias="CeleryExecutor",
+            module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        )
+        team_a_local = self._make_executor(
+            alias="LocalExecutor",
+            team_name="team_a",
+        )
+
+        # team_a has LocalExecutor, but we ask for CeleryExecutor — global match
+        result = executor_loader.ExecutorLoader.find_executor(
+            [global_celery, team_a_local], "CeleryExecutor", "team_a"
+        )
+        assert result is global_celery
+
+    def test_find_executor_custom_module_path_by_alias(self):
+        """Find a custom executor (non-core) by its custom alias."""
+        custom_exec = self._make_executor(
+            alias="my_custom",
+            module_path="my.custom.executor.MyExecutor",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([custom_exec], "my_custom", None)
+        assert result is custom_exec
+
+    def test_find_executor_custom_module_path_by_class_name(self):
+        """Find a custom executor by its class name (last segment of module path)."""
+        custom_exec = self._make_executor(
+            alias="my_custom",
+            module_path="my.custom.executor.MyExecutor",
+        )
+
+        result = executor_loader.ExecutorLoader.find_executor([custom_exec], "MyExecutor", None)
+        assert result is custom_exec
