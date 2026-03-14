@@ -21,7 +21,7 @@ from ci.prek.newsfragments import VALID_CHANGE_TYPES, validate_newsfragment
 
 
 class TestNewsfragmentFilenameValidation:
-    @pytest.mark.parametrize("change_type", VALID_CHANGE_TYPES)
+    @pytest.mark.parametrize("change_type", sorted(VALID_CHANGE_TYPES))
     def test_valid_filename_all_types(self, change_type):
         errors = validate_newsfragment(f"12345.{change_type}.rst", ["A change"])
         assert errors == []
@@ -43,12 +43,12 @@ class TestNewsfragmentFilenameValidation:
 
 
 class TestNewsfragmentContentValidation:
-    @pytest.mark.parametrize("change_type", VALID_CHANGE_TYPES - {"significant"})
+    @pytest.mark.parametrize("change_type", sorted(VALID_CHANGE_TYPES - {"significant"}))
     def test_non_significant_single_line_ok(self, change_type):
         errors = validate_newsfragment(f"123.{change_type}.rst", ["Fix something"])
         assert errors == []
 
-    @pytest.mark.parametrize("change_type", VALID_CHANGE_TYPES - {"significant"})
+    @pytest.mark.parametrize("change_type", sorted(VALID_CHANGE_TYPES - {"significant"}))
     def test_non_significant_multi_line_fails(self, change_type):
         errors = validate_newsfragment(f"123.{change_type}.rst", ["Fix something", "More details"])
         assert len(errors) == 1
