@@ -350,6 +350,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+    :param timeout: (Optional) Timeout in seconds for statement execution.
+            If not set, the timeout specified by STATEMENT_TIMEOUT_IN_SECONDS is used.
+            To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
