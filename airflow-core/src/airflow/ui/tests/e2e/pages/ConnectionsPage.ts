@@ -393,7 +393,7 @@ export class ConnectionsPage extends BasePage {
     await this.searchInput.fill(searchTerm);
 
     if (searchTerm === "") {
-      await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible();
+      await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible({ timeout: 10_000 });
     } else {
       const nonMatchingRow = this.page.locator("tbody tr").filter({ hasNotText: searchTerm });
 

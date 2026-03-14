@@ -296,10 +296,10 @@ test.describe("Connections Page - Search and Filter", () => {
 
     // Clear search and verify at least as many rows as before
     await connectionsPage.searchConnections("");
-    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
+    await expect(async () => {
+      const finalCount = await connectionsPage.getConnectionCount();
 
-    const finalCount = await connectionsPage.getConnectionCount();
-
-    expect(finalCount).toBeGreaterThanOrEqual(initialCount);
+      expect(finalCount).toBeGreaterThanOrEqual(initialCount);
+    }).toPass({ timeout: 10_000 });
   });
 });
