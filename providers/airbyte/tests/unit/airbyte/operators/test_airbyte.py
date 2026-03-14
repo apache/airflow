@@ -22,7 +22,7 @@ from unittest import mock
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
-from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
+from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerResetOperator, AirbyteTriggerSyncOperator
 
 
 class TestAirbyteTriggerSyncOp:
@@ -75,6 +75,66 @@ class TestAirbyteTriggerSyncOp:
 
         op = AirbyteTriggerSyncOperator(
             task_id="test_Airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+        )
+        op.job_id = self.job_id
+        op.on_kill()
+
+        mock_cancel_job.assert_called_once_with(self.job_id)
+        mock_get_job_status.assert_called_once_with(self.job_id)
+
+
+class TestAirbyteTriggerResetOp:
+    """Test execute function from AirbyteTriggerResetOperator."""
+
+    airbyte_conn_id = "test_airbyte_conn_id"
+    connection_id = "test_airbyte_connection"
+    job_id = 2
+    wait_seconds = 0
+    timeout = 360
+
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
+    def test_execute(self, mock_wait_for_job, mock_create_job, create_connection_without_db):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+        mock_response = mock.Mock()
+        mock_response.job_response = JobResponse(
+            connection_id="connection-mock",
+            job_id=self.job_id,
+            start_time="today",
+            job_type=JobTypeEnum.RESET,
+            status=JobStatusEnum.RUNNING,
+        )
+        mock_create_job.return_value = mock_response
+
+        op = AirbyteTriggerResetOperator(
+            task_id="test_airbyte_reset_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+        )
+        op.execute({})
+
+        mock_create_job.assert_called_once_with(
+            request=JobCreateRequest(connection_id=self.connection_id, job_type=JobTypeEnum.RESET)
+        )
+        mock_wait_for_job.assert_called_once_with(
+            job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
+        )
+
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
+    def test_on_kill(self, mock_cancel_job, mock_get_job_status, create_connection_without_db):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        op = AirbyteTriggerResetOperator(
+            task_id="test_airbyte_reset_op",
             airbyte_conn_id=self.airbyte_conn_id,
             connection_id=self.connection_id,
             wait_seconds=self.wait_seconds,

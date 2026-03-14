@@ -193,6 +193,18 @@ class TestAirbyteHook:
         calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
         mock_get_job.assert_has_calls(calls)
 
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_submit_reset_connection(self, create_job_mock):
+        mock_response = mock.Mock()
+        mock_response.job_response = self._mock_sync_conn_success_response_body
+        create_job_mock.return_value = mock_response
+
+        resp = self.hook.submit_reset_connection(connection_id=self.connection_id)
+        assert resp == self._mock_sync_conn_success_response_body
+        create_job_mock.assert_called_once()
+        call_args = create_job_mock.call_args
+        assert call_args.kwargs["request"].job_type == JobTypeEnum.RESET
+
     @mock.patch("airbyte_api.health.Health.get_health_check")
     def test_connection_success(self, mock_get_health_check):
         mock_response = mock.Mock()
