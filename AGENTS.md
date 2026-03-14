@@ -27,7 +27,8 @@
 - **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`
 - **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
 - **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
-- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`
+- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
+- **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
@@ -56,6 +57,11 @@ UV workspace monorepo. Key paths:
 - `providers/` — 100+ provider packages, each with its own `pyproject.toml`
 - `airflow-ctl/` — management CLI tool
 - `chart/` — Helm chart for Kubernetes deployment
+- `dev/` — development utilities and scripts used to bootstrap the environment, releases, breeze dev env
+- `scripts/` — utility scripts for CI, Docker, and prek hooks (workspace distribution `apache-airflow-scripts`)
+  - `ci/prek/` — prek (pre-commit) hook scripts; shared utilities in `common_prek_utils.py`
+  - `tests/` — pytest tests for the scripts; run with `uv run --project scripts pytest scripts/tests/`
+
 
 ## Architecture Boundaries
 
@@ -65,6 +71,18 @@ UV workspace monorepo. Key paths:
 4. Workers execute tasks via Task SDK and communicate with the API server through the Execution API — **never access the metadata DB directly**.
 5. API Server serves the React UI and handles all client-database interactions.
 6. Triggerer evaluates deferred tasks/sensors in isolated processes.
+7. Shared libraries that are symbolically linked to different Python distributions are in `shared` folder.
+8. Airflow uses `uv workspace` feature to keep all the distributions sharing dependencies and venv
+9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+# Shared libraries
+
+- shared libraries provide implementation of some common utilities like logging, configuration where the code should be reused in different distributions (potentially in different versions)
+- we have a number of shared libraries that are separate, small Python distributions located under `shared` folder
+- each of the libraries has it's own src, tests, pyproject.toml and dependencies
+- sources of those libraries are symbolically linked to the distributions that are using them (`airflow-core`, `task-sdk` for example)
+- tests for the libraries (internal) are in the shared distribution's test and can be run from the shared distributions
+- tests of the consumers using the shared libraries are present in the distributions that use the libraries and can be run from there
 
 ## Coding Standards
 
@@ -73,6 +91,7 @@ UV workspace monorepo. Key paths:
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
+- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
 - Apache License header on all new files (prek enforces this).
 
 ## Testing Standards
@@ -86,6 +105,7 @@ UV workspace monorepo. Key paths:
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
 
+
 ## Commits and PRs
 
 Write commit messages focused on user impact, not implementation details.
@@ -96,6 +116,8 @@ Write commit messages focused on user impact, not implementation details.
 
 Add a newsfragment for user-visible changes:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+- NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 
 ### Creating Pull Requests
 
@@ -128,6 +150,17 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
+Before pushing, always rebase your branch onto the latest target branch (usually `main`)
+to avoid merge conflicts and ensure CI runs against up-to-date code:
+
+```bash
+git fetch <upstream-remote> <target_branch>
+git rebase <upstream-remote>/<target_branch>
+```
+
+If there are conflicts, resolve them and continue the rebase. If the rebase is too complex,
+ask the user for guidance.
 
 Then push the branch to the fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):

@@ -133,7 +133,7 @@ def read_allowed_kubernetes_versions() -> list[str]:
     raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
 
 
-def pre_process_files(files: list[str]) -> list[str]:
+def pre_process_mypy_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 
     * Exclude conftest.py files and __init__.py files

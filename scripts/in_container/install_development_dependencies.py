@@ -30,9 +30,7 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_ROOT_PATH, click, console, run_command
 from packaging.requirements import Requirement
 

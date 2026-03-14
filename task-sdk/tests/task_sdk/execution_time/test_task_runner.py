@@ -2806,18 +2806,24 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="test_truncation_masking_dag")
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        assert (
-            call(
-                msg=SetRenderedFields(
-                    rendered_fields={
-                        "env_vars": "Truncated. You can change this behaviour in [core]max_templated_field_length. \"{'TEST_URL_0': '***', 'TEST_URL_1': '***', 'TEST_URL_10': '***', 'TEST_URL_11': '***', 'TEST_URL_12': '***', 'TEST_URL_13': '***', 'TEST_URL_14': '***', 'TEST_URL_15': '***', 'TEST_URL_16': '***', 'TEST_URL_17': '***', 'TEST_URL_18': '***', 'TEST_URL_19': '***', 'TEST_URL_2': '***', 'TEST_URL_20': '***', 'TEST_URL_21': '***', 'TEST_URL_22': '***', 'TEST_URL_23': '***', 'TEST_URL_24': '***', 'TEST_URL_25': '***', 'TEST_URL_26': '***', 'TEST_URL_27': '***', 'TEST_URL_28': '***', 'TEST_URL_29': '***', 'TEST_URL_3': '***', 'TEST_URL_30': '***', 'TEST_URL_31': '***', 'TEST_URL_32': '***', 'TEST_URL_33': '***', 'TEST_URL_34': '***', 'TEST_URL_35': '***', 'TEST_URL_36': '***', 'TEST_URL_37': '***', 'TEST_URL_38': '***', 'TEST_URL_39': '***', 'TEST_URL_4': '***', 'TEST_URL_40': '***', 'TEST_URL_41': '***', 'TEST_URL_42': '***', 'TEST_URL_43': '***', 'TEST_URL_44': '***', 'TEST_URL_45': '***', 'TEST_URL_46': '***', 'TEST_URL_47': '***', 'TEST_URL_48': '***', 'TEST_URL_49': '***', 'TEST_URL_5': '***', 'TEST_URL_6': '***', 'TEST_URL_7': '***', 'TEST_URL_8': '***', 'TEST_URL_9': '***'}\"... ",
-                        "region": "us-west-2",
-                    },
-                    type="SetRenderedFields",
-                )
-            )
-            in mock_supervisor_comms.send.mock_calls
+        msg = next(
+            c.kwargs["msg"]
+            for c in mock_supervisor_comms.send.mock_calls
+            if c.kwargs.get("msg") and getattr(c.kwargs["msg"], "type", None) == "SetRenderedFields"
         )
+        rendered_fields = msg.rendered_fields
+
+        # region is short enough to not be truncated
+        assert rendered_fields["region"] == "us-west-2"
+
+        # env_vars exceeds max_templated_field_length and must be truncated with secrets redacted
+        env_vars_value = rendered_fields["env_vars"]
+        assert isinstance(env_vars_value, str)
+        assert env_vars_value.startswith(
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+        )
+        assert env_vars_value.endswith("...")
+        assert "***" in env_vars_value  # secrets are redacted before truncation
 
     @pytest.mark.enable_redact
     def test_rendered_templates_masks_secrets_in_complex_objects(

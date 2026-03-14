@@ -40,7 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.10.9"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.10.10"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -120,6 +120,7 @@ jobs:
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
+      run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
@@ -204,6 +205,7 @@ jobs:
       skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
+      run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}

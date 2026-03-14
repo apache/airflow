@@ -82,6 +82,8 @@ core or provider type of test.
 +---------------+-------------------------------------------------------+
 | openlineage   | Integration required for Openlineage hooks.           |
 +---------------+-------------------------------------------------------+
+| opensearch    | Integration required for OpenSearch hooks.            |
++---------------+-------------------------------------------------------+
 | otel          | Integration required for OTEL/opentelemetry hooks.    |
 +---------------+-------------------------------------------------------+
 | pinot         | Integration required for Apache Pinot hooks.          |
