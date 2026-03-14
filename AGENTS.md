@@ -85,6 +85,7 @@ UV workspace monorepo. Key paths:
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
+- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
 - Apache License header on all new files (prek enforces this).
 
 ## Testing Standards
@@ -143,6 +144,17 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+
+Before pushing, always rebase your branch onto the latest target branch (usually `main`)
+to avoid merge conflicts and ensure CI runs against up-to-date code:
+
+```bash
+git fetch <upstream-remote> <target_branch>
+git rebase <upstream-remote>/<target_branch>
+```
+
+If there are conflicts, resolve them and continue the rebase. If the rebase is too complex,
+ask the user for guidance.
 
 Then push the branch to the fork remote and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):

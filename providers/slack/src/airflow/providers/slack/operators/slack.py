@@ -228,8 +228,8 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     :param thread_ts: Provide another message's ``ts`` value to upload the file as a reply in a
-        thread. See https://api.slack.com/messaging#threading (templated)
-
+        thread. See https://api.slack.com/messaging#threading. When using ``thread_ts``, specify
+        exactly one channel in ``channels``; a thread belongs to a single channel. (templated)
     :return: List of Slack API response data from ``files_upload_v2`` (one per channel).
         Returned value is pushed to XCom for downstream tasks.
     """
