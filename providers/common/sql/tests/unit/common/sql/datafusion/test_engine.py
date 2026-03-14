@@ -360,6 +360,35 @@ class TestDataFusionEngine:
         assert credentials["client_id"] == "explicit-client-id"
         assert credentials["client_secret"] == "explicit-client-secret"
 
+    def test_get_credentials_wasb_missing_account(self):
+        """Raise early when both login and password/account_key are absent."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.login = None
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="Azure connection requires a storage account name"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_wasb_service_principal_host_scheme_no_dots(self):
+        """Account name extracted from netloc even when host is scheme + bare name."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "https://mystorageaccount"
+        mock_conn.login = "my-client-id"
+        mock_conn.password = "my-client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "my-tenant-id"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "mystorageaccount"
+
     def test_get_credentials_azure_missing_provider(self):
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "wasb"

@@ -192,7 +192,11 @@ class DataFusionEngine(LoggingMixin):
 
                     host = conn.host or ""
                     parsed = urlparse(host if "://" in host else f"https://{host}")
-                    account = parsed.netloc.split(".")[0] if "." in (parsed.netloc or "") else host
+                    account = (
+                        parsed.netloc.split(".")[0]
+                        if "." in (parsed.netloc or "")
+                        else (parsed.netloc or host)
+                    )
                     credentials = {
                         "account": account or None,
                         "client_id": conn.extra_dejson.get("client_id") or conn.login,
@@ -206,6 +210,11 @@ class DataFusionEngine(LoggingMixin):
                         "access_key": conn.password or conn.extra_dejson.get("account_key"),
                     }
                 credentials = self._remove_none_values(credentials)
+                if "account" not in credentials:
+                    raise ValueError(
+                        "Azure connection requires a storage account name. "
+                        "Set 'login' for key auth or 'host' for Service Principal auth."
+                    )
                 extra_config = {}
 
             case _:
