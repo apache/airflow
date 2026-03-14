@@ -67,6 +67,10 @@ development. In production the prefix defaults to `/registry/`.
 ### Data Pipeline
 
 ```
+registry_tools/types.py      ← Single source of truth for module type definitions
+        │
+        ├─── generate_types_json.py  → registry/src/_data/types.json (for frontend)
+        │
 provider.yaml files (providers/*/provider.yaml)
         │
         ▼
@@ -79,6 +83,7 @@ extract_parameters.py        ← Runtime class discovery + parameter extraction 
 registry/src/_data/
   ├── providers.json         ← Provider metadata (name, versions, downloads, lifecycle, ...)
   ├── modules.json           ← Individual modules (operators, hooks, sensors, ...)
+  ├── types.json             ← Module type definitions (generated from types.py)
   └── versions/{id}/{ver}/   ← Per-version metadata, parameters, connections
         │
         ▼
@@ -119,6 +124,15 @@ extraction:
 4. **Extracts `__init__` parameters** — walks the MRO and extracts parameter names,
    types, defaults, and docstrings. Writes
    `versions/{provider_id}/{version}/parameters.json`.
+
+**`registry_contract_models.py`** defines Pydantic models that validate the shape of
+every JSON payload the registry produces. Each extraction script calls
+`_validate(ModelType, payload)` before writing JSON — this catches schema drift at
+generation time without a separate jsonschema layer. The same models generate the
+OpenAPI 3.1 spec served at `/api/openapi.json`.
+
+**`export_registry_schemas.py`** generates `registry/schemas/openapi.json` from the
+contract models. It runs automatically via `pnpm prebuild` before Eleventy builds.
 
 **`extract_connections.py`** (runs inside breeze) reads `connection-types` from
 `provider.yaml`, falling back to runtime inspection of hook
@@ -166,11 +180,14 @@ the same Sphinx build that generates the docs.
 |---|---|---|
 | `providers.json` | Generated | All providers with metadata, sorted alphabetically |
 | `modules.json` | Generated | All extracted modules (operators, hooks, etc.) |
+| `types.json` | Generated | Module type definitions (from `registry_tools/types.py`) |
 | `versions/` | Generated | Per-provider, per-version metadata/parameters/connections |
 | `exploreCategories.js` | Checked-in | Category definitions with keyword lists for the Explore page |
 | `statsData.js` | Checked-in | Computed statistics (lifecycle counts, top providers, etc.) |
 | `providerVersions.js` | Checked-in | Builds the provider × version page collection |
 | `latestVersionData.js` | Checked-in | Latest version parameters/connections lookup |
+| `openapiSpec.js` | Checked-in | Builds OpenAPI 3.1 spec from Pydantic contract models |
+| `providerVersionPayloads.js` | Checked-in | Generates `/api/providers/{id}/versions.json` payloads |
 
 ### Pages
 
@@ -182,6 +199,7 @@ the same Sphinx build that generates the docs.
 | Statistics | `src/stats.njk` | `/stats/` |
 | Provider Detail | `src/provider-detail.njk` | `/providers/{id}/` (redirects to latest) |
 | Provider Version | `src/provider-version.njk` | `/providers/{id}/{version}/` |
+| API Explorer | `src/api-explorer.njk` | `/api-explorer/` |
 
 ### Client-Side JavaScript
 
@@ -266,6 +284,10 @@ providing programmatic access to provider and module data:
 - `/api/providers/{id}/{version}/modules.json` — Version-specific modules
 - `/api/providers/{id}/{version}/parameters.json` — Version-specific parameters
 - `/api/providers/{id}/{version}/connections.json` — Version-specific connections
+- `/api/openapi.json` — OpenAPI 3.1 spec (generated at build time from Pydantic contracts)
+
+An interactive **API Explorer** at `/api-explorer/` renders the OpenAPI spec using
+swagger-ui (vendored from `node_modules/swagger-ui-dist`).
 
 ## Incremental Builds
 
@@ -460,6 +482,19 @@ provider appears well in the registry:
 3. **Write docstrings** — the extraction script uses runtime inspection to pull
    class-level docstrings for module descriptions
 4. **Publish to PyPI** — download stats are fetched automatically
+
+## Adding a New Module Type
+
+Module types (operator, hook, sensor, etc.) are defined in a single place:
+`dev/registry/registry_tools/types.py`. To add a new type (e.g., `auth_manager`):
+
+1. Add an entry to `MODULE_TYPES` in `dev/registry/registry_tools/types.py`
+2. Run `uv run python dev/registry/generate_types_json.py` to update
+   `registry/src/_data/types.json` (auto-propagates to frontend templates and JS)
+3. Add CSS variable `--color-auth-manager` and class `.auth-manager` in
+   `src/css/tokens.css` and `src/css/main.css`
+4. If runtime discovery is needed, add a base class entry to `BASE_CLASS_IMPORTS`
+   in `types.py`
 
 ## Development Tips
 

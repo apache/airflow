@@ -128,6 +128,7 @@ PIP package                                 Version required
 ``azure-kusto-data``                        ``>=4.1.0,!=4.6.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=2.0.0``
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
+``azure-mgmt-compute``                      ``>=33.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``

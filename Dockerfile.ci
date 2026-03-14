@@ -1160,6 +1160,11 @@ function environment_initialization() {
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
     elif [[ ${BACKEND=} == "sqlite" ]]; then
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Sqlite"
+    elif [[ ${BACKEND=} == "custom" ]]; then
+        local _conn_url="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-}"
+        local _masked_url
+        _masked_url=$(echo "${_conn_url}" | sed -E 's|://([^:]+):([^@]+)@|://\1:***@|')
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Custom (${_masked_url})"
     fi
     echo
 
@@ -1733,7 +1738,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.9
+ARG AIRFLOW_UV_VERSION=0.10.10
 ARG AIRFLOW_PREK_VERSION="0.3.5"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
