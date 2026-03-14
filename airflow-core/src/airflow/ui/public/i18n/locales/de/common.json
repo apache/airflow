@@ -128,7 +128,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
-  "generateToken": "Zugriffstoken Erzeugen",
+  "generateToken": "Zugriffstoken erzeugen",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -340,9 +340,9 @@
     "generate": "Erzeugen",
     "selectType": "Wählen Sie den Typ des zu erzeugenden Tokens.",
     "title": "Zugriffstoken erzeugen",
-    "tokenExpiresIn": "Dieses Token läuft in {{duration}} ab.",
+    "tokenExpiresIn": "Dieser Token läuft in {{duration}} ab.",
     "tokenGenerated": "Ihr Token wurde erzeugt.",
-    "tokenShownOnce": "Dieses Token wird nur einmal angezeigt. Kopieren Sie es jetzt."
+    "tokenShownOnce": "Dieser Token wird nur einmal angezeigt. Kopieren Sie ihn jetzt."
   },
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",
