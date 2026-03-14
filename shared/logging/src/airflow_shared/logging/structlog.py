@@ -224,6 +224,20 @@ def respect_stdlib_disable(logger: Any, method_name: Any, event_dict: EventDict)
     return event_dict
 
 
+def _make_safe_enc_hook(default):
+    """Wrap an enc_hook so that serialization failures fall back to ``str()``."""
+
+    def safe_enc_hook(obj):
+        if default is not None:
+            try:
+                return default(obj)
+            except TypeError:
+                pass
+        return str(obj)
+
+    return safe_enc_hook
+
+
 @cache
 def structlog_processors(
     json_output: bool,
@@ -318,16 +332,7 @@ def structlog_processors(
                 **msg,
             }
 
-            def safe_default(obj):
-                """Fall back to str() if the default enc_hook fails or is None."""
-                if default is not None:
-                    try:
-                        return default(obj)
-                    except TypeError:
-                        pass
-                return str(obj)
-
-            return msgspec.json.encode(msg, enc_hook=safe_default)
+            return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 

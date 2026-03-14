@@ -264,6 +264,49 @@ def test_json(structlog_config, get_logger, config_kwargs, log_kwargs, expected_
     }
 
 
+def test_json_non_serializable_object(structlog_config):
+    """Non-serializable objects in log context fall back to str() instead of crashing."""
+
+    class BadStructlog:
+        def __structlog__(self):
+            raise TypeError("unsupported")
+
+        def __str__(self):
+            return "<BadStructlog>"
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=BadStructlog())
+
+    written = json.load(bio)
+    assert written["obj"] == "<BadStructlog>"
+    assert written["event"] == "Hello"
+
+
+def test_json_custom_object_uses_repr(structlog_config):
+    """Custom objects without __structlog__ serialize via repr() through the normal enc_hook path."""
+
+    class CustomObj:
+        pass
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=CustomObj())
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    assert "CustomObj" in written["obj"]
+
+
+def test_safe_enc_hook_with_none_default():
+    """When default is None, _make_safe_enc_hook falls back to str() directly."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    hook = _make_safe_enc_hook(None)
+    assert hook(42) == "42"
+    assert hook(object()).startswith("<object object at")
+
+
 @pytest.mark.parametrize(
     ("get_logger"),
     [
