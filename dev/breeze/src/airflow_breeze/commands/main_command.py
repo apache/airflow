@@ -178,8 +178,6 @@ def check_for_rosetta_environment():
             stderr=subprocess.DEVNULL,
         ).strip()
         if runs_in_rosetta == "1":
-            from airflow_breeze.utils.console import console_print
-
             console_print(
                 "\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]\n"
             )
