@@ -20,7 +20,7 @@ import datetime
 import logging
 from collections.abc import Iterable
 from enum import Enum
-from functools import singledispatch
+from functools import cache, singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
@@ -311,21 +311,14 @@ class Trigger(Base):
             # Resolve team name for multi-team setups
             team_name: str | None = None
             if conf.getboolean("core", "multi_team"):
-                from airflow.models.dag import DagModel
-                from airflow.models.dagbundle import DagBundleModel
-                from airflow.models.team import Team
+                team_name = task_instance.dag_model.get_team_name(task_instance.dag_id, session=session)
 
-                result = session.execute(
-                    select(Team.name)
-                    .join(DagBundleModel.teams)
-                    .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
-                    .where(DagModel.dag_id == task_instance.dag_id)
-                ).first()
-                team_name = result[0] if result else None
+            # Load configured executors (cached) and find the one responsible for this task instance
+            @cache
+            def get_executors():
+                return ExecutorLoader.init_executors()
 
-            # Load configured executors and find the one responsible for this task instance
-            executors = ExecutorLoader.init_executors()
-            executor = ExecutorLoader.find_executor(executors, task_instance.executor, team_name)
+            executor = ExecutorLoader.find_executor(get_executors(), task_instance.executor, team_name)
 
             # Only directly enqueue if the executor is in the configured allowlist
             if executor is not None and executor.name is not None:
@@ -338,7 +331,7 @@ class Trigger(Base):
                     task_instance.state = TaskInstanceState.QUEUED
                     workload = workloads.ExecuteTask.make(ti=task_instance, generator=executor.jwt_generator)
                     executor.queue_workload(workload, session=session)
-                    executor.trigger_tasks(1)  # Flush all == 1 tasks
+                    executor.trigger_tasks(1)  # Flush all == 1 task to the worker immediately
                     return
 
         # Fall back to SCHEDULED so the scheduler picks it up via the normal scheduling loop
