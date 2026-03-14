@@ -254,6 +254,7 @@ def get_dag_run_dict(run: DagRun):
         "state": run.state,
         "triggered_by": run.triggered_by.value if run.triggered_by else None,
         "triggering_user_name": run.triggering_user_name,
+        "triggered_at": from_datetime_to_zulu(run.triggered_at),
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
@@ -1646,6 +1647,7 @@ class TestTriggerDagRun:
             "note": note,
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
+            "triggered_at": mock.ANY,
             "partition_key": None,
         }
 

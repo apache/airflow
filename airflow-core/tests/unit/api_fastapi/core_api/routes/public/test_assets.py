@@ -1404,6 +1404,7 @@ class TestPostAssetMaterialize(TestAssets):
             "state": "queued",
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
+            "triggered_at": mock.ANY,
             "conf": {},
             "note": None,
         }
