@@ -101,6 +101,7 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 @dataclass
 class ConfigParams:
     airflow_constraints_mode: str
+    allow_missing_previous_constraints_file: bool
     constraints_github_repository: str
     default_constraints_branch: str
     github_actions: bool
@@ -201,7 +202,7 @@ def freeze_distributions_to_file(
     console.print(f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines")
 
 
-def download_latest_constraint_file(config_params: ConfigParams):
+def download_latest_constraint_file(config_params: ConfigParams) -> bool:
     constraints_url = (
         "https://api.github.com/repos/"
         f"{config_params.constraints_github_repository}/contents/"
@@ -215,11 +216,40 @@ def download_latest_constraint_file(config_params: ConfigParams):
     else:
         console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60, headers=headers)
-    r.raise_for_status()
+    try:
+        r = requests.get(constraints_url, timeout=60, headers=headers)
+        r.raise_for_status()
+    except requests.HTTPError as ex:
+        status_code = ex.response.status_code if ex.response is not None else "unknown"
+        console.print(
+            "[red]Failed to download previous constraints file "
+            f"{config_params.airflow_constraints_mode}-{config_params.python}.txt "
+            f"from branch {config_params.default_constraints_branch} "
+            f"(HTTP {status_code}).[/]"
+        )
+        if ex.response is not None and ex.response.status_code == 404:
+            if config_params.allow_missing_previous_constraints_file:
+                config_params.latest_constraints_file.unlink(missing_ok=True)
+                console.print(
+                    "[yellow]No previous constraints file exists for this mode/python combination. "
+                    "Skipping diff because bootstrap mode was explicitly enabled via "
+                    "`--allow-missing-previous-constraints-file`.[/]"
+                )
+                return False
+            console.print(
+                "[yellow]If this is the first constraints file for a new Python version or constraints mode, "
+                "rerun with `--allow-missing-previous-constraints-file` to skip the diff intentionally.[/]"
+            )
+        raise
+    except requests.RequestException as ex:
+        console.print(
+            f"[red]Error while downloading previous constraints file from {constraints_url}: {ex}[/]"
+        )
+        raise
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
     console.print(f"[green]Downloaded constraints file from {constraints_url} to {constraints_file.name}")
+    return True
 
 
 def diff_constraints(config_params: ConfigParams) -> None:
@@ -317,8 +347,11 @@ def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(SOURCE_PROVIDERS_CONSTRAINTS_PREFIX)
         freeze_distributions_to_file(config_params, constraints_file)
-    download_latest_constraint_file(config_params)
-    diff_constraints(config_params)
+    if download_latest_constraint_file(config_params):
+        diff_constraints(config_params)
+    else:
+        config_params.constraints_diff_file.unlink(missing_ok=True)
+        console.print("[yellow]Skipping constraints diff because no previous constraints file was found.[/]")
 
 
 def get_locally_build_distribution_specs() -> list[str]:
@@ -405,8 +438,11 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         freeze_distributions_to_file(
             config_params, constraints_file, distributions_to_exclude_from_constraints
         )
-    download_latest_constraint_file(config_params)
-    diff_constraints(config_params)
+    if download_latest_constraint_file(config_params):
+        diff_constraints(config_params)
+    else:
+        config_params.constraints_diff_file.unlink(missing_ok=True)
+        console.print("[yellow]Skipping constraints diff because no previous constraints file was found.[/]")
 
 
 def generate_constraints_no_providers(config_params: ConfigParams) -> None:
@@ -423,8 +459,11 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
         freeze_distributions_to_file(config_params, constraints_file)
-    download_latest_constraint_file(config_params)
-    diff_constraints(config_params)
+    if download_latest_constraint_file(config_params):
+        diff_constraints(config_params)
+    else:
+        config_params.constraints_diff_file.unlink(missing_ok=True)
+        console.print("[yellow]Skipping constraints diff because no previous constraints file was found.[/]")
 
 
 ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "constraints-no-providers"]
@@ -466,6 +505,14 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     help="Python major.minor version",
 )
 @click.option(
+    "--allow-missing-previous-constraints-file/--no-allow-missing-previous-constraints-file",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="ALLOW_MISSING_PREVIOUS_CONSTRAINTS_FILE",
+    help="Allow generating constraints when no previous file exists on the constraints branch yet.",
+)
+@click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
     default=True,
@@ -474,6 +521,7 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 )
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_missing_previous_constraints_file: bool,
     constraints_github_repository: str,
     default_constraints_branch: str,
     github_actions: bool,
@@ -482,6 +530,7 @@ def generate_constraints(
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
+        allow_missing_previous_constraints_file=allow_missing_previous_constraints_file,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
         github_actions=github_actions,

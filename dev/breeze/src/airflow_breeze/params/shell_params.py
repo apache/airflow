@@ -164,6 +164,7 @@ class ShellParams:
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
+    allow_missing_previous_constraints_file: bool = False
     allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
@@ -625,6 +626,11 @@ services:
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
+        _set_var(
+            _env,
+            "ALLOW_MISSING_PREVIOUS_CONSTRAINTS_FILE",
+            self.allow_missing_previous_constraints_file,
+        )
         _set_var(_env, "BACKEND", self.backend)
         if self.backend == "custom":
             _set_var(_env, "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", self.custom_db_url or None)

@@ -1368,6 +1368,14 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@click.option(
+    "--allow-missing-previous-constraints-file/--no-allow-missing-previous-constraints-file",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="ALLOW_MISSING_PREVIOUS_CONSTRAINTS_FILE",
+    help="Allow bootstrapping constraints when no previous file exists on the constraints branch yet.",
+)
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1375,6 +1383,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_missing_previous_constraints_file: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1419,6 +1428,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_missing_previous_constraints_file=allow_missing_previous_constraints_file,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1437,6 +1447,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_missing_previous_constraints_file=allow_missing_previous_constraints_file,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,

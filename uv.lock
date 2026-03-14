@@ -7565,6 +7565,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
+    { name = "rich-click" },
     { name = "tabulate" },
     { name = "termcolor" },
 ]
@@ -7584,6 +7585,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "rich", specifier = ">=13.6.0" },
+    { name = "rich-click", specifier = ">=1.9.7" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "termcolor", specifier = ">=2.3.0" },
 ]

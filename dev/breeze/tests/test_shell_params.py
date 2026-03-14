@@ -159,6 +159,14 @@ console = Console(width=400, color_system="standard")
             id="PYTHONWARNINGS should not be set by default",
         ),
         pytest.param(
+            {},
+            {"allow_missing_previous_constraints_file": True},
+            {
+                "ALLOW_MISSING_PREVIOUS_CONSTRAINTS_FILE": "true",
+            },
+            id="allow missing previous constraints file",
+        ),
+        pytest.param(
             {"PYTHONWARNINGS": "default"},
             {},
             {
