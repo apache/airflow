@@ -152,8 +152,8 @@ Snippet to create Connection and convert to URI
     conn = Connection(
         conn_id="sample_aws_connection",
         conn_type="aws",
-        login="AKIAIOSFODNN7EXAMPLE",  # Reference to AWS Access Key ID
-        password="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",  # Reference to AWS Secret Access Key
+        login="YOUR_AWS_ACCESS_KEY_ID",  # Reference to AWS Access Key ID
+        password="YOUR_AWS_SECRET_ACCESS_KEY",  # Reference to AWS Secret Access Key
         extra={
             # Specify extra parameters here
             "region_name": "eu-central-1",
@@ -164,7 +164,7 @@ Snippet to create Connection and convert to URI
     env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
     conn_uri = conn.get_uri()
     print(f"{env_key}={conn_uri}")
-    # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
+    # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://YOUR_AWS_ACCESS_KEY_ID:YOUR_AWS_SECRET_ACCESS_KEY@/?region_name=eu-central-1
 
     os.environ[env_key] = conn_uri
     print(conn.test_connection())  # Validate connection credentials.
@@ -208,7 +208,7 @@ With a AWS IAM key pair
 
   .. code-block:: bash
 
-    export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
+    export AIRFLOW_CONN_AWS_DEFAULT=aws://YOUR_AWS_ACCESS_KEY_ID:YOUR_AWS_SECRET_ACCESS_KEY@
 
   Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
   trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
@@ -219,8 +219,8 @@ With a AWS IAM key pair
 
     export AIRFLOW_CONN_AWS_DEFAULT='{
       "conn_type": "aws",
-      "login": "AKIAIOSFODNN7EXAMPLE",
-      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+      "login": "YOUR_AWS_ACCESS_KEY_ID",
+      "password": "YOUR_AWS_SECRET_ACCESS_KEY"
     }'
 
 Examples for the **Extra** field
