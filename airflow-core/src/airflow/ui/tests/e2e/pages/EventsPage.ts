@@ -172,7 +172,7 @@ export class EventsPage extends BasePage {
   public async waitForTableLoad(): Promise<void> {
     await expect(this.eventsTable).toBeVisible({ timeout: 60_000 });
 
-    const skeleton = this.eventsTable.locator('[data-scope="skeleton"]');
+    const skeleton = this.eventsTable.locator('[data-testid="skeleton"]');
 
     await expect(skeleton).toHaveCount(0, { timeout: 60_000 });
 
