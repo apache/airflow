@@ -652,9 +652,14 @@ class DagModel(Base):
         # this loads all the ADRQ records.... may need to limit num dags
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
         for adrq in session.scalars(
-            select(AssetDagRunQueue).options(
-                joinedload(AssetDagRunQueue.dag_model),
-                joinedload(AssetDagRunQueue.asset),
+            with_row_locks(
+                select(AssetDagRunQueue).options(
+                    joinedload(AssetDagRunQueue.dag_model),
+                    joinedload(AssetDagRunQueue.asset),
+                ),
+                of=AssetDagRunQueue,
+                session=session,
+                skip_locked=True,
             )
         ):
             if adrq.dag_model.asset_expression is None:

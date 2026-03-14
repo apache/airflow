@@ -93,6 +93,7 @@ from airflow.timetables.simple import (
 )
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2074,6 +2075,32 @@ class TestDagModel:
         with assert_queries_count(6):
             query, _ = DagModel.dags_needing_dagruns(session)
             query.all()
+
+    def test_dags_needing_dagruns_asset_queue_uses_row_locks(self, dag_maker, session):
+        """Test that ADRQ rows are locked to prevent duplicate DAG runs with HA schedulers."""
+        asset = Asset(uri="test://locked-asset", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="locked_dag",
+            max_active_runs=10,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+        asset_model = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+
+        with patch("airflow.models.dag.with_row_locks", wraps=with_row_locks) as mock_wrl:
+            DagModel.dags_needing_dagruns(session)
+            # with_row_locks should be called at least twice:
+            # once for the ADRQ query and once for the DagModel query
+            assert mock_wrl.call_count >= 2
+            # Verify ADRQ call uses skip_locked
+            adrq_call = mock_wrl.call_args_list[0]
+            assert adrq_call.kwargs.get("skip_locked") is True
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
         # link asset_alias hello_alias to asset hello
