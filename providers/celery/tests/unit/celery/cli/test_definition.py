@@ -52,8 +52,8 @@ class TestCeleryCliDefinition:
         assert len(CELERY_CLI_COMMANDS) == 1
 
     def test_celery_commands_count(self):
-        """Test that CELERY_COMMANDS contains all 9 subcommands."""
-        assert len(CELERY_COMMANDS) == 9
+        """Test that CELERY_COMMANDS contains all 10 subcommands."""
+        assert len(CELERY_COMMANDS) == 10
 
     @pytest.mark.parametrize(
         "command",
@@ -67,6 +67,7 @@ class TestCeleryCliDefinition:
             "add-queue",
             "remove-queue",
             "remove-all-queues",
+            "worker-health-check",
         ],
     )
     def test_celery_subcommands_defined(self, command):
