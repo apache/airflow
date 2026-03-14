@@ -154,9 +154,7 @@ def build_provider_distribution(
     else:
         console_print(f"[error]Unknown/unsupported build backend {build_backend}")
         raise PrepareReleasePackageErrorBuildingPackageException()
-    console_print(
-        f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n"
-    )
+    console_print(f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n")
 
 
 def move_built_distributions_and_cleanup(

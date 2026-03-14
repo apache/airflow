@@ -165,9 +165,7 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
         match_exact_version = re.match(r"^[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*$", use_airflow_version)
         if match_exact_version:
             # If we are using an exact version, we use the constraints for that version
-            console_print(
-                f"[info]Using constraints for {use_airflow_version} - exact version specified."
-            )
+            console_print(f"[info]Using constraints for {use_airflow_version} - exact version specified.")
             return f"constraints-{use_airflow_version}"
         match_repo_branch = re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
         if match_repo_branch:
@@ -178,9 +176,7 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
                 console_print(f"[info]Using constraints for {branch_version} branch.")
                 return f"constraints-{branch_version}"
             if branch == "main":
-                console_print(
-                    "[info]Using constraints for main branch - no specific version specified."
-                )
+                console_print("[info]Using constraints for main branch - no specific version specified.")
                 return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
             console_print(
                 f"[warning]Could not determine branch automatically from {use_airflow_version}. "
@@ -636,9 +632,7 @@ def start_airflow(
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
-        console_print(
-            "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
-        )
+        console_print("[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!")
         skip_assets_compilation = True
 
     if dev_mode and use_airflow_version:
@@ -840,9 +834,7 @@ def build_docs(
 
     docs_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
-        console_print(
-            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
-        )
+        console_print(f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}")
         # Override doc_packages with values from DISTRIBUTIONS_LIST
         docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:

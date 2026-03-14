@@ -179,9 +179,7 @@ def version():
         console_print(
             f"[info]Installation sources config hash : {get_installation_sources_config_metadata_hash()}[/]"
         )
-        console_print(
-            f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
-        )
+        console_print(f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]")
 
 
 @setup_group.command(name="config")
@@ -445,9 +443,7 @@ def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool)
         )
     else:
         console_print(f"[info]The autocomplete script would be added to {script_path}[/]")
-    console_print(
-        f"\n[warning]Please exit and re-enter your shell or run:[/]\n\n   source {script_path}\n"
-    )
+    console_print(f"\n[warning]Please exit and re-enter your shell or run:[/]\n\n   source {script_path}\n")
     return True
 
 

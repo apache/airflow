@@ -141,9 +141,7 @@ def check_for_python_emulation():
                 f"\n\n[error]Your Python architecture is {python_machine} and "
                 f"system architecture is {system_machine}[/]"
             )
-            console_print(
-                "[warning]This is very bad and your Python is 10x slower as it is emulated[/]"
-            )
+            console_print("[warning]This is very bad and your Python is 10x slower as it is emulated[/]")
             console_print(
                 "[warning]You likely installed your Python wrongly and you should "
                 "remove it and reinstall from scratch[/]\n"
@@ -189,9 +187,7 @@ def check_for_rosetta_environment():
             console_print(
                 "\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]\n"
             )
-            console_print(
-                "[warning]This is very bad and your Python is 10x slower as it is emulated[/]\n"
-            )
+            console_print("[warning]This is very bad and your Python is 10x slower as it is emulated[/]\n")
             console_print(
                 "You have emulated Python interpreter (Intel rather than ARM). You should check:\n\n"
                 '  * Your IDE (PyCharm/VSCode/Intellij): the "About" window should show `aarch64` '

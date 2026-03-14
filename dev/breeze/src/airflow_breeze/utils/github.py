@@ -122,9 +122,7 @@ def download_file_from_github(
                 console_print(f"[warning]The {url} has not been found. Skipping")
                 return False
             if response.status_code != 200:
-                console_print(
-                    f"[error]{url} could not be downloaded. Status code {response.status_code}"
-                )
+                console_print(f"[error]{url} could not be downloaded. Status code {response.status_code}")
                 sys.exit(1)
             output_file.write_bytes(response.content)
         except requests.Timeout:
@@ -160,9 +158,7 @@ def get_active_airflow_versions(
     try:
         ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
-        console_print(
-            "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
-        )
+        console_print("[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n")
         console_print(f"{ex}\n")
         console_print(
             "[info]You can add apache remote with on of those commands (depend which protocol you use):\n"

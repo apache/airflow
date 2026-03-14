@@ -166,15 +166,11 @@ def monitor_workflow_run(run_id: str, repo: str):
             conclusion = job["conclusion"]
 
             if name not in completed_jobs and status != "completed":
-                console_print(
-                    f"[yellow]- Job: {name} | Status: {status} | Conclusion: {conclusion}[/yellow]"
-                )
+                console_print(f"[yellow]- Job: {name} | Status: {status} | Conclusion: {conclusion}[/yellow]")
                 continue
 
             if name not in completed_jobs:
-                console_print(
-                    f"[green]- Job: {name} | Status: {status} | Conclusion: {conclusion}[/green]"
-                )
+                console_print(f"[green]- Job: {name} | Status: {status} | Conclusion: {conclusion}[/green]")
                 completed_jobs.append(name)
 
         workflow_run_status_conclusion = get_workflow_run_info(run_id, repo, "status,conclusion,name")

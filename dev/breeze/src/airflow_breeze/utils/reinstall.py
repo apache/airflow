@@ -54,9 +54,7 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     except FileNotFoundError:
         pass
     if breeze_installed_with_uv and breeze_installed_with_pipx:
-        console_print(
-            "[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n"
-        )
+        console_print("[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n")
         console_print(
             "[info]Please uninstall Breeze and install it only with one of the methods[/]\n"
             "[info]The `uv` installation method is recommended as it is much faster[/]\n"

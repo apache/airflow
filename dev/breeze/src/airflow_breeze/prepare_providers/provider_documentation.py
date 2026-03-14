@@ -526,9 +526,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
             raise PrepareReleaseDocsUserQuitException()
         if given_answer in type_of_changes_array:
             return TypeOfChange(given_answer)
-        console_print(
-            f"[warning] Wrong answer given: '{given_answer}'. Should be one of {display_answers}"
-        )
+        console_print(f"[warning] Wrong answer given: '{given_answer}'. Should be one of {display_answers}")
 
 
 def _mark_latest_changes_as_documentation_only(
@@ -874,9 +872,7 @@ def update_release_notes(
                 table_iter += 1
                 print()
             most_impactful = get_most_impactful_change(type_of_current_package_changes)
-            console_print(
-                f"[info]The version will be bumped because of {most_impactful} kind of change"
-            )
+            console_print(f"[info]The version will be bumped because of {most_impactful} kind of change")
             type_of_change = most_impactful
             if type_of_change == TypeOfChange.SKIP:
                 raise PrepareReleaseDocsUserSkippedException()
@@ -963,9 +959,7 @@ def update_release_notes(
                 only_min_version_update=only_min_version_update,
             )
     else:
-        console_print(
-            f"[info] Proceeding with provider: {provider_id} version as {current_release_version}"
-        )
+        console_print(f"[info] Proceeding with provider: {provider_id} version as {current_release_version}")
     provider_details = get_provider_details(provider_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(

@@ -170,9 +170,7 @@ class S3DocsPublish:
 
                 if self.doc_exists(dest_doc_versioned_folder):
                     if self.overwrite:
-                        console_print(
-                            f"[info]Overwriting existing version {stable_version} for {doc}\n"
-                        )
+                        console_print(f"[info]Overwriting existing version {stable_version} for {doc}\n")
                     else:
                         console_print(
                             f"[info]Skipping doc publish for {doc} as version {stable_version} already exists\n"
@@ -200,9 +198,7 @@ class S3DocsPublish:
                 if self.overwrite:
                     console_print(f"[info]Overwriting existing {dest_doc_folder}\n")
                 else:
-                    console_print(
-                        f"[info]Skipping doc publish for {dest_doc_folder} as already exists\n"
-                    )
+                    console_print(f"[info]Skipping doc publish for {dest_doc_folder} as already exists\n")
                     continue
 
             source_dir_doc_path = f"{self.source_dir_path}/{doc}/"
@@ -310,9 +306,7 @@ class S3DocsPublish:
                 "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", str(0)))),
             },
         )
-        console_print(
-            f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n"
-        )
+        console_print(f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n")
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
         all_packages_infos = [

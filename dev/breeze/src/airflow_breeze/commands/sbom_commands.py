@@ -374,9 +374,7 @@ def update_sbom_information(
 
             destination_dir.mkdir(parents=True, exist_ok=True)
 
-            console_print(
-                f"[info]Attempting to update sbom for {provider_id} version {provider_version}."
-            )
+            console_print(f"[info]Attempting to update sbom for {provider_id} version {provider_version}.")
 
             python_versions_list = sorted(
                 set(
@@ -867,9 +865,7 @@ def export_dependency_information(
         )
         sys.exit(1)
     if include_actions and not include_open_psf_scorecard:
-        console_print(
-            "[error]You cannot specify --include-actions without --include-open-psf-scorecard"
-        )
+        console_print("[error]You cannot specify --include-actions without --include-open-psf-scorecard")
         sys.exit(1)
 
     read_metadata_from_google_spreadsheet(get_sheets(json_credentials_file))
@@ -906,9 +902,7 @@ def export_dependency_information(
         include_github_stats=include_github_stats,
         include_actions=include_actions,
     )
-    console_print(
-        f"[info]Writing {len(all_dependency_value_dicts)} dependencies to Google Spreadsheet."
-    )
+    console_print(f"[info]Writing {len(all_dependency_value_dicts)} dependencies to Google Spreadsheet.")
 
     write_sbom_information_to_google_spreadsheet(
         sheets=get_sheets(json_credentials_file),

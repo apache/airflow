@@ -155,9 +155,7 @@ def check_docker_permission_denied() -> bool:
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
-            console_print(
-                "ERROR: You have `permission denied` error when trying to communicate with docker."
-            )
+            console_print("ERROR: You have `permission denied` error when trying to communicate with docker.")
             console_print(
                 "Most likely you need to add your user to `docker` group: \
                 https://docs.docker.com/ engine/install/linux-postinstall/ ."
@@ -294,9 +292,7 @@ def check_remote_ghcr_io_commands():
     )
     if response.returncode != 0:
         if "no such host" in response.stderr.decode("utf-8"):
-            console_print(
-                "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
-            )
+            console_print("[error]\nYou seem to be offline. This command requires access to network.[/]\n")
             sys.exit(2)
         console_print("[error]Response:[/]\n")
         console_print(response.stdout.decode("utf-8"))
@@ -354,9 +350,7 @@ def check_docker_compose_version(quiet: bool = False):
             good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
                 if not quiet:
-                    console_print(
-                        f"[success]Good version of docker-compose: {docker_compose_version}[/]"
-                    )
+                    console_print(f"[success]Good version of docker-compose: {docker_compose_version}[/]")
             else:
                 console_print(
                     f"""

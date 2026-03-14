@@ -32,9 +32,7 @@ def get_python_version_list(python_versions: str) -> list[str]:
     errors = False
     for python in python_version_list:
         if python not in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
-            console_print(
-                f"[error]The Python version {python} passed in {python_versions} is wrong.[/]"
-            )
+            console_print(f"[error]The Python version {python} passed in {python_versions} is wrong.[/]")
             errors = True
     if errors:
         console_print(

@@ -841,9 +841,7 @@ services:
             and KEYCLOAK_INTEGRATION in self.integration
             and not self.backend == POSTGRES_BACKEND
         ):
-            console_print(
-                "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
-            )
+            console_print("[error]When using the Keycloak integration the backend must be Postgres![/]\n")
             sys.exit(2)
 
     def __eq__(self, other) -> bool:

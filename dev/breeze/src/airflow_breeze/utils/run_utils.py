@@ -422,9 +422,7 @@ def check_if_buildx_plugin_installed() -> bool:
         docker_buildx_version_result.returncode == 0
         and "buildx" in docker_buildx_version_result.stdout.lower()
     ):
-        console_print(
-            "[success]Docker BuildKit is installed and will be used for the image build.[/]\n"
-        )
+        console_print("[success]Docker BuildKit is installed and will be used for the image build.[/]\n")
         return True
     return False
 

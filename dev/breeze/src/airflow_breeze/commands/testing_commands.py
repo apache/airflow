@@ -1697,19 +1697,13 @@ class TimeoutHandler:
             console_print("[warning]Some containers are still running. Killing them with SIGKILL:")
             console_print(containers_left)
             self._send_signal_to_containers(list_of_containers, "SIGKILL")
-            console_print(
-                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
-            )
+            console_print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
             sleep(GRACE_CONTAINER_STOP_TIMEOUT)
             containers_left = self._get_running_containers().stdout.splitlines()
             if containers_left:
-                console_print(
-                    "[error]Some containers are still running. Marking stuff as terminated anyway."
-                )
+                console_print("[error]Some containers are still running. Marking stuff as terminated anyway.")
                 console_print(containers_left)
-        console_print(
-            "[warning]All containers stopped. Marking the whole run as terminated on timeout[/]"
-        )
+        console_print("[warning]All containers stopped. Marking the whole run as terminated on timeout[/]")
         self.terminated_on_timeout_output_list[0] = True
 
 

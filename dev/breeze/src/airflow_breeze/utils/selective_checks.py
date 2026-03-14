@@ -564,9 +564,7 @@ class SelectiveChecks:
             console_print("[warning]Running everything with all versions: changed pyproject.toml[/]")
             return True
         if self.generated_dependencies_changed:
-            console_print(
-                "[warning]Running everything with all versions: provider dependencies changed[/]"
-            )
+            console_print("[warning]Running everything with all versions: provider dependencies changed[/]")
             return True
         return False
 

@@ -1417,9 +1417,7 @@ def _add_label(token: str, github_repository: str, pr_node_id: str, label_name: 
     """Add a label to a PR. Returns True on success."""
     label_id = _resolve_label_id(token, github_repository, label_name)
     if not label_id:
-        console_print(
-            f"[warning]Label '{label_name}' not found in {github_repository}. Skipping label.[/]"
-        )
+        console_print(f"[warning]Label '{label_name}' not found in {github_repository}. Skipping label.[/]")
         return False
     try:
         _graphql_request(token, _ADD_LABELS_MUTATION, {"labelableId": pr_node_id, "labelIds": [label_id]})
@@ -2131,9 +2129,7 @@ def _execute_triage_action(
             f"  [info]Marking PR {_pr_link(pr)} as ready — adding '{_READY_FOR_REVIEW_LABEL}' label.[/]"
         )
         if _add_label(ctx.token, ctx.github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
-            console_print(
-                f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
-            )
+            console_print(f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]")
             stats.total_ready += 1
         else:
             console_print(f"  [warning]Failed to add label to PR {_pr_link(pr)}.[/]")
@@ -2170,9 +2166,7 @@ def _execute_triage_action(
                     )
                     stats.total_rerun += 1
                 else:
-                    console_print(
-                        f"  [warning]Could not rerun any workflow runs for PR {_pr_link(pr)}.[/]"
-                    )
+                    console_print(f"  [warning]Could not rerun any workflow runs for PR {_pr_link(pr)}.[/]")
         else:
             console_print(f"  [warning]No failed checks to rerun for PR {_pr_link(pr)}.[/]")
         return
@@ -2324,9 +2318,7 @@ def _prompt_and_execute_flagged_pr(
             if action == TriageAction.CLOSE:
                 console_print(Panel(close_comment, title="Comment to be posted", border_style="red"))
             elif action == TriageAction.COMMENT:
-                console_print(
-                    Panel(comment_only_text, title="Comment to be posted", border_style="green")
-                )
+                console_print(Panel(comment_only_text, title="Comment to be posted", border_style="green"))
             else:
                 console_print(Panel(draft_comment, title="Comment to be posted", border_style="green"))
 
@@ -2694,9 +2686,7 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                     ctx.stats.total_rerun += 1
                 else:
                     # No workflows to rerun — need rebase or close/reopen to trigger CI
-                    console_print(
-                        f"  [warning]No workflow runs found to rerun for PR {_pr_link(pr)}.[/]"
-                    )
+                    console_print(f"  [warning]No workflow runs found to rerun for PR {_pr_link(pr)}.[/]")
                     if pr.mergeable == "CONFLICTING":
                         console_print("  [warning]PR has merge conflicts — suggesting close/reopen.[/]")
                         rebase_comment = (
@@ -2897,9 +2887,7 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 f"'{_SUSPICIOUS_CHANGES_LABEL}', and commented:[/]"
             )
             for pr_info in author_prs:
-                console_print(
-                    f"    - [link={pr_info['url']}]#{pr_info['number']}[/link] {pr_info['title']}"
-                )
+                console_print(f"    - [link={pr_info['url']}]#{pr_info['number']}[/link] {pr_info['title']}")
             console_print()
 
             confirm = user_confirm(
@@ -3168,9 +3156,7 @@ def _review_passing_prs(ctx: TriageContext, passing_prs: list[PRData]) -> None:
                         "Thank you! \U0001f64f"
                     )
                     _post_comment(ctx.token, pr.node_id, comment)
-                console_print(
-                    f"  [info]Adding '{_READY_FOR_REVIEW_LABEL}' label to PR {_pr_link(pr)}.[/]"
-                )
+                console_print(f"  [info]Adding '{_READY_FOR_REVIEW_LABEL}' label to PR {_pr_link(pr)}.[/]")
                 if _add_label(ctx.token, ctx.github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
                     console_print(
                         f"  [success]Label '{_READY_FOR_REVIEW_LABEL}' added to PR {_pr_link(pr)}.[/]"
@@ -3567,9 +3553,7 @@ def _rerun_failed_workflow_runs(
             console_print(f"  [success]Rerun triggered for: {run.get('name', run_id)}[/]")
             rerun_count += 1
         else:
-            console_print(
-                f"  [warning]Failed to rerun {run.get('name', run_id)}: {response.status_code}[/]"
-            )
+            console_print(f"  [warning]Failed to rerun {run.get('name', run_id)}: {response.status_code}[/]")
     return rerun_count
 
 
@@ -3984,9 +3968,7 @@ def auto_triage(
     )
 
     # Exclude PRs that already have a triage comment posted after the last commit
-    console_print(
-        "[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]"
-    )
+    console_print("[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]")
     triaged_classification = _classify_already_triaged_prs(
         token, github_repository, candidate_prs, viewer_login
     )

@@ -811,9 +811,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
                 check=True,
             )
         else:
-            console_print(
-                f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
-            )
+            console_print(f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n")
             sys.exit(1)
     console_print("[info]Fetching full history and tags from remote.")
     console_print("[info]This might override your local tags!")
@@ -1137,9 +1135,7 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
         if not version_suffix.startswith(".post"):
             if base_line.strip().startswith('"apache-airflow-') and ">=" in base_line:
                 floored_version_suffix = floor_version_suffix(version_suffix)
-                console_print(
-                    f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
-                )
+                console_print(f"[info]Updating version suffix to {floored_version_suffix} for {base_line}.")
                 if ";" in base_line:
                     split_on_semicolon = base_line.split(";")
                     # If there is a semicolon, we need to remove it before adding the version suffix
@@ -1239,9 +1235,7 @@ def _get_provider_version_from_package_name(provider_package_name: str) -> str |
     provider_version = provider_toml.get("project", {}).get("version")
 
     if not provider_version:
-        console_print(
-            f"[warning]Could not find version for {provider_package_name} in {provider_pyproject}"
-        )
+        console_print(f"[warning]Could not find version for {provider_package_name} in {provider_pyproject}")
         return None
 
     return provider_version
@@ -1362,8 +1356,6 @@ def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
         if file_modified:
             new_content = "\n".join(updated_lines)
             pyproject_file.write_text(new_content)
-            console_print(
-                f"[success]Updated {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}\n"
-            )
+            console_print(f"[success]Updated {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}\n")
 
     return updates_made

@@ -507,16 +507,12 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 success_build = False
 
     if not success_build:
-        console_print(
-            "\n[errors]Errors detected during build wheel distribution(s) from sdist. Exiting!\n"
-        )
+        console_print("\n[errors]Errors detected during build wheel distribution(s) from sdist. Exiting!\n")
         sys.exit(1)
 
 
 def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo, cwd: str) -> int:
-    console_print(
-        f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
-    )
+    console_print(f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]")
     result_build_wheel = run_command(
         [
             "uv",
@@ -1136,9 +1132,7 @@ def prepare_provider_distributions(
             console_print(f"[info]Removed {api_dir}")
     distributions_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
-        console_print(
-            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
-        )
+        console_print(f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}")
         # Override provider_distributions with values from DISTRIBUTIONS_LIST
         distributions_list_as_tuple = tuple(distributions_list.split(" "))
     if provider_distributions and distributions_list_as_tuple:
@@ -1602,9 +1596,7 @@ def install_provider_distributions(
         list_of_all_providers = get_all_providers_in_dist(
             distribution_format=distribution_format, install_selected_providers=install_selected_providers
         )
-        console_print(
-            f"[info]Splitting {len(list_of_all_providers)} providers into max {parallelism} chunks"
-        )
+        console_print(f"[info]Splitting {len(list_of_all_providers)} providers into max {parallelism} chunks")
         provider_chunks = [sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)]
         # filter out empty ones
         provider_chunks = [chunk for chunk in provider_chunks if chunk]
@@ -1924,9 +1916,7 @@ def publish_docs(
         )
     packages_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
-        console_print(
-            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
-        )
+        console_print(f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}")
         # Override doc_packages with values from DISTRIBUTIONS_LIST
         packages_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and packages_list_as_tuple:
@@ -2031,9 +2021,7 @@ def add_back_references(
         )
         sys.exit(1)
     if not doc_packages:
-        console_print(
-            "\n[error]You need to specify at least one package to generate back references for\n"
-        )
+        console_print("\n[error]You need to specify at least one package to generate back references for\n")
         sys.exit(1)
     start_generating_back_references(
         site_path,
@@ -2155,9 +2143,7 @@ def check_skip_latest(airflow_version, skip_latest):
         if skip_latest:
             console_print("[info]Skipping latest image tagging as user requested it.[/]")
         else:
-            console_print(
-                "[info]Also tagging the images with latest tags as this is release version.[/]"
-            )
+            console_print("[info]Also tagging the images with latest tags as this is release version.[/]")
     check_docker_buildx_plugin()
     return skip_latest
 
@@ -2310,9 +2296,7 @@ def release_prod_images(
         if metadata_file:
             console_print(f"[green]Metadata file stored in {metadata_file}")
         if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES and not metadata_file:
-            console_print(
-                f"[info]Aliasing the latest {python} version to {image_prefix}{airflow_version}[/]"
-            )
+            console_print(f"[info]Aliasing the latest {python} version to {image_prefix}{airflow_version}[/]")
             alias_image(
                 image_name,
                 f"{dockerhub_repo}:{image_prefix}{airflow_version}",
@@ -2600,9 +2584,7 @@ def generate_issue_content_providers(
                 console_print(f"Extracting PRs for provider {provider_id}")
                 prepared_package_ids.append(provider_id)
             else:
-                console_print(
-                    f"Skipping extracting PRs for provider {provider_id} as it is missing in dist"
-                )
+                console_print(f"Skipping extracting PRs for provider {provider_id} as it is missing in dist")
                 continue
             prs = get_prs_for_package(provider_id)
             if not prs:
@@ -2647,9 +2629,7 @@ def generate_issue_content_providers(
                 try:
                     pr_or_issue = repo.get_pull(pr_number)
                     if pr_or_issue.user.login == "dependabot[bot]":
-                        console_print(
-                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
-                        )
+                        console_print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
                         continue
                     pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
@@ -3732,9 +3712,7 @@ def prepare_python_client(
             console_print(
                 f"[info]Copied generated client from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
             )
-        console_print(
-            f"[info]Copying build scripts from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
-        )
+        console_print(f"[info]Copying build scripts from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]")
         for file in FILES_TO_COPY_TO_CLIENT_REPO:
             source_file = PYTHON_CLIENT_DIR_PATH / file
             target_file = python_client_repo / file
@@ -3914,9 +3892,7 @@ def prepare_helm_chart_tarball(
                 "The tarball will be created but it should not be published[/]"
             )
         else:
-            console_print(
-                "\n[info]Please create a PR with that change, get it merged, and try again.[/]\n"
-            )
+            console_print("\n[info]Please create a PR with that change, get it merged, and try again.[/]\n")
             sys.exit(1)
     tag_with_suffix = f"helm-chart/{version}{version_suffix}"
     if not skip_tagging:

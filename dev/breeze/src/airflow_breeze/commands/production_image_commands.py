@@ -634,9 +634,7 @@ def verify(
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     if image_name and manifest_file:
-        console_print(
-            "[error]You cannot use --image-name and --manifest-file at the same time. Exiting[/"
-        )
+        console_print("[error]You cannot use --image-name and --manifest-file at the same time. Exiting[/")
         sys.exit(1)
     if (pull or image_name or manifest_file) and run_in_parallel:
         console_print(
@@ -844,9 +842,7 @@ def check_docker_context_files(install_distributions_from_context: bool):
             "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
         )
         console_print("[warning]\nAnd you did not choose --install-distributions-from-context flag")
-        console_print(
-            "[warning]\nThis might result in unnecessary cache invalidation and long build times"
-        )
+        console_print("[warning]\nThis might result in unnecessary cache invalidation and long build times")
         console_print("[warning]Please restart the command with --cleanup-context switch\n")
         sys.exit(1)
 

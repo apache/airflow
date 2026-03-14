@@ -231,9 +231,7 @@ def update_field_values(
     console_print("[info]Writing data.")
     body = {"valueInputOption": "RAW", "data": data}
     result = sheets.values().batchUpdate(spreadsheetId=google_spreadsheet_id, body=body).execute()
-    console_print(
-        f"[info]Updated {result.get('totalUpdatedCells')} cells values in the Google spreadsheet."
-    )
+    console_print(f"[info]Updated {result.get('totalUpdatedCells')} cells values in the Google spreadsheet.")
     return row
 
 

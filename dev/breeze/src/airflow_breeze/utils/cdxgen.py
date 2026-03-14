@@ -157,9 +157,7 @@ def list_providers_from_providers_requirements(
         provider_version_documentation_directory = provider_documentation_directory / provider_version
 
         if not provider_version_documentation_directory.exists():
-            console_print(
-                f"[warning]The {provider_version_documentation_directory} does not exist. Skipping"
-            )
+            console_print(f"[warning]The {provider_version_documentation_directory} does not exist. Skipping")
             continue
 
         yield (node_name, provider_id, provider_version, provider_version_documentation_directory)

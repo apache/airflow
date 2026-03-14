@@ -180,9 +180,7 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     ]
     result = run_command(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        console_print(
-            f"[warning] Error when running diff-tree command [/]\n{result.stdout}\n{result.stderr}"
-        )
+        console_print(f"[warning] Error when running diff-tree command [/]\n{result.stdout}\n{result.stderr}")
         return ()
     changed_files = tuple(result.stdout.splitlines()) if result.stdout else ()
     console_print("\n[info]Changed files:[/]\n")
@@ -414,18 +412,14 @@ def workflow_info(context: str) -> WorkflowInfo:
 )
 def get_workflow_info(github_context: str, github_context_input: StringIO):
     if github_context and github_context_input:
-        console_print(
-            "[error]You can only specify one of the two --github-context or --github-context-file"
-        )
+        console_print("[error]You can only specify one of the two --github-context or --github-context-file")
         sys.exit(1)
     if github_context:
         context = github_context
     elif github_context_input:
         context = github_context_input.read()
     else:
-        console_print(
-            "[error]You must specify one of the two --github-context or --github-context-file"
-        )
+        console_print("[error]You must specify one of the two --github-context or --github-context-file")
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
@@ -460,9 +454,7 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
         return
 
     if missing:
-        console_print(
-            f"[warning]K8s schemas missing for versions: {', '.join(f'v{v}' for v in missing)}[/]"
-        )
+        console_print(f"[warning]K8s schemas missing for versions: {', '.join(f'v{v}' for v in missing)}[/]")
     else:
         console_print("[info]Force sync requested.[/]")
 
@@ -716,9 +708,7 @@ def upgrade(
     if not at_apache_branch or not is_clean:
         console_print()
         if not at_apache_branch:
-            console_print(
-                f"[warning]You are not at the top of apache/airflow {target_branch} branch.[/]"
-            )
+            console_print(f"[warning]You are not at the top of apache/airflow {target_branch} branch.[/]")
             console_print(f"[info]Current branch: {current_branch}[/]")
         if not is_clean:
             console_print("[warning]Your repository has uncommitted changes.[/]")
@@ -857,9 +847,7 @@ def upgrade(
             check=False,
         )
         if push_result.returncode != 0:
-            console_print(
-                f"[error]Failed to push branch:\n{push_result.stdout}\n{push_result.stderr}[/]"
-            )
+            console_print(f"[error]Failed to push branch:\n{push_result.stdout}\n{push_result.stderr}[/]")
             sys.exit(1)
         console_print(f"[success]Branch {branch_name} pushed to {push_remote}.[/]")
 
