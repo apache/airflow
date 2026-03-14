@@ -38,6 +38,8 @@ Breaking changes
 
     example: ``apache-airflow-providers-apache-spark[pyspark]==X.Y.Z``
 
+    Because the package ``pyspark`` is more than 400mb and is not necessary if only using spark-connect to trigger a job
+
   - The minimum pyspark and spark-connect version is now 4.0.0
 
 5.6.0
