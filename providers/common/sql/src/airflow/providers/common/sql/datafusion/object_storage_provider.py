@@ -84,13 +84,16 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
             raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
 
         try:
-            credentials = connection_config.credentials
+            from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
             bucket = self.get_bucket(path)
+            gcp_hook = GoogleBaseHook(gcp_conn_id=connection_config.conn_id)
 
-            gcs_store = GoogleCloud(**credentials, bucket_name=bucket)
-            self.log.info("Created GCS object store for bucket %s", bucket)
-
-            return gcs_store
+            with gcp_hook.provide_gcp_credential_file_as_context() as cred_file:
+                credentials = {"service_account_path": cred_file} if cred_file else {}
+                gcs_store = GoogleCloud(**credentials, bucket_name=bucket)
+                self.log.info("Created GCS object store for bucket %s", bucket)
+                return gcs_store
 
         except Exception as e:
             raise ObjectStoreCreationException(f"Failed to create GCS object store: {e}")

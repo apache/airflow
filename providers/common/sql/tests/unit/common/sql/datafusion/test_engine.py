@@ -252,26 +252,8 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="Unknown connection type dummy"):
             engine._get_credentials(mock_conn)
 
-    @patch("airflow.providers.google.common.hooks.base_google.get_field", autospec=True)
-    def test_get_credentials_google_cloud_platform(self, mock_get_field):
-        mock_get_field.return_value = "/path/to/keyfile.json"
-
-        mock_conn = MagicMock(spec=Connection)
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.conn_id = "gcp_default"
-        mock_conn.extra_dejson = {"key_path": "/path/to/keyfile.json"}
-
-        engine = DataFusionEngine()
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        mock_get_field.assert_called_once_with(mock_conn.extra_dejson, "key_path")
-        assert credentials == {"service_account_path": "/path/to/keyfile.json"}
-        assert extra_config == {}
-
-    @patch("airflow.providers.google.common.hooks.base_google.get_field", autospec=True)
-    def test_get_credentials_google_cloud_platform_no_key_path(self, mock_get_field):
-        mock_get_field.return_value = None
-
+    def test_get_credentials_google_cloud_platform(self):
+        """GCP case passes the import guard and returns empty credentials (hook handles creds in provider)."""
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "google_cloud_platform"
         mock_conn.conn_id = "gcp_default"
@@ -283,18 +265,6 @@ class TestDataFusionEngine:
         assert credentials == {}
         assert extra_config == {}
 
-    def test_get_credentials_google_cloud_platform_legacy_extra_format(self):
-        """key_path stored with legacy extra__google_cloud_platform__ prefix is resolved correctly."""
-        mock_conn = MagicMock(spec=Connection)
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.conn_id = "gcp_default"
-        mock_conn.extra_dejson = {"extra__google_cloud_platform__key_path": "/legacy/path/key.json"}
-
-        engine = DataFusionEngine()
-        credentials, _ = engine._get_credentials(mock_conn)
-
-        assert credentials == {"service_account_path": "/legacy/path/key.json"}
-
     def test_get_credentials_google_missing_provider(self):
         mock_conn = MagicMock(spec=Connection)
         mock_conn.conn_type = "google_cloud_platform"
@@ -304,7 +274,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
 
         with patch.dict("sys.modules", {"airflow.providers.google.common.hooks.base_google": None}):
-            with pytest.raises(Exception, match="Failed to import get_field"):
+            with pytest.raises(Exception, match="Failed to import GoogleBaseHook"):
                 engine._get_credentials(mock_conn)
 
     def test_get_credentials_wasb(self):

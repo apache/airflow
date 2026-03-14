@@ -160,18 +160,16 @@ class DataFusionEngine(LoggingMixin):
 
             case "google_cloud_platform":
                 try:
-                    from airflow.providers.google.common.hooks.base_google import get_field as gcp_get_field
+                    # Imported as a feature gate only: verifies the Google provider is installed.
+                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook  # noqa: F401
                 except ImportError:
                     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
                     raise AirflowOptionalProviderFeatureException(
-                        "Failed to import get_field. To use the GCS storage functionality, please install the "
+                        "Failed to import GoogleBaseHook. To use the GCS storage functionality, please install the "
                         "apache-airflow-providers-google package."
                     )
-                key_path = gcp_get_field(conn.extra_dejson, "key_path")
-                if key_path:
-                    credentials.update({"service_account_path": key_path})
-                # Without key_path, credentials stays empty and DataFusion falls back to ADC.
+                # Deferred to GCSObjectStorageProvider, provide_gcp_credential_file_as_context to handle key_path, keyfile_dict, and ADC.
                 extra_config = {}
 
             case "wasb":
