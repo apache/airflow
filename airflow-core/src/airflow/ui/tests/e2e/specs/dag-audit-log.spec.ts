@@ -59,10 +59,7 @@ test.describe("DAG Audit Log", () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     await expect(eventsPage.eventsTable).toBeVisible();
-
-    const rowCount = await eventsPage.tableRows.count();
-
-    expect(rowCount).toBeGreaterThan(0);
+    await expect(eventsPage.tableRows).not.toHaveCount(0);
   });
 
   test("verify expected columns are visible", async () => {
@@ -81,31 +78,15 @@ test.describe("DAG Audit Log", () => {
   test("verify audit log entries display valid data", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
-    const rows = await eventsPage.getEventLogRows();
+    await expect(eventsPage.tableRows).not.toHaveCount(0);
 
-    expect(rows.length).toBeGreaterThan(0);
-
-    const [firstRow] = rows;
-
-    if (!firstRow) {
-      throw new Error("No rows found");
-    }
-
+    const firstRow = eventsPage.tableRows.first();
     const whenCell = await eventsPage.getCellByColumnName(firstRow, "When");
     const eventCell = await eventsPage.getCellByColumnName(firstRow, "Event");
     const userCell = await eventsPage.getCellByColumnName(firstRow, "User");
 
-    const whenText = await whenCell.textContent();
-    const eventText = await eventCell.textContent();
-    const userText = await userCell.textContent();
-
-    expect(whenText).toBeTruthy();
-    expect(whenText?.trim()).not.toBe("");
-
-    expect(eventText).toBeTruthy();
-    expect(eventText?.trim()).not.toBe("");
-
-    expect(userText).toBeTruthy();
-    expect(userText?.trim()).not.toBe("");
+    await expect(whenCell).toHaveText(/.+/);
+    await expect(eventCell).toHaveText(/.+/);
+    await expect(userCell).toHaveText(/.+/);
   });
 });
