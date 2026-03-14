@@ -59,6 +59,7 @@ STATIC_MODULES: list[str] = [
     "docker-tests",
     "kubernetes-tests",
     "helm-tests",
+    "scripts",
     "task-sdk-integration-tests",
 ]
 
@@ -756,7 +757,7 @@ def register_sdk(name: str, venv_dir: Path, working_dir: Path, *, idea_path: Pat
 # Module discovery
 # ---------------------------------------------------------------------------
 
-EXCLUDED_PREFIXES = ("out/", ".build/", "dist/", ".venv/", "generated/")
+EXCLUDED_PREFIXES = ("out/", ".build/", ".claude/", "dist/", ".venv/", "generated/")
 
 
 def discover_modules(*, exclude_modules: set[str] | None = None) -> list[str]:
@@ -804,7 +805,7 @@ def get_module_name(module_path: str) -> str:
 # ---------------------------------------------------------------------------
 
 # Directories that are never scanned for leftover .iml files.
-_CLEANUP_SKIP_DIRS = {".idea", "node_modules", ".venv", ".git", ".build", "out", "dist"}
+_CLEANUP_SKIP_DIRS = {".idea", ".claude", "node_modules", ".venv", ".git", ".build", "out", "dist"}
 
 
 def _find_previous_iml_files() -> list[Path]:
