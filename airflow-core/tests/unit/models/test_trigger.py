@@ -910,7 +910,6 @@ def test_serialize_sensitive_kwargs():
 # ---Tests for Trigger.return_to_worker() method.
 
 
-@staticmethod
 def _make_task_instance(executor=None, dag_id="test_dag"):
     """Create a mock TaskInstance for return_to_worker tests."""
     ti = mock.MagicMock(spec=["trigger_id", "scheduled_dttm", "state", "executor", "dag_id", "dag_model"])
@@ -921,7 +920,6 @@ def _make_task_instance(executor=None, dag_id="test_dag"):
     return ti
 
 
-@staticmethod
 def _make_executor(alias="LocalExecutor", module_path="airflow.executors.local_executor.LocalExecutor"):
     """Create a mock executor with name, queue_workload, trigger_tasks, and jwt_generator."""
     from airflow.executors.executor_loader import ExecutorName
@@ -933,7 +931,7 @@ def _make_executor(alias="LocalExecutor", module_path="airflow.executors.local_e
 
 def test_return_to_worker_no_direct_queueing_configured(self):
     """Without direct_queueing_executors configured, task is set to SCHEDULED."""
-    ti = self._make_task_instance()
+    ti = _make_task_instance()
     mock_session = mock.MagicMock()
 
     with conf_vars({("triggerer", "direct_queueing_executors"): "", ("core", "multi_team"): "False"}):
@@ -945,9 +943,9 @@ def test_return_to_worker_no_direct_queueing_configured(self):
 
 def test_return_to_worker_direct_queueing_executor_matches_by_alias(self):
     """When the executor alias is in the allowlist, task is directly QUEUED."""
-    ti = self._make_task_instance()
+    ti = _make_task_instance()
     mock_session = mock.MagicMock()
-    executor = self._make_executor(alias="LocalExecutor")
+    executor = _make_executor(alias="LocalExecutor")
     mock_workload = mock.MagicMock()
 
     with (
@@ -974,9 +972,9 @@ def test_return_to_worker_direct_queueing_executor_matches_by_alias(self):
 
 def test_return_to_worker_direct_queueing_executor_not_in_allowlist(self):
     """When the found executor is not in the allowlist, task falls back to SCHEDULED."""
-    ti = self._make_task_instance()
+    ti = _make_task_instance()
     mock_session = mock.MagicMock()
-    executor = self._make_executor(
+    executor = _make_executor(
         alias="LocalExecutor",
         module_path="airflow.executors.local_executor.LocalExecutor",
     )
@@ -1005,7 +1003,7 @@ def test_return_to_worker_direct_queueing_executor_not_in_allowlist(self):
 
 def test_return_to_worker_direct_queueing_find_executor_returns_none(self):
     """When find_executor returns None, task falls back to SCHEDULED."""
-    ti = self._make_task_instance(executor="NonExistent")
+    ti = _make_task_instance(executor="NonExistent")
     mock_session = mock.MagicMock()
 
     with (
@@ -1031,10 +1029,10 @@ def test_return_to_worker_direct_queueing_find_executor_returns_none(self):
 
 def test_return_to_worker_direct_queueing_with_multi_team_resolves_team(self):
     """With multi_team enabled, team_name is resolved from the dag model."""
-    ti = self._make_task_instance(dag_id="team_dag")
+    ti = _make_task_instance(dag_id="team_dag")
     ti.dag_model.get_team_name.return_value = "team_a"
     mock_session = mock.MagicMock()
-    executor = self._make_executor(alias="LocalExecutor")
+    executor = _make_executor(alias="LocalExecutor")
     mock_workload = mock.MagicMock()
 
     with (
@@ -1065,7 +1063,7 @@ def test_return_to_worker_direct_queueing_with_multi_team_resolves_team(self):
 
 def test_return_to_worker_trigger_id_and_scheduled_dttm_always_set(self):
     """trigger_id is cleared and scheduled_dttm is set regardless of direct queueing path."""
-    ti = self._make_task_instance()
+    ti = _make_task_instance()
     ti.trigger_id = 99
     mock_session = mock.MagicMock()
 
