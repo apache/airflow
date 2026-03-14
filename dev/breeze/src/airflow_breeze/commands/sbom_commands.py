@@ -150,6 +150,14 @@ SBOM_INDEX_TEMPLATE = """
     envvar="AIRFLOW_VERSION",
     help="Version of airflow to update sbom from. (defaulted to all active airflow versions)",
 )
+@click.option(
+    "--airflow-constraints-reference",
+    type=str,
+    required=False,
+    envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
+    help="Constraint reference to use when downloading Airflow constraints for SBOM generation. "
+    "Defaults to constraints derived from --airflow-version.",
+)
 @option_historical_python_versions
 @click.option(
     "--include-provider-dependencies",
@@ -222,6 +230,7 @@ def update_sbom_information(
     airflow_root_path: Path | None,
     airflow_site_archive_path: Path | None,
     airflow_version: str | None,
+    airflow_constraints_reference: str | None,
     all_combinations: bool,
     debug_resources: bool,
     force: bool,
@@ -252,7 +261,10 @@ def update_sbom_information(
         all_airflow_versions = airflow_versions.copy()
     else:
         airflow_versions = [airflow_version]
-        all_airflow_versions = get_active_airflow_versions(confirm=False, remote_name=remote_name)
+        if airflow_site_archive_path and add_stable:
+            all_airflow_versions, _ = get_active_airflow_versions(confirm=False, remote_name=remote_name)
+        else:
+            all_airflow_versions = airflow_versions.copy()
     if python_versions:
         python_versions_list = python_versions.split(",")
     else:
@@ -308,6 +320,7 @@ def update_sbom_information(
                     include_provider_dependencies,
                     include_python,
                     jobs_to_run,
+                    airflow_constraints_reference=airflow_constraints_reference,
                     python_versions=use_python_versions,
                 )
         else:
@@ -325,6 +338,7 @@ def update_sbom_information(
                 include_provider_dependencies,
                 include_python,
                 jobs_to_run,
+                airflow_constraints_reference=airflow_constraints_reference,
                 python_versions=use_python_versions,
             )
         if add_stable and airflow_site_archive_path and all_airflow_versions[-1] in airflow_versions:
@@ -491,6 +505,7 @@ def core_jobs(
     include_provider_dependencies: bool,
     include_python: bool,
     jobs_to_run: list[SbomApplicationJob],
+    airflow_constraints_reference: str | None,
     python_versions: list[str],
 ):
     for airflow_v in airflow_versions:
@@ -550,6 +565,7 @@ def core_jobs(
                     target_path=target_sbom_path,
                     include_python=include_python,
                     include_npm=include_npm,
+                    constraints_reference=airflow_constraints_reference,
                 )
             )
 

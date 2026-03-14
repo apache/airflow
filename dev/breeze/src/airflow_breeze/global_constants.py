@@ -184,7 +184,7 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
-ALLOWED_LLM_MODELS = [
+_FALLBACK_LLM_MODELS = [
     # Claude models (via claude CLI)
     "claude/claude-opus-4-6",
     "claude/claude-sonnet-4-6",
@@ -195,14 +195,43 @@ ALLOWED_LLM_MODELS = [
     "claude/opus",
     "claude/haiku",
     # OpenAI Codex models (via codex CLI)
-    "codex/gpt-5.3-codex",
-    "codex/gpt-5.3-codex-spark",
-    "codex/gpt-5.2-codex",
-    "codex/gpt-5.1-codex",
-    "codex/gpt-5-codex",
-    "codex/gpt-5-codex-mini",
-    "codex/gpt-5",
+    "codex/o3",
+    "codex/o4-mini",
+    "codex/gpt-4.1",
 ]
+
+# Model aliases — short names users can type instead of full model IDs
+_CLAUDE_ALIASES = ["claude/sonnet", "claude/opus", "claude/haiku"]
+_CODEX_ALIASES = ["codex/o3", "codex/o4-mini"]
+
+
+def get_allowed_llm_models() -> list[str]:
+    """Return the list of allowed LLM models, reading from cache if available.
+
+    Checks .build/llm_models_cache.json for a cached model list (refreshed at most
+    every 24 hours). Falls back to the hardcoded _FALLBACK_LLM_MODELS.
+    """
+    import json
+    import time
+
+    try:
+        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+        cache_file = BUILD_CACHE_PATH / "llm_models_cache.json"
+        if cache_file.is_file():
+            data = json.loads(cache_file.read_text())
+            # Use cache if less than 24 hours old
+            if time.time() - data.get("timestamp", 0) < 86400:
+                models = data.get("models", [])
+                if models:
+                    return models
+    except Exception:
+        pass
+    return list(_FALLBACK_LLM_MODELS)
+
+
+# For backward compatibility and static option definition
+ALLOWED_LLM_MODELS = get_allowed_llm_models()
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]

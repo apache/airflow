@@ -121,7 +121,7 @@ PIP package                                 Version required
 ==========================================  ===================
 ``apache-airflow``                          ``>=3.0.0,!=3.1.0``
 ``apache-airflow-providers-common-compat``  ``>=1.14.0``
-``pydantic``                                ``>=2.11.0``
+``pydantic``                                ``>=2.12.3``
 ``retryhttp``                               ``>=1.4.0``
 ``aiofiles``                                ``>=23.2.0``
 ``aiohttp``                                 ``>=3.9.2``
