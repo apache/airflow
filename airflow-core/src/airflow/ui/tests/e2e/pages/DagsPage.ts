@@ -91,7 +91,19 @@ export class DagsPage extends BasePage {
    * Clear the search input and wait for list to reset
    */
   public async clearSearch(): Promise<void> {
-    await this.searchInput.clear();
+    const responsePromise = this.page
+      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
+        timeout: 10_000,
+      })
+      .catch(() => {
+        /* API response may be cached */
+      });
+
+    // Click the clear button instead of programmatically clearing the input.
+    // The SearchBar component uses a 200ms debounce on keystroke changes,
+    // but the clear button calls onChange("") directly, bypassing the debounce.
+    await this.page.getByTestId("clear-search").click();
+    await responsePromise;
     await this.waitForDagList();
   }
 
