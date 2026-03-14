@@ -46,6 +46,7 @@ from airflow.configuration import conf
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
+    AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetReference,
@@ -783,6 +784,33 @@ class _AssetDependencyFilter(BaseParam[str]):
 
 QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
+
+
+class _ConsumingAssetFilter(BaseParam[str | None]):
+    """Filter DAG runs by consuming asset (name or URI)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        from airflow.models.asset import AssetModel
+
+        return (
+            select.distinct()
+            .join(DagRun.consumed_asset_events)  # DagRun → AssetEvent
+            .join(AssetModel, AssetEvent.asset_id == AssetModel.id)  # AssetEvent → AssetModel (explicit join)
+            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+        )
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_asset: str | None = Query(None, description="Filter by consuming asset name or URI"),
+    ) -> _ConsumingAssetFilter:
+        return cls().set_value(consuming_asset)
+
+
+QueryConsumingAssetFilter = Annotated[_ConsumingAssetFilter, Depends(_ConsumingAssetFilter.depends)]
 
 
 class _PendingActionsFilter(BaseParam[bool]):
