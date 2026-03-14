@@ -1864,6 +1864,82 @@ class TestTIPutRTIF:
         assert response.json()["detail"] == "Not Found"
 
 
+    def test_ti_put_rtif_concurrent_write(self, client, session, create_task_instance):
+        """Test that concurrent RTIF writes don't cause 409 errors.
+
+        When two workers try to write rendered fields for the same task instance
+        simultaneously, the second write should succeed by updating the existing record
+        rather than failing with a unique constraint violation.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_concurrent",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        payload1 = {"field1": "value1"}
+        payload2 = {"field1": "value2"}
+
+        # First write should succeed
+        response1 = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload1)
+        assert response1.status_code == 201
+
+        # Second write (simulating concurrent update) should also succeed by merging
+        response2 = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload2)
+        assert response2.status_code == 201
+
+        session.expire_all()
+        rtifs = session.scalars(select(RenderedTaskInstanceFields)).all()
+        assert len(rtifs) == 1
+        assert rtifs[0].rendered_fields == payload2
+
+    def test_ti_put_rtif_integrity_error_handled(self, client, session, create_task_instance):
+        """Test that IntegrityError from a race condition is handled gracefully.
+
+        Simulates the race condition where the first update_rtif call raises
+        IntegrityError (as if another concurrent request already inserted the record),
+        and verifies the endpoint retries successfully.
+        """
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import IntegrityError
+
+        from airflow.models.taskinstance import TaskInstance
+
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_integrity",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        payload = {"field1": "rendered_value1"}
+
+        original_update_rtif = TaskInstance.update_rtif
+        call_count = 0
+
+        def mock_update_rtif(self_ti, rendered_fields, session):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise IntegrityError(
+                    statement="INSERT INTO rendered_task_instance_fields",
+                    params={},
+                    orig=Exception(
+                        'duplicate key value violates unique constraint "rendered_task_instance_fields_pkey"'
+                    ),
+                )
+            return original_update_rtif(self_ti, rendered_fields, session)
+
+        with patch.object(TaskInstance, "update_rtif", mock_update_rtif):
+            response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
+
+        assert response.status_code == 201
+        assert response.json() == {"message": "Rendered task instance fields successfully set"}
+        assert call_count == 2  # First call raises, second succeeds
+
+
 class TestPreviousDagRun:
     def setup_method(self):
         clear_db_runs()

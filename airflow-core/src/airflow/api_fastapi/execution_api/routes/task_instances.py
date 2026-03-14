@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Security, status
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
@@ -711,8 +711,19 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    task_instance.update_rtif(put_rtif_payload, session)
-    log.debug("RenderedTaskInstanceFields updated successfully")
+    try:
+        task_instance.update_rtif(put_rtif_payload, session)
+    except IntegrityError:
+        session.rollback()
+        # Re-fetch the task instance after rollback since the previous one is detached
+        task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
+        if task_instance:
+            # Retry: the record now exists from the concurrent request,
+            # so merge will find it and update rather than insert.
+            task_instance.update_rtif(put_rtif_payload, session)
+        log.info("RenderedTaskInstanceFields updated after concurrent write conflict")
+    else:
+        log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}
 
