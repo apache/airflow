@@ -23,7 +23,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.github import PRAssessment, Violation
 from airflow_breeze.utils.run_utils import run_command
 
@@ -220,7 +220,7 @@ def _resolve_cli_provider(llm_model: str) -> tuple[str, str]:
     Format: "provider/model" (e.g. "claude/sonnet", "codex/gpt-5.3-codex").
     """
     if "/" not in llm_model:
-        get_console().print(
+        console_print(
             f"[error]Invalid model format: {llm_model}. Expected 'provider/model' "
             f"(e.g. 'claude/sonnet', 'codex/gpt-5.3-codex').[/]"
         )
@@ -575,7 +575,7 @@ def _check_cli_available(provider: str) -> None:
         "codex": ("Install it with: npm install -g @openai/codex\nThen authenticate with: codex auth"),
     }
     hint = install_hints.get(provider, f"Install the '{provider}' CLI and ensure it is on your PATH.")
-    get_console().print(f"[error]The '{cli_name}' CLI is required for LLM assessment.\n{hint}[/]")
+    console_print(f"[error]The '{cli_name}' CLI is required for LLM assessment.\n{hint}[/]")
     sys.exit(1)
 
 
@@ -671,7 +671,7 @@ def assess_pr(
     provider, model = _resolve_cli_provider(llm_model)
     caller = _CLI_CALLERS.get(provider)
     if not caller:
-        get_console().print(f"[error]Unknown CLI provider: {provider}. Use 'claude' or 'codex'.[/]")
+        console_print(f"[error]Unknown CLI provider: {provider}. Use 'claude' or 'codex'.[/]")
         sys.exit(1)
 
     _check_cli_available(provider)

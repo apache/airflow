@@ -67,6 +67,19 @@ XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 XCOM_STATEMENT_ID_KEY = "statement_id"
 
+# Mapping from Airflow TriggerRule to Databricks RunIf condition.
+# Only non-default rules are included; ALL_SUCCESS is the Databricks default
+# and is omitted to keep the task JSON minimal.
+_TRIGGER_RULE_TO_DATABRICKS_RUN_IF: dict[str, str] = {
+    "all_failed": "ALL_FAILED",
+    "all_done": "ALL_DONE",
+    "one_success": "AT_LEAST_ONE_SUCCESS",
+    "one_failed": "AT_LEAST_ONE_FAILED",
+    "none_failed": "NONE_FAILED",
+    "none_failed_min_one_success": "NONE_FAILED",
+    "always": "ALL_DONE",
+}
+
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
@@ -1356,6 +1369,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     ) -> dict[str, object]:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         base_task_json = self._get_task_base_json()
+
         result = {
             "task_key": self.databricks_task_key,
             "depends_on": [
@@ -1365,6 +1379,26 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             ],
             **base_task_json,
         }
+
+        trigger_rule_value = (
+            self.trigger_rule.value if hasattr(self.trigger_rule, "value") else str(self.trigger_rule)
+        )
+        databricks_run_if = _TRIGGER_RULE_TO_DATABRICKS_RUN_IF.get(trigger_rule_value)
+        if databricks_run_if:
+            self.log.info(
+                "Mapping Airflow trigger_rule '%s' to Databricks run_if '%s' for task '%s'",
+                trigger_rule_value,
+                databricks_run_if,
+                self.task_id,
+            )
+            result["run_if"] = databricks_run_if
+        else:
+            self.log.info(
+                "No Databricks run_if mapping for Airflow trigger_rule '%s' on task '%s'; "
+                "using Databricks default (ALL_SUCCESS)",
+                trigger_rule_value,
+                self.task_id,
+            )
 
         if self.existing_cluster_id and self.job_cluster_key:
             raise ValueError(

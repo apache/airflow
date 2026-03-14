@@ -27,12 +27,9 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import requests
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 VALUES_YAML_FILE = AIRFLOW_ROOT_PATH / "chart" / "values.yaml"
