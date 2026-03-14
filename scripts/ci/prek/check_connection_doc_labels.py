@@ -31,8 +31,8 @@ Checks:
   ORPHAN LABEL  — an RST anchor ``.. _howto/connection:{X}:`` where X is not a
                   registered connection-type.
   MULTIPLE LABELS — more than one top-level ``howto/connection:`` anchor per file.
-  BROKEN REF    — a ``:ref:`` targeting ``howto/connection:*`` that has no
-                  matching anchor anywhere.
+  BROKEN REF    — a ``:ref:`` to ``howto/connection:*`` in RST or Python with no
+                  matching anchor in any RST file.
 """
 
 from __future__ import annotations
@@ -45,7 +45,12 @@ from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
-from common_prek_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH, get_all_provider_info_dicts
+from common_prek_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    get_all_provider_info_dicts,
+)
 
 console = Console(color_system="standard", width=200)
 
@@ -73,6 +78,13 @@ def collect_rst_files() -> list[Path]:
     if core_docs.is_dir():
         rst_files.extend(core_docs.rglob("*.rst"))
     return rst_files
+
+
+def collect_python_files() -> list[Path]:
+    py_files: list[Path] = list(AIRFLOW_PROVIDERS_ROOT_PATH.rglob("*.py"))
+    if AIRFLOW_CORE_SOURCES_PATH.is_dir():
+        py_files.extend(AIRFLOW_CORE_SOURCES_PATH.rglob("*.py"))
+    return py_files
 
 
 def main() -> int:
@@ -111,6 +123,14 @@ def main() -> int:
             target = match.group(1) or match.group(2)
             if target not in all_anchors:
                 rel = rst_file.relative_to(AIRFLOW_ROOT_PATH)
+                errors.append(f"BROKEN REF: {rel} — :ref:`{target}` has no matching anchor in any RST file")
+
+    for py_file in collect_python_files():
+        content = py_file.read_text()
+        for match in REF_RE.finditer(content):
+            target = match.group(1) or match.group(2)
+            if target not in all_anchors:
+                rel = py_file.relative_to(AIRFLOW_ROOT_PATH)
                 errors.append(f"BROKEN REF: {rel} — :ref:`{target}` has no matching anchor in any RST file")
 
     if errors:
