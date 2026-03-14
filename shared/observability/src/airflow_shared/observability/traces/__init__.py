@@ -137,7 +137,7 @@ def configure_otel(conf: ConfigParser):
     # ideally both endpoint and resource are None here
     # they would only be something other than None if user is using deprecated
     # Airflow-defined otel configs
-    backcompat_endpoint, resource = _get_backcompat_config()
+    backcompat_endpoint, resource = _get_backcompat_config(conf)
 
     # backcompat: if old-style host/port config provided an endpoint, set the
     # env var so the exporter (loaded below) picks it up automatically
