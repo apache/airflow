@@ -40,6 +40,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
@@ -130,6 +131,7 @@ def setup(request, dag_maker, session=None):
     clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
+    clear_db_assets()
 
     if "no_setup" in request.keywords:
         return
@@ -212,6 +214,35 @@ def setup(request, dag_maker, session=None):
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
+
+    asset1 = AssetModel(name="sales", uri="s3://bucket/sales")
+    asset2 = AssetModel(name="customer", uri="s3://bucket/customer")
+    session.add(asset1)
+    session.add(asset2)
+    session.flush()
+
+    event1 = AssetEvent(
+        asset_id=asset1.id,
+        source_dag_id="source_dag",
+        source_run_id="source_run",
+        source_task_id="source_task",
+    )
+    event2 = AssetEvent(
+        asset_id=asset2.id,
+        source_dag_id="source_dag",
+        source_run_id="source_run",
+        source_task_id="source_task",
+    )
+    session.add(event1)
+    session.add(event2)
+    session.flush()
+
+    dag_run1.consumed_asset_events.append(event1)
+    dag_run2.consumed_asset_events.append(event2)
+
+    session.merge(dag_run1)
+    session.merge(dag_run2)
+    session.flush()
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -710,6 +741,13 @@ class TestGetDagRuns:
             ),  # Test for debug key
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
             ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
+            # Test consuming_asset filter
+            ("~", {"consuming_asset": "sales"}, [DAG1_RUN1_ID]),  # Filter by asset name
+            ("~", {"consuming_asset": "s3://bucket/sales"}, [DAG1_RUN1_ID]),  # Filter by asset URI
+            ("~", {"consuming_asset": "customer"}, [DAG1_RUN2_ID]),  # Filter by another asset
+            ("~", {"consuming_asset": "s3://bucket/customer"}, [DAG1_RUN2_ID]),  # Filter by customer URI
+            ("~", {"consuming_asset": "s3://bucket"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),  # Partial URI match
+            ("~", {"consuming_asset": "nonexistent_asset"}, []),  # Non-existent asset returns empty
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")

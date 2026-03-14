@@ -89,6 +89,12 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.conf"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.CONSUMING_ASSET]: {
+      icon: <MdSearch />,
+      label: "Consuming Asset",
+      placeholder: "Search by asset name",
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.CREATED_AT_RANGE]: {
       endKey: SearchParamsKeys.CREATED_AT_LTE,
       icon: <MdDateRange />,
