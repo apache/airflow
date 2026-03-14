@@ -929,7 +929,7 @@ def _make_executor(alias="LocalExecutor", module_path="airflow.executors.local_e
     return executor
 
 
-def test_return_to_worker_no_direct_queueing_configured(self):
+def test_return_to_worker_no_direct_queueing_configured():
     """Without direct_queueing_executors configured, task is set to SCHEDULED."""
     ti = _make_task_instance()
     mock_session = mock.MagicMock()
@@ -941,7 +941,7 @@ def test_return_to_worker_no_direct_queueing_configured(self):
     assert ti.state == State.SCHEDULED
 
 
-def test_return_to_worker_direct_queueing_executor_matches_by_alias(self):
+def test_return_to_worker_direct_queueing_executor_matches_by_alias():
     """When the executor alias is in the allowlist, task is directly QUEUED."""
     ti = _make_task_instance()
     mock_session = mock.MagicMock()
@@ -970,7 +970,7 @@ def test_return_to_worker_direct_queueing_executor_matches_by_alias(self):
     executor.trigger_tasks.assert_called_once_with(1)
 
 
-def test_return_to_worker_direct_queueing_executor_not_in_allowlist(self):
+def test_return_to_worker_direct_queueing_executor_not_in_allowlist():
     """When the found executor is not in the allowlist, task falls back to SCHEDULED."""
     ti = _make_task_instance()
     mock_session = mock.MagicMock()
@@ -1001,7 +1001,7 @@ def test_return_to_worker_direct_queueing_executor_not_in_allowlist(self):
     executor.queue_workload.assert_not_called()
 
 
-def test_return_to_worker_direct_queueing_find_executor_returns_none(self):
+def test_return_to_worker_direct_queueing_find_executor_returns_none():
     """When find_executor returns None, task falls back to SCHEDULED."""
     ti = _make_task_instance(executor="NonExistent")
     mock_session = mock.MagicMock()
@@ -1027,7 +1027,7 @@ def test_return_to_worker_direct_queueing_find_executor_returns_none(self):
     assert ti.state == State.SCHEDULED
 
 
-def test_return_to_worker_direct_queueing_with_multi_team_resolves_team(self):
+def test_return_to_worker_direct_queueing_with_multi_team_resolves_team():
     """With multi_team enabled, team_name is resolved from the dag model."""
     ti = _make_task_instance(dag_id="team_dag")
     ti.dag_model.get_team_name.return_value = "team_a"
@@ -1061,7 +1061,7 @@ def test_return_to_worker_direct_queueing_with_multi_team_resolves_team(self):
     assert ti.state == TaskInstanceState.QUEUED
 
 
-def test_return_to_worker_trigger_id_and_scheduled_dttm_always_set(self):
+def test_return_to_worker_trigger_id_and_scheduled_dttm_always_set():
     """trigger_id is cleared and scheduled_dttm is set regardless of direct queueing path."""
     ti = _make_task_instance()
     ti.trigger_id = 99
