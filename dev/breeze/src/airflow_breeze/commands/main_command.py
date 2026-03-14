@@ -135,8 +135,6 @@ def check_for_python_emulation():
         system_machine = subprocess.check_output(["uname", "-m"], text=True).strip()
         python_machine = platform.uname().machine
         if system_machine != python_machine:
-            from airflow_breeze.utils.console import console_print
-
             console_print(
                 f"\n\n[error]Your Python architecture is {python_machine} and "
                 f"system architecture is {system_machine}[/]"
@@ -157,8 +155,6 @@ def check_for_python_emulation():
                 if user_status.upper() not in ["Y", "YES"]:
                     sys.exit(1)
             except TimeoutOccurred:
-                from airflow_breeze.utils.console import console_print
-
                 console_print("\nNo answer, exiting...")
                 sys.exit(1)
     except FileNotFoundError:
