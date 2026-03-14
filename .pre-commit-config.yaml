@@ -919,6 +919,12 @@ repos:
           ^generated/provider_dependencies\.json$
         require_serial: true
         pass_filenames: false
+      - id: extract-agent-skills
+        name: Extract and validate Agent Skills from AGENTS.md
+        language: python
+        entry: python scripts/ci/pre_commit/extract_agent_skills.py
+        files: ^AGENTS\.md$
+        pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py

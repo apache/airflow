@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "generated_by": "extract_agent_skills.py",
+  "generated_from": "AGENTS.md",
+  "skill_count": 5,
+  "skills": [
+    {
+      "id": "setup-breeze-environment",
+      "context": "host",
+      "category": "environment",
+      "prereqs": "docker, python>=3.9",
+      "validates": "breeze-env-ready",
+      "description": "Start the Airflow Breeze development environment",
+      "command": "breeze start-airflow",
+      "expected_output": "Airflow webserver at http://localhost:28080\nLogin: admin / admin"
+    },
+    {
+      "id": "run-single-test",
+      "context": "host",
+      "category": "testing",
+      "prereqs": "setup-breeze-environment",
+      "validates": "tests-pass",
+      "description": "Run a single test with uv, falling back to breeze if system deps are missing",
+      "command": "uv run --project <PROJECT> pytest <test_path> -xvs\n# fallback if missing system deps:\nbreeze run pytest <test_path> -xvs",
+      "expected_output": "PASSED"
+    },
+    {
+      "id": "run-static-checks",
+      "context": "host",
+      "category": "linting",
+      "prereqs": "setup-breeze-environment",
+      "validates": "static-checks-pass",
+      "description": "Run fast static checks with prek",
+      "command": "prek run --from-ref main --stage pre-commit",
+      "expected_output": "All checks passed."
+    },
+    {
+      "id": "run-manual-checks",
+      "context": "host",
+      "category": "linting",
+      "prereqs": "run-static-checks",
+      "validates": "manual-checks-pass",
+      "description": "Run slower manual checks with prek",
+      "command": "prek run --from-ref main --stage manual",
+      "expected_output": "All checks passed."
+    },
+    {
+      "id": "build-docs",
+      "context": "host",
+      "category": "documentation",
+      "prereqs": "setup-breeze-environment",
+      "validates": "docs-build-clean",
+      "description": "Build Airflow documentation locally",
+      "command": "breeze build-docs",
+      "expected_output": "Build finished. The HTML pages are in _build/html."
+    }
+  ]
+}
