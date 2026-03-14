@@ -188,7 +188,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
     await this.confirmDeleteButton.click();
 
-    await expect(this.emptyState).toBeVisible({ timeout: 5000 });
+    await expect(this.getConnectionRow(connectionId)).not.toBeVisible();
   }
 
   // Edit a connection by connection ID
@@ -389,19 +389,17 @@ export class ConnectionsPage extends BasePage {
     ]);
   }
 
-  // Search for connections using the search input
   public async searchConnections(searchTerm: string): Promise<void> {
-    await (searchTerm === "" ? this.searchInput.clear() : this.searchInput.fill(searchTerm));
+    await this.searchInput.fill(searchTerm);
 
-    // Wait until either rows appear or empty state shows
-    await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible({
-      timeout: 10_000,
-    });
+    if (searchTerm === "") {
+      await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible();
+    } else {
+      const nonMatchingRow = this.page.locator("tbody tr").filter({ hasNotText: searchTerm });
 
-    if (searchTerm !== "") {
-      await expect(
-        this.connectionRows.filter({ hasText: new RegExp(searchTerm, "i") }).first(),
-      ).toBeVisible();
+      await expect(nonMatchingRow).toHaveCount(0, { timeout: 10_000 });
+
+      await expect(this.connectionRows.first()).toBeVisible();
     }
   }
 
@@ -429,6 +427,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | null> {
+    await this.waitForConnectionsListLoad();
     await this.searchConnections(connectionId);
 
     // Check if table is visible (without throwing)

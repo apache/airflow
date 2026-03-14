@@ -271,20 +271,15 @@ test.describe("Connections Page - Search and Filter", () => {
   test("should filter connections by search term", async () => {
     await connectionsPage.navigate();
 
+    const targetConnection = searchTestConnections[0]!;
+    const searchTerm = targetConnection.connection_id;
+
     // Check that we have at least one row before searching (web-first assertion)
-    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
-
-    const searchTerm = "production";
-
     await connectionsPage.searchConnections(searchTerm);
 
     // Verify filtered results contain the search term
-    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
-    const filteredIds = await connectionsPage.getConnectionIds();
-
-    for (const id of filteredIds) {
-      expect(id.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
+    await expect(connectionsPage.connectionRows).toHaveCount(1);
+    await expect(connectionsPage.getConnectionRow(searchTerm)).toBeVisible();
   });
 
   test("should display all connections when search is cleared", async () => {
