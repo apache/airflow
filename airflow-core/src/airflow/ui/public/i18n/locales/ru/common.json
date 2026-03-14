@@ -167,8 +167,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
-  "pendingDagRun_one": "{{count}} Даг ожидает запуска",
   "pendingDagRun_few": "{{count}} Дага ожидают запуска",
+  "pendingDagRun_one": "{{count}} Даг ожидает запуска",
   "pendingDagRun_other": "{{count}} Дагов ожидают запуска",
   "reset": "Сбросить",
   "runId": "ID запуска",

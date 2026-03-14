@@ -23,8 +23,8 @@
     "connection_one": "Соединение",
     "connection_other": "Соединений",
     "delete": {
-      "deleteConnection_one": "Удалить 1 соединение",
       "deleteConnection_few": "Удалить {{count}} соединения",
+      "deleteConnection_one": "Удалить 1 соединение",
       "deleteConnection_other": "Удалить {{count}} соединений",
       "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение:",
       "firstConfirmMessage_other": "Вы собираетесь удалить следующие соединения:",
