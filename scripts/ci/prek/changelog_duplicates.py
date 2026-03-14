@@ -44,13 +44,11 @@ def find_duplicates(lines: list[str]) -> list[str]:
     seen: list[str] = []
     dups: list[str] = []
     for line in lines:
-        match = pr_number_re.search(line)
-        if match:
-            pr_number = match.group(1)
-            if pr_number not in seen:
-                seen.append(pr_number)
-            elif pr_number not in known_exceptions:
-                dups.append(pr_number)
+        if (match := pr_number_re.search(line)) and (pr := match.group(1)):
+            if pr not in seen:
+                seen.append(pr)
+            elif pr not in known_exceptions:
+                dups.append(pr)
     return dups
 
 
