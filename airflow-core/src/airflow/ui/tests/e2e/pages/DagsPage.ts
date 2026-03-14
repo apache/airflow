@@ -215,16 +215,14 @@ export class DagsPage extends BasePage {
     await filter.click();
 
     const controlsId = await filter.getAttribute("aria-controls");
-    let dropdown: Locator;
-    let options: Locator;
 
-    dropdown =
+    const dropdown =
       controlsId === null
         ? this.page.locator('div[role="listbox"]').first()
         : this.page.locator(`[id="${controlsId}"]`);
 
     await expect(dropdown).toBeVisible({ timeout: 5000 });
-    options = dropdown.locator('div[role="option"]');
+    const options = dropdown.locator('div[role="option"]');
 
     const count = await options.count();
     const dataValues: Array<string> = [];
@@ -276,11 +274,9 @@ export class DagsPage extends BasePage {
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/tasks`);
-    await this.page
-      .locator("th")
-      .filter({ hasText: /^Operator$/ })
-      .first()
-      .waitFor({ state: "visible", timeout: 30_000 });
+    await expect(
+      this.page.locator("th").filter({ hasText: /^Operator$/ }).first(),
+    ).toBeVisible({ timeout: 30_000 });
   }
 
   /**
@@ -505,7 +501,8 @@ export class DagsPage extends BasePage {
 
     const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
 
-    await option.dispatchEvent("click");
+    await expect(option).toBeVisible({ timeout: 5000 });
+    await option.click();
 
     await expect(this.page.locator('div[role="listbox"]'))
       .toBeHidden({ timeout: 5000 })
