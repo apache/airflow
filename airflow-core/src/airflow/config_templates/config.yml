@@ -2069,6 +2069,15 @@ execution_api:
       type: integer
       example: ~
       default: "600"
+    jwt_workload_token_expiration_time:
+      description: |
+        Seconds until workload JWT tokens expire. These long-lived tokens are sent
+        with task workloads to executors and can only call the /run endpoint.
+        Set long enough to cover maximum expected queue wait time.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "86400"
     jwt_audience:
       version_added: 3.0.0
       description: |

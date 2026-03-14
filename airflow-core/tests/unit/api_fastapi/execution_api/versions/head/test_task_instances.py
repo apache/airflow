@@ -246,6 +246,36 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_returns_execution_token(self, client, session, create_task_instance, time_machine):
+        """PATCH /run should return an X-Execution-Token header on success."""
+        instant = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_exec_token",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-host",
+                "unixname": "test-user",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        assert "X-Execution-Token" in response.headers
+        assert response.headers["X-Execution-Token"] == "mock-execution-token"
+
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
         with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):

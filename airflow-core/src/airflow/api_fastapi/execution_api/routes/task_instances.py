@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Security, status
+from fastapi import Body, HTTPException, Query, Response, Security, status
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -38,6 +38,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -59,6 +60,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
@@ -92,6 +94,7 @@ log = structlog.get_logger(__name__)
 @ti_id_router.patch(
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
@@ -99,11 +102,13 @@ log = structlog.get_logger(__name__)
     },
     response_model_exclude_unset=True,
 )
-def ti_run(
+async def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
+    response: Response,
     session: SessionDep,
     dag_bag: DagBagDep,
+    services=DepContainer,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -281,6 +286,11 @@ def ti_run(
         if ti.next_method:
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
+
+        # Issue a short-lived execution token for subsequent API calls
+        generator: JWTGenerator = await services.aget(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": str(task_instance_id)})
+        response.headers["X-Execution-Token"] = execution_token
 
         return context
     except SQLAlchemyError:

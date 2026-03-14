@@ -952,7 +952,10 @@ class Client(httpx.Client):
         )
 
     def _update_auth(self, response: httpx.Response):
-        if new_token := response.headers.get("Refreshed-API-Token"):
+        if new_token := response.headers.get("X-Execution-Token"):
+            log.debug("Received execution token, swapping auth")
+            self.auth = BearerAuth(new_token)
+        elif new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 

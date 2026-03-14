@@ -74,7 +74,7 @@ class BaseWorkloadSchema(BaseModel):
 
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
-        return generator.generate({"sub": sub_id}) if generator else ""
+        return generator.generate_workload_token(sub_id) if generator else ""
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
