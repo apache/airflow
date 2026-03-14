@@ -112,7 +112,7 @@ def _prepare_span(
     span_name = f"trigger_run.{ti.task_id}" if ti else f"trigger_run.{trigger_id}"
     if ti and ti.map_index >= 0:
         span_name += f"_{ti.map_index}"
-    attributes = {
+    attributes: dict[str, str | int] = {
         "airflow.trigger.name": name,
     }
     if ti:

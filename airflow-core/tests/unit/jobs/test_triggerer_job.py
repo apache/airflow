@@ -348,6 +348,7 @@ class TestTriggerRunner:
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.task_instance = None
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -361,6 +362,7 @@ class TestTriggerRunner:
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.task_instance = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
