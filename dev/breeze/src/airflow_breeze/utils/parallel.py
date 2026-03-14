@@ -34,7 +34,7 @@ from typing import Any, NamedTuple
 
 from rich.table import Table
 
-from airflow_breeze.utils.console import MessageType, Output, get_console
+from airflow_breeze.utils.console import MessageType, Output, console_print, get_console
 from airflow_breeze.utils.shared_options import (
     get_dry_run,
     get_forced_answer,
@@ -69,7 +69,7 @@ def get_temp_file_name() -> str:
 def get_output_files(titles: list[str]) -> list[Output]:
     outputs = [Output(title=title, file_name=get_temp_file_name()) for title in titles]
     for out in outputs:
-        get_console().print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
+        console_print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
     return outputs
 
 
@@ -307,7 +307,7 @@ class ParallelMonitor(Thread):
             else:
                 size = os.path.getsize(output.file_name) if Path(output.file_name).exists() else 0
                 default_output = f"File: {output.file_name} Size: {size:>10} bytes"
-                get_console().print(f"Progress: {output.escaped_title[:30]:<30} {default_output:>161}")
+                console_print(f"Progress: {output.escaped_title[:30]:<30} {default_output:>161}")
 
     def print_summary(self):
         import psutil
@@ -318,20 +318,20 @@ class ParallelMonitor(Thread):
             self.print_single_progress(output)
         get_console().rule(title=f"Time passed: {nice_timedelta(time_passed)}")
         if self.debug_resources:
-            get_console().print(get_single_tuple_array("Virtual memory", psutil.virtual_memory()))
+            console_print(get_single_tuple_array("Virtual memory", psutil.virtual_memory()))
             disk_stats = []
             for partition in psutil.disk_partitions(all=True):
                 if partition.fstype not in IGNORED_FSTYPES:
                     try:
                         disk_stats.append((partition, psutil.disk_usage(partition.mountpoint)))
                     except Exception:
-                        get_console().print(f"No disk usage info for {partition.mountpoint}")
-            get_console().print(get_multi_tuple_array("Disk usage", disk_stats))
+                        console_print(f"No disk usage info for {partition.mountpoint}")
+            console_print(get_multi_tuple_array("Disk usage", disk_stats))
             # Print CPU percent usage
-            get_console().print("CPU usage:")
+            console_print("CPU usage:")
             usage = psutil.cpu_percent(percpu=True, interval=None)
             for i, cpu_usage in enumerate(usage):
-                get_console().print(f"CPU {i}: {cpu_usage / 100:.0%}")
+                console_print(f"CPU {i}: {cpu_usage / 100:.0%}")
 
     def run(self):
         try:
@@ -349,15 +349,15 @@ def print_async_result_status(completed_list: list[ApplyResult]) -> None:
     :param completed_list: list of completed async results.
     """
     completed_list.sort(key=lambda x: x.get()[1])
-    get_console().print()
+    console_print()
     for result in completed_list:
         return_code, info = result.get()
         info = info.replace("[", "\\[")
         if return_code != 0:
-            get_console().print(f"[error]NOK[/] for {info}: Return code: {return_code}.")
+            console_print(f"[error]NOK[/] for {info}: Return code: {return_code}.")
         else:
-            get_console().print(f"[success]OK [/] for {info}.")
-    get_console().print()
+            console_print(f"[success]OK [/] for {info}.")
+    console_print()
 
 
 def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
@@ -429,7 +429,7 @@ def print_logs_on_completion(
             with ci_group(f"{outputs[i].escaped_title}", message_type):
                 os.write(1, Path(outputs[i].file_name).read_bytes())
         else:
-            get_console().print(f"[success]{outputs[i].escaped_title} OK[/]")
+            console_print(f"[success]{outputs[i].escaped_title} OK[/]")
 
 
 def wait_for_all_tasks_completed(poll_time_seconds: float, results: list[ApplyResult]) -> list[ApplyResult]:
@@ -440,7 +440,7 @@ def wait_for_all_tasks_completed(poll_time_seconds: float, results: list[ApplyRe
         current_completed_number = len(completed_list)
         if current_completed_number != completed_number:
             completed_number = current_completed_number
-            get_console().print(
+            console_print(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
                 f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
@@ -448,7 +448,7 @@ def wait_for_all_tasks_completed(poll_time_seconds: float, results: list[ApplyRe
         time.sleep(poll_time_seconds)
         completed_list = get_completed_result_list(results)
     completed_number = len(completed_list)
-    get_console().print(
+    console_print(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
         f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
@@ -472,9 +472,9 @@ def finalize_async_tasks(
         if result.get()[0] != 0:
             errors = True
     if errors:
-        get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+        console_print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
     else:
-        get_console().print(f"\n[success]{success_message}[/]\n")
+        console_print(f"\n[success]{success_message}[/]\n")
     if not skip_cleanup:
         for output in outputs:
             Path(output.file_name).unlink(missing_ok=True)
@@ -514,7 +514,7 @@ def summarize_results_outside_of_folded_logs(
             for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
                 if not print_lines and (regex is None or regex.match(remove_ansi_colours(line))):
                     print_lines = True
-                    get_console().print(f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n")
+                    console_print(f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n")
                 if print_lines:
                     print(line)
 
@@ -531,7 +531,7 @@ def print_outputs_on_timeout(
     :param results: list of ApplyResult objects containing the results of the tasks
     :param include_success_outputs: whether to include outputs of successful tasks
     """
-    get_console().print(
+    console_print(
         "\n[warning]Some tasks were terminated on timeout. "
         "Please check the logs of the tasks (below) for more details.[/]\n"
     )
@@ -551,8 +551,8 @@ def print_outputs_on_timeout(
             with ci_group(f"{output.escaped_title}", message_type):
                 os.write(1, Path(output.file_name).read_bytes())
         else:
-            get_console().print(f"[success]{outputs[i].escaped_title} OK[/]")
-    get_console().print(
+            console_print(f"[success]{outputs[i].escaped_title} OK[/]")
+    console_print(
         "\n[warning]Some tasks were terminated on timeout. "
         "Please check the logs of the tasks (above) for more details.[/]\n"
     )
@@ -570,7 +570,7 @@ def run_with_pool(
     debug_resources: bool = False,
     progress_matcher: AbstractProgressInfoMatcher | None = None,
 ) -> Generator[tuple[Pool, list[Output]], None, None]:
-    get_console().print(f"Running with parallelism: {parallelism}")
+    console_print(f"Running with parallelism: {parallelism}")
     pool = create_pool(parallelism)
     outputs = get_output_files(all_params)
     m = ParallelMonitor(

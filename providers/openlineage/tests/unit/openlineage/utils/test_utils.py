@@ -198,6 +198,7 @@ def test_get_airflow_dag_run_facet():
             version_number="version_number",
         )
     ]
+    dagrun_mock.deadlines = []
 
     result = get_airflow_dag_run_facet(dagrun_mock)
 
@@ -232,6 +233,7 @@ def test_get_airflow_dag_run_facet():
                 "start_date": "2024-06-01T01:02:04+00:00",
                 "end_date": "2024-06-01T01:02:14.034172+00:00",
                 "duration": 10.034172,
+                "deadlines": None,
                 "execution_date": "2024-06-01T01:02:04+00:00",
                 "logical_date": "2024-06-01T01:02:04+00:00",
                 "run_after": "2024-06-01T01:02:04+00:00",
@@ -2660,6 +2662,220 @@ class TestDagInfoAirflow3:
         }
 
 
+class TestDagRunInfoDeadlines:
+    """Tests for deadline state and alert definitions in DagRunInfo."""
+
+    def test_dagrun_no_deadlines_attribute(self):
+        dagrun = MagicMock(spec=[])
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_empty_deadlines(self):
+        dagrun = MagicMock()
+        dagrun.deadlines = []
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_with_deadline_and_alert(self):
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = "SLA Alert"
+        alert.description = "Must finish within 1 hour"
+        alert.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert.interval = 3600.0
+        alert.callback_def = {"path": "my_module.on_deadline_missed", "kwargs": {}}
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                    "name": "SLA Alert",
+                    "description": "Must finish within 1 hour",
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                    "callback_def": {"path": "my_module.on_deadline_missed", "kwargs": {}},
+                },
+            ],
+        }
+
+    def test_dagrun_with_multiple_deadlines(self):
+        alert1 = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert1.name = None
+        alert1.description = None
+        alert1.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert1.interval = 3600.0
+        alert1.callback_def = {"path": "mod.cb1", "kwargs": {}}
+
+        alert2 = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert2.name = "Queued Deadline"
+        alert2.description = None
+        alert2.reference = {"reference_type": "DagRunQueuedAtDeadline"}
+        alert2.interval = 7200.0
+        alert2.callback_def = {"path": "mod.cb2", "kwargs": {"notify": True}}
+
+        d1 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        d1.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        d1.missed = True
+        d1.deadline_alert = alert1
+
+        d2 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        d2.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        d2.missed = False
+        d2.deadline_alert = alert2
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [d1, d2]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": True,
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                    "callback_def": {"path": "mod.cb1", "kwargs": {}},
+                },
+                {
+                    "deadline_time": "2025-06-01T14:00:00+00:00",
+                    "missed": False,
+                    "name": "Queued Deadline",
+                    "reference": {"reference_type": "DagRunQueuedAtDeadline"},
+                    "interval": 7200.0,
+                    "callback_def": {"path": "mod.cb2", "kwargs": {"notify": True}},
+                },
+            ],
+        }
+
+    def test_dagrun_deadline_alert_access_fails(self):
+        """When the alert relationship can't be loaded, execution details still appear."""
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        type(deadline).deadline_alert = PropertyMock(side_effect=Exception("DB not available"))
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                },
+            ],
+        }
+
+    def test_dagrun_deadline_none_alert_fields_excluded(self):
+        """None-valued alert fields are excluded from the output."""
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = None
+        alert.description = None
+        alert.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert.interval = 3600.0
+        alert.callback_def = None
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = True
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        result = DagRunInfo.deadlines(dagrun)
+        assert result == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": True,
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                },
+            ],
+        }
+        assert "name" not in result["alerts"][0]
+        assert "description" not in result["alerts"][0]
+        assert "callback_def" not in result["alerts"][0]
+
+    def test_dagrun_deadlines_property_raises(self):
+        """When accessing dagrun.deadlines itself raises, return None."""
+        dagrun = MagicMock()
+        type(dagrun).deadlines = PropertyMock(side_effect=Exception("Session closed"))
+
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_deadline_time_isoformat_raises(self):
+        """When deadline_time.isoformat() raises, that deadline is skipped."""
+        bad_time = MagicMock()
+        bad_time.isoformat.side_effect = AttributeError("not a datetime")
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = bad_time
+        deadline.missed = False
+        deadline.deadline_alert = None
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_bad_deadline_skipped_others_preserved(self):
+        """A failing deadline is skipped; valid siblings still appear."""
+        bad_deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        bad_time = MagicMock()
+        bad_time.isoformat.side_effect = TypeError("broken")
+        bad_deadline.deadline_time = bad_time
+        bad_deadline.missed = False
+        bad_deadline.deadline_alert = None
+
+        good_deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        good_deadline.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        good_deadline.missed = True
+        good_deadline.deadline_alert = None
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [bad_deadline, good_deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T14:00:00+00:00",
+                    "missed": True,
+                },
+            ],
+        }
+
+    def test_dagrun_alert_attribute_access_raises(self):
+        """When reading an attribute on the alert object raises, execution details still appear."""
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = "Good Name"
+        type(alert).reference = PropertyMock(side_effect=Exception("Column error"))
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        result = DagRunInfo.deadlines(dagrun)
+        assert result == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                },
+            ],
+        }
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
 @patch.object(DagRun, "dag_versions", new_callable=PropertyMock)
 def test_dagrun_info_af3(mocked_dag_versions):
@@ -2708,6 +2924,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
+        "deadlines": None,
         "end_date": "2024-06-01T00:01:14.000546+00:00",
         "run_id": "dag_run__run_id",
         "run_type": DagRunType.MANUAL,
@@ -2752,6 +2969,7 @@ def test_dagrun_info_af2():
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
+        "deadlines": None,
         "end_date": "2024-06-01T00:01:14.000546+00:00",
         "run_id": "dag_run__run_id",
         "run_type": DagRunType.MANUAL,

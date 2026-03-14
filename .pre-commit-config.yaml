@@ -30,14 +30,6 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
-  - repo: https://github.com/eclipse-csi/octopin
-    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
-    hooks:
-      - id: pin-versions
-        name: Pin versions of dependencies in CI workflows (manual)
-        stages: ['manual']
-        language: python
-        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
     rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
@@ -173,9 +165,9 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
-          AGENTS\.md$|
-          CLAUDE\.md$|
-          SKILL\.md$|
+          ^(?:.*/)?AGENTS\.md$|
+          ^(?:.*/)?CLAUDE\.md$|
+          ^(?:.*/)?SKILL\.md$|
           ^scripts/ci/license-templates/
       - id: insert-license
         name: Add short license for agentic Markdown files
@@ -189,9 +181,9 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
-          AGENTS\.md$|
-          CLAUDE\.md$|
-          SKILL\.md$
+          ^(?:.*/)?AGENTS\.md$|
+          ^(?:.*/)?CLAUDE\.md$|
+          ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
@@ -345,7 +337,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 63c8f8312b7559622c0d82815639671ae42132ac  # frozen: v2.4.1
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
     hooks:
       - id: codespell
         name: Run codespell
@@ -371,7 +363,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f  # frozen: v1.22.0
+    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -430,6 +422,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
+      - id: check-registry-types-json-sync
+        name: Check registry types.json in sync with types.py
+        entry: ./scripts/ci/prek/check_registry_types_json_sync.py
+        language: python
+        pass_filenames: false
+        files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -438,7 +436,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.5']
+        additional_dependencies: ['ruff==0.15.6']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -592,6 +590,7 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
+          ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/utils/db\.py$|
@@ -614,7 +613,7 @@ repos:
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
-          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
           ^.*/provider_conf\.py$|
           ^providers/\.pre-commit-config\.yaml$|
@@ -701,7 +700,15 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow-core/src/airflow/configuration\.py$|^airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^providers/.*/tests/.*$|^devel-common/
+        exclude: >
+          (?x)
+          ^airflow-core/src/airflow/configuration\.py$|
+          ^airflow-core/tests/.*$|
+          ^providers/.*/src/airflow/providers/|
+          ^scripts/in_container/verify_providers\.py$|
+          ^providers/.*/tests/.*$|
+          ^scripts/tests/.*$|
+          ^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -998,6 +1005,13 @@ repos:
         language: python
         entry: ./scripts/ci/prek/check_template_fields.py
         files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
+        require_serial: true
+      - id: check-execution-api-versions
+        name: Check execution API datamodel changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_execution_api_versions.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

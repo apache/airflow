@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_builder,
     option_clean_airflow_installation,
+    option_custom_db_url,
     option_db_reset,
     option_debug_components,
     option_debugger,
@@ -109,7 +110,7 @@ from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -121,6 +122,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    COMMON_AI_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
@@ -163,9 +165,7 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
         match_exact_version = re.match(r"^[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*$", use_airflow_version)
         if match_exact_version:
             # If we are using an exact version, we use the constraints for that version
-            get_console().print(
-                f"[info]Using constraints for {use_airflow_version} - exact version specified."
-            )
+            console_print(f"[info]Using constraints for {use_airflow_version} - exact version specified.")
             return f"constraints-{use_airflow_version}"
         match_repo_branch = re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
         if match_repo_branch:
@@ -173,14 +173,12 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
             match_v_x_y_branch = re.match(r"v([0-9]+-[0-9]+)-(test|stable)", branch)
             if match_v_x_y_branch:
                 branch_version = match_v_x_y_branch.group(1)
-                get_console().print(f"[info]Using constraints for {branch_version} branch.")
+                console_print(f"[info]Using constraints for {branch_version} branch.")
                 return f"constraints-{branch_version}"
             if branch == "main":
-                get_console().print(
-                    "[info]Using constraints for main branch - no specific version specified."
-                )
+                console_print("[info]Using constraints for main branch - no specific version specified.")
                 return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-            get_console().print(
+            console_print(
                 f"[warning]Could not determine branch automatically from {use_airflow_version}. "
                 f"using {DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH} but you can specify constraints by using "
                 "--airflow-constraints-reference flag in breeze command."
@@ -195,9 +193,9 @@ class TimerThread(threading.Thread):
         self.max_time = max_time
 
     def run(self):
-        get_console().print(f"[info]Setting timer to fail after {self.max_time} s.")
+        console_print(f"[info]Setting timer to fail after {self.max_time} s.")
         sleep(self.max_time)
-        get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
+        console_print(f"[error]The command took longer than {self.max_time} s. Failing!")
         os.killpg(os.getpgid(0), SIGTERM)
 
 
@@ -308,6 +306,7 @@ option_load_default_connections = click.option(
 @option_answer
 @option_auth_manager
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_celery_broker
 @option_celery_flower
@@ -370,6 +369,7 @@ def shell(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -424,8 +424,8 @@ def shell(
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
-        get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
+        console_print("\n[success]Welcome to breeze.py[/]\n")
+        console_print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -445,6 +445,7 @@ def shell(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
@@ -538,6 +539,7 @@ option_executor_start_airflow = click.option(
 @option_auth_manager
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_clean_airflow_installation
 @option_celery_broker
@@ -589,6 +591,7 @@ def start_airflow(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     debug_components: tuple[str, ...],
     debugger: str,
@@ -629,13 +632,11 @@ def start_airflow(
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
-        get_console().print(
-            "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
-        )
+        console_print("[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!")
         skip_assets_compilation = True
 
     if dev_mode and use_airflow_version:
-        get_console().print(
+        console_print(
             "[error]You cannot set Airflow version in dev mode! Consider switching to the respective "
             "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
         )
@@ -645,7 +646,7 @@ def start_airflow(
     # Automatically enable file polling for hot reloading under WSL
     if dev_mode and is_wsl():
         os.environ["CHOKIDAR_USEPOLLING"] = "true"
-        get_console().print(
+        console_print(
             "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
         )
 
@@ -653,7 +654,7 @@ def start_airflow(
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
         # Compile provider assets if needed
-        additional_assets = []
+        additional_assets = [COMMON_AI_PLUGIN_PREK_HOOK]
         if executor and EDGE_EXECUTOR in executor:
             additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
         if auth_manager == FAB_AUTH_MANAGER:
@@ -674,7 +675,7 @@ def start_airflow(
             # Otherwise default to LocalExecutor
             executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
-    get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
+    console_print(f"[info]Airflow will be using: {executor} to execute the tasks.")
 
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
@@ -689,6 +690,7 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        custom_db_url=custom_db_url or "",
         debug_components=debug_components,
         debugger=debugger,
         db_reset=db_reset,
@@ -730,7 +732,7 @@ def start_airflow(
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
-        get_console().print(
+        console_print(
             "[warning]A non-Celery executor was used with start-airflow in combination with the Celery "
             "integration, this will lead to some processes failing to start (e.g.  celery worker)\n"
         )
@@ -818,27 +820,25 @@ def build_docs(
         directories_to_clean = ["apis"]
     generated_path = AIRFLOW_ROOT_PATH / "generated"
     for dir_name in directories_to_clean:
-        get_console().print("Removing all generated dirs.")
+        console_print("Removing all generated dirs.")
         for directory in generated_path.rglob(dir_name):
-            get_console().print(f"[info]Removing {directory}")
+            console_print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
     if refresh_airflow_inventories and not clean_build:
-        get_console().print("Removing airflow inventories.")
+        console_print("Removing airflow inventories.")
         package_globs = ["helm-chart", "docker-stack", "apache-airflow*"]
         for package_glob in package_globs:
             for directory in (generated_path / "_inventory_cache").rglob(package_glob):
-                get_console().print(f"[info]Removing {directory}")
+                console_print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
-        get_console().print(
-            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
-        )
+        console_print(f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}")
         # Override doc_packages with values from DISTRIBUTIONS_LIST
         docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
-        get_console().print(
+        console_print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
             f"Overriding to {docs_list_as_tuple}"
         )
@@ -866,7 +866,7 @@ def build_docs(
     result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()
     if result.returncode == 0:
-        get_console().print(
+        console_print(
             "Run ./docs/start_doc_server.sh for a lighter resource option and view "
             "the built docs at http://localhost:8000"
         )
@@ -933,12 +933,12 @@ def exec(exec_args: tuple):
             sys.exit(1)
         sys.exit(process.returncode)
     else:
-        get_console().print("[error]No airflow containers are running[/]")
+        console_print("[error]No airflow containers are running[/]")
         sys.exit(1)
 
 
 def stop_exec_on_error(returncode: int):
-    get_console().print("\n[error]ERROR in finding the airflow docker-compose process id[/]\n")
+    console_print("\n[error]ERROR in finding the airflow docker-compose process id[/]\n")
     sys.exit(returncode)
 
 
@@ -964,8 +964,8 @@ def find_airflow_container() -> str | None:
         return "CONTAINER_ID"
     if docker_compose_ps_command.returncode != 0:
         if get_verbose():
-            get_console().print(docker_compose_ps_command.stdout)
-            get_console().print(docker_compose_ps_command.stderr)
+            console_print(docker_compose_ps_command.stdout)
+            console_print(docker_compose_ps_command.stderr)
         stop_exec_on_error(docker_compose_ps_command.returncode)
         return None
 
@@ -1036,15 +1036,15 @@ def doctor(ctx):
 
     given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
     if given_answer == Answer.YES:
-        get_console().print("\n[info]Cleaning mypy cache...\n")
+        console_print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
 
-        get_console().print("\n[info]Cleaning build cache...\n")
+        console_print("\n[info]Cleaning build cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
 
-        get_console().print("\n[info]Deleting .build cache dir...\n")
+        console_print("\n[info]Deleting .build cache dir...\n")
         dirpath = Path(".build")
         if not get_dry_run() and dirpath.exists() and dirpath.is_dir():
             shutil.rmtree(dirpath)
@@ -1053,7 +1053,7 @@ def doctor(ctx):
         "Proceed with breeze cleanup to remove all docker volumes, images and networks?"
     )
     if given_answer == Answer.YES:
-        get_console().print("\n[info]Executing breeze cleanup...\n")
+        console_print("\n[info]Executing breeze cleanup...\n")
         ctx.forward(cleanup)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
@@ -1068,6 +1068,7 @@ def doctor(ctx):
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
 @option_answer
 @option_backend
+@option_custom_db_url
 @option_builder
 @option_docker_host
 @option_dry_run
@@ -1089,6 +1090,7 @@ def run(
     command_args: tuple,
     backend: str,
     builder: str,
+    custom_db_url: str | None,
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
@@ -1157,6 +1159,7 @@ def run(
     shell_params = ShellParams(
         backend=backend,
         builder=builder,
+        custom_db_url=custom_db_url or "",
         docker_host=docker_host,
         force_build=force_build,
         forward_credentials=forward_credentials,
@@ -1177,8 +1180,8 @@ def run(
     )
 
     if get_verbose():
-        get_console().print(f"[info]Running command in Breeze: {full_command}[/]")
-        get_console().print(f"[info]Using project name: {unique_project_name}[/]")
+        console_print(f"[info]Running command in Breeze: {full_command}[/]")
+        console_print(f"[info]Using project name: {unique_project_name}[/]")
 
     # Build or pull the CI image if needed
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)

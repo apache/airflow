@@ -157,3 +157,54 @@ class TestSFTPToS3Operator:
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not s3_hook.check_for_bucket(self.s3_bucket)
+
+    @mock_aws
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_sftp_to_s3_sftp_remote_host(self):
+        """Test that sftp_remote_host overrides the connection host when provided."""
+        test_remote_file_content = (
+            "This is remote file content for sftp_remote_host test \n which is also multiline "
+            "another line here \n this is last line. EOF"
+        )
+
+        # Create a test file remotely
+        create_file_task = SSHOperator(
+            task_id="test_create_file_remote_host",
+            ssh_hook=self.hook,
+            command=f"echo '{test_remote_file_content}' > {self.sftp_path}",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+        assert create_file_task is not None
+        create_file_task.execute(None)
+
+        # Test for creation of s3 bucket
+        s3_hook = S3Hook(aws_conn_id=None)
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
+
+        # Execute with sftp_remote_host overriding the connection host to the same localhost
+        run_task = SFTPToS3Operator(
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_remote_host="localhost",
+            s3_conn_id=S3_CONN_ID,
+            task_id="test_sftp_to_s3_remote_host",
+            dag=self.dag,
+        )
+        assert run_task is not None
+
+        run_task.execute(None)
+
+        # Check if object was created in s3
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.s3_key
+
+        # Clean up after finishing with test
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
+        conn.delete_bucket(Bucket=self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)
