@@ -295,7 +295,6 @@ async def ti_run(
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
 
-        # Issue a short-lived execution token for subsequent API calls
         generator: JWTGenerator = await services.aget(JWTGenerator)
         execution_token = generator.generate(extras={"sub": str(task_instance_id)})
         response.headers["X-Execution-Token"] = execution_token
