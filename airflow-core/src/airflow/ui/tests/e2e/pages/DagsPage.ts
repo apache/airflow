@@ -189,7 +189,7 @@ export class DagsPage extends BasePage {
 
     const texts = await dagLinks.allTextContents();
 
-    return texts.map((text: string) => text.trim()).filter((text: string) => text !== "");
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
   /**
@@ -275,7 +275,10 @@ export class DagsPage extends BasePage {
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/tasks`);
     await expect(
-      this.page.locator("th").filter({ hasText: /^Operator$/ }).first(),
+      this.page
+        .locator("th")
+        .filter({ hasText: /^Operator$/ })
+        .first(),
     ).toBeVisible({ timeout: 30_000 });
   }
 
