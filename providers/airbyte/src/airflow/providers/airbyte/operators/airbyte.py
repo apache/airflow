@@ -143,3 +143,121 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
             hook.cancel_job(self.job_id)
+
+
+class AirbyteTriggerResetOperator(BaseOperator):
+    """
+    Submits a reset job to Airbyte for the given connection.
+
+    A reset clears the destination data for the connection so that the next sync
+    re-replicates all records from the source.  This is useful when your
+    incremental models drift and you need a full-refresh without manually touching
+    the Airbyte UI.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AirbyteTriggerResetOperator`
+
+    :param airbyte_conn_id: Optional. The name of the Airflow connection to get connection
+        information for Airbyte. Defaults to "airbyte_default".
+    :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
+    :param asynchronous: Optional. Flag to return the job_id immediately after submitting without
+        waiting for completion. Useful for pairing with AirbyteJobSensor. Defaults to False.
+    :param deferrable: Run operator in the deferrable mode.
+    :param api_version: Optional. Airbyte API version. Defaults to "v1".
+    :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous``
+        is False. Defaults to 3 seconds.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Only used when ``asynchronous`` is False. Defaults to 3600 seconds (or 1 hour).
+    """
+
+    template_fields: Sequence[str] = ("connection_id",)
+    ui_color = "#6C51FD"
+
+    def __init__(
+        self,
+        connection_id: str,
+        airbyte_conn_id: str = "airbyte_default",
+        asynchronous: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        api_version: str = "v1",
+        wait_seconds: float = 3,
+        timeout: float = 3600,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.airbyte_conn_id = airbyte_conn_id
+        self.connection_id = connection_id
+        self.timeout = timeout
+        self.api_version = api_version
+        self.wait_seconds = wait_seconds
+        self.asynchronous = asynchronous
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> None:
+        """Submit an Airbyte reset job and wait for it to finish."""
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        job_object = hook.submit_reset_connection(connection_id=self.connection_id)
+        self.job_id = job_object.job_id
+        state = job_object.status
+        end_time = time.time() + self.timeout
+
+        self.log.info("Reset job %s was submitted to Airbyte Server", self.job_id)
+
+        if self.asynchronous:
+            self.log.info("Async Task returning job_id %s", self.job_id)
+            return self.job_id
+
+        if not self.deferrable:
+            self.log.debug("Running in non-deferrable mode...")
+            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        else:
+            self.log.debug("Running in deferrable mode in job state %s...", state)
+            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=AirbyteSyncTrigger(
+                        conn_id=self.airbyte_conn_id,
+                        job_id=self.job_id,
+                        end_time=end_time,
+                        poll_interval=60,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif state == JobStatusEnum.SUCCEEDED:
+                self.log.info("Reset job %s completed successfully", self.job_id)
+                return
+            elif state == JobStatusEnum.FAILED:
+                raise AirflowException(f"Job failed:\n{self.job_id}")
+            elif state == JobStatusEnum.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{self.job_id}")
+            else:
+                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
+
+        return self.job_id
+
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        """
+        Invoke this callback when the trigger fires; return immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            self.log.debug("Error occurred with context: %s", context)
+            raise AirflowException(event["message"])
+
+        self.log.info("%s completed successfully.", self.task_id)
+        return None
+
+    def on_kill(self):
+        """Cancel the reset job if task is cancelled."""
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        self.log.debug(
+            "Job status for job_id %s prior to canceling is: %s",
+            self.job_id,
+            hook.get_job_status(self.job_id),
+        )
+        if self.job_id:
+            self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
+            hook.cancel_job(self.job_id)

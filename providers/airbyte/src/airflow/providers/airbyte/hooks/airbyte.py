@@ -188,6 +188,28 @@ class AirbyteHook(BaseHook):
         except Exception as e:
             raise AirflowException(e)
 
+    def submit_reset_connection(self, connection_id: str) -> Any:
+        """
+        Submit a reset job for the given Airbyte connection.
+
+        A reset clears the destination data for the connection and forces the next
+        sync to re-replicate all records from the source.
+
+        :param connection_id: The Airbyte connection ID to reset.
+        """
+        try:
+            self.log.debug("Creating reset job request..")
+            res = self.airbyte_api.jobs.create_job(
+                request=JobCreateRequest(
+                    connection_id=connection_id,
+                    job_type=JobTypeEnum.RESET,
+                )
+            )
+            self.log.debug("Reset job request successful, response: %s", res.job_response)
+            return res.job_response
+        except Exception as e:
+            raise AirflowException(e)
+
     def cancel_job(self, job_id: int) -> Any:
         """
         Cancel the job when task is cancelled.
