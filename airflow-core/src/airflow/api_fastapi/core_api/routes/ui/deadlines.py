@@ -39,12 +39,11 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 
-deadlines_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines", tags=["Deadlines"])
-deadline_alerts_router = AirflowRouter(prefix="/dags/{dag_id}/deadlineAlerts", tags=["Deadlines"])
+deadlines_router = AirflowRouter(prefix="/dags/{dag_id}", tags=["Deadlines"])
 
 
 @deadlines_router.get(
-    "",
+    "/dagRuns/{dag_run_id}/deadlines",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -138,8 +137,8 @@ def get_deadlines(
     return DeadlineWithDagRunCollectionResponse(deadlines=deadlines, total_entries=total_entries)
 
 
-@deadline_alerts_router.get(
-    "",
+@deadlines_router.get(
+    "/deadlineAlerts",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
