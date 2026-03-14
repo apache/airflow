@@ -93,6 +93,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
             data-node-id={node.id}
+            data-testid={`task-${node.id.replaceAll(".", "-")}`}
             height={`${ROW_HEIGHT}px`}
             id={`task-${node.id.replaceAll(".", "-")}`}
             key={node.id}
