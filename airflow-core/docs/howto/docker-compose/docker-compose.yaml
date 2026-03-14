@@ -170,8 +170,12 @@ services:
     <<: *airflow-common
     command: celery worker
     healthcheck:
-      # yamllint disable rule:line-length
-      test: ["CMD-SHELL", 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"']
+      # Checks both worker liveness (ping) and readiness (active queue consumers).
+      # The active_queues check detects the catatonic state that occurs after a
+      # broker restart (e.g. Redis), where the worker is alive but has silently
+      # lost its queue consumer registrations and will never pick up new tasks.
+      # See: https://github.com/apache/airflow/issues/63580
+      test: ["CMD-SHELL", 'airflow celery worker-health-check']
       interval: 30s
       timeout: 10s
       retries: 5

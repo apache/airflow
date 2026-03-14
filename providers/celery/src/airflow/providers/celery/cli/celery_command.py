@@ -467,3 +467,78 @@ def remove_all_queues(args):
         celery_app.control.cancel_consumer(queue_name, destination=[args.celery_hostname])
 
     print(f"Successfully removed all queues from worker: {args.celery_hostname}")
+
+
+@cli_utils.action_cli(check_db=False)
+@_providers_configuration_loaded
+def worker_health_check(args):
+    """
+    Check the health of a Celery worker, detecting catatonic state after broker restart.
+
+    Performs two checks:
+    1. Ping check: verifies the worker process is alive and reachable.
+    2. Active queues check: verifies the worker has registered queue consumers.
+
+    A worker can be alive (ping succeeds) but in a catatonic state after a broker
+    restart (e.g. Redis), where it has silently lost its consumer registrations and
+    will never pick up new tasks. This check detects that state and exits with a
+    non-zero status code so that container orchestrators (Docker, Kubernetes) can
+    restart the worker.
+
+    See: https://github.com/apache/airflow/issues/63580
+    """
+    import os
+    import socket
+
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    hostname = args.celery_hostname or f"celery@{socket.gethostname()}"
+
+    inspect = celery_app.control.inspect(destination=[hostname])
+
+    # Step 1: Ping check — worker must be reachable
+    log.info("Checking worker liveness via ping: %s", hostname)
+    ping_result = inspect.ping()
+    if not ping_result or hostname not in ping_result:
+        log.error(
+            "Worker health check failed: worker %s did not respond to ping. The worker process may be down.",
+            hostname,
+        )
+        raise SystemExit(os.EX_UNAVAILABLE)
+
+    log.info("Ping check passed for worker: %s", hostname)
+
+    # Step 2: Active queues check — worker must have registered consumers.
+    # A worker in catatonic state (e.g. after Redis broker restart) responds to
+    # ping but has silently lost its queue consumer registrations, so
+    # active_queues() returns None or an empty list for that worker.
+    log.info("Checking active queue consumers for worker: %s", hostname)
+    active_queues_result = inspect.active_queues()
+    if not active_queues_result or hostname not in active_queues_result:
+        log.error(
+            "Worker health check failed: worker %s is alive but has no registered queue consumers. "
+            "This may indicate a catatonic state caused by a broker restart (e.g. Redis). "
+            "The worker will not pick up new tasks until restarted.",
+            hostname,
+        )
+        raise SystemExit(os.EX_UNAVAILABLE)
+
+    worker_queues = active_queues_result[hostname]
+    if not worker_queues:
+        log.error(
+            "Worker health check failed: worker %s has an empty queue consumer list. "
+            "This may indicate a catatonic state caused by a broker restart (e.g. Redis). "
+            "The worker will not pick up new tasks until restarted.",
+            hostname,
+        )
+        raise SystemExit(os.EX_UNAVAILABLE)
+
+    queue_names = [queue["name"] for queue in worker_queues if "name" in queue]
+    log.info(
+        "Worker health check passed: worker %s is alive and consuming from %d queue(s): %s",
+        hostname,
+        len(queue_names),
+        ", ".join(queue_names),
+    )
+    print(f"Worker {hostname} is healthy. Active queues: {', '.join(queue_names)}")

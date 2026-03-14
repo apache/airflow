@@ -132,6 +132,14 @@ ARG_YES = Arg(
     default=False,
 )
 
+ARG_HEALTH_CHECK_HOSTNAME = Arg(
+    ("-H", "--celery-hostname"),
+    help=(
+        "Full Celery worker hostname to check (e.g. celery@hostname). "
+        "Defaults to celery@<current hostname> when not specified."
+    ),
+)
+
 CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
 
 CELERY_COMMANDS = (
@@ -223,6 +231,23 @@ CELERY_COMMANDS = (
         help="Unsubscribe Celery worker from all its active queues",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_all_queues"),
         args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="worker-health-check",
+        help="Check Celery worker health, detecting catatonic state after broker restart",
+        description=(
+            "Performs a two-stage health check on a Celery worker. "
+            "First verifies the worker responds to ping (liveness). "
+            "Then verifies the worker has active queue consumers (readiness). "
+            "A worker that responds to ping but has no queue consumers is in a "
+            "catatonic state — it will never pick up new tasks until restarted. "
+            "This state can occur after a broker restart (e.g. Redis). "
+            "Exits with a non-zero status code on failure so that container "
+            "orchestrators (Docker, Kubernetes) can restart the worker. "
+            "See: https://github.com/apache/airflow/issues/63580"
+        ),
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.worker_health_check"),
+        args=(ARG_HEALTH_CHECK_HOSTNAME,),
     ),
 )
 
