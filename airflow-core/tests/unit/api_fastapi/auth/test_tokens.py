@@ -160,6 +160,49 @@ def test_secret_key_with_configured_kid():
         assert header["kid"] == "my-custom-kid"
 
 
+def test_generate_workload_token():
+    """generate_workload_token() produces a token with scope 'workload' and 24h expiry."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+
+    with patch.dict(
+        "os.environ",
+        {"AIRFLOW__EXECUTION_API__JWT_WORKLOAD_TOKEN_EXPIRATION_TIME": "86400"},
+    ):
+        token = generator.generate_workload_token(sub="ti-123")
+
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["sub"] == "ti-123"
+    assert claims["scope"] == "workload"
+    # Workload token should have ~24h validity, not the generator's default 60s
+    assert claims["exp"] - claims["iat"] == 86400
+
+
+def test_generate_with_custom_valid_for():
+    """generate() accepts a valid_for override."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = generator.generate(extras={"sub": "user"}, valid_for=3600)
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["exp"] - claims["iat"] == 3600
+
+
+def test_workload_token_vs_regular_token_scope():
+    """Regular tokens have no scope, workload tokens have scope 'workload'."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+
+    regular = generator.generate(extras={"sub": "user"})
+    regular_claims = jwt.decode(regular, "test-secret", algorithms=["HS512"], audience="test")
+    assert "scope" not in regular_claims
+
+    with patch.dict(
+        "os.environ",
+        {"AIRFLOW__EXECUTION_API__JWT_WORKLOAD_TOKEN_EXPIRATION_TIME": "86400"},
+    ):
+        workload = generator.generate_workload_token(sub="ti-123")
+
+    workload_claims = jwt.decode(workload, "test-secret", algorithms=["HS512"], audience="test")
+    assert workload_claims["scope"] == "workload"
+
+
 @pytest.fixture
 def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
     key = ed25519_private_key

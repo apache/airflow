@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
@@ -55,6 +59,12 @@ def client(request: pytest.FixtureRequest):
     exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
+        # Register mock JWTGenerator after lifespan starts so endpoints can issue tokens
+        mock_generator = MagicMock(spec=JWTGenerator)
+        mock_generator.generate.return_value = "mock-execution-token"
+        mock_generator.generate_workload_token.return_value = "mock-workload-token"
+        lifespan.registry.register_value(JWTGenerator, mock_generator)
+
         yield client
 
     exec_app.dependency_overrides.pop(_jwt_bearer, None)
