@@ -43,6 +43,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from registry_contract_models import validate_provider_connections
+
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
 
@@ -264,13 +266,15 @@ def main():
             version_dir = output_dir / "versions" / pid / version
             version_dir.mkdir(parents=True, exist_ok=True)
 
-            provider_data = {
-                "provider_id": pid,
-                "provider_name": provider_names.get(pid, pid),
-                "version": version,
-                "generated_at": generated_at,
-                "connection_types": conns,
-            }
+            provider_data = validate_provider_connections(
+                {
+                    "provider_id": pid,
+                    "provider_name": provider_names.get(pid, pid),
+                    "version": version,
+                    "generated_at": generated_at,
+                    "connection_types": conns,
+                }
+            )
             with open(version_dir / "connections.json", "w") as f:
                 json.dump(provider_data, f, separators=(",", ":"))
             written += 1
