@@ -57,7 +57,6 @@ def client(request: pytest.FixtureRequest):
     exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
-        # Register mock JWTGenerator after lifespan starts so endpoints can issue tokens
         mock_generator = MagicMock(spec=JWTGenerator)
         mock_generator.generate.return_value = "mock-execution-token"
         mock_generator.generate_workload_token.return_value = "mock-workload-token"

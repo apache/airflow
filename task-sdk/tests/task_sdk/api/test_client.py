@@ -260,11 +260,9 @@ class TestClient:
         response = client.get("/")
         assert response.status_code == 200
 
-        # Auth should have been swapped to the execution token
         assert client.auth is not None
         assert client.auth.token == "exec-token-123"
 
-        # Next request should use the new token
         response = client.get("/")
         assert response.status_code == 200
         assert response.request.headers["Authorization"] == "Bearer exec-token-123"
