@@ -27,7 +27,8 @@
 - **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`
 - **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
 - **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
-- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`
+- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
+- **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
@@ -56,6 +57,11 @@ UV workspace monorepo. Key paths:
 - `providers/` — 100+ provider packages, each with its own `pyproject.toml`
 - `airflow-ctl/` — management CLI tool
 - `chart/` — Helm chart for Kubernetes deployment
+- `dev/` — development utilities and scripts used to bootstrap the environment, releases, breeze dev env
+- `scripts/` — utility scripts for CI, Docker, and prek hooks (workspace distribution `apache-airflow-scripts`)
+  - `ci/prek/` — prek (pre-commit) hook scripts; shared utilities in `common_prek_utils.py`
+  - `tests/` — pytest tests for the scripts; run with `uv run --project scripts pytest scripts/tests/`
+
 
 ## Architecture Boundaries
 
