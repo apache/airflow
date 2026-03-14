@@ -57,8 +57,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0.0",
+    "apache-airflow-devel-common",
 ]
+
+[tool.uv.sources]
+apache-airflow-devel-common = {workspace = true}
 
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
