@@ -201,6 +201,28 @@ concurrently using ``asyncio.gather`` while limiting concurrency with a semaphor
    from a shared event loop. This will make high-throughput patterns such as
    pagination or request multiplexing easier to implement.
 
+When **not** to use Deferred vs Async Operators
+-----------------------------------------------
+
+While the previous sections explain when to prefer deferred or async operators,
+it is equally important to understand scenarios where one may **not** be appropriate:
+
+- **Avoid async operators for long waits**
+  Async operators keep the task process alive while waiting. If your task involves long-running
+  operations, such as slow APIs or external triggers, this can waste worker resources.
+  In such cases, prefer a deferred operator, which releases the worker slot while waiting.
+
+- **Avoid deferred operators for many short or repeated waits**
+  Deferred operators pause and resume tasks each time they defer. If deferrals occur frequently
+  or last only a short time, the overhead of stopping and restarting the task can reduce efficiency.
+  For high-frequency short waits, an async operator may be more suitable.
+
+- **Operator availability should not dictate choice**
+  Having a built-in deferrable operator can simplify implementation, but the decision
+  should be driven by the use case, not just what Airflow provides.
+  If your workflow is better suited for deferring but no operator exists yet,
+  consider implementing a custom deferred operator rather than defaulting to async.
+
 Comparison with Dynamic Task Mapping
 ------------------------------------
 
