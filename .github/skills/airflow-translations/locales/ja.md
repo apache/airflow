@@ -48,10 +48,10 @@ The following terms **must remain in English unchanged** (case-sensitive):
 | failed | 失敗した |
 | success | 成功 |
 | queued | 待機中 |
-| scheduled | スケジュール済み |
-| skipped | スキップ済み |
+| scheduled | スケジュール済 |
+| skipped | スキップ済 |
 | deferred | 延期済 |
-| removed | 削除済み |
+| removed | 削除済 |
 | upstream_failed | 上流が失敗しました |
 
 ## 4. Japanese-Specific Guidelines
