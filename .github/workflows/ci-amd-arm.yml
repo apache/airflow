@@ -138,6 +138,7 @@ jobs:
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+      is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
       - name: "Cleanup repo"
         shell: bash

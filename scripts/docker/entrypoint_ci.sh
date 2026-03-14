@@ -275,12 +275,12 @@ function determine_airflow_to_use() {
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        # Use uv run to install necessary dependencies automatically
-        # in the future we will be able to use uv sync when `uv.lock` is supported
-        # for the use in parallel runs in docker containers--no-cache is needed - otherwise there is
-        # possibility of overriding temporary environments by multiple parallel processes
-        uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
-           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-"${PYTHON_MAJOR_MINOR_VERSION}".txt
+        # Use uv sync --frozen to install exactly what is pinned in uv.lock.
+        # --no-cache is needed - otherwise there is possibility of overriding temporary
+        # environments by multiple parallel processes
+        uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
+            --group leveldb --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python --no-cache
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
