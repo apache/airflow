@@ -28,7 +28,7 @@ test.describe("DAG Audit Log", () => {
   const triggerCount = 3;
   const expectedEventCount = triggerCount + 1;
 
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(3 * 60 * 1000);

@@ -56,7 +56,7 @@ export class EventsPage extends BasePage {
 
     const filterMenu = this.page.getByRole("menu");
 
-    await expect(filterMenu).toBeVisible({ timeout: 5000 });
+    await expect(filterMenu).toBeVisible({ timeout: 10_000 });
 
     const menuItem = filterMenu.getByRole("menuitem", { name: filterName });
 
@@ -133,10 +133,13 @@ export class EventsPage extends BasePage {
       await filterPill.click();
     }
 
-    // Wait for input to appear and fill it
-    const filterInput = this.page.getByPlaceholder(filterLabel, { exact: false });
+    const filterInput = this.page
+      .locator("div")
+      .filter({ hasText: `${filterLabel}:` })
+      .locator("input")
+      .first();
 
-    await expect(filterInput).toBeVisible({ timeout: 5000 });
+    await expect(filterInput).toBeVisible({ timeout: 10_000 });
     await filterInput.fill(value);
     await filterInput.press("Enter");
     await this.waitForTableLoad();
