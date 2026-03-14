@@ -30,6 +30,15 @@ from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
 
 
@@ -220,6 +229,10 @@ class TestCliConfigList:
         lines = output.splitlines()
         assert any(line.startswith("hostname_callable = test_env") for line in lines if line)
 
+    @pytest.mark.skipif(
+        not _provider_installed("airflow.providers.celery"),
+        reason="celery provider not installed",
+    )
     def test_cli_has_providers(self, stdout_capture):
         with stdout_capture as temp_stdout:
             config_command.show_config(

@@ -38,6 +38,15 @@ from airflow.providers_manager import (
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
@@ -413,6 +422,9 @@ class TestProvidersMetadataLoading:
         assert behaviour["relabeling"] == {"login": "Email Address"}
         assert behaviour["placeholders"]["host"] == "smtp.gmail.com"
 
+    @pytest.mark.skipif(
+        not _provider_installed("airflow.providers.http"), reason="http provider not installed"
+    )
     def test_load_ui_for_http_provider(self):
         """Test that HTTP provider ui metadata is loaded from provider info."""
         pm = ProvidersManager()
@@ -425,6 +437,9 @@ class TestProvidersMetadataLoading:
         assert "relabeling" in behaviour
         assert "placeholders" in behaviour
 
+    @pytest.mark.skipif(
+        not _provider_installed("airflow.providers.http"), reason="http provider not installed"
+    )
     def test_ui_metadata_loading_without_hook_import(self):
         """Test that UI metadata loads from provider info without importing hook classes."""
         with patch("airflow.providers_manager.import_string") as mock_import:

@@ -31,10 +31,34 @@ from airflow.executors.executor_constants import (
 )
 
 
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 class TestStandaloneCommand:
     @pytest.mark.parametrize(
         "conf_executor_name",
-        [LOCAL_EXECUTOR, CELERY_EXECUTOR, KUBERNETES_EXECUTOR],
+        [
+            LOCAL_EXECUTOR,
+            pytest.param(
+                CELERY_EXECUTOR,
+                marks=pytest.mark.skipif(
+                    not _provider_installed("airflow.providers.celery"),
+                    reason="celery provider not installed",
+                ),
+            ),
+            pytest.param(
+                KUBERNETES_EXECUTOR,
+                marks=pytest.mark.skipif(
+                    not _provider_installed("airflow.providers.cncf.kubernetes"),
+                    reason="cncf.kubernetes provider not installed",
+                ),
+            ),
+        ],
     )
     def test_calculate_env(self, conf_executor_name):
         """Should always force a local executor compatible with the db."""

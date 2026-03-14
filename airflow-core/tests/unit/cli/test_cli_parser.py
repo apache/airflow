@@ -669,6 +669,7 @@ class TestCliSubprocess:
         # Minimum run time of Airflow CLI should at least be within 5s
         assert timing_result < threshold
 
+    @pytest.mark.skipif(not _celery_installed, reason="celery provider not installed")
     def test_airflow_config_contains_providers(self):
         """
         Test that airflow config has providers included by default.
@@ -687,6 +688,7 @@ class TestCliSubprocess:
         assert CONFIG_FILE.exists()
         assert "celery_config_options" in CONFIG_FILE.read_text()
 
+    @pytest.mark.skipif(not _celery_installed, reason="celery provider not installed")
     def test_airflow_config_output_contains_providers_by_default(self):
         """Test that airflow config has providers excluded in config list when asked for it."""
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

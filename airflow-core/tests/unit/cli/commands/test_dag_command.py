@@ -55,6 +55,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     parse_and_sync_to_db,
 )
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from unit.models import TEST_DAGS_FOLDER
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
@@ -491,6 +492,7 @@ class TestCliDags:
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_operator").is_paused
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
@@ -506,6 +508,7 @@ class TestCliDags:
         assert not DagModel.get_dagmodel("example_kubernetes_executor").is_paused
         assert not DagModel.get_dagmodel("example_xcom_args").is_paused
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-id-as-regex"])

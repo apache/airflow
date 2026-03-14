@@ -53,6 +53,15 @@ from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 pytestmark = pytest.mark.db_test
 
 
@@ -88,6 +97,7 @@ def initialized_db():
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self, initialized_db):
+        pytest.importorskip("airflow.providers.fab")
         import airflow.models
 
         # Ensure we have a fresh connection for schema comparison
@@ -212,7 +222,7 @@ class TestDb:
                 },
                 1,
             ),
-            (
+            pytest.param(
                 {
                     (
                         "core",
@@ -220,6 +230,10 @@ class TestDb:
                     ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
                 },
                 2,
+                marks=pytest.mark.skipif(
+                    not _provider_installed("airflow.providers.fab"),
+                    reason="fab provider not installed",
+                ),
             ),
         ],
     )
