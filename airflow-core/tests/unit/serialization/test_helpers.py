@@ -16,38 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import logging
-from datetime import datetime
 
-from airflow import DAG
-from airflow.sdk import task
-from airflow.sdk.observability import trace
+def test_serialize_template_field_with_very_small_max_length(monkeypatch):
+    """Test that truncation message is prioritized even for very small max_length."""
+    monkeypatch.setenv("AIRFLOW__CORE__MAX_TEMPLATED_FIELD_LENGTH", "1")
 
-logger = logging.getLogger("airflow.otel_test_dag")
+    from airflow.serialization.helpers import serialize_template_field
 
-tracer = trace.get_tracer(__name__)
+    result = serialize_template_field("This is a long string", "test")
 
-args = {
-    "owner": "airflow",
-    "start_date": datetime(2024, 9, 1),
-    "retries": 0,
-}
-
-
-@task
-def task1():
-    logger.info("starting task1")
-
-    with tracer.start_as_current_span("sub_span1") as s1:
-        s1.set_attribute("attr1", "val1")
-
-    logger.info("task1 finished.")
-
-
-with DAG(
-    "otel_test_dag",
-    default_args=args,
-    schedule=None,
-    catchup=False,
-) as dag:
-    task1()
+    # The truncation message should be shown even if it exceeds max_length
+    # This ensures users always see why content is truncated
+    assert result
+    assert "Truncated. You can change this behaviour" in result
