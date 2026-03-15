@@ -130,6 +130,7 @@ def ti_run(
             TI.map_index,
             TI.try_number,
             TI.max_tries,
+            TI.start_date,
             TI.next_method,
             TI.hostname,
             TI.unixname,
