@@ -381,6 +381,7 @@ jobs:
           UPGRADE_MPROCS: "false"
           UPGRADE_PROTOC: "false"
           UPGRADE_OPENAPI_GENERATOR: "false"
+          UPGRADE_COOLDOWN_DAYS: "4"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:

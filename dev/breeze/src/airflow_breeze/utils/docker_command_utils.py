@@ -56,7 +56,7 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -155,10 +155,8 @@ def check_docker_permission_denied() -> bool:
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
-            get_console().print(
-                "ERROR: You have `permission denied` error when trying to communicate with docker."
-            )
-            get_console().print(
+            console_print("ERROR: You have `permission denied` error when trying to communicate with docker.")
+            console_print(
                 "Most likely you need to add your user to `docker` group: \
                 https://docs.docker.com/ engine/install/linux-postinstall/ ."
             )
@@ -182,13 +180,13 @@ def check_docker_is_running():
         check=False,
     )
     if response.returncode != 0:
-        get_console().print(
+        console_print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         if response.stderr:
-            get_console().print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
+            console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
         if os.environ.get("CODESPACES", "").lower() == "true":
-            get_console().print(
+            console_print(
                 "\n[info]It looks like you are running in a GitHub Codespace.[/]\n"
                 "[info]Try the following troubleshooting steps:[/]\n"
                 "  1. Check if the Docker socket exists: ls -la /var/run/docker.sock\n"
@@ -223,7 +221,7 @@ def check_docker_version(quiet: bool = False):
             regex = re.compile(r"^(" + version.VERSION_PATTERN + r").*$", re.VERBOSE | re.IGNORECASE)
             docker_version = re.sub(regex, r"\1", docker_version_result.stdout.strip())
         if docker_version == "":
-            get_console().print(
+            console_print(
                 f"""
 [warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
 [warning]install docker at least: {MIN_DOCKER_VERSION} version.[/]
@@ -234,9 +232,9 @@ def check_docker_version(quiet: bool = False):
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
                 if not quiet:
-                    get_console().print(f"[success]Good version of Docker: {docker_version}.[/]")
+                    console_print(f"[success]Good version of Docker: {docker_version}.[/]")
             else:
-                get_console().print(
+                console_print(
                     f"""
 [error]Your version of docker is too old: {docker_version}.\n[/]
 [warning]Please upgrade to at least {MIN_DOCKER_VERSION}.\n[/]
@@ -257,7 +255,7 @@ def check_container_engine_is_docker(quiet: bool = False) -> bool:
         dry_run_override=False,
     )
     if response.returncode != 0:
-        get_console().print(
+        console_print(
             "[error]Could not determine the container engine.[/]\n"
             "[warning]Please ensure that Docker is installed and running.[/]"
         )
@@ -269,12 +267,12 @@ def check_container_engine_is_docker(quiet: bool = False) -> bool:
         "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
     )
     if podman_engine_enabled:
-        get_console().print(
+        console_print(
             "[warning]Podman container engine detected.[/]\n"
             "[warning]Podman container engine has not become fully supported in breeze yet.[/]"
         )
         return False
-    get_console().print("[success]Docker container engine detected.[/]")
+    console_print("[success]Docker container engine detected.[/]")
     return True
 
 
@@ -294,15 +292,13 @@ def check_remote_ghcr_io_commands():
     )
     if response.returncode != 0:
         if "no such host" in response.stderr.decode("utf-8"):
-            get_console().print(
-                "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
-            )
+            console_print("[error]\nYou seem to be offline. This command requires access to network.[/]\n")
             sys.exit(2)
-        get_console().print("[error]Response:[/]\n")
-        get_console().print(response.stdout.decode("utf-8"))
-        get_console().print(response.stderr.decode("utf-8"))
+        console_print("[error]Response:[/]\n")
+        console_print(response.stdout.decode("utf-8"))
+        console_print(response.stderr.decode("utf-8"))
         if os.environ.get("CI"):
-            get_console().print(
+            console_print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
                 "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
                 "\n¯\\_(ツ)_/¯\n\n"
@@ -313,7 +309,7 @@ def check_remote_ghcr_io_commands():
             )
             sys.exit(1)
         else:
-            get_console().print(
+            console_print(
                 "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
                 "[warning]Please logout. Run this command:[/]\n\n"
                 "   docker logout ghcr.io\n\n"
@@ -340,7 +336,7 @@ def check_docker_compose_version(quiet: bool = False):
             dry_run_override=False,
         )
     except Exception:
-        get_console().print(
+        console_print(
             "[error]You either do not have docker-composer or have docker-compose v1 installed.[/]\n"
             "[warning]Breeze does not support docker-compose v1 any more as it has been replaced by v2.[/]\n"
             "Follow https://docs.docker.com/compose/migrate/ to migrate to v2"
@@ -354,11 +350,9 @@ def check_docker_compose_version(quiet: bool = False):
             good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
                 if not quiet:
-                    get_console().print(
-                        f"[success]Good version of docker-compose: {docker_compose_version}[/]"
-                    )
+                    console_print(f"[success]Good version of docker-compose: {docker_compose_version}[/]")
             else:
-                get_console().print(
+                console_print(
                     f"""
 [error]You have too old version of docker-compose: {docker_compose_version}!\n[/]
 [warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
@@ -368,7 +362,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.\n
                 )
                 sys.exit(1)
     else:
-        get_console().print(
+        console_print(
             f"""
 [error]Unknown docker-compose version.[/]
 [warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
@@ -564,7 +558,7 @@ def check_windows_filesystem_mount(quiet: bool = False):
     )
     fs_type = result.stdout.strip()
     if fs_type in ("v9fs", "9p"):
-        get_console().print(
+        console_print(
             f"[error]Airflow sources are on a Windows filesystem ({AIRFLOW_ROOT_PATH})![/]\n\n"
             f"Airflow requires a POSIX-compliant filesystem. Running Breeze with sources on\n"
             f"Windows (NTFS) mounted via WSL2 will cause permission errors, broken executable\n"
@@ -576,7 +570,7 @@ def check_windows_filesystem_mount(quiet: bool = False):
         )
         sys.exit(1)
     if get_verbose() and not quiet:
-        get_console().print(f"[success]Filesystem check passed (type: {fs_type})[/]")
+        console_print(f"[success]Filesystem check passed (type: {fs_type})[/]")
 
 
 def check_executable_entrypoint_permissions(quiet: bool = False):
@@ -585,9 +579,9 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     for entrypoint in SCRIPTS_DOCKER_PATH.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
-            get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
+            console_print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
         if not os.access(entrypoint.as_posix(), os.X_OK):
-            get_console().print(
+            console_print(
                 f"[error]You do not have executable permissions on {entrypoint}[/]\n"
                 f"You likely checked out airflow repo on a filesystem that does not support executable "
                 f"permissions (for example on a Windows filesystem that is mapped to Linux VM). Airflow "
@@ -595,7 +589,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
             )
             sys.exit(1)
     if get_verbose() and not quiet:
-        get_console().print("[success]Executable permissions on entrypoints are OK[/]")
+        console_print("[success]Executable permissions on entrypoints are OK[/]")
 
 
 @lru_cache
@@ -603,8 +597,8 @@ def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
     container_engine_is_docker = check_container_engine_is_docker(quiet)
     if not container_engine_is_docker:
-        get_console().print("[error]Unsupported container engine detected.[/]")
-        get_console().print("[error]Install and enable Docker to continue.[/]")
+        console_print("[error]Unsupported container engine detected.[/]")
+        console_print("[error]Install and enable Docker to continue.[/]")
         sys.exit(1)
     else:
         check_docker_version(quiet)
@@ -612,7 +606,7 @@ def perform_environment_checks(quiet: bool = False):
         check_windows_filesystem_mount(quiet)
         check_executable_entrypoint_permissions(quiet)
     if not quiet:
-        get_console().print(f"[success]Host python version is {sys.version}[/]")
+        console_print(f"[success]Host python version is {sys.version}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -627,13 +621,13 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     platforms: set[str] = set()
     for image_params in image_params_list:
         platforms.add(image_params.platform)
-    get_console().print(f"[info]Warming up the builder for platforms: {platforms}")
+    console_print(f"[info]Warming up the builder for platforms: {platforms}")
     for build_platform in platforms:
         docker_context = get_and_use_docker_context(image_params.builder)
         if docker_context == "default":
             return
         docker_syntax = get_docker_syntax_version()
-        get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
+        console_print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
         warm_up_image_param = copy.deepcopy(image_params_list[0])
         warm_up_image_param.push = False
         warm_up_image_param.platform = build_platform
@@ -653,7 +647,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
             check=False,
         )
         if warm_up_command_result.returncode != 0:
-            get_console().print(
+            console_print(
                 f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
                 f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
             )
@@ -770,7 +764,7 @@ def autodetect_docker_context():
         text=True,
     )
     if result.returncode != 0:
-        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        console_print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
     try:
         context_dicts = json.loads(result.stdout)
@@ -780,7 +774,7 @@ def autodetect_docker_context():
         context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
     known_contexts = {info["Name"]: info for info in context_dicts}
     if not known_contexts:
-        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        console_print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
     for preferred_context_name in PREFERRED_CONTEXTS:
         try:
@@ -790,10 +784,10 @@ def autodetect_docker_context():
         # On Windows, some contexts are used for WSL2. We don't want to use those.
         if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
             continue
-        get_console().print(f"[info]Using {preferred_context_name!r} as context.[/]")
+        console_print(f"[info]Using {preferred_context_name!r} as context.[/]")
         return preferred_context_name
     fallback_context = next(iter(known_contexts))
-    get_console().print(
+    console_print(
         f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
         f"Using {fallback_context} as context.[/]"
     )
@@ -806,7 +800,7 @@ def get_and_use_docker_context(context: str):
     run_command(["docker", "context", "create", context], check=False)
     output = run_command(["docker", "context", "use", context], check=False, stdout=DEVNULL, stderr=DEVNULL)
     if output.returncode:
-        get_console().print(f"[warning]Could no use context {context!r}. Continuing with current context[/]")
+        console_print(f"[warning]Could no use context {context!r}. Continuing with current context[/]")
     return context
 
 
@@ -879,21 +873,21 @@ def execute_command_in_shell(
     shell_params.skip_image_upgrade_check = True
     if get_verbose():
         if not preserve_backend:
-            get_console().print("[warning]Sqlite DB is cleaned[/]")
+            console_print("[warning]Sqlite DB is cleaned[/]")
         else:
-            get_console().print(f"[info]Using backend: {shell_params.backend}[/]")
+            console_print(f"[info]Using backend: {shell_params.backend}[/]")
         if forward_ports:
-            get_console().print("[info]Port forwarding enabled[/]")
+            console_print("[info]Port forwarding enabled[/]")
         else:
-            get_console().print("[warning]Disabled port forwarding[/]")
-        get_console().print(f"[warning]Project name set to: {project_name}[/]")
-        get_console().print("[warning]Forced quiet mode[/]")
-        get_console().print("[warning]Forced skipping environment initialization[/]")
-        get_console().print("[warning]Forced skipping upgrade check[/]")
+            console_print("[warning]Disabled port forwarding[/]")
+        console_print(f"[warning]Project name set to: {project_name}[/]")
+        console_print("[warning]Forced quiet mode[/]")
+        console_print("[warning]Forced skipping environment initialization[/]")
+        console_print("[warning]Forced skipping upgrade check[/]")
     if command:
         shell_params.extra_args = (command,)
         if get_verbose():
-            get_console().print(f"[info]Command to execute: '{command}'[/]")
+            console_print(f"[info]Command to execute: '{command}'[/]")
     perform_environment_checks(quiet=shell_params.quiet)
     return enter_shell(shell_params, output=output, signal_error=signal_error)
 
@@ -915,14 +909,14 @@ def enter_shell(
     fix_ownership_using_docker(quiet=shell_params.quiet)
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None and not shell_params.quiet:
-        get_console().print(ASCIIART, style=ASCIIART_STYLE)
+        console_print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file("suppress_cheatsheet") is None and not shell_params.quiet:
-        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
+        console_print(CHEATSHEET, style=CHEATSHEET_STYLE)
     if shell_params.use_airflow_version:
         # in case you use specific version of Airflow, you want to bring airflow down automatically before
         # using it. This prevents the problem that if you have newer DB, airflow will not know how
         # to migrate to it and fail with "Can't locate revision identified by 'xxxx'".
-        get_console().print(
+        console_print(
             f"[warning]Bringing the project down as {shell_params.use_airflow_version} "
             f"airflow version is used[/]"
         )
@@ -947,11 +941,11 @@ def enter_shell(
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            console_print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
         if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
-            get_console().print(
+            console_print(
                 "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
                 "as a backend with OpenLineage integration via Breeze[/]\n"
             )
@@ -968,9 +962,9 @@ def enter_shell(
     if command_result.returncode == 0:
         return command_result
     if signal_error:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+        console_print(f"[red]Error {command_result.returncode} returned[/]")
     if get_verbose():
-        get_console().print(command_result.stderr)
+        console_print(command_result.stderr)
     notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
     return command_result
 
@@ -1028,7 +1022,7 @@ def is_docker_rootless() -> bool:
             quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
-            get_console().print("[info]Docker is running in rootless mode.[/]\n")
+            console_print("[info]Docker is running in rootless mode.[/]\n")
             return True
     except FileNotFoundError:
         # we ignore if docker is missing
@@ -1039,12 +1033,12 @@ def is_docker_rootless() -> bool:
 def check_airflow_cache_builder_configured():
     result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
     if result_inspect_builder.returncode != 0:
-        get_console().print(
+        console_print(
             "[error]Airflow Cache builder must be configured to "
             "build multi-platform images with multiple builders[/]"
         )
-        get_console().print()
-        get_console().print(
+        console_print()
+        console_print(
             "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
             " for instructions on setting it up."
         )
@@ -1054,9 +1048,9 @@ def check_airflow_cache_builder_configured():
 def check_regctl_installed():
     result_regctl = run_command(["regctl", "version"], check=False)
     if result_regctl.returncode != 0:
-        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
-        get_console().print()
-        get_console().print(
+        console_print("[error]Regctl must be installed and on PATH to release the images[/]")
+        console_print()
+        console_print(
             "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
         )
         sys.exit(1)
@@ -1071,20 +1065,20 @@ def check_docker_buildx_plugin():
         dry_run_override=False,
     )
     if result_docker_buildx.returncode != 0:
-        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
-        get_console().print()
-        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        console_print("[error]Docker buildx plugin must be installed to release the images[/]")
+        console_print()
+        console_print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
         sys.exit(1)
     from packaging.version import Version
 
     version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v").split("-")[0]
     packaging_version = Version(version)
     if packaging_version < Version("0.13.0"):
-        get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
-        get_console().print()
-        get_console().print(
+        console_print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
+        console_print()
+        console_print(
             "See https://github.com/docker/buildx?tab=readme-ov-file#installing for installation info."
         )
         sys.exit(1)
     else:
-        get_console().print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")
+        console_print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")

@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from rich.markup import escape
 
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 def get_ga_output(name: str, value: Any) -> str:
     output_name = name.replace("_", "-")
     printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
+    console_print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
     return f"{output_name}={printed_value}"
 
 
@@ -101,7 +101,7 @@ def download_file_from_github(
     import requests
 
     url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={reference}"
-    get_console().print(f"[info]Downloading {url} to {output_file}")
+    console_print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
         headers = {"Accept": "application/vnd.github.v3.raw"}
         if github_token:
@@ -111,7 +111,7 @@ def download_file_from_github(
             response = requests.get(url, headers=headers, timeout=timeout)
             log_github_rate_limit_error(response)
             if response.status_code == 403:
-                get_console().print(
+                console_print(
                     f"[error]Access denied to {url}. This may be caused by:\n"
                     f"   1. Network issues or VPN settings\n"
                     f"   2. GitHub API rate limiting\n"
@@ -119,18 +119,16 @@ def download_file_from_github(
                 )
                 sys.exit(1)
             if response.status_code == 404:
-                get_console().print(f"[warning]The {url} has not been found. Skipping")
+                console_print(f"[warning]The {url} has not been found. Skipping")
                 return False
             if response.status_code != 200:
-                get_console().print(
-                    f"[error]{url} could not be downloaded. Status code {response.status_code}"
-                )
+                console_print(f"[error]{url} could not be downloaded. Status code {response.status_code}")
                 sys.exit(1)
             output_file.write_bytes(response.content)
         except requests.Timeout:
-            get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
+            console_print(f"[error]The request to {url} timed out after {timeout} seconds.")
             sys.exit(1)
-    get_console().print(f"[success]Downloaded {url} to {output_file}")
+    console_print(f"[success]Downloaded {url} to {output_file}")
     return True
 
 
@@ -151,20 +149,18 @@ def get_active_airflow_versions(
     from packaging.version import Version
 
     airflow_release_dates: dict[str, str] = {}
-    get_console().print(
+    console_print(
         f"\n[warning]Make sure you have `{remote_name}` remote added pointing to apache/airflow repository\n"
     )
-    get_console().print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
+    console_print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
         ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
-        get_console().print(
-            "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
-        )
-        get_console().print(f"{ex}\n")
-        get_console().print(
+        console_print("[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n")
+        console_print(f"{ex}\n")
+        console_print(
             "[info]You can add apache remote with on of those commands (depend which protocol you use):\n"
             " * git remote add apache https://github.com/apache/airflow.git\n"
             " * git remote add apache git@github.com:apache/airflow.git\n"
@@ -179,21 +175,21 @@ def get_active_airflow_versions(
     for version in airflow_versions:
         date = get_tag_date(version)
         if not date:
-            get_console().print("[error]Error fetching tag date for Airflow {version}")
+            console_print("[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
-    get_console().print("[info]All Airflow 2/3 versions loaded from GitHub[/]")
+    console_print("[info]All Airflow 2/3 versions loaded from GitHub[/]")
     if get_verbose():
-        get_console().print("[info]Found active Airflow versions:[/]")
-        get_console().print(airflow_versions)
+        console_print("[info]Found active Airflow versions:[/]")
+        console_print(airflow_versions)
     if confirm:
         for version in airflow_versions:
-            get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
+            console_print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
         if answer == Answer.NO:
-            get_console().print("[red]Aborting[/]")
+            console_print("[red]Aborting[/]")
             sys.exit(1)
     return airflow_versions, airflow_release_dates
 
@@ -236,7 +232,7 @@ def get_tag_date(tag: str) -> str | None:
     try:
         tag_object = repo.tags[tag].object
     except IndexError:
-        get_console().print(f"[warning]Tag {tag} not found in the repository")
+        console_print(f"[warning]Tag {tag} not found in the repository")
         return None
     timestamp: int = (
         tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
@@ -264,7 +260,7 @@ def download_artifact_from_run_id(run_id: str, output_file: Path, github_reposit
     artifact_response = requests.get(url, headers=headers)
 
     if artifact_response.status_code != 200:
-        get_console().print(
+        console_print(
             "[error]Describing artifacts failed with status code "
             f"{artifact_response.status_code}: {artifact_response.text}",
         )
@@ -278,15 +274,15 @@ def download_artifact_from_run_id(run_id: str, output_file: Path, github_reposit
             break
 
     if not download_url:
-        get_console().print(f"[error]No artifact found for {file_name}")
+        console_print(f"[error]No artifact found for {file_name}")
         sys.exit(1)
 
-    get_console().print(f"[info]Downloading artifact from {download_url} to {output_file}")
+    console_print(f"[info]Downloading artifact from {download_url} to {output_file}")
 
     response = session.get(download_url, stream=True, headers=headers)
 
     if response.status_code != 200:
-        get_console().print(
+        console_print(
             f"[error]Downloading artifacts failed with status code {response.status_code}: {response.text}",
         )
         sys.exit(1)
@@ -323,7 +319,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     pull_response = session.get(pr_url, headers=headers)
 
     if pull_response.status_code != 200:
-        get_console().print(
+        console_print(
             f"[error]Fetching PR failed with status codee {pull_response.status_code}: {pull_response.text}",
         )
         sys.exit(1)
@@ -335,7 +331,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     )
 
     if workflow_runs.status_code != 200:
-        get_console().print(
+        console_print(
             "[error]Fetching workflow runs failed with status code %s, %s, "
             "you might need to provide GITHUB_TOKEN, set it as environment variable",
             workflow_runs.status_code,
@@ -353,7 +349,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
             run_id = run["id"]
             break
 
-    get_console().print(f"[info]Found run id {run_id} for PR {pr}")
+    console_print(f"[info]Found run id {run_id} for PR {pr}")
 
     download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
 
