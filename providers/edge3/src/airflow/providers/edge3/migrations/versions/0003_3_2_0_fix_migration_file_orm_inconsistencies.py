@@ -30,8 +30,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.db_types import TIMESTAMP
-
 # revision identifiers, used by Alembic.
 revision = "8c275b6fbaa8"
 down_revision = "b3c4d5e6f7a8"
@@ -41,6 +39,8 @@ edge3_version = "3.2.0"
 
 
 def upgrade() -> None:
+    from airflow.migrations.db_types import TIMESTAMP
+
     with op.batch_alter_table("edge_job", schema=None) as batch_op:
         batch_op.alter_column(
             "queued_dttm", existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=True
@@ -64,6 +64,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    from airflow.migrations.db_types import TIMESTAMP
+
     with op.batch_alter_table("edge_worker", schema=None) as batch_op:
         batch_op.alter_column(
             "last_update", existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=True
