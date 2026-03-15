@@ -138,6 +138,7 @@ jobs:
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+      is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -328,6 +329,7 @@ jobs:
     secrets:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   providers:
     name: "provider distributions tests"
