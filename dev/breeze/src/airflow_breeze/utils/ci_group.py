@@ -20,7 +20,7 @@ import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from airflow_breeze.utils.console import MessageType, get_console
+from airflow_breeze.utils.console import MessageType, console_print, get_console
 from airflow_breeze.utils.path_utils import skip_group_output
 
 if TYPE_CHECKING:
@@ -62,11 +62,11 @@ def ci_group(
     setattr(ci_group, "__in_ci_group__", True)
     if not skip_printing_title:
         if message_type is not None:
-            get_console().print(f"::group::[{message_type.value}]{title}[/]")
+            console_print(f"::group::[{message_type.value}]{title}[/]")
         else:
-            get_console().print(f"::group::{title}")
+            console_print(f"::group::{title}")
         try:
             yield
         finally:
-            get_console().print("::endgroup::")
+            console_print("::endgroup::")
             setattr(ci_group, "__in_ci_group__", False)

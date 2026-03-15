@@ -25,7 +25,7 @@ import click
 
 from airflow_breeze.commands.common_options import argument_doc_packages
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
 from airflow_breeze.utils.run_utils import run_command
@@ -116,21 +116,21 @@ def workflow_run_publish(
     workflow_branch: str = "main",
 ):
     if len(doc_packages) == 0:
-        get_console().print(
+        console_print(
             "[red]Error: No doc packages provided. Please provide at least one doc package.[/red]",
         )
         sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
-        get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
-        get_console().print(
+        console_print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
+        console_print(
             "\nThis might not be what you want unless your token has "
             "sufficient permissions to trigger workflows."
         )
-        get_console().print(
+        console_print(
             "If you remove GITHUB_TOKEN, workflow_run will use the authentication you already "
             "set-up with `gh auth login`.\n"
         )
-    get_console().print(
+    console_print(
         f"[blue]Validating ref: {ref}[/blue]",
     )
 
@@ -145,13 +145,13 @@ def workflow_run_publish(
         tag_respo = json.loads(stdout)
 
         if not tag_respo.get("ref"):
-            get_console().print(
+            console_print(
                 f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
             )
-            get_console().print("\nYou can add --skip-tag-validation to skip this validation.")
+            console_print("\nYou can add --skip-tag-validation to skip this validation.")
             sys.exit(1)
 
-    get_console().print(
+    console_print(
         f"[blue]Triggering workflow {WORKFLOW_NAME_MAPS['publish-docs']}: at {APACHE_AIRFLOW_REPO}[/blue]",
     )
     from packaging.version import InvalidVersion, Version
@@ -162,7 +162,7 @@ def workflow_run_publish(
         except InvalidVersion as e:
             f"[red]Invalid version passed as --airflow-version:  {airflow_version}[/red]: {e}"
             sys.exit(1)
-        get_console().print(
+        console_print(
             f"[blue]Using provided Airflow version: {airflow_version}[/blue]",
         )
     if airflow_base_version:
@@ -171,7 +171,7 @@ def workflow_run_publish(
         except InvalidVersion as e:
             f"[red]Invalid base version passed as --airflow-base-version:  {airflow_version}[/red]: {e}"
             sys.exit(1)
-        get_console().print(
+        console_print(
             f"[blue]Using provided Airflow base version: {airflow_base_version}[/blue]",
         )
     if not airflow_version and airflow_base_version:
@@ -214,12 +214,12 @@ def workflow_run_publish(
 
     branch = "main" if site_env == "live" else "staging"
 
-    get_console().print(
+    console_print(
         f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
     )
     wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
 
-    get_console().print(
+    console_print(
         f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
     )
 
@@ -229,13 +229,13 @@ def workflow_run_publish(
         branch=branch,
     )
 
-    get_console().print(
+    console_print(
         f"[blue]Refreshing completed workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
     )
 
     workflow_fields = {"source": site_env}
 
-    get_console().print(
+    console_print(
         f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
     )
     trigger_workflow_and_monitor(

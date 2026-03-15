@@ -102,8 +102,8 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``pyspark``                                 ``>=3.5.2``
-``grpcio-status``                           ``>=1.59.0``
+``pyspark-client``                          ``>=4.0.0``
+``grpcio-status``                           ``>=1.67.0``
 ==========================================  ==================
 
 Cross provider package dependencies
