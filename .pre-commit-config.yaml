@@ -238,6 +238,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-distribution-gitignore
+        name: Check distribution .gitignore files have *.iml
+        entry: ./scripts/ci/prek/check_distribution_gitignore.py
+        language: python
+        files: >
+          (?x)
+          ^.*/\.gitignore$|
+          ^\.gitignore$|
+          ^.*/pyproject\.toml$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -371,7 +383,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f  # frozen: v1.22.0
+    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -408,7 +420,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.5']
+        additional_dependencies: ['ruff==0.15.6']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
