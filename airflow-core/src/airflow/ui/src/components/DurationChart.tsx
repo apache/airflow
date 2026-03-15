@@ -25,6 +25,7 @@ import {
   LineElement,
   BarElement,
   Filler,
+  Legend,
   Tooltip,
 } from "chart.js";
 import type { PartialEventContext } from "chartjs-plugin-annotation";
@@ -47,6 +48,7 @@ ChartJS.register(
   BarElement,
   LineElement,
   Filler,
+  Legend,
   Tooltip,
   annotationPlugin,
 );
@@ -55,6 +57,14 @@ const average = (ctx: PartialEventContext, index: number) => {
   const values: Array<number> | undefined = ctx.chart.data.datasets[index]?.data as Array<number> | undefined;
 
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
+};
+
+const median = (ctx: PartialEventContext, index: number) => {
+  const values = ctx.chart.data.datasets[index]?.data as Array<number> | undefined;
+  if (!values) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] ?? 0 : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 };
 
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
@@ -101,7 +111,6 @@ export const DurationChart = ({
   const { selectedTimezone } = useTimezone();
   const [queuedColorToken] = useToken("colors", ["queued.solid"]);
 
-  // Get states and create color tokens for them
   const states = entries?.map((entry) => entry.state).filter(Boolean) ?? [];
   const stateColorTokens = useToken(
     "colors",
@@ -112,7 +121,6 @@ export const DurationChart = ({
     return undefined;
   }
 
-  // Create a mapping of state to color for easy lookup
   const stateColorMap: Record<string, string> = {};
 
   states.forEach((state, index) => {
@@ -145,141 +153,156 @@ export const DurationChart = ({
     value: (ctx: PartialEventContext) => average(ctx, 0),
   };
 
+  const medianAnnotation = {
+    borderColor: "blue",
+    borderDash: [6, 3],
+    borderWidth: 2,
+    label: {
+      content: (ctx: PartialEventContext) => `Median: ${renderDuration(median(ctx, 1), false) ?? "0"}`,
+      display: true,
+      position: "end",
+    },
+    scaleID: "y",
+    value: (ctx: PartialEventContext) => median(ctx, 1),
+  };
+
   return (
-    <Box>
+    <Box w="100%">
       <Heading pb={2} size="sm" textAlign="center">
         {kind === "Dag Run"
           ? translate("durationChart.lastDagRun", { count: entries.length })
           : translate("durationChart.lastTaskInstance", { count: entries.length })}
       </Heading>
-      <Bar
-        data={{
-          datasets: [
-            {
-              backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
-              data: entries.map((entry: RunResponse) => {
-                switch (kind) {
-                  case "Dag Run": {
-                    const run = entry as GridRunsResponse;
+      <Box h="400px">
+        <Bar
+          data={{
+            datasets: [
+              {
+                backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
+                data: entries.map((entry: RunResponse) => {
+                  switch (kind) {
+                    case "Dag Run": {
+                      const run = entry as GridRunsResponse;
 
-                    return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
-                      ? Number(getDuration(run.queued_at, run.start_date))
-                      : 0;
+                      return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
+                        ? Number(getDuration(run.queued_at, run.start_date))
+                        : 0;
+                    }
+                    case "Task Instance": {
+                      const taskInstance = entry as TaskInstanceResponse;
+
+                      return taskInstance.queued_when !== null &&
+                        taskInstance.start_date !== null &&
+                        taskInstance.queued_when < taskInstance.start_date
+                        ? Number(getDuration(taskInstance.queued_when, taskInstance.start_date))
+                        : 0;
+                    }
+                    default:
+                      return 0;
                   }
-                  case "Task Instance": {
-                    const taskInstance = entry as TaskInstanceResponse;
+                }),
+                label: translate("durationChart.queuedDuration"),
+              },
+              {
+                backgroundColor: entries.map(
+                  (entry: RunResponse) =>
+                    (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
+                ),
+                data: entries.map((entry: RunResponse) =>
+                  entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
+                ),
+                label: translate("durationChart.runDuration"),
+              },
+            ],
+            labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
+          }}
+          datasetIdKey="id"
+          options={{
+            animation: isAutoRefreshing ? false : undefined,
+            onClick: (_event, elements) => {
+              const [element] = elements;
 
-                    return taskInstance.queued_when !== null &&
-                      taskInstance.start_date !== null &&
-                      taskInstance.queued_when < taskInstance.start_date
-                      ? Number(getDuration(taskInstance.queued_when, taskInstance.start_date))
-                      : 0;
-                  }
-                  default:
-                    return 0;
-                }
-              }),
-              label: translate("durationChart.queuedDuration"),
-            },
-            {
-              backgroundColor: entries.map(
-                (entry: RunResponse) =>
-                  (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
-              ),
-              data: entries.map((entry: RunResponse) =>
-                entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
-              ),
-              label: translate("durationChart.runDuration"),
-            },
-          ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
-        }}
-        datasetIdKey="id"
-        options={{
-          animation: isAutoRefreshing ? false : undefined,
-          onClick: (_event, elements) => {
-            const [element] = elements;
-
-            if (!element) {
-              return;
-            }
-
-            switch (kind) {
-              case "Dag Run": {
-                const entry = entries[element.index] as GridRunsResponse | undefined;
-                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
-
-                void Promise.resolve(navigate(baseUrl));
-                break;
+              if (!element) {
+                return;
               }
-              case "Task Instance": {
-                const entry = entries[element.index] as TaskInstanceResponse | undefined;
 
-                if (entry === undefined) {
+              switch (kind) {
+                case "Dag Run": {
+                  const entry = entries[element.index] as GridRunsResponse | undefined;
+                  const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
+
+                  void Promise.resolve(navigate(baseUrl));
                   break;
                 }
+                case "Task Instance": {
+                  const entry = entries[element.index] as TaskInstanceResponse | undefined;
 
-                const baseUrl = buildTaskInstanceUrl({
-                  currentPathname: location.pathname,
-                  dagId: entry.dag_id,
-                  isMapped: entry.map_index >= 0,
-                  mapIndex: entry.map_index.toString(),
-                  runId: entry.dag_run_id,
-                  taskId: entry.task_id,
-                });
+                  if (entry === undefined) {
+                    break;
+                  }
 
-                void Promise.resolve(navigate(baseUrl));
-                break;
+                  const baseUrl = buildTaskInstanceUrl({
+                    currentPathname: location.pathname,
+                    dagId: entry.dag_id,
+                    isMapped: entry.map_index >= 0,
+                    mapIndex: entry.map_index.toString(),
+                    runId: entry.dag_run_id,
+                    taskId: entry.task_id,
+                  });
+
+                  void Promise.resolve(navigate(baseUrl));
+                  break;
+                }
+                default:
               }
-              default:
-            }
-          },
-          onHover: (_event, elements, chart) => {
-            chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
-          },
-          plugins: {
-            annotation: {
-              annotations: {
-                queuedAnnotation,
-                runAnnotation,
-              },
             },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const datasetLabel = context.dataset.label ?? "";
+            onHover: (_event, elements, chart) => {
+              chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
+            },
+            plugins: {
+              legend: { display: true, position: "top" as const },
+              annotation: {
+                annotations: { queuedAnnotation, runAnnotation, medianAnnotation },
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const datasetLabel = context.dataset.label ?? "";
+                    const formatted = renderDuration(context.parsed.y, false) ?? "0";
 
-                  const formatted = renderDuration(context.parsed.y, false) ?? "0";
-
-                  return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
+                    return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
+                  },
                 },
               },
             },
-          },
-          responsive: true,
-          scales: {
-            x: {
-              stacked: true,
-              ticks: {
-                callback: (_value, index) =>
-                  formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
-                maxTicksLimit: 3,
-              },
-              title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
-            },
-            y: {
-              ticks: {
-                callback: (value) => {
-                  const num = typeof value === "number" ? value : Number(value);
-
-                  return renderDuration(num, false) ?? "0";
+            maintainAspectRatio: false,
+            responsive: true,
+            scales: {
+              x: {
+                stacked: true,
+                ticks: {
+                  callback: (_value, index) =>
+                    formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
+                  maxTicksLimit: 3,
                 },
+                title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
               },
-              title: { align: "end", display: true, text: translate("common:duration") },
+              y: {
+                stacked: true,
+                ticks: {
+                  callback: (value) => {
+                    const num = typeof value === "number" ? value : Number(value);
+                    if (num < 60) return `${num.toFixed(0)}s`;
+                    if (num < 3600) return `${(num / 60).toFixed(1)}m`;
+                    return `${(num / 3600).toFixed(1)}h`;
+                  },
+                },
+                title: { align: "end", display: true, text: translate("common:duration") },
+              },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </Box>
     </Box>
   );
 };
