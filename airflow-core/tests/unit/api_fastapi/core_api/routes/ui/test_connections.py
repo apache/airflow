@@ -136,3 +136,32 @@ class TestHookMetaData:
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/connections/hook_meta")
         assert response.status_code == 403
+
+
+class TestHookMetaDataForType:
+    @skip_if_force_lowest_dependencies_marker
+    def test_hook_meta_data_for_type(self, test_client):
+        response = test_client.get("/connections/hook_meta/fs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connection_type"] == "fs"
+        assert data["hook_name"] == "File (path)"
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_hook_meta_data_for_type_generic(self, test_client):
+        response = test_client.get("/connections/hook_meta/generic")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connection_type"] == "generic"
+
+    def test_hook_meta_data_for_type_not_found(self, test_client):
+        response = test_client.get("/connections/hook_meta/nonexistent_type_xyz")
+        assert response.status_code == 404
+
+    def test_hook_meta_data_for_type_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/connections/hook_meta/fs")
+        assert response.status_code == 401
+
+    def test_hook_meta_data_for_type_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/connections/hook_meta/fs")
+        assert response.status_code == 403

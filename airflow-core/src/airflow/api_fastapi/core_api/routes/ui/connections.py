@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionHookMetaData
@@ -24,6 +24,18 @@ from airflow.api_fastapi.core_api.security import requires_access_connection
 from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
+
+
+@connections_router.get(
+    "/hook_meta/{connection_type}",
+    dependencies=[Depends(requires_access_connection(method="GET"))],
+)
+def hook_meta_data_for_type(connection_type: str) -> ConnectionHookMetaData:
+    """Return full metadata (standard_fields, extra_fields) for a single connection type."""
+    result = HookMetaService.hook_meta_for_type(connection_type)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Connection type '{connection_type}' not found")
+    return result
 
 
 @connections_router.get(

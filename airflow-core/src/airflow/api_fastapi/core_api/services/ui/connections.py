@@ -238,3 +238,80 @@ class HookMetaService:
             )
             result.append(hook_meta)
         return result
+
+    @staticmethod
+    def hook_meta_for_type(connection_type: str) -> ConnectionHookMetaData | None:
+        """
+        Return full metadata for a single connection type.
+
+        Only imports the requested hook class (via lazy dict lookup), not all hooks.
+        """
+        from unittest import mock
+
+        from airflow.providers_manager import ProvidersManager
+
+        def mock_lazy_gettext(txt: str) -> str:
+            return txt
+
+        def mock_any_of(allowed_values: list) -> HookMetaService.MockEnum:
+            return HookMetaService.MockEnum(allowed_values)
+
+        import sys
+        from importlib.util import find_spec
+        from unittest.mock import MagicMock
+
+        for mod_name in [
+            "wtforms",
+            "wtforms.csrf",
+            "wtforms.fields",
+            "wtforms.fields.simple",
+            "wtforms.validators",
+            "flask_babel",
+            "flask_appbuilder",
+            "flask_appbuilder.fieldwidgets",
+        ]:
+            try:
+                if not find_spec(mod_name):
+                    raise ModuleNotFoundError
+            except ModuleNotFoundError:
+                sys.modules[mod_name] = MagicMock()
+        with (
+            mock.patch("wtforms.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField),
+            mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField),
+            mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField),
+            mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
+            mock.patch("wtforms.validators.any_of", mock_any_of),
+        ):
+            pm = ProvidersManager()
+            pm.initialize_providers_hooks()
+
+            if connection_type not in pm._hooks_lazy_dict:
+                return None
+            hook_info = pm._hooks_lazy_dict[connection_type]
+            if not hook_info:
+                return None
+
+            prefix = f"extra__{connection_type}__"
+            filtered_widgets = {k: v for k, v in pm._connection_form_widgets.items() if k.startswith(prefix)}
+            widgets = HookMetaService._convert_extra_fields(filtered_widgets)
+
+            return ConnectionHookMetaData(
+                connection_type=connection_type,
+                hook_class_name=hook_info.hook_class_name,
+                default_conn_name=None,
+                hook_name=hook_info.hook_name,
+                standard_fields=HookMetaService._make_standard_fields(
+                    pm._field_behaviours.get(connection_type)
+                ),
+                extra_fields=widgets.get(connection_type),
+            )
