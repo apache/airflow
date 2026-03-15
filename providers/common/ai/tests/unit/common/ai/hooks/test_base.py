@@ -110,51 +110,51 @@ class TestBaseAIHookTestConnection:
         assert isinstance(msg, str)
 
 
+class _MissingGetConn(BaseAIHook):  # type: ignore[abstract]
+    def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
+
+    def run_agent(self, *, agent, prompt): ...
+
+    def test_connection(self): ...
+
+
+class _MissingRunAgent(BaseAIHook):  # type: ignore[abstract]
+    def get_conn(self): ...
+
+    def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
+
+    def test_connection(self): ...
+
+
+class _MissingCreateAgent(BaseAIHook):  # type: ignore[abstract]
+    def get_conn(self): ...
+
+    def run_agent(self, *, agent, prompt): ...
+
+    def test_connection(self): ...
+
+
+class _MissingTestConnection(BaseAIHook):  # type: ignore[abstract]
+    def get_conn(self): ...
+
+    def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
+
+    def run_agent(self, *, agent, prompt): ...
+
+
 class TestBaseAIHookAbstractEnforcement:
     def test_missing_get_conn_raises(self):
         with pytest.raises(TypeError):
-
-            class _Incomplete(BaseAIHook):  # type: ignore[abstract]
-                def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
-
-                def run_agent(self, *, agent, prompt): ...
-
-                def test_connection(self): ...
-
-            _Incomplete()
+            _MissingGetConn()
 
     def test_missing_run_agent_raises(self):
         with pytest.raises(TypeError):
-
-            class _Incomplete(BaseAIHook):  # type: ignore[abstract]
-                def get_conn(self): ...
-
-                def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
-
-                def test_connection(self): ...
-
-            _Incomplete()
+            _MissingRunAgent()
 
     def test_missing_create_agent_raises(self):
         with pytest.raises(TypeError):
-
-            class _Incomplete(BaseAIHook):  # type: ignore[abstract]
-                def get_conn(self): ...
-
-                def run_agent(self, *, agent, prompt): ...
-
-                def test_connection(self): ...
-
-            _Incomplete()
+            _MissingCreateAgent()
 
     def test_missing_test_connection_raises(self):
         with pytest.raises(TypeError):
-
-            class _Incomplete(BaseAIHook):  # type: ignore[abstract]
-                def get_conn(self): ...
-
-                def create_agent(self, *, output_type=str, instructions="", toolsets=None, **kw): ...
-
-                def run_agent(self, *, agent, prompt): ...
-
-            _Incomplete()
+            _MissingTestConnection()
