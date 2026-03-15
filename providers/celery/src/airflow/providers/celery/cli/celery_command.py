@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+import socket
 import sys
 import time
 from contextlib import contextmanager, suppress
@@ -487,34 +488,43 @@ def worker_health_check(args):
 
     See: https://github.com/apache/airflow/issues/63580
     """
-    import os
-    import socket
-
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
     hostname = args.celery_hostname or f"celery@{socket.gethostname()}"
 
-    inspect = celery_app.control.inspect(destination=[hostname])
+    inspect = celery_app.control.inspect(destination=[hostname], timeout=5.0)
 
-    # Step 1: Ping check — worker must be reachable
-    log.info("Checking worker liveness via ping: %s", hostname)
-    ping_result = inspect.ping()
+    try:
+        # Step 1: Ping check — worker must be reachable
+        log.info("Checking worker liveness via ping: %s", hostname)
+        ping_result = inspect.ping()
+    except Exception:
+        log.exception("Worker health check failed: unable to reach broker while pinging worker %s", hostname)
+        raise SystemExit("Worker health check failed: broker connection error during ping")
+
     if not ping_result or hostname not in ping_result:
         log.error(
             "Worker health check failed: worker %s did not respond to ping. The worker process may be down.",
             hostname,
         )
-        raise SystemExit(os.EX_UNAVAILABLE)
+        raise SystemExit(f"Worker health check failed: worker {hostname} did not respond to ping")
 
     log.info("Ping check passed for worker: %s", hostname)
 
-    # Step 2: Active queues check — worker must have registered consumers.
-    # A worker in catatonic state (e.g. after Redis broker restart) responds to
-    # ping but has silently lost its queue consumer registrations, so
-    # active_queues() returns None or an empty list for that worker.
-    log.info("Checking active queue consumers for worker: %s", hostname)
-    active_queues_result = inspect.active_queues()
+    try:
+        # Step 2: Active queues check — worker must have registered consumers.
+        # A worker in catatonic state (e.g. after Redis broker restart) responds to
+        # ping but has silently lost its queue consumer registrations, so
+        # active_queues() returns None or an empty list for that worker.
+        log.info("Checking active queue consumers for worker: %s", hostname)
+        active_queues_result = inspect.active_queues()
+    except Exception:
+        log.exception(
+            "Worker health check failed: unable to reach broker while checking queues for %s", hostname
+        )
+        raise SystemExit("Worker health check failed: broker connection error during active_queues check")
+
     if not active_queues_result or hostname not in active_queues_result:
         log.error(
             "Worker health check failed: worker %s is alive but has no registered queue consumers. "
@@ -522,7 +532,9 @@ def worker_health_check(args):
             "The worker will not pick up new tasks until restarted.",
             hostname,
         )
-        raise SystemExit(os.EX_UNAVAILABLE)
+        raise SystemExit(
+            f"Worker health check failed: worker {hostname} has no active queue consumers (catatonic state)"
+        )
 
     worker_queues = active_queues_result[hostname]
     if not worker_queues:
@@ -532,7 +544,9 @@ def worker_health_check(args):
             "The worker will not pick up new tasks until restarted.",
             hostname,
         )
-        raise SystemExit(os.EX_UNAVAILABLE)
+        raise SystemExit(
+            f"Worker health check failed: worker {hostname} has empty queue consumer list (catatonic state)"
+        )
 
     queue_names = [queue["name"] for queue in worker_queues if "name" in queue]
     log.info(

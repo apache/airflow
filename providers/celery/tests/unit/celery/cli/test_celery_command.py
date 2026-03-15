@@ -691,7 +691,7 @@ class TestWorkerHealthCheck:
         with pytest.raises(SystemExit) as exc_info:
             celery_command.worker_health_check(args)
 
-        assert exc_info.value.code != 0
+        assert "did not respond to ping" in str(exc_info.value)
         # active_queues must NOT be called if ping already failed
         mock_instance.active_queues.assert_not_called()
 
@@ -710,8 +710,42 @@ class TestWorkerHealthCheck:
         with pytest.raises(SystemExit) as exc_info:
             celery_command.worker_health_check(args)
 
-        assert exc_info.value.code != 0
+        assert "did not respond to ping" in str(exc_info.value)
         mock_instance.active_queues.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_broker_unreachable(self, mock_inspect):
+        """Broker is down — inspect.ping() raises an exception. Health check must fail cleanly."""
+        hostname = "celery@disconnected-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.side_effect = ConnectionError("Connection refused")
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert "broker connection error" in str(exc_info.value)
+        mock_instance.active_queues.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_active_queues_raises(self, mock_inspect):
+        """Broker fails during active_queues check — health check must fail cleanly."""
+        hostname = "celery@flaky-host"
+        args = self.parser.parse_args(["celery", "worker-health-check", "-H", hostname])
+
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {hostname: {"ok": "pong"}}
+        mock_instance.active_queues.side_effect = ConnectionError("Connection lost")
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker_health_check(args)
+
+        assert "broker connection error" in str(exc_info.value)
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
@@ -738,7 +772,7 @@ class TestWorkerHealthCheck:
         with pytest.raises(SystemExit) as exc_info:
             celery_command.worker_health_check(args)
 
-        assert exc_info.value.code != 0
+        assert "catatonic state" in str(exc_info.value)
         mock_instance.ping.assert_called_once()
         mock_instance.active_queues.assert_called_once()
 
@@ -763,7 +797,7 @@ class TestWorkerHealthCheck:
         with pytest.raises(SystemExit) as exc_info:
             celery_command.worker_health_check(args)
 
-        assert exc_info.value.code != 0
+        assert "catatonic state" in str(exc_info.value)
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
@@ -786,7 +820,7 @@ class TestWorkerHealthCheck:
         with pytest.raises(SystemExit) as exc_info:
             celery_command.worker_health_check(args)
 
-        assert exc_info.value.code != 0
+        assert "catatonic state" in str(exc_info.value)
 
     @pytest.mark.db_test
     @mock.patch("socket.gethostname")
@@ -808,7 +842,7 @@ class TestWorkerHealthCheck:
         celery_command.worker_health_check(args)
 
         # Verify inspect was targeted at the auto-resolved hostname
-        mock_inspect.assert_called_once_with(destination=[expected_hostname])
+        mock_inspect.assert_called_once_with(destination=[expected_hostname], timeout=5.0)
 
 
 class TestLoggerSetupHandler:
