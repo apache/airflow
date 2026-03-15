@@ -32,9 +32,8 @@ from textwrap import dedent
 
 import sqlalchemy as sa
 from alembic import context, op
-from sqlalchemy import column, select, table
+from sqlalchemy import column, select, table, text
 
-from airflow.serialization.serde import deserialize
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -44,7 +43,7 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 10000
 
 
 def upgrade():
@@ -66,7 +65,7 @@ def upgrade():
                 callback_id = uuid6.uuid7()
 
                 # Transform serialized callback to the new representation
-                callback_data = deserialize(deadline.callback).serialize() | {
+                callback_data = deadline.callback["__data__"] | {
                     "prefix": CALLBACK_METRICS_PREFIX,
                     "dag_id": deadline.dag_id,
                 }
@@ -102,12 +101,45 @@ def upgrade():
                 raise
 
         conn.execute(callback_table.insert(), callback_inserts)
-        conn.execute(
-            deadline_table.update()
-            .where(deadline_table.c.id == sa.bindparam("deadline_id"))
-            .values(callback_id=sa.bindparam("callback_id"), missed=sa.bindparam("missed")),
-            deadline_updates,
-        )
+
+        if deadline_updates:
+            # update deadline table by bulk query to improve performance
+            dialect = conn.dialect.name
+
+            if dialect == "postgresql":
+                values_clause = ", ".join(
+                    f"('{row['deadline_id']}'::uuid, '{row['callback_id']}'::uuid, {row['missed']})"
+                    for row in deadline_updates
+                )
+                conn.execute(
+                    text(f"""
+                        UPDATE deadline2
+                        SET callback_id = v.callback_id, missed = v.missed
+                        FROM (VALUES {values_clause}) AS v(deadline_id, callback_id, missed)
+                        WHERE deadline2.id = v.deadline_id
+                    """)
+                )
+
+            elif dialect == "mysql":
+                union_clause = " UNION ALL ".join(
+                    f"SELECT '{row['deadline_id']}' AS deadline_id, "
+                    f"'{row['callback_id']}' AS callback_id, {1 if row['missed'] else 0} AS missed"
+                    for row in deadline_updates
+                )
+                conn.execute(
+                    text(f"""
+                    UPDATE deadline d
+                    JOIN ({union_clause}) AS v ON d.id = v.deadline_id
+                    SET d.callback_id = v.callback_id, d.missed = v.missed
+                """)
+                )
+            else:
+                conn.execute(
+                    deadline_table.update()
+                    .where(deadline_table.c.id == sa.bindparam("deadline_id"))
+                    .values(callback_id=sa.bindparam("callback_id"), missed=sa.bindparam("missed")),
+                    deadline_updates,
+                )
 
     def migrate_all_data():
         if context.is_offline_mode():
