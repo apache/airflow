@@ -35,9 +35,9 @@ that **must be used consistently**:
 
 | English Term          | Dutch Translation          | Notes                                      |
 | --------------------- | -------------------------- | ------------------------------------------ |
-| Task                  | Task / taak                | Use "Task" as object, "taak" in prose      |
-| Task Instance         | Task Instance              | Plural: "Task Instances"                   |
-| Task Group            | Task groep                 |                                            |
+| Task                  | Taak                       | Always translate Task to "taak" / "Taak"   |
+| Task Instance         | Taak Instance              | Plural: "Taak Instances"                   |
+| Task Group            | Taak Groep                 | Plural: "Taak Groepen"                     |
 | Dag Run               | Dag Run                    | Plural: "Dag Runs"                         |
 | Backfill              | Backfill                   |                                            |
 | Trigger (noun)        | Trigger                    | e.g. "Asset Triggered"                     |
@@ -87,7 +87,7 @@ that **must be used consistently**:
 ### Gender and Number
 
 - Dutch nouns have grammatical gender, but for technical terms, focus on common usage:
-  - "Task" is generally **de-word**: "de task"
+  - "Taak" is generally **de-word**: "de taak"
   - "Run" is **de-word**: "de run"
   - "Process" is **het-word**: "het proces"
 
@@ -97,13 +97,13 @@ that **must be used consistently**:
   Most technical terms add "s" or "en":
   - "Connectie" -> "Connecties"
   - "Variabele" -> "Variabelen"
-  - "Task" -> "Tasks"
+  - "Taak" -> "Taken"
 
 ### Capitalization
 
 - Use **Sentence case** (Zinvallende hoofdletters) for descriptions.
 - Use **Title Case** or **Initial Capital** for labels and buttons if the English source does so.
-- Always capitalize "Dag", "Task" (when referring to the object), "Asset", "XCom", etc.
+- Always capitalize "Dag", "Taak" (when referring to the object), "Asset", "XCom", etc.
 
 ## 5. Examples from Existing Translations
 

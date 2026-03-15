@@ -27,9 +27,8 @@ The Dutch translation follows these core principles:
 
 1.  **Airflow Specific Terms**: Terms like `Dag`, `XCom`, and `Asset` are kept in English as they are widely recognized technical objects within the Airflow ecosystem. We use `Dag` (not `DAG`) to align with Airflow conventions.
 2.  **User Address**: We use the informal **"je/jouw"** register. This makes the UI feel more modern and accessible, which is a common trend in technical software localized for the Dutch market.
-3.  **Technical vs. Natural Language**:
-    - `Task` is used when referring to the technical object (e.g., `Task Instance`).
-    - `taak` is used in more descriptive prose or standard UI actions.
+3.  **Consistency in Translation**:
+    - Based on maintainer consensus, `Task` is consistently translated to `taak` (or `Taak`) everywhere, rather than keeping the English term for technical objects.
 4.  **Established UI Mappings**:
     - `Schedule` -> `Planning`
     - `Queue` -> `Wachtrij`
