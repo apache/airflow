@@ -62,6 +62,10 @@ def generate_mprocs_config() -> str:
         "scrollback": 100000,
     }
 
+    API_SECRET_KEY = ""
+    if get_env("GO_WORKER") != "":
+        API_SECRET_KEY = "4cT8uMo04i5fOFoSICIMnw=="
+
     # API Server or Webserver (depending on Airflow version)
     use_airflow_version = get_env("USE_AIRFLOW_VERSION", "")
     if not use_airflow_version.startswith("2."):
@@ -72,12 +76,10 @@ def generate_mprocs_config() -> str:
         else:
             dev_mode = get_env_bool("DEV_MODE")
             api_cmd = "airflow api-server -d" if dev_mode else "airflow api-server"
-
-        procs["api_server"] = {
-            "shell": api_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+        env = {}
+        if API_SECRET_KEY != "":
+            env["AIRFLOW__API_AUTH__JWT_SECRET"] = API_SECRET_KEY
+        procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000, "env": env}
     else:
         # Webserver (Airflow 2.x)
         if get_env_bool("BREEZE_DEBUG_WEBSERVER"):
@@ -119,6 +121,20 @@ def generate_mprocs_config() -> str:
             "scrollback": 100000,
         }
 
+    if get_env("GO_WORKER") != "":
+        env = {}
+        env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
+        env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
+        if API_SECRET_KEY != "":
+            env["AIRFLOW__API_AUTH__SECRET_KEY"] = API_SECRET_KEY
+            env["AIRFLOW__LOGGING__SECRET_KEY"] = API_SECRET_KEY
+
+        procs["go_worker"] = {
+            "shell": "go run ./cmd/airflow-go-edge-worker/main.go run",
+            "cwd": "go-sdk",
+            "env": env,
+        }
+
     # Flower (conditional)
     if get_env_bool("INTEGRATION_CELERY") and get_env_bool("CELERY_FLOWER"):
         if get_env_bool("BREEZE_DEBUG_FLOWER"):
@@ -136,6 +152,9 @@ def generate_mprocs_config() -> str:
     # Edge Worker (conditional)
     executor = get_env("AIRFLOW__CORE__EXECUTOR", "")
     if executor == "airflow.providers.edge3.executors.edge_executor.EdgeExecutor":
+        env = {}
+        if API_SECRET_KEY != "":
+            env["AIRFLOW__API_AUTH__JWT_SECRET"] = API_SECRET_KEY
         if get_env_bool("BREEZE_DEBUG_EDGE"):
             port = get_env("BREEZE_DEBUG_EDGE_PORT", "5684")
             edge_cmd = f"debugpy --listen 0.0.0.0:{port} --wait-for-client -m airflow edge worker --edge-hostname breeze --queues default"
@@ -152,11 +171,7 @@ def generate_mprocs_config() -> str:
             ]
             edge_cmd = " && ".join(edge_cmd_parts)
 
-        procs["edge_worker"] = {
-            "shell": edge_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+        procs["edge_worker"] = {"shell": edge_cmd, "restart": "always", "scrollback": 100000, "env": env}
 
     # Dag Processor (conditional)
     if get_env_bool("STANDALONE_DAG_PROCESSOR"):

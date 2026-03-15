@@ -54,7 +54,6 @@ from airflow_breeze.commands.common_options import (
     option_forward_credentials,
     option_forward_ports,
     option_github_repository,
-    option_go_worker,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_install_airflow_with_constraints_default_true,
@@ -79,6 +78,7 @@ from airflow_breeze.commands.common_options import (
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
+    option_worker_types,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -327,7 +327,7 @@ option_load_default_connections = click.option(
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_go_worker
+@option_worker_types
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
@@ -387,7 +387,7 @@ def shell(
     force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
-    go_worker: bool,
+    worker_types: tuple[str, ...],
     include_mypy_volume: bool,
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
@@ -464,7 +464,7 @@ def shell(
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        go_worker=go_worker,
+        worker_types=worker_types,
         include_mypy_volume=include_mypy_volume,
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_airflow_python_client=install_airflow_python_client,
@@ -561,7 +561,7 @@ option_executor_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_go_worker
+@option_worker_types
 @option_installation_distribution_format
 @option_install_selected_providers
 @option_install_airflow_with_constraints_default_true
@@ -612,7 +612,7 @@ def start_airflow(
     force_build: bool,
     forward_credentials: bool,
     github_repository: str,
-    go_worker: bool,
+    worker_types: tuple[str, ...],
     integration: tuple[str, ...],
     install_selected_providers: str,
     load_default_connections: bool,
@@ -714,7 +714,7 @@ def start_airflow(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        go_worker=go_worker,
+        worker_types=worker_types,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
