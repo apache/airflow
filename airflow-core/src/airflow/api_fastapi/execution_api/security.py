@@ -67,7 +67,7 @@ Why ``ExecutionAPIRoute`` is needed:
 # Disable future annotations in this file to work around https://github.com/fastapi/fastapi/issues/13056
 # ruff: noqa: I002
 
-from typing import Any, Literal, get_args
+from typing import Any, get_args
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
@@ -79,14 +79,12 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
 log = structlog.get_logger(logger_name=__name__)
 
-TokenType = Literal["execution", "workload"]
-
-VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenType))
+VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 

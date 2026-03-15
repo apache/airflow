@@ -21,6 +21,7 @@ from uuid import UUID
 import pytest
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, _jwt_bearer, require_auth
@@ -32,6 +33,18 @@ class TestTIClaims:
 
         assert claims.scope == "execution"
         assert claims.team == "data"
+
+    def test_rejects_invalid_uuid(self):
+        with pytest.raises(ValidationError) as err:
+            TIClaims(sub="not-a-uuid", exp=0, iat=0, nbf=0)
+
+        assert "UUID" in str(err.value)
+
+    def test_rejects_missing_required_claims(self):
+        with pytest.raises(ValidationError) as err:
+            TIClaims(sub=UUID(int=1), iat=0, nbf=0)
+
+        assert "exp" in str(err.value)
 
 
 class TestExecutionAPIRoute:
