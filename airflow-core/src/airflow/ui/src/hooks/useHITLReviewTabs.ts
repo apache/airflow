@@ -18,6 +18,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import type { TabItem } from "src/hooks/useRequiredActionTabs";
@@ -30,7 +32,7 @@ export type UseHITLReviewTabsOptions = {
   refetchInterval?: number | false;
 };
 
-export const filterHITLReviewTabs = (tabs: Array<TabItem>, hasHitlData: boolean): Array<TabItem> =>
+const filterHITLReviewTabs = (tabs: Array<TabItem>, hasHitlData: boolean): Array<TabItem> =>
   tabs.filter((tab) => tab.value !== HITL_REVIEW_PLUGIN_TAB || hasHitlData);
 
 export const useHITLReviewTabs = (
@@ -48,6 +50,12 @@ export const useHITLReviewTabs = (
 ) => {
   const { enabled = true, mapIndex = -1, refetchInterval } = options;
   const hasHitlTab = tabs.some((tab) => tab.value === HITL_REVIEW_PLUGIN_TAB);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const redirectPath =
+    Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)
+      ? `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`
+      : location.pathname.replace("/plugin/hitl-review", "");
 
   const { data: hasHITLReviewSession = false, isLoading: isLoadingHITLReviewSession } = useQuery({
     enabled: enabled && hasHitlTab,
@@ -73,6 +81,7 @@ export const useHITLReviewTabs = (
             return false;
           }
 
+          // queryClient.ts reads error.status to decide whether 4xx responses should be retried.
           if (status !== undefined) {
             (error as { status?: number } & AxiosError).status = status;
           }
@@ -82,6 +91,16 @@ export const useHITLReviewTabs = (
     queryKey: ["hitl-review-session", dagId, dagRunId, taskId, mapIndex],
     refetchInterval,
   });
+
+  useEffect(() => {
+    if (
+      !hasHITLReviewSession &&
+      !isLoadingHITLReviewSession &&
+      location.pathname.includes("plugin/hitl-review")
+    ) {
+      void Promise.resolve(navigate(redirectPath));
+    }
+  }, [hasHITLReviewSession, isLoadingHITLReviewSession, location.pathname, navigate, redirectPath]);
 
   return {
     hasHITLReviewSession,
