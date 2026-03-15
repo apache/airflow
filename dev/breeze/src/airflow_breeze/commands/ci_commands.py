@@ -579,6 +579,12 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run upgrade-important-versions to bump key dependency versions",
 )
 @click.option(
+    "--update-uv-lock/--no-update-uv-lock",
+    default=True,
+    show_default=True,
+    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image",
+)
+@click.option(
     "--k8s-schema-sync/--no-k8s-schema-sync",
     default=True,
     show_default=True,
@@ -597,6 +603,7 @@ def upgrade(
     pin_versions: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
+    update_uv_lock: bool,
     k8s_schema_sync: bool,
 ):
     # Validate target_branch pattern
@@ -785,12 +792,17 @@ def upgrade(
             "upgrade-important-versions",
             "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
         ),
+        (
+            "update-uv-lock",
+            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-uv-lock",
+        ),
     ]
     step_enabled = {
         "autoupdate": autoupdate,
         "pin-versions": pin_versions,
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
+        "update-uv-lock": update_uv_lock,
     }
 
     # Execute enabled upgrade commands with the environment containing GitHub token

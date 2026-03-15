@@ -87,6 +87,15 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
+    # When installing from sources without upgrade, uv sync --frozen uses uv.lock directly
+    # so we don't need to download constraints
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -z "${UPGRADE_RANDOM_INDICATOR_STRING=}" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing from sources with uv.lock - skipping constraints download${COLOR_RESET}"
+        echo
+        return
+    fi
+
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
