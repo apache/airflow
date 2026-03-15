@@ -715,8 +715,8 @@ class DagFileProcessorManager(LoggingMixin):
         Return observed DAG source paths for bundle entries.
 
         For regular files this includes the relative file path.
-        For ZIP archives this includes both the archive path itself and
-        DAG-like inner paths such as ``archive.zip/dag.py``.
+        For ZIP archives this includes DAG-like inner paths such as
+        ``archive.zip/dag.py``.
         """
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
@@ -733,14 +733,12 @@ class DagFileProcessorManager(LoggingMixin):
             abs_path = str(info.absolute_path)
             if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
                 observed_filelocs.add(str(info.rel_path))
-                continue
-
-            observed_filelocs.add(str(info.rel_path))
-            if TYPE_CHECKING:
-                assert info.bundle_path
-            for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
-                rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
-                observed_filelocs.add(str(rel_sub_path))
+            else:
+                if TYPE_CHECKING:
+                    assert info.bundle_path
+                for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
+                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
+                    observed_filelocs.add(str(rel_sub_path))
 
         return observed_filelocs
 
