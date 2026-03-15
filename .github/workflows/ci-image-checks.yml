@@ -277,11 +277,50 @@ jobs:
           else
             echo "missing=false" >> "${GITHUB_OUTPUT}"
           fi
-      - name: "Notify Slack about missing inventories (canary only)"
+      - name: "Get docs build job URL"
+        id: get-job-url
+        if: >-
+          always() &&
+          inputs.canary-run == 'true' &&
+          matrix.flag == '--docs-only'
+        shell: bash
+        run: |
+          JOB_URL=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Build documentation.*docs-only"))][0].html_url // empty')
+          if [[ -z "${JOB_URL}" ]]; then
+            JOB_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+          echo "url=${JOB_URL}" >> "${GITHUB_OUTPUT}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Determine inventory notification action"
+        id: inventory-notification
+        if: >-
+          always() &&
+          inputs.canary-run == 'true' &&
+          matrix.flag == '--docs-only'
+        shell: bash
+        run: python3 scripts/ci/slack_notification_state.py
+        env:
+          ARTIFACT_NAME: "slack-state-inventory-${{ inputs.branch }}"
+          CURRENT_FAILURES: "${{ steps.check-missing-inventories.outputs.packages }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Upload inventory notification state"
+        if: >-
+          always() &&
+          inputs.canary-run == 'true' &&
+          matrix.flag == '--docs-only'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: "slack-state-inventory-${{ inputs.branch }}"
+          path: ./slack-state/
+          retention-days: 7
+          overwrite: true
+      - name: "Notify Slack about missing inventories (new/changed)"
         if: >-
           inputs.canary-run == 'true' &&
-          steps.check-missing-inventories.outputs.missing == 'true' &&
-          matrix.flag == '--docs-only'
+          matrix.flag == '--docs-only' &&
+          steps.inventory-notification.outputs.action == 'notify_new'
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
@@ -289,7 +328,39 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*\n\nPackages:\n${{ steps.check-missing-inventories.outputs.packages }}\n\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}|View job log>"
+            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
+          # yamllint enable rule:line-length
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      - name: "Notify Slack about missing inventories (still not fixed)"
+        if: >-
+          inputs.canary-run == 'true' &&
+          matrix.flag == '--docs-only' &&
+          steps.inventory-notification.outputs.action == 'notify_reminder'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "⚠️🔁 Still not fixed: Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
+          # yamllint enable rule:line-length
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      - name: "Notify Slack about inventory recovery"
+        if: >-
+          inputs.canary-run == 'true' &&
+          matrix.flag == '--docs-only' &&
+          steps.inventory-notification.outputs.action == 'notify_recovery'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "✅ All 3rd-party doc inventories are now available in canary build on *${{ github.ref_name }}*\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
           # yamllint enable rule:line-length
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
