@@ -1,0 +1,1 @@
+Remove unmaintained sqlean.py dependency from the Amazon provider by bumping pydynamodb to >=0.8.1.
