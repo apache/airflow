@@ -20,7 +20,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.34.0",
     "@hey-api/client-axios": "^0.9.1",
-    "@hey-api/openapi-ts": "^0.93.1",
+    "@hey-api/openapi-ts": "^0.94.0",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.6",
     "next-themes": "^0.4.6",
@@ -69,11 +69,12 @@
       "esbuild"
     ],
     "overrides": {
-      "tar@<7.5.10": ">=7.5.10",
+      "tar@<7.5.11": ">=7.5.11",
       "lodash-es@>=4.0.0 <=4.17.22": ">=4.17.23",
       "minimatch@<10.2.3": ">=10.2.3",
       "ajv@<6.14.0": ">=6.14.0",
-      "rollup@>=4.0.0 <4.59.0": ">=4.59.0"
+      "rollup@>=4.0.0 <4.59.0": ">=4.59.0",
+      "flatted@<3.4.0": ">=3.4.0"
     }
   }
 }

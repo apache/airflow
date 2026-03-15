@@ -24,6 +24,7 @@ export class DagCodePage extends BasePage {
   public readonly editorScrollable: Locator;
   public readonly lineNumbers: Locator;
   public readonly syntaxTokens: Locator;
+  public readonly viewLines: Locator;
 
   public constructor(page: Page) {
     super(page);
@@ -31,12 +32,14 @@ export class DagCodePage extends BasePage {
     this.lineNumbers = page.locator(".monaco-editor .line-numbers");
     this.editorScrollable = page.locator(".monaco-scrollable-element");
     this.syntaxTokens = page.locator(".monaco-editor .view-line span span");
+    this.viewLines = page.locator(".monaco-editor .view-line");
   }
 
   public async navigateToCodeTab(dagId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}/code`);
     await this.waitForCodeReady();
   }
+
   public async verifyCodeIsScrollable(): Promise<void> {
     await this.waitForCodeReady();
 
@@ -44,59 +47,38 @@ export class DagCodePage extends BasePage {
 
     await expect(scrollable).toBeVisible({ timeout: 30_000 });
 
-    // For a sufficiently long file the scroll-height exceeds the client-height
-    const isScrollable = await scrollable.evaluate((el) => el.scrollHeight > el.clientHeight);
-
-    expect(isScrollable).toBe(true);
+    await expect
+      .poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight), {
+        timeout: 10_000,
+      })
+      .toBe(true);
   }
 
   public async verifyLineNumbersDisplayed(): Promise<void> {
     await this.waitForCodeReady();
 
     await expect(this.lineNumbers.first()).toBeVisible({ timeout: 30_000 });
-
-    const lineNumberCount = await this.lineNumbers.count();
-
-    expect(lineNumberCount).toBeGreaterThan(0);
-
-    const firstLineText = await this.lineNumbers.first().textContent();
-
-    expect(firstLineText?.trim()).toBe("1");
+    await expect(this.lineNumbers).not.toHaveCount(0);
+    await expect(this.lineNumbers.first()).toHaveText("1");
   }
 
   public async verifySourceCodeDisplayed(): Promise<void> {
     await this.waitForCodeReady();
 
-    const viewLines = this.page.locator(".monaco-editor .view-line");
-
-    await expect(viewLines.first()).toBeVisible({ timeout: 30_000 });
-
-    const lineCount = await viewLines.count();
-
-    expect(lineCount).toBeGreaterThan(0);
+    await expect(this.viewLines.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.viewLines).not.toHaveCount(0);
   }
 
   public async verifySyntaxHighlighting(): Promise<void> {
     await this.waitForCodeReady();
 
-    const tokens = this.syntaxTokens;
-
-    await expect(tokens.first()).toBeVisible({ timeout: 30_000 });
-
-    const tokenCount = await tokens.count();
-
-    expect(tokenCount).toBeGreaterThan(1);
-
-    const classNames = await tokens.first().getAttribute("class");
-
-    expect(classNames).toMatch(/mtk\d+/);
+    await expect(this.syntaxTokens.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.syntaxTokens).not.toHaveCount(0);
+    await expect(this.syntaxTokens.first()).toHaveAttribute("class", /mtk\d+/);
   }
 
   private async waitForCodeReady(): Promise<void> {
-    await this.editorContainer.waitFor({ state: "visible", timeout: 60_000 });
-
-    const viewLines = this.page.locator(".monaco-editor .view-line");
-
-    await viewLines.first().waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.editorContainer).toBeVisible({ timeout: 60_000 });
+    await expect(this.viewLines.first()).toBeVisible({ timeout: 30_000 });
   }
 }

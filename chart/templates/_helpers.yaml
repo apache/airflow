@@ -103,7 +103,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "api_secret_key_secret" . }}
         key: api-secret-key
   {{- end }}
-  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  {{- if and .IncludeJwtSecret (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
   - name: AIRFLOW__API_AUTH__JWT_SECRET
     valueFrom:
       secretKeyRef:
@@ -299,16 +299,42 @@ If release name contains chart name it will be used as a full name.
       value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
+    {{- else }}
+    - name: GIT_SYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
+    - name: GITSYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
     {{- end }}
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
-  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  {{- if not .is_init }}
+  {{- if .Values.dags.gitSync.startupProbe.enabled }}
+  startupProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.httpPort }}
+    timeoutSeconds: {{ .Values.dags.gitSync.startupProbe.timeoutSeconds }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.startupProbe.initialDelaySeconds }}
+    periodSeconds: {{ .Values.dags.gitSync.startupProbe.periodSeconds }}
+    failureThreshold: {{ .Values.dags.gitSync.startupProbe.failureThreshold }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.recommendedProbeSetting (hasKey .Values.dags.gitSync.livenessProbe "enabled") .Values.dags.gitSync.livenessProbe.enabled }}
+  livenessProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.httpPort }}
+    timeoutSeconds: {{ .Values.dags.gitSync.livenessProbe.timeoutSeconds | default 1 }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.livenessProbe.initialDelaySeconds | default 0 }}
+    periodSeconds: {{ .Values.dags.gitSync.livenessProbe.periodSeconds | default 5 }}
+    failureThreshold: {{ .Values.dags.gitSync.livenessProbe.failureThreshold | default 10 }}
+  {{- else if .Values.dags.gitSync.livenessProbe }}
   livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .Values.dags.gitSync.recommendedProbeSetting) }}
   readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   {{- end }}
   volumeMounts:
   - name: dags

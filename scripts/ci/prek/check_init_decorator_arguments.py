@@ -28,11 +28,9 @@ from __future__ import annotations
 import ast
 import collections.abc
 import itertools
-import pathlib
 import sys
 from typing import TYPE_CHECKING
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH, console
 
 SDK_DEFINITIONS_PKG = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "definitions"

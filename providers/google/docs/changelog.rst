@@ -27,6 +27,88 @@
 Changelog
 ---------
 
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * Remove ``CloudDataCatalogCreateEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`` instead
+  * Remove ``CloudDataCatalogCreateEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator``, ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogCreateTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator``, ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogDeleteEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator`` instead
+  * Remove ``CloudDataCatalogDeleteEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogDeleteTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogGetEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`` instead
+  * Remove ``CloudDataCatalogGetEntryGroupOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator`` instead
+  * Remove ``CloudDataCatalogGetTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogListTagsOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`` instead
+  * Remove ``CloudDataCatalogLookupEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`` instead
+  * Remove ``CloudDataCatalogRenameTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogSearchCatalogOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator`` instead
+  * Remove ``CloudDataCatalogUpdateEntryOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagTemplateOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``CloudDataCatalogUpdateTagTemplateFieldOperator`` use ``airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateEmbeddingsOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICountTokensOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator`` use ``airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator`` instead
+
+* Hooks
+
+  * Remove ``CloudDataCatalogHook`` use ``airflow.providers.google.cloud.hooks.dataplex.DataplexHook`` instead
+  * Remove ``airflow.providers.google.cloud.hooks.vertex_ai.generative_model.ExperimentRunHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook`` instead
+
+21.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Delete google provider deprecated items sheduled for Jan 2026 (#62802)``
+
+Features
+~~~~~~~~
+
+* ``Add drift detection and optional recreation to ComputeEngineInsertInstanceOperator (#61830)``
+* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
+* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
+* ``Add bounded best-effort cluster deletion when PermissionDenied occurs after cluster creation has been initiated in non-deferrable mode. Deletion is triggered with wait_to_complete=False and retried on FailedPrecondition until cleanup_timeout_seconds is reached, and the original exception is always re-raised. Add unit tests covering cleanup initiation, retry behavior, and error propagation. (#62302)``
+* ``Add ClusterType field for Zero-Scale cluster support (#62207)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
+
+Misc
+~~~~
+
+* ``Upgrade version of Campaign Manager API to v5 (#62510)``
+* ``Add .json template_ext to BigQueryCreateTableOperator (#62058)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add known issue notice for version 19.5.0 (#61927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add exception test for GenAICountTokensOperator (#61391)``
+   * ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+   * ``Fix mypy issues from trinodb 0.337.0 (#62998)``
+   * ``Replace connexion with FastAPI for FAB provider (#62664)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Suspend Apache Beam Provider due to grpcio limitation (#61926)``
+
 20.0.0
 ......
 

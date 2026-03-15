@@ -35,6 +35,7 @@ class TestDbtCloudRunJobTrigger:
     CONN_ID = "dbt_cloud_default"
     ACCOUNT_ID = 12340
     END_TIME = time.time() + 60 * 60 * 24 * 7
+    EXECUTION_DEADLINE = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
     def test_serialization(self):
@@ -43,6 +44,7 @@ class TestDbtCloudRunJobTrigger:
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
+            execution_deadline=self.EXECUTION_DEADLINE,
             run_id=self.RUN_ID,
             account_id=self.ACCOUNT_ID,
             hook_params={"retry_delay": 10},
@@ -54,6 +56,7 @@ class TestDbtCloudRunJobTrigger:
             "account_id": self.ACCOUNT_ID,
             "conn_id": self.CONN_ID,
             "end_time": self.END_TIME,
+            "execution_deadline": self.EXECUTION_DEADLINE,
             "poll_interval": self.POLL_INTERVAL,
             "hook_params": {"retry_delay": 10},
         }
@@ -253,6 +256,36 @@ class TestDbtCloudRunJobTrigger:
                 "run_id": self.RUN_ID,
             }
         )
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
+    async def test_dbt_job_run_execution_timeout(self, mocked_is_still_running):
+        """Assert that run emits timeout event after execution_deadline elapsed"""
+        mocked_is_still_running.return_value = True
+
+        execution_deadline = time.time()
+
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=time.time() + 60,
+            execution_deadline=execution_deadline,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+
+        expected = TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Job run {self.RUN_ID} has timed out.",
+                "run_id": self.RUN_ID,
+            }
+        )
+
         assert expected == actual
 
     @pytest.mark.asyncio

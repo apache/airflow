@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -186,7 +187,7 @@ class Templater:
         if isinstance(value, ObjectStoragePath):
             return self._render_object_storage_path(value, context, jinja_env)
 
-        if resolve := getattr(value, "resolve", None):
+        if not isinstance(value, os.PathLike) and (resolve := getattr(value, "resolve", None)):
             return resolve(context)
 
         # Fast path for common built-in collections.

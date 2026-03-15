@@ -146,6 +146,24 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
+    def test_git_sync_http_port(self):
+        docs = render_chart(
+            values={
+                "dags": {"gitSync": {"enabled": True, "httpPort": 10}},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            envs = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", doc)
+            assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
+            assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
+
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -421,7 +439,9 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        expected_vars = [
+        # JWT secret is only injected into scheduler (and api-server); not into workers,
+        # webserver, triggerer, dag-processor (security: no JWT where not needed).
+        expected_vars_with_jwt = [
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
@@ -430,10 +450,19 @@ class TestAirflowCommon:
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        expected_vars_no_jwt = [
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__API__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            variables = expected_vars_in_worker if component == "worker" else expected_vars
+            expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
+            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
             )

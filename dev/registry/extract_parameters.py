@@ -37,6 +37,7 @@ Output:
 
 from __future__ import annotations
 
+import argparse
 import concurrent.futures
 import importlib
 import inspect
@@ -52,6 +53,8 @@ from pathlib import Path
 
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
+from registry_contract_models import validate_modules_catalog, validate_provider_parameters
+from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -321,33 +324,6 @@ def find_json(candidates: list[Path], name: str) -> Path:
 
 
 log = logging.getLogger(__name__)
-
-# Base class import paths, ordered so more-specific types are checked first
-# (sensor before operator, since BaseSensorOperator inherits BaseOperator).
-BASE_CLASS_IMPORTS: list[tuple[str, str]] = [
-    ("sensor", "airflow.sdk.bases.sensor.BaseSensorOperator"),
-    ("trigger", "airflow.triggers.base.BaseTrigger"),
-    ("hook", "airflow.sdk.bases.hook.BaseHook"),
-    ("bundle", "airflow.dag_processing.bundles.base.BaseDagBundle"),
-    ("operator", "airflow.sdk.bases.operator.BaseOperator"),
-]
-
-# provider.yaml sections that list python-modules (module-level)
-MODULE_LEVEL_SECTIONS: dict[str, str] = {
-    "operators": "operator",
-    "hooks": "hook",
-    "sensors": "sensor",
-    "triggers": "trigger",
-    "bundles": "bundle",
-}
-
-# provider.yaml sections that list full class paths (class-level)
-CLASS_LEVEL_SECTIONS: dict[str, str] = {
-    "notifications": "notifier",
-    "secrets-backends": "secret",
-    "logging": "logging",
-    "executors": "executor",
-}
 
 
 def load_base_classes() -> dict[str, type]:
@@ -793,13 +769,15 @@ def _write_parameter_files(
             version_dir = output_dir / "versions" / pid / version
             version_dir.mkdir(parents=True, exist_ok=True)
 
-            provider_data = {
-                "provider_id": pid,
-                "provider_name": provider_names.get(pid, pid),
-                "version": version,
-                "generated_at": generated_at,
-                "classes": classes,
-            }
+            provider_data = validate_provider_parameters(
+                {
+                    "provider_id": pid,
+                    "provider_name": provider_names.get(pid, pid),
+                    "version": version,
+                    "generated_at": generated_at,
+                    "classes": classes,
+                }
+            )
             with open(version_dir / "parameters.json", "w") as f:
                 json.dump(provider_data, f, separators=(",", ":"))
             written += 1
@@ -839,10 +817,26 @@ def _fetch_inventories(
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Extract provider parameters and modules")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="Only process this provider ID (e.g. 'amazon'). Skips modules.json write.",
+    )
+    parser.add_argument(
+        "--providers-json",
+        default=None,
+        help="Path to providers.json (overrides default search paths).",
+    )
+    args = parser.parse_args()
+
     print("Airflow Registry Parameter & Module Extractor")
     print("=" * 50)
 
-    providers_json_path = find_json(PROVIDERS_JSON_CANDIDATES, "providers.json")
+    if args.providers_json:
+        providers_json_path = Path(args.providers_json)
+    else:
+        providers_json_path = find_json(PROVIDERS_JSON_CANDIDATES, "providers.json")
     with open(providers_json_path) as f:
         providers_data = json.load(f)
 
@@ -851,7 +845,7 @@ def main():
         provider_versions[p["id"]] = p["version"]
 
     generated_at = datetime.now(timezone.utc).isoformat()
-    _main_discover(provider_versions, generated_at)
+    _main_discover(provider_versions, generated_at, only_provider=args.provider)
 
     print("\nDone!")
 
@@ -859,8 +853,14 @@ def main():
 def _main_discover(
     provider_versions: dict[str, str],
     generated_at: str,
+    only_provider: str | None = None,
 ) -> None:
-    """Runtime discovery: find classes from provider.yaml files, produce modules.json and parameters."""
+    """Runtime discovery: find classes from provider.yaml files, produce modules.json and parameters.
+
+    When only_provider is set, only that provider is scanned and modules.json is NOT written
+    (it would be incomplete). This enables parallel backfills since the only output is
+    the per-provider parameters.json file.
+    """
     provider_yaml_paths = sorted(PROVIDERS_DIR.rglob("provider.yaml"))
     print(f"Found {len(provider_yaml_paths)} provider.yaml files")
 
@@ -877,6 +877,15 @@ def _main_discover(
         if pid:
             provider_yamls_by_id[pid] = py
             provider_paths_by_id[pid] = yaml_path
+
+    # Filter to single provider if requested
+    if only_provider:
+        if only_provider not in provider_paths_by_id:
+            print(f"ERROR: provider '{only_provider}' not found in provider.yaml files")
+            sys.exit(1)
+        provider_paths_by_id = {only_provider: provider_paths_by_id[only_provider]}
+        provider_yamls_by_id = {only_provider: provider_yamls_by_id[only_provider]}
+        print(f"Filtering to provider: {only_provider}")
 
     # Fetch Sphinx inventories in parallel
     print("Fetching Sphinx inventory files ...")
@@ -911,31 +920,36 @@ def _main_discover(
     all_discovered = unique_modules
     print(f"Deduplicated to {len(all_discovered)} unique modules")
 
-    # Write modules.json (the canonical module catalog)
-    modules_json = {"modules": all_discovered}
-    output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
-    for out_dir in output_dirs:
-        if not out_dir.parent.exists():
-            continue
-        out_dir.mkdir(parents=True, exist_ok=True)
-        with open(out_dir / "modules.json", "w") as f:
-            json.dump(modules_json, f, indent=2)
-        print(f"Wrote {len(all_discovered)} modules to {out_dir / 'modules.json'}")
+    # Write modules.json only when doing a full build (no --provider filter).
+    # With --provider, the output would be incomplete and would clobber the
+    # full modules.json from a previous build.
+    if not only_provider:
+        modules_json = validate_modules_catalog({"modules": all_discovered})
+        output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
+        for out_dir in output_dirs:
+            if not out_dir.parent.exists():
+                continue
+            out_dir.mkdir(parents=True, exist_ok=True)
+            with open(out_dir / "modules.json", "w") as f:
+                json.dump(modules_json, f, indent=2)
+            print(f"Wrote {len(all_discovered)} modules to {out_dir / 'modules.json'}")
 
-    # Write runtime_modules.json (debug/stats file)
-    runtime_output = {
-        "generated_at": generated_at,
-        "discovery_method": "runtime",
-        "stats": {
-            "total_classes": len(all_discovered),
-            "total_providers": len(providers_seen),
-        },
-        "classes": all_discovered,
-    }
-    runtime_json_path = SCRIPT_DIR / "runtime_modules.json"
-    with open(runtime_json_path, "w") as f:
-        json.dump(runtime_output, f, indent=2)
-    print(f"Wrote {runtime_json_path}")
+        # Write runtime_modules.json (debug/stats file)
+        runtime_output = {
+            "generated_at": generated_at,
+            "discovery_method": "runtime",
+            "stats": {
+                "total_classes": len(all_discovered),
+                "total_providers": len(providers_seen),
+            },
+            "classes": all_discovered,
+        }
+        runtime_json_path = SCRIPT_DIR / "runtime_modules.json"
+        with open(runtime_json_path, "w") as f:
+            json.dump(runtime_output, f, indent=2)
+        print(f"Wrote {runtime_json_path}")
+    else:
+        print("Skipping modules.json write (--provider mode)")
 
     # Extract parameters
     print("\nExtracting parameters from runtime-discovered classes...")

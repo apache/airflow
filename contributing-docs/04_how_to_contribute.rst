@@ -21,7 +21,9 @@ How to contribute
 There are various ways how you can contribute to Apache Airflow. Here is a short overview of
 some of those ways that involve creating issues and pull requests on GitHub.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Report Bugs
 -----------
