@@ -247,6 +247,17 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: update-uv-lock
+        name: Update uv.lock (manual)
+        entry: ./scripts/ci/prek/update_uv_lock.py
+        stages: ['manual']
+        language: python
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
