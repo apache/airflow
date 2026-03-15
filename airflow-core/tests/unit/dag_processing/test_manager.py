@@ -276,7 +276,6 @@ class TestDagFileProcessorManager:
         )
 
         assert observed_filelocs == {
-            "test_zip.zip",
             "test_zip.zip/valid_dag.py",
             "test_zip.zip/broken_dag.py",
         }
