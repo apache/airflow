@@ -289,7 +289,7 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*\n\nPackages:\n${{ steps.check-missing-inventories.outputs.packages }}\n\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View build log>"
+            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*\n\nPackages:\n${{ steps.check-missing-inventories.outputs.packages }}\n\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}|View job log>"
           # yamllint enable rule:line-length
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
