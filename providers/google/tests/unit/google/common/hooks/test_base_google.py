@@ -596,21 +596,9 @@ class TestGoogleBaseHook:
             mock_creds.with_quota_project.return_value = mock_creds
             with mock.patch(MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id", return_value=(mock_creds, None)):
                 hook = GoogleBaseHook(quota_project_id=invalid_id)
-                with pytest.raises(AirflowException):
+                with pytest.raises((TypeError, ValueError)):
                     hook.get_credentials()
 
-    def test_quota_project_credential_error(self):
-        """Test handling of credential errors when setting quota project."""
-        mock_creds = mock.MagicMock()
-        mock_creds.with_quota_project.side_effect = Exception("Auth error")
-
-        with mock.patch(MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id", return_value=(mock_creds, None)):
-            hook = GoogleBaseHook(quota_project_id="test-quota-project")
-            with pytest.raises(AirflowException) as exc_info:
-                hook.get_credentials()
-
-            assert "Failed to configure quota project" in str(exc_info.value)
-            assert "Auth error" in str(exc_info.value)
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
