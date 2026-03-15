@@ -33,7 +33,7 @@ This is where *Deferrable Operators* can be used. When it has nothing to do but 
    to multiplex operations.
 
    For guidance on when to use deferred operators versus async tasks,
-   see :ref:`sdk-deferred-vs-async-operators`.
+   see :doc:`Deferred vs Async Operators <airflow:sdk/deferred-vs-async-operators>`.
 
 An overview of how this process works:
 
