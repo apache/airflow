@@ -40,6 +40,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run breeze integration tests (true/false)"
         required: true
         type: string
+      run-scripts-tests:
+        description: "Whether to run scripts tests (true/false)"
+        required: true
+        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -70,7 +74,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.10.9"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.10"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -145,6 +149,25 @@ jobs:
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
         run: uv run --group dev pytest --color=yes -n auto
         working-directory: shared/${{ matrix.shared-distribution }}
+  tests-scripts:
+    timeout-minutes: 10
+    name: Scripts tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-scripts-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: "Install uv"
+        run: pip install "uv==${UV_VERSION}"
+        env:
+          UV_VERSION: ${{ inputs.uv-version }}
+      - name: "Run scripts tests"
+        run: uv run --project . pytest --color=yes -n auto
+        working-directory: ./scripts/
+
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
@@ -358,6 +381,7 @@ jobs:
           UPGRADE_MPROCS: "false"
           UPGRADE_PROTOC: "false"
           UPGRADE_OPENAPI_GENERATOR: "false"
+          UPGRADE_COOLDOWN_DAYS: "4"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:

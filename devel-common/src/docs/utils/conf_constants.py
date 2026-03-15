@@ -274,10 +274,23 @@ def get_autodoc_mock_imports() -> list[str]:
     ]
 
 
+def _get_third_party_mapping(pkg_names: list[str]) -> dict[str, tuple[str, tuple[str]]]:
+    """Build intersphinx mapping for third-party packages, skipping those without cached inventories."""
+    mapping: dict[str, tuple[str, tuple[str]]] = {}
+    for pkg_name in pkg_names:
+        inv_path = INVENTORY_CACHE_DIR / pkg_name / "objects.inv"
+        if not inv_path.exists():
+            continue
+        mapping[pkg_name] = (
+            f"{THIRD_PARTY_INDEXES[pkg_name]}/",
+            (str(inv_path),),
+        )
+    return mapping
+
+
 def get_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
-    return {
-        pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",))
-        for pkg_name in [
+    return _get_third_party_mapping(
+        [
             "boto3",
             "celery",
             "docker",
@@ -289,16 +302,12 @@ def get_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
             "requests",
             "sqlalchemy",
         ]
-    }
+    )
 
 
 def get_google_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
-    return {
-        pkg_name: (
-            f"{THIRD_PARTY_INDEXES[pkg_name]}/",
-            (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
-        )
-        for pkg_name in [
+    return _get_third_party_mapping(
+        [
             "google-api-core",
             "google-cloud-automl",
             "google-cloud-bigquery",
@@ -324,7 +333,7 @@ def get_google_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
             "google-cloud-videointelligence",
             "google-cloud-vision",
         ]
-    }
+    )
 
 
 BASIC_AUTOAPI_IGNORE_PATTERNS = [

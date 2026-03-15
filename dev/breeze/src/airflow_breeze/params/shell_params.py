@@ -77,7 +77,7 @@ from airflow_breeze.global_constants import (
     GroupOfTests,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
@@ -332,13 +332,13 @@ class ShellParams:
 
     def print_badge_info(self):
         if get_verbose():
-            get_console().print(f"[info]Use {self.image_type} image[/]")
-            get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
-            get_console().print(f"[info]Docker Image: {self.airflow_image_name}[/]")
-            get_console().print(f"[info]Airflow source version:{self.airflow_version}[/]")
-            get_console().print(f"[info]Python Version: {self.python}[/]")
-            get_console().print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
-            get_console().print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
+            console_print(f"[info]Use {self.image_type} image[/]")
+            console_print(f"[info]Branch Name: {self.airflow_branch}[/]")
+            console_print(f"[info]Docker Image: {self.airflow_image_name}[/]")
+            console_print(f"[info]Airflow source version:{self.airflow_version}[/]")
+            console_print(f"[info]Python Version: {self.python}[/]")
+            console_print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
+            console_print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
         if backend == "sqlite" and self.project_name != "breeze":
@@ -370,7 +370,7 @@ class ShellParams:
             if self.use_airflow_version:
                 current_extras = self.airflow_extras
                 if "celery" not in current_extras.split(","):
-                    get_console().print(
+                    console_print(
                         "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
                     )
                     self.airflow_extras = (
@@ -380,7 +380,7 @@ class ShellParams:
             if self.use_airflow_version:
                 current_extras = self.airflow_extras
                 if "fab" not in current_extras.split(","):
-                    get_console().print(
+                    console_print(
                         "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
                     )
                     self.airflow_extras = (
@@ -396,7 +396,7 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_CI_TESTS_PATH)
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
-            get_console().print(
+            console_print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
                 f"from sources but from {self.use_airflow_version} since you attempt"
                 f" to use {self.mount_sources} (but you can use any of "
@@ -404,7 +404,7 @@ class ShellParams:
             )
             self.mount_sources = MOUNT_REMOVE
         if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
-            get_console().print(
+            console_print(
                 "[error]You need to specify `--use-airflow-version wheel | sdist` when using one of the"
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
@@ -437,7 +437,7 @@ class ShellParams:
             elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
-                get_console().print(
+                console_print(
                     "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
@@ -448,17 +448,17 @@ class ShellParams:
             elif self.test_group == GroupOfTests.PROVIDERS:
                 integrations = ALL_PROVIDERS_INTEGRATIONS
             else:
-                get_console().print(
+                console_print(
                     "[error]You can only use `core` or `providers` test group with `all` integration."
                 )
                 sys.exit(1)
         else:
             integrations = self.integration
         for integration in integrations:
-            get_console().print(f"[info]Adding integration compose file for {integration}[/]")
+            console_print(f"[info]Adding integration compose file for {integration}[/]")
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"integration-{integration}.yml")
         if "trino" in integrations and "kerberos" not in integrations:
-            get_console().print(
+            console_print(
                 "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
             )
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH)
@@ -474,7 +474,7 @@ class ShellParams:
             return ""
         broker_url = CELERY_BROKER_URLS_MAP.get(self.celery_broker)
         if not broker_url:
-            get_console().print(
+            console_print(
                 f"[warning]The broker {self.celery_broker} should be one of {CELERY_BROKER_URLS_MAP.keys()}"
             )
             return ""
@@ -507,7 +507,7 @@ class ShellParams:
                     generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
                     compose_file_list.append(generated_compose_file)
                 else:
-                    get_console().print(
+                    console_print(
                         f"[warning]The socket {socket_path} pointed at by DOCKER_HOST does not exist or is "
                         "not a socket. Cannot use it for docker-compose for docker-in-docker forwarding[/]\n"
                         "[info]If you know where your socket is, you can set DOCKER_HOST "
@@ -524,7 +524,7 @@ class ShellParams:
                 generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
                 compose_file_list.append(generated_compose_file)
             else:
-                get_console().print(
+                console_print(
                     f"[warning]The socket {socket_path} does not exist or is not a socket. "
                     "Cannot use it for docker-compose for docker-in-docker forwarding[/]\n"
                     "[info]If you know where your socket is, you can set DOCKER_HOST environment variable "
@@ -540,7 +540,7 @@ class ShellParams:
     def add_git_worktree_mount(self, compose_file_list: list[Path]):
         main_git_directory = get_main_git_dir_for_worktree()
         if main_git_directory:
-            get_console().print(
+            console_print(
                 f"[info]Detected git worktree. Mounting main git directory: {main_git_directory}[/]"
             )
             generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml"
@@ -814,15 +814,15 @@ services:
                     # if so - cool, we do not need to do anything else
                     return
                 if get_verbose():
-                    get_console().print(
+                    console_print(
                         f"[info]The keys has changed vs last run. Regenerating[/]: "
                         f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                     )
             if get_verbose():
-                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
+                console_print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))
             if get_verbose():
-                get_console().print(
+                console_print(
                     f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                 )
             GENERATED_DOCKER_COMPOSE_ENV_PATH.write_text(
@@ -841,9 +841,7 @@ services:
             and KEYCLOAK_INTEGRATION in self.integration
             and not self.backend == POSTGRES_BACKEND
         ):
-            get_console().print(
-                "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
-            )
+            console_print("[error]When using the Keycloak integration the backend must be Postgres![/]\n")
             sys.exit(2)
 
     def __eq__(self, other) -> bool:

@@ -49,7 +49,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
         required: true
       e2e_test_mode:
-        description: "Test mode - basic, remote_log, or xcom_object_storage"
+        description: "Test mode - basic, remote_log, remote_log_elasticsearch, or xcom_object_storage"
         type: string
         default: "basic"
 
@@ -80,7 +80,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
         default: ""
       e2e_test_mode:
-        description: "Test mode - basic, remote_log, or xcom_object_storage"
+        description: "Test mode - basic, remote_log, remote_log_elasticsearch, or xcom_object_storage"
         type: string
         default: "basic"
 

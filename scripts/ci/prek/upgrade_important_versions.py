@@ -41,10 +41,8 @@ from enum import Enum
 from pathlib import Path
 
 import requests
-from packaging.version import Version
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
+from packaging.version import Version
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
 
@@ -418,6 +416,7 @@ def get_env_bool(name: str, default: bool = True) -> bool:
 
 VERBOSE: bool = os.environ.get("VERBOSE", "false") == "true"
 UPGRADE_ALL_BY_DEFAULT: bool = os.environ.get("UPGRADE_ALL_BY_DEFAULT", "true") == "true"
+UPGRADE_COOLDOWN_DAYS: int = int(os.environ.get("UPGRADE_COOLDOWN_DAYS", "0"))
 
 if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
     console.print("[bright_blue]Upgrading all important versions")
@@ -850,6 +849,40 @@ def update_pyproject_build_requires(
     return changed
 
 
+def is_within_cooldown(cooldown_days: int) -> bool:
+    """Check if there was a version upgrade commit within the cooldown period.
+
+    Looks for commits matching the 'Upgrade important' pattern in the git log
+    within the last ``cooldown_days`` days. If found, the upgrade check should
+    not fail because someone recently addressed the versions.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                f"--since={cooldown_days} days ago",
+                "--all",
+                "--oneline",
+                "--grep=Upgrade important",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=AIRFLOW_ROOT_PATH,
+        )
+        if result.stdout.strip():
+            if VERBOSE:
+                console.print(
+                    f"[bright_blue]Found recent upgrade commits within {cooldown_days} days:\n"
+                    f"{result.stdout.strip()}"
+                )
+            return True
+        return False
+    except subprocess.CalledProcessError:
+        return False
+
+
 def main() -> None:
     """Main entry point for the version upgrade script."""
     retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
@@ -877,6 +910,12 @@ def main() -> None:
         sync_breeze_lock_file()
         if not os.environ.get("CI"):
             console.print("[bright_blue]Please commit the changes")
+        if UPGRADE_COOLDOWN_DAYS > 0 and is_within_cooldown(UPGRADE_COOLDOWN_DAYS):
+            console.print(
+                f"[bright_yellow]Versions are outdated but within {UPGRADE_COOLDOWN_DAYS}-day "
+                f"cooldown period (recent upgrade commit found). Not failing."
+            )
+            sys.exit(0)
         sys.exit(1)
 
 
