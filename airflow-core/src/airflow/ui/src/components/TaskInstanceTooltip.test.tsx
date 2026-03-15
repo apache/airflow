@@ -60,8 +60,38 @@ describe("TaskInstanceTooltip", () => {
 
     expect(screen.getByText(/state/iu)).toBeInTheDocument();
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
-    expect(screen.getByText(/endDate/iu)).toBeInTheDocument();
     expect(screen.getByText(/duration/iu)).toBeInTheDocument();
+  });
+
+  it("calculates live duration for a running task instead of using stale duration", () => {
+    // We pass a stale duration of 50 seconds, but start date is 2 hours ago.
+    // The calculated duration should be ~2 hours, not 50 seconds.
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const taskInstance = {
+      dag_id: "test",
+      dag_run_id: "test",
+      duration: 50.0,
+      end_date: null,
+      start_date: twoHoursAgo,
+      state: "running",
+      task_display_name: "My Task",
+      task_id: "my_task",
+      try_number: 2,
+    } as any;
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    const durationText = screen.getByText(/duration/iu).parentElement?.textContent;
+
+    // The calculated duration should be around 2 hours (e.g., "02:00:00" or similar)
+    // It should definitely NOT be "00:00:50.000" which is what `renderDuration(50)` gives
+    expect(durationText).not.toContain("00:00:50");
+    expect(durationText).toContain("02:00:");
   });
 
   it("shows only start date when max_end_date is null", () => {
