@@ -24,6 +24,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "./",
   build: { chunkSizeWarningLimit: 1600, manifest: true },
+  optimizeDeps: {
+    exclude: ["@guanmingchiu/sqlparser-ts"], // WASM package needs to be excluded from pre-bundling
+  },
   plugins: [
     react({
       babel: {
@@ -41,6 +44,12 @@ export default defineConfig({
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
     cors: true, // Only used by the dev server.
+    proxy: {
+      "/hitl-review": {
+        changeOrigin: true,
+        target: "http://localhost:28080",
+      },
+    },
   },
   test: {
     coverage: {

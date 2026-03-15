@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow.sdk._shared.observability.metrics.stats import Stats, normalize_name_for_stats
 
-__all__ = ["Stats", "normalize_name_for_stats"]
+__all__ = ["Stats", "normalize_name_for_stats", "DualStatsManager"]

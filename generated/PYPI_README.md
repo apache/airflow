@@ -55,7 +55,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.1.7) | Stable version (2.11.1)      |
+|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.1)      |
 |------------|------------------------------------|------------------------|------------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13             | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64            | AMD64/ARM64(\*)              |
@@ -124,15 +124,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.1.7' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.7/constraints-3.10.txt"
+pip install 'apache-airflow==3.1.8' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.1.7' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.7/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.1.8' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check

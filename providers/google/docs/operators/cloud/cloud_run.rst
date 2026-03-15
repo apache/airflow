@@ -33,6 +33,9 @@ Create a job
 Before you create a job in Cloud Run, you need to define it.
 For more information about the Job object fields, visit `Google Cloud Run Job description <https://cloud.google.com/run/docs/reference/rpc/google.cloud.run.v2#google.cloud.run.v2.Job>`__
 
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
+
 A simple job configuration can be created with a Job object:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_run/example_cloud_run.py
@@ -67,6 +70,9 @@ Create a service
 Before you create a service in Cloud Run, you need to define it.
 For more information about the Service object fields, visit `Google Cloud Run Service description <https://cloud.google.com/run/docs/reference/rpc/google.cloud.run.v2#google.cloud.run.v2.Service>`__
 
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
+
 A simple service configuration can look as follows:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_run/example_cloud_run_service.py
@@ -91,6 +97,9 @@ Note that this operator only creates the service without executing it. The Servi
 Delete a service
 ---------------------
 
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
+
 With this configuration we can delete the service:
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunDeleteServiceOperator`
 
@@ -105,6 +114,9 @@ Note this operator waits for the service to be deleted, and the deleted Service'
 
 Execute a job
 ---------------------
+
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
 
 To execute a job, you can use:
 
@@ -167,6 +179,9 @@ You can also specify overrides that allow you to give a new entrypoint command t
 Update a job
 ------------------
 
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
+
 To update a job, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunUpdateJobOperator`
@@ -184,6 +199,9 @@ The Job's dictionary representation is pushed to XCom.
 List jobs
 ----------------------
 
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
+
 To list the jobs, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunListJobsOperator`
@@ -199,6 +217,9 @@ The operator takes two optional parameters: "limit" to limit the number of tasks
 
 Delete a job
 -----------------
+
+If you want to specify the regional endpoint that will be used to create a Cloud Run client, you can set the flag use_regional_endpoint as True,
+and the API endpoint will be configured with the location you have specified in the operator.
 
 To delete a job you can use:
 

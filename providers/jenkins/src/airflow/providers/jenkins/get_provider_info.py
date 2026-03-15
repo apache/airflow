@@ -50,6 +50,23 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.jenkins.hooks.jenkins.JenkinsHook",
                 "connection-type": "jenkins",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["extra"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "login": "Login for the Jenkins service you would like to connect to",
+                        "password": "Password for the Jenkins service you would like to connect too",
+                        "host": "Host for your Jenkins server. Should NOT contain scheme (http:// or https://)",
+                        "port": "Specify a port number",
+                    },
+                },
+                "conn-fields": {
+                    "use_https": {
+                        "label": "Use Https",
+                        "description": "Specifies whether to use https scheme. Defaults to http",
+                        "schema": {"type": ["boolean", "null"]},
+                    }
+                },
             }
         ],
     }

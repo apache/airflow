@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Made WinRMOperator deferrable (#60651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 3.13.3
 ......
 

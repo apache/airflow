@@ -19,15 +19,11 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
-#   "ruff==0.15.1",
+#   "ruff==0.15.6",
 # ]
 # ///
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import (
     initialize_breeze_prek,
     run_command_via_breeze_shell,

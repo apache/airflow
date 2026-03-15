@@ -40,24 +40,43 @@ class SageMakerNotebookHook(BaseHook):
         from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
         notebook_hook = SageMakerNotebookHook(
+            execution_name="notebook_execution",
+            domain_id="dzd-example123456",
+            project_id="example123456",
             input_config={"input_path": "path/to/notebook.ipynb", "input_params": {"param1": "value1"}},
             output_config={"output_uri": "folder/output/location/prefix", "output_formats": "NOTEBOOK"},
-            execution_name="notebook_execution",
+            domain_region="us-east-1",
             waiter_delay=10,
             waiter_max_attempts=1440,
         )
 
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
+    :param domain_id: The domain ID for Amazon SageMaker Unified Studio. Optional - if not provided,
+        the SDK will attempt to resolve it from the environment.
+    :param project_id: The project ID for Amazon SageMaker Unified Studio. Optional - if not provided,
+        the SDK will attempt to resolve it from the environment.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
     :param output_config: Configuration for the output format. It should include an output_formats parameter to specify the output format.
         Example: {'output_formats': ['NOTEBOOK']}
-    :param compute: compute configuration to use for the notebook execution. This is a required attribute if the execution is on a remote compute.
-        Example: {"instance_type": "ml.m5.large", "volume_size_in_gb": 30, "volume_kms_key_id": "", "image_details": {"ecr_uri": "string"}, "container_entrypoint": ["string"]}
+    :param domain_region: The AWS region for the domain. If not provided, the default AWS region will be used.
+    :param compute: compute configuration to use for the notebook execution. This is a required attribute
+        if the execution is on a remote compute.
+        Example::
+
+            {
+                "instance_type": "ml.c5.xlarge",
+                "image_details": {
+                    "image_name": "sagemaker-distribution-prod",
+                    "image_version": "3",
+                    "ecr_uri": "123456123456.dkr.ecr.us-west-2.amazonaws.com/ImageName:latest",
+                },
+            }
+
     :param termination_condition: conditions to match to terminate the remote execution.
-        Example: {"MaxRuntimeInSeconds": 3600}
+        Example: ``{"MaxRuntimeInSeconds": 3600}``
     :param tags: tags to be associated with the remote execution runs.
-        Example: {"md_analytics": "logs"}
+        Example: ``{"md_analytics": "logs"}``
     :param waiter_delay: Interval in seconds to check the task execution status.
     :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     """
@@ -66,7 +85,10 @@ class SageMakerNotebookHook(BaseHook):
         self,
         execution_name: str,
         input_config: dict | None = None,
+        domain_id: str | None = None,
+        project_id: str | None = None,
         output_config: dict | None = None,
+        domain_region: str | None = None,
         compute: dict | None = None,
         termination_condition: dict | None = None,
         tags: dict | None = None,
@@ -78,6 +100,9 @@ class SageMakerNotebookHook(BaseHook):
         super().__init__(*args, **kwargs)
         self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.execution_name = execution_name
+        self.domain_id = domain_id
+        self.project_id = project_id
+        self.domain_region = domain_region
         self.input_config = input_config or {}
         self.output_config = output_config or {"output_formats": ["NOTEBOOK"]}
         self.compute = compute
@@ -114,17 +139,20 @@ class SageMakerNotebookHook(BaseHook):
         start_execution_params = {
             "execution_name": self.execution_name,
             "execution_type": "NOTEBOOK",
+            "domain_id": self.domain_id,
+            "project_id": self.project_id,
             "input_config": self._format_start_execution_input_config(),
             "output_config": self._format_start_execution_output_config(),
             "termination_condition": self.termination_condition,
             "tags": self.tags,
         }
+
+        if self.domain_region:
+            start_execution_params["domain_region"] = self.domain_region
+
         if self.compute:
             start_execution_params["compute"] = self.compute
-        else:
-            start_execution_params["compute"] = {"instance_type": "ml.m6i.xlarge"}
 
-        print(start_execution_params)
         return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
 
     def wait_for_execution_completion(self, execution_id, context):

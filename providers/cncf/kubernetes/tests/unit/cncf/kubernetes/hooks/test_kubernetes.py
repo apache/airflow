@@ -330,6 +330,49 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
+        "config_source",
+        [
+            pytest.param("kube_config_path", id="kube_config_path"),
+            pytest.param("kube_config", id="kube_config"),
+            pytest.param("config_dict", id="config_dict"),
+            pytest.param("default", id="default_client"),
+        ],
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_disable_verify_ssl_applies_to_client_configuration(self, config_source):
+        """
+        Verifies that when disable_verify_ssl=True, the returned ApiClient has verify_ssl=False.
+
+        Previously, _disable_verify_ssl() only mutated the global default configuration via
+        Configuration.set_default(), but config.load_kube_config() would subsequently overwrite
+        that default with verify_ssl=True from the kubeconfig file. This test ensures that
+        verify_ssl=False is correctly propagated to the returned ApiClient's configuration.
+        """
+        if config_source == "kube_config_path":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config_path",
+                disable_verify_ssl=True,
+            )
+        elif config_source == "kube_config":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config",
+                disable_verify_ssl=True,
+            )
+        elif config_source == "config_dict":
+            kubernetes_hook = KubernetesHook(
+                config_dict={"apiVersion": "v1", "kind": "Config"},
+                disable_verify_ssl=True,
+            )
+        else:
+            kubernetes_hook = KubernetesHook(disable_verify_ssl=True)
+
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.verify_ssl is False
+
+    @pytest.mark.parametrize(
         ("disable_tcp_keepalive", "conn_id", "expected"),
         (
             (True, None, False),
@@ -514,7 +557,7 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test")
+            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None)
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):

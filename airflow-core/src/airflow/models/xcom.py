@@ -411,9 +411,24 @@ __compat_imports = {
 
 
 def __getattr__(name: str):
+    import importlib
+    import warnings
+
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     try:
         modpath = __compat_imports[name]
     except KeyError:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
-    globals()[name] = value = getattr(__import__(modpath), name)
+
+    warnings.warn(
+        f"Importing {name} from 'airflow.models.xcom' is deprecated and will be removed in a future version. "
+        f"Please import from '{modpath}' instead.",
+        DeprecatedImportWarning,
+        stacklevel=2,
+    )
+
+    mod = importlib.import_module(modpath)
+    value = getattr(mod, name)
+    globals()[name] = value
     return value

@@ -1,18 +1,20 @@
 # syntax=docker/dockerfile:1.4
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 # THIS DOCKERFILE IS INTENDED FOR PRODUCTION USE AND DEPLOYMENT.
 # NOTE! IT IS ALPHA-QUALITY FOR NOW - WE ARE IN A PROCESS OF TESTING IT
@@ -46,10 +48,10 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.1.7"
+ARG AIRFLOW_VERSION="3.1.8"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.12"
+ARG AIRFLOW_PYTHON_VERSION="3.12.13"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -71,9 +73,8 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.2
+ARG AIRFLOW_UV_VERSION=0.10.10
 ARG AIRFLOW_USE_UV="false"
-ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -733,6 +734,15 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
+    # When installing from sources without upgrade, uv sync --frozen uses uv.lock directly
+    # so we don't need to download constraints
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -z "${UPGRADE_RANDOM_INDICATOR_STRING=}" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing from sources with uv.lock - skipping constraints download${COLOR_RESET}"
+        echo
+        return
+    fi
+
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
@@ -917,7 +927,11 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     # This is needed to get distribution names for local context distributions
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    if [[ -f "${HOME}/constraints.txt" ]]; then
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    else
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} packaging
+    fi
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
         AIRFLOW_EXTRAS_TO_INSTALL="[${AIRFLOW_EXTRAS}]"
@@ -990,10 +1004,28 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+    if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         "${flags[@]}" \
-        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
+        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
+        set +x
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+        echo
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" \
+                "${airflow_distributions[@]}"
+    fi
     set +x
     common::install_packaging_tools
     # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
@@ -1070,9 +1102,6 @@ COPY <<"EOF" /install_airflow_when_building_images.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_from_sources() {
-    local installation_command_flags
-    local fallback_no_constraints_installation
-    fallback_no_constraints_installation="false"
     local extra_sync_flags
     extra_sync_flags=""
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
@@ -1098,69 +1127,30 @@ function install_from_sources() {
             --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
-        # do not use ``uv sync`` because we are not committing and using uv.lock yet.
-        # Once we switch to uv.lock (with the workflow that dependabot will update it
-        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here)
-        # So for now when we are installing with constraints we need to install airflow distributions first and
-        # separately each provider that has some extra development dependencies - otherwise `dev`
-        # dependency groups will not be installed  because ``uv pip install --editable .`` only installs dev
-        # dependencies for the "top level" pyproject.toml
         set +x
         echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
         echo
-        echo "${COLOR_BLUE}Installing first airflow distribution with constraints.${COLOR_RESET}"
-        echo
-        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
-              --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
-              --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
-              --editable ./task-sdk-integration-tests \
-              --editable ./airflow-ctl-tests \
-              --editable ./airflow-e2e-tests \
-              --editable ./devel-common[all] --editable ./dev \
-              --group dev --group docs --group docs-gen --group leveldb"
-        local -a projects_with_devel_dependencies
-        while IFS= read -r -d '' pyproject_toml_file; do
-             project_folder=$(dirname ${pyproject_toml_file})
-             echo "${COLOR_BLUE}Checking provider ${project_folder} for development dependencies ${COLOR_RESET}"
-             first_line_of_devel_deps=$(grep -A 1 "# Additional devel dependencies (do not remove this line and add extra development dependencies)" ${project_folder}/pyproject.toml | tail -n 1)
-             if [[ "$first_line_of_devel_deps" != "]" ]]; then
-                projects_with_devel_dependencies+=("${project_folder}")
-             fi
-             installation_command_flags+=" --editable ${project_folder}"
-        done < <(find "providers" -name "pyproject.toml" -print0 | sort -z)
+        # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
+        # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
+        # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
-            fallback_no_constraints_installation="true"
-        else
-            # For production image, we do not add devel dependencies in prod image
-            if [[ ${AIRFLOW_IMAGE_TYPE=} == "ci" ]]; then
-                set +x
+        if ! uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python; then
+            set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
-                echo "${COLOR_BLUE}Installing all providers with development dependencies.${COLOR_RESET}"
+                echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
                 echo
-                for project_folder in "${projects_with_devel_dependencies[@]}"; do
-                    echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
-                    set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" \
-                        --constraint "${HOME}/constraints.txt" --group dev \
-                        --no-python-downloads --no-managed-python; then
-                            fallback_no_constraints_installation="true"
-                    fi
-                    set +x
-                done
+                exit 1
             fi
-        fi
-        set +x
-        if [[ ${fallback_no_constraints_installation} == "true" ]]; then
             echo
-            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies not reflected in uv.lock.${COLOR_RESET}"
             echo
-            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv sync without --frozen).${COLOR_RESET}"
             echo
-            # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
-            # (binary lxml embeds its own libxml2, while xmlsec uses system one).
-            # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
                 --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
@@ -1176,7 +1166,7 @@ function install_from_external_spec() {
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
         echo
-        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo "${COLOR_RED}The '${AIRFLOW_INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
@@ -1202,6 +1192,12 @@ function install_from_external_spec() {
         set -x
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
@@ -1639,7 +1635,8 @@ COPY <<"EOF" /clean-logs.sh
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
 
@@ -1661,13 +1658,15 @@ if [[ "$MAX_SIZE_BYTES" -gt 0 ]]; then
   echo "Max log size limit: $MAX_SIZE_BYTES bytes"
 fi
 
-retention_days="${RETENTION}"
+retention_days="${RETENTION_DAYS}"
 
 while true; do
-  echo "Trimming airflow logs to ${retention_days} days."
+  total_retention_minutes=$(( (retention_days * 1440) + RETENTION_MINUTES ))
+  echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
+
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${retention_days}" -name '*.log' -print0 | \
+    -type f -mmin +"${total_retention_minutes}" -name '*.log' -print0 | \
     xargs -0 rm -f || true
 
   if [[ "$MAX_SIZE_BYTES" -gt 0 && "$retention_days" -ge 0 ]]; then
@@ -1683,7 +1682,7 @@ while true; do
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
-  retention_days="${RETENTION}"
+  retention_days="${RETENTION_DAYS}"
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
@@ -1741,7 +1740,6 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
 
 ARG PYTHON_LTO
 
-
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
 
@@ -1797,6 +1795,8 @@ ARG AIRFLOW_CONSTRAINTS_MODE="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
+# By default do not fallback to installation without constraints because it can hide problems with constraints
+ARG AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION="false"
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
@@ -1832,12 +1832,10 @@ ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 ARG AIRFLOW_PIP_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
-ARG UV_HTTP_TIMEOUT
 ARG INCLUDE_PRE_RELEASE="false"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
@@ -1851,6 +1849,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE} \
     AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
     AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
+    AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION=${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     PATH=${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \

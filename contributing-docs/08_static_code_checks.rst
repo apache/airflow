@@ -26,7 +26,9 @@ for the first time.
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Prek hooks
 ----------
@@ -175,13 +177,13 @@ But you can run prek hooks manually as needed.
 
 .. code-block:: bash
 
-    prek mypy-airflow-core mypy-dev  --hook-stage pre-push
+    prek mypy-airflow-core mypy-dev  --stage pre-push
 
 -   Run only mypy airflow checks on all "airflow-core" files by using:
 
 .. code-block:: bash
 
-    prek mypy-airflow-core --all-files --hook-stage pre-push
+    prek mypy-airflow-core --all-files --stage pre-push
 
 -   Run all pre-commit stage hooks on all files by using:
 
@@ -272,7 +274,7 @@ Manual prek hooks
 
 Most of the checks we run are configured to run automatically when you commit the code or push PR. However,
 there are some checks that are not run automatically and you need to run them manually. You can run
-them manually by running ``prek --hook-stage manual <hook-id>``.
+them manually by running ``prek --stage manual <hook-id>``.
 
 Special pin-versions prek
 -------------------------
@@ -287,7 +289,7 @@ However, you can run it manually by running:
 .. code-block:: bash
 
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    prek --all-files --hook-stage manual --verbose pin-versions
+    prek --all-files --stage manual --verbose pin-versions
 
 
 Mypy checks
@@ -309,19 +311,19 @@ command (example for ``airflow`` files):
 
 .. code-block:: bash
 
-  prek --hook-stage manual mypy-<FOLDER> --all-files
+  prek --stage manual mypy-<FOLDER> --all-files
 
 For example:
 
 .. code-block:: bash
 
-  prek --hook-stage manual mypy-airflow --all-files
+  prek --stage manual mypy-airflow --all-files
 
 To show unused mypy ignores for any providers/airflow etc, eg: run below command:
 
 .. code-block:: bash
   export SHOW_UNUSED_MYPY_WARNINGS=true
-  prek --hook-stage manual mypy-airflow --all-files
+  prek --stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
 execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy

@@ -67,10 +67,10 @@ spec:
             {{- end }}
           annotations:
             {{- if .Values.airflowPodAnnotations }}
-              {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
+              {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 12 }}
             {{- end }}
             {{- if .Values.databaseCleanup.podAnnotations }}
-              {{- toYaml .Values.databaseCleanup.podAnnotations | nindent 12 }}
+              {{- tpl (toYaml .Values.databaseCleanup.podAnnotations) . | nindent 12 }}
             {{- end }}
         spec:
           restartPolicy: Never

@@ -33,7 +33,8 @@ description: |
   are provided by the API server.
 
 state: ready
-source-date-epoch: 1770751670
+lifecycle: production
+source-date-epoch: 1773070647
 build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
@@ -41,6 +42,8 @@ build-system: hatchling
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.2.0
+  - 3.1.0
   - 3.0.2
   - 3.0.1
   - 3.0.0
@@ -68,6 +71,9 @@ cli:
 
 executors:
   - airflow.providers.edge3.executors.EdgeExecutor
+
+db-managers:
+  - airflow.providers.edge3.models.db.EdgeDBManager
 
 config:
   edge:

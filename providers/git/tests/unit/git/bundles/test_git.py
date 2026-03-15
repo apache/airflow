@@ -67,6 +67,9 @@ def git_repo(tmp_path_factory):
 
 
 def assert_repo_is_closed(bundle: GitDagBundle):
+    # When .git was pruned, repo is cleared and there is nothing to close
+    if getattr(bundle, "repo", None) is None:
+        return
     # cat-file processes get left around if the repo is not closed, so check it was
     assert bundle.repo.git.cat_file_all is None
     assert bundle.bare_repo.git.cat_file_all is None
@@ -265,6 +268,45 @@ class TestGitDagBundle:
         assert bundle.get_current_version() == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_second_initialize_reuses_pruned_worktree_without_recloning(self, mock_githook, git_repo):
+        """When version path exists without .git (pruned), second initialize() uses it and does not re-clone."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+        version = starting_commit.hexsha
+        bundle_name = "test_pruned_reuse"
+
+        # First init: clone and prune (default)
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle1.initialize()
+        assert not (bundle1.repo_path / ".git").exists()
+        assert bundle1.get_current_version() == version
+        version_path = bundle1.repo_path
+
+        # Second init: same name and version; should detect pruned worktree and skip clone
+        with patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone:
+            bundle2 = GitDagBundle(
+                name=bundle_name,
+                git_conn_id=CONN_HTTPS,
+                version=version,
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                prune_dotgit_folder=True,
+            )
+            bundle2.initialize()
+            mock_clone.assert_not_called()
+
+        assert bundle2.repo_path == version_path
+        assert bundle2.get_current_version() == version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
 
     @pytest.mark.parametrize(
         "amend",

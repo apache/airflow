@@ -21,7 +21,6 @@ import importlib
 import json
 import logging
 import os
-import platform
 import re
 import subprocess
 import sys
@@ -225,11 +224,6 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
-
-if platform.system() == "Darwin":
-    # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
-    # but macOS uses "spawn" by default
-    os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
 
 
 @pytest.fixture
@@ -978,7 +972,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
                 )
 
-            assets = self.session.scalars(select(AssetModel).where(assets_select_condition)).all()
+            assets = select(AssetModel).where(assets_select_condition).cte()
+
+            if not AIRFLOW_V_3_2_PLUS:
+                assets = self.session.scalars(
+                    select(AssetModel).join(assets, AssetModel.id == AssetModel.id)
+                ).all()
+
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):

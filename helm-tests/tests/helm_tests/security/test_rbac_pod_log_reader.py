@@ -27,8 +27,8 @@ class TestPodReader:
     @pytest.mark.parametrize(
         ("webserver", "airflow_version", "expected"),
         [
-            (True, "2.9.0", ["release-name-airflow-webserver"]),
-            (False, "2.9.0", []),
+            (True, "2.11.0", ["release-name-airflow-webserver"]),
+            (False, "2.11.0", []),
             (True, "3.0.0", ["release-name-airflow-api-server"]),
             (False, "3.0.0", ["release-name-airflow-api-server"]),
         ],

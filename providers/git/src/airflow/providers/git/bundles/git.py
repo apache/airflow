@@ -115,8 +115,25 @@ class GitDagBundle(BaseDagBundle):
             self.repo_url = self.hook.repo_url
             self._log.debug("repo_url updated from hook")
 
+    def _is_pruned_worktree(self) -> bool:
+        # True if version path exists and has no .git
+        if not self.version:
+            return False
+        if not self.repo_path.exists() or not self.repo_path.is_dir():
+            return False
+        return not (self.repo_path / ".git").exists()
+
     def _initialize(self):
         with self.lock():
+            # Avoids re-cloning on every task run when prune_dotgit_folder=True.
+            if self._is_pruned_worktree():
+                self._log.debug(
+                    "Using existing pruned worktree",
+                    repo_path=self.repo_path,
+                    version=self.version,
+                )
+                return
+
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
                 try:
@@ -151,11 +168,14 @@ class GitDagBundle(BaseDagBundle):
                             raise RuntimeError("Error pulling submodule from repository") from e
 
                 if self.prune_dotgit_folder:
+                    self.repo.close()
                     shutil.rmtree(self.repo_path / ".git")
+                    self.repo = None
             else:
                 self.refresh()
 
-            self.repo.close()
+            if self.repo is not None:
+                self.repo.close()
 
     def initialize(self) -> None:
         if not self.repo_url:
@@ -246,6 +266,8 @@ class GitDagBundle(BaseDagBundle):
         )
 
     def get_current_version(self) -> str:
+        if self.version is not None and getattr(self, "repo", None) is None:
+            return self.version
         with self.repo as repo:
             return repo.head.commit.hexsha
 

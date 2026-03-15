@@ -23,6 +23,7 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1769460507
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

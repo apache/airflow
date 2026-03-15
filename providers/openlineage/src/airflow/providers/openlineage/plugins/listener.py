@@ -206,7 +206,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun=dagrun, task=task, task_instance_state=TaskInstanceState.RUNNING
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.RUNNING,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.start_task(

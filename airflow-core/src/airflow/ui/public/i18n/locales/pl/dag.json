@@ -129,6 +129,15 @@
     "graphDirection": {
       "label": "Kierunek grafu"
     },
+    "showVersionIndicator": {
+      "label": "Pokaż wskaźnik wersji",
+      "options": {
+        "hideAll": "Ukryj wszystkie",
+        "showAll": "Pokaż wszystkie",
+        "showBundleVersion": "Pokaż wersję pakietu",
+        "showDagVersion": "Pokaż wersję Daga"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Aktywny filtr",
       "clearFilter": "Wyczyść filtr",
@@ -137,6 +146,7 @@
       "direction": "Kierunek",
       "label": "Filtr",
       "mode": "Tryb",
+      "modeTooltip": "Tryb statyczny zachowuje bieżący widok podczas nawigacji między zadaniami, podczas gdy tryb przechodzenia automatycznie aktualizuje aktywny filtr do klikniętego zadania, ułatwiając przechodzenie przez Dag.",
       "modes": {
         "static": "Statyczny",
         "traverse": "Przechodzenia"

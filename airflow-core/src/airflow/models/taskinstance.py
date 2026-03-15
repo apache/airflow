@@ -70,6 +70,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.executors.workloads import BaseWorkload
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -225,6 +226,85 @@ def _recalculate_dagrun_queued_at_deadlines(
         deadline.deadline_time = new_deadline_time
     # Do not flush/commit here in order to keep the scheduler loop atomic.
     # These changes are committed by the calling function.
+
+
+def _get_new_task_ids(
+    dag_id: str,
+    run_id: str,
+    session: Session,
+) -> list[str]:
+    """
+    Get task ids for newly added tasks in the latest DAG version.
+
+    This is a read-only operation that compares the current DAG version
+    with the latest DAG version to identify new tasks.
+
+    :param dag_id: The dag_id for the DAG
+    :param run_id: The run_id for the DAG run
+    :param session: SQLAlchemy session
+    :return: List of task IDs for newly added tasks
+    """
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
+    if not dag_run:
+        raise ValueError(f"DagRun with run_id '{run_id}' not found")
+
+    scheduler_dagbag = DBDagBag(load_op_links=False)
+    latest_dag = scheduler_dagbag.get_latest_version_of_dag(dag_id, session=session)
+
+    if not latest_dag:
+        raise ValueError(f"Latest DAG version for '{dag_id}' not found")
+
+    current_dag = scheduler_dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+    new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
+
+    return list(new_task_ids)
+
+
+def _update_dagrun_to_latest_version(
+    dag_id: str,
+    run_id: str,
+    session: Session,
+) -> None:
+    """
+    Update the DAG run to the latest DAG version and create task instances for new tasks.
+
+    This mutates the DAG run by updating its created_dag_version_id, bundle_version,
+    updating all existing task instances to the new dag_version_id,
+    and creating task instances for newly added tasks.
+
+    :param dag_id: The dag_id for the DAG
+    :param run_id: The run_id for the DAG run
+    :param session: SQLAlchemy session
+    """
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
+    if not dag_run:
+        raise ValueError(f"DagRun with run_id '{run_id}' not found")
+
+    dag_version = DagVersion.get_latest_version(dag_id, session=session)
+    if not dag_version:
+        return
+
+    scheduler_dagbag = DBDagBag(load_op_links=False)
+    latest_dag = scheduler_dagbag.get_latest_version_of_dag(dag_id, session=session)
+    if not latest_dag:
+        raise ValueError(f"Latest DAG version for '{dag_id}' not found")
+
+    dag_run.created_dag_version_id = dag_version.id
+    dag_run.bundle_version = dag_version.bundle_version
+    dag_run.dag = latest_dag
+
+    for ti in dag_run.get_task_instances(session=session):
+        ti.dag_version_id = dag_version.id
+
+    dag_run.verify_integrity(session=session, dag_version_id=dag_version.id)
+
+    session.flush()
 
 
 def clear_task_instances(
@@ -406,7 +486,7 @@ def uuid7() -> UUID:
     return uuid6.uuid7()
 
 
-class TaskInstance(Base, LoggingMixin):
+class TaskInstance(Base, LoggingMixin, BaseWorkload):
     """
     Task instances store the state of a task instance.
 
@@ -565,6 +645,8 @@ class TaskInstance(Base, LoggingMixin):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        if run_id is not None:
+            self.run_id = run_id
 
         self.refresh_from_task(task)
         if TYPE_CHECKING:
@@ -572,8 +654,6 @@ class TaskInstance(Base, LoggingMixin):
         # init_on_load will config the log
         self.init_on_load()
 
-        if run_id is not None:
-            self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
         if not self.id:
@@ -802,6 +882,14 @@ class TaskInstance(Base, LoggingMixin):
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
+    def get_dag_id(self) -> str:
+        """Return the DAG ID for scheduler routing."""
+        return self.dag_id
+
+    def get_executor_name(self) -> str | None:
+        """Return the executor name for scheduler routing."""
+        return self.executor
+
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
         """
@@ -942,16 +1030,15 @@ class TaskInstance(Base, LoggingMixin):
         """
         dep_context = dep_context or DepContext()
         if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-            # This DepContext is used when a task instance is in UP_FOR_RESCHEDULE state.
-            #
             # Tasks can be put into UP_FOR_RESCHEDULE by the task runner itself (e.g. when
-            # the worker cannot load the Dag or task). In this case, the scheduler must respect
-            # the task instance's reschedule_date before scheduling it again.
+            # the worker cannot load the DAG or task). The scheduler must respect the
+            # reschedule_date before scheduling it again.
             #
-            # ReadyToRescheduleDep is the only dependency that enforces this time-based gating.
-            # We therefore extend the normal scheduling dependency set with it, instead of
-            # modifying the global scheduler dependencies.
-            dep_context.deps.add(ReadyToRescheduleDep())
+            # We use attrs.evolve to create a *new* DepContext with ReadyToRescheduleDep added,
+            # instead of mutating the caller's dep_context.deps set in-place.  The same
+            # dep_context is shared across all TIs in a scheduler loop, so mutating it would
+            # permanently leak the dep into subsequent, unrelated TIs.
+            dep_context = attrs.evolve(dep_context, deps=dep_context.deps | {ReadyToRescheduleDep()})
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
@@ -1675,6 +1762,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -1706,12 +1794,15 @@ class TaskInstance(Base, LoggingMixin):
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
+
             if map_indexes is not None or first.map_index < 0:
                 return XComModel.deserialize_value(first)
 
-            # raise RuntimeError("Nothing should hit this anymore")
-
-        # TODO: TaskSDK: We should remove this, but many tests still currently call `ti.run()`. See #45549
+            return LazyXComSelectSequence.from_select(
+                query.with_only_columns(XComModel.value).order_by(None),
+                order_by=[XComModel.map_index.expression],
+                session=session,
+            )
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
         # Order return values to match task_ids and map_indexes ordering.

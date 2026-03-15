@@ -39,6 +39,18 @@ def get_provider_info():
         ],
         "hooks": [{"integration-name": "MongoDB", "python-modules": ["airflow.providers.mongo.hooks.mongo"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook", "connection-type": "mongo"}
+            {
+                "hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook",
+                "connection-type": "mongo",
+                "conn-fields": {
+                    "srv": {"label": "Srv", "schema": {"type": ["boolean", "null"]}},
+                    "ssl": {"label": "Ssl", "schema": {"type": ["boolean", "null"]}},
+                    "allow_insecure": {"label": "Allow Insecure", "schema": {"type": ["boolean", "null"]}},
+                },
+                "ui-field-behaviour": {
+                    "relabeling": {"login": "Username", "schema": "Default DB"},
+                    "placeholders": {"port": "Note: port should not be set for SRV connections"},
+                },
+            }
         ],
     }

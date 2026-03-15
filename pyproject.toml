@@ -17,15 +17,12 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.45",
-    "gitdb==4.0.12",
-    "hatchling==1.27.0",
-    "packaging==25.0",
-    "pathspec==0.12.1",
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "smmap==5.0.2",
-    "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.9.11.17",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
 
@@ -104,9 +101,6 @@ packages = []
 ]
 "amazon" = [
     "apache-airflow-providers-amazon>=9.0.0"
-]
-"apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -214,13 +208,13 @@ packages = []
     "apache-airflow-providers-edge3>=1.0.0"
 ]
 "elasticsearch" = [
-    "apache-airflow-providers-elasticsearch>=5.5.2"
+    "apache-airflow-providers-elasticsearch>=6.5.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "exasol" = [
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -253,7 +247,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0"
 ]
 "informatica" = [
-    "apache-airflow-providers-informatica>=0.1.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-informatica>=0.1.1"
 ]
 "jdbc" = [
     "apache-airflow-providers-jdbc>=4.5.2"
@@ -399,7 +393,6 @@ packages = []
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -435,9 +428,9 @@ packages = []
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
     "apache-airflow-providers-edge3>=1.0.0",
-    "apache-airflow-providers-elasticsearch>=5.5.2",
+    "apache-airflow-providers-elasticsearch>=6.5.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -448,7 +441,7 @@ packages = []
     "apache-airflow-providers-http>=4.13.2",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
-    "apache-airflow-providers-informatica>=0.1.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-informatica>=0.1.1",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
@@ -517,11 +510,11 @@ packages = []
     "cloudpickle>=2.2.1",
 ]
 "github-enterprise" = [
-    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-fab>=2.2.0",
     "authlib>=1.0.0",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-fab>=2.2.0",
     "authlib>=1.0.0",
 ]
 "ldap" = [
@@ -545,7 +538,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.2",
+    "uv>=0.10.10",
 ]
 
 [project.urls]
@@ -791,6 +784,8 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
+"dev/registry/tests/*" = ["S101"]
+"scripts/tests/*" = ["S101"]
 
 # Shared distributions SHOULD use relative imports when referencing each other
 # This one disables 'ban-relative-imports'.
@@ -1056,8 +1051,6 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/src",
-    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1296,6 +1289,7 @@ dev = [
     "apache-airflow[all]",
     "apache-airflow-breeze",
     "apache-airflow-dev",
+    "apache-airflow-scripts",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
@@ -1314,6 +1308,7 @@ dev = [
     "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
 
@@ -1351,6 +1346,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
 apache-airflow-ctl-tests = {workspace = true}
@@ -1373,12 +1369,12 @@ apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
-apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1482,10 +1478,12 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",
     "dev",
     "devel-common",
+    "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
     "helm-tests",
@@ -1503,12 +1501,12 @@ members = [
     "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
+    "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
-    "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
