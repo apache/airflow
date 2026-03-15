@@ -28,6 +28,7 @@ import argparse
 import os
 import platform
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -461,7 +462,7 @@ def _find_jetbrains_pids() -> list[tuple[int, str]]:
     return []
 
 
-def _kill_jetbrains_ides() -> bool:
+def _kill_jetbrains_ides(*, confirm: bool = False) -> bool:
     """Attempt to gracefully terminate running JetBrains IDE processes.
 
     Sends SIGTERM first and waits briefly, then SIGKILL if processes remain.
@@ -473,9 +474,10 @@ def _kill_jetbrains_ides() -> bool:
     print("[yellow]Detected running JetBrains IDE process(es):[/]")
     for pid, comm in pids:
         print(f"  PID {pid}: {comm}")
-    should_kill = Confirm.ask("\nKill these processes to proceed?")
-    if not should_kill:
-        return True
+    if not confirm:
+        should_kill = Confirm.ask("\nKill these processes to proceed?")
+        if not should_kill:
+            return True
     for pid, _comm in pids:
         try:
             os.kill(pid, signal.SIGTERM)
@@ -497,6 +499,53 @@ def _kill_jetbrains_ides() -> bool:
             pass
     print("[green]JetBrains IDE processes force-killed.[/]\n")
     return True
+
+
+def _open_ide(*, project_dir: Path, idea_path: Path | None = None) -> None:
+    """Open IntelliJ IDEA or PyCharm in *project_dir*.
+
+    On macOS uses ``open -a``, on Linux uses the IDE's launcher script.
+    Prefers IntelliJ IDEA over PyCharm when both are installed.
+    """
+    system = platform.system()
+    has_intellij, has_pycharm = _detect_installed_ides(idea_path)
+    if system == "Darwin":
+        # Try to find the .app bundle via common Toolbox / standalone paths.
+        app_name = None
+        if has_intellij:
+            app_name = "IntelliJ IDEA"
+        elif has_pycharm:
+            app_name = "PyCharm"
+        if app_name:
+            print(f"[cyan]Opening {app_name}...[/]")
+            subprocess.Popen(["open", "-a", app_name, str(project_dir)])
+            return
+    elif system == "Linux":
+        # JetBrains Toolbox symlinks launchers into ~/.local/share/JetBrains/Toolbox/scripts/
+        toolbox_scripts = Path.home() / ".local" / "share" / "JetBrains" / "Toolbox" / "scripts"
+        for cmd_name, is_match in [("idea", has_intellij), ("pycharm", has_pycharm)]:
+            if not is_match:
+                continue
+            script = toolbox_scripts / cmd_name
+            if script.exists():
+                label = "IntelliJ IDEA" if cmd_name == "idea" else "PyCharm"
+                print(f"[cyan]Opening {label}...[/]")
+                subprocess.Popen([str(script), str(project_dir)])
+                return
+        # Fall back to shell commands on PATH.
+        for cmd_name, is_match in [("idea", has_intellij), ("pycharm", has_pycharm)]:
+            if not is_match:
+                continue
+            cmd_path = shutil.which(cmd_name)
+            if cmd_path:
+                label = "IntelliJ IDEA" if cmd_name == "idea" else "PyCharm"
+                print(f"[cyan]Opening {label}...[/]")
+                subprocess.Popen([cmd_path, str(project_dir)])
+                return
+    print(
+        "[yellow]Could not find IntelliJ IDEA or PyCharm to open automatically.[/]\n"
+        "[yellow]Please open the IDE manually in:[/] " + str(project_dir)
+    )
 
 
 def _find_jetbrains_config_base() -> Path | None:
@@ -974,8 +1023,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--confirm",
         action="store_true",
-        help="Skip the confirmation prompt asking whether PyCharm/IntelliJ IDEA "
-        "has been closed. Useful for non-interactive or scripted runs.",
+        help="Automatically answer yes to all confirmation prompts (IDE close, "
+        "process kill, file overwrite). Useful for non-interactive or scripted runs.",
+    )
+    parser.add_argument(
+        "--open-ide",
+        action="store_true",
+        help="Open IntelliJ IDEA or PyCharm in the project directory after "
+        "setup completes. Uses the detected IDE installation.",
     )
     parser.add_argument(
         "--no-kill",
@@ -1088,7 +1143,7 @@ def main():
     if not args.no_kill:
         pids = _find_jetbrains_pids()
         if pids:
-            _kill_jetbrains_ides()
+            _kill_jetbrains_ides(confirm=args.confirm)
         else:
             print("[green]No running IntelliJ IDEA / PyCharm processes detected — safe to proceed.[/]\n")
     elif not args.confirm:
@@ -1141,10 +1196,11 @@ def main():
             print(f"  [dim]·[/] {len(previous_iml_files)} sub-module .iml file(s)")
         print()
 
-    should_continue = Confirm.ask("Overwrite the files?")
-    if not should_continue:
-        print("[yellow]Skipped\n")
-        return
+    if not args.confirm:
+        should_continue = Confirm.ask("Overwrite the files?")
+        if not should_continue:
+            print("[yellow]Skipped\n")
+            return
 
     print()
     cleanup_previous_setup()
@@ -1159,7 +1215,10 @@ def main():
     register_sdk(breeze_sdk_name, BREEZE_PATH, BREEZE_PATH, idea_path=idea_path)
 
     print("\n[green]Success[/]\n")
-    print("[yellow]Important:[/] Restart PyCharm/IntelliJ IDEA to pick up the new configuration.\n")
+    if args.open_ide:
+        _open_ide(project_dir=ROOT_AIRFLOW_FOLDER_PATH, idea_path=idea_path)
+    else:
+        print("[yellow]Important:[/] Restart PyCharm/IntelliJ IDEA to pick up the new configuration.\n")
 
 
 if __name__ == "__main__":

@@ -235,6 +235,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-distribution-gitignore
+        name: Check distribution .gitignore files have *.iml
+        entry: ./scripts/ci/prek/check_distribution_gitignore.py
+        language: python
+        files: >
+          (?x)
+          ^.*/\.gitignore$|
+          ^\.gitignore$|
+          ^.*/pyproject\.toml$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -245,6 +257,17 @@ repos:
           ^\.pre-commit-config\.yaml$|
           ^\.github/\.pre-commit-config\.yaml$|
           ^scripts/ci/prek/update_installers_and_prek\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: update-uv-lock
+        name: Update uv.lock (manual)
+        entry: ./scripts/ci/prek/update_uv_lock.py
+        stages: ['manual']
+        language: python
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^uv\.lock$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs

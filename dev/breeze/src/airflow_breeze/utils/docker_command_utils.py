@@ -104,6 +104,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
+    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
