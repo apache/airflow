@@ -1759,6 +1759,7 @@ class TestBaseDatabricksHook:
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
+        hook._async_databricks_conn = mock_conn  # For async methods
         hook.user_agent_header = {"User-Agent": "test-agent"}
         hook.token_timeout_seconds = 10
 
@@ -1812,6 +1813,7 @@ class TestBaseDatabricksHook:
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
+        hook._async_databricks_conn = mock_conn  # For async methods
         hook.user_agent_header = {"User-Agent": "test-agent"}
         hook.token_timeout_seconds = 10
 

@@ -1072,7 +1072,10 @@ class BaseDatabricksHook(BaseHook):
             if conn.login == "" or conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(conn.host))
+            return await self._a_get_sp_token(await self._a_get_oidc_token_service_url())
+        if conn.login == "federated_k8s" or conn.extra_dejson.get("federated_k8s", False):
+            self.log.debug("Using Kubernetes OIDC token federation.")
+            return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -1088,6 +1091,14 @@ class BaseDatabricksHook(BaseHook):
         :return: Full URL to the OIDC token service endpoint
         """
         return OIDC_TOKEN_SERVICE_URL.format(f"https://{self.host}")
+
+    async def _a_get_oidc_token_service_url(self) -> str:
+        """
+        Async version of `_get_oidc_token_service_url()`.
+
+        :return: Full URL to the OIDC token service endpoint
+        """
+        return OIDC_TOKEN_SERVICE_URL.format(f"https://{await self.ahost()}")
 
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
