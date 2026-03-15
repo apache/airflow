@@ -587,24 +587,51 @@ def assess_pr_conflicts(
     )
 
 
-def assess_pr_unresolved_comments(pr_number: int, unresolved_review_comments: int) -> PRAssessment | None:
+def assess_pr_unresolved_comments(
+    pr_number: int, unresolved_review_comments: int, unresolved_threads: list | None = None
+) -> PRAssessment | None:
     """Deterministically flag a PR if it has unresolved review comments from maintainers.
 
     Returns None if there are no unresolved comments.
+    When *unresolved_threads* is provided (list of UnresolvedThread), the violation
+    explanation includes per-reviewer detail.
     """
     if unresolved_review_comments <= 0:
         return None
 
     thread_word = "thread" if unresolved_review_comments == 1 else "threads"
+
+    # Build per-reviewer explanation if thread detail is available
+    if unresolved_threads:
+        # Group by reviewer
+        from collections import defaultdict
+
+        by_reviewer: dict[str, list] = defaultdict(list)
+        for t in unresolved_threads:
+            by_reviewer[t.reviewer_login].append(t)
+
+        reviewer_lines = []
+        for login, threads in by_reviewer.items():
+            assoc = threads[0].reviewer_association
+            count = len(threads)
+            reviewer_lines.append(f"**@{login}** ({assoc}): {count} unresolved {thread_word}")
+        reviewer_summary = "; ".join(reviewer_lines)
+
+        explanation = (
+            f"This PR has {unresolved_review_comments} unresolved review "
+            f"{thread_word} from maintainers: {reviewer_summary}."
+        )
+    else:
+        explanation = (
+            f"This PR has {unresolved_review_comments} unresolved review {thread_word} from maintainers."
+        )
+
     return PRAssessment(
         should_flag=True,
         violations=[
             Violation(
                 category="Unresolved review comments",
-                explanation=(
-                    f"This PR has {unresolved_review_comments} unresolved review "
-                    f"{thread_word} from maintainers."
-                ),
+                explanation=explanation,
                 severity="warning",
                 details=(
                     "Please review and resolve all inline review comments before requesting "
