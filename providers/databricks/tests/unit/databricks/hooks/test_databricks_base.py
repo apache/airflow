@@ -745,18 +745,18 @@ class TestBaseDatabricksHook:
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
-    async def test_cached_adatabricks_conn(self, mock_get_connection):
-        """Verify get_connection caching."""
-        mock_get_connection.return_value = Connection(login="foo", password="bar")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection")
+    async def test_cached_adatabricks_conn(self, mock_aget_connection):
+        """Verify aget_connection caching."""
+        mock_aget_connection.return_value = Connection(login="foo", password="bar")
         hook = BaseDatabricksHook()
         await hook.adatabricks_conn()
         await hook.adatabricks_conn()
-        mock_get_connection.assert_called_once()
+        mock_aget_connection.assert_called_once()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
-    async def test_no_sync_get_connection(self, mock_get_connection):
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection")
+    async def test_no_sync_get_connection(self, mock_aget_connection):
         """Ensure sync databricks_conn isn't referenced during async methods."""
         with mock.patch.object(
             BaseDatabricksHook, "databricks_conn", new_callable=mock.PropertyMock
@@ -765,11 +765,11 @@ class TestBaseDatabricksHook:
                 "databricks_conn should not be accessed running async"
             )
 
-        mock_get_connection.return_value = Connection(login="foo", password="bar")
-        hook = BaseDatabricksHook()
-        await hook._a_get_token()
-        await hook._a_get_aad_headers()
-        await hook._a_endpoint_url(endpoint="foobar")
+            mock_aget_connection.return_value = Connection(login="foo", password="bar")
+            hook = BaseDatabricksHook()
+            await hook._a_get_token()
+            await hook._a_get_aad_headers()
+            await hook._a_endpoint_url(endpoint="foobar")
 
     @mock.patch("requests.get")
     @time_machine.travel("2025-07-12 12:00:00")
