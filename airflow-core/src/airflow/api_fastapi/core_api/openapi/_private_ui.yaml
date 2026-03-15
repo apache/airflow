@@ -199,6 +199,43 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/connections/hook_meta/{connection_type}:
+    get:
+      tags:
+      - Connection
+      summary: Hook Meta Data For Type
+      description: Return full metadata (standard_fields, extra_fields) for a single
+        connection type.
+      operationId: hook_meta_data_for_type
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: connection_type
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionHookMetaData'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/connections/hook_meta:
     get:
       tags:
