@@ -63,7 +63,8 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.10.1",
     "simple-salesforce>=1.0.0",
     'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 
 [dependency-groups]

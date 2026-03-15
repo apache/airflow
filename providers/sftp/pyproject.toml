@@ -64,7 +64,8 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079 is handled
     "paramiko>=3.4.0,<4.0.0",
-    "asyncssh>=2.12.0",
+    "asyncssh>=2.12.0; python_version < '3.14'",
+    "asyncssh>=2.22.0; python_version >= '3.14'",
 ]
 
 # The optional dependencies should be modified in place in the generated file

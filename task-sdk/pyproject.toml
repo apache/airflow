@@ -49,7 +49,8 @@ classifiers = [
 ]
 dependencies = [
     "apache-airflow-core<3.3.0,>=3.2.0",
-    "asgiref>=2.3.0",
+    "asgiref>=2.3.0; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=24.2.0, !=25.2.0",
     "babel>=2.17.0",
     "fsspec>=2023.10.0",
@@ -218,7 +219,8 @@ dev = [
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
     "pandas>=2.1.2; python_version <\"3.13\"",
-    "pandas>=2.2.3; python_version >=\"3.13\""
+    "pandas>=2.2.3; python_version >=\"3.13\" and python_version <\"3.14\"",
+    "pandas>=2.3.3; python_version >=\"3.14\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",

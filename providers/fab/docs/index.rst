@@ -112,7 +112,8 @@ PIP package                                 Version required
 ``blinker``                                 ``>=1.6.2``
 ``flask``                                   ``>=2.2.1``
 ``flask-appbuilder``                        ``==5.2.0``
-``flask-login``                             ``>=0.6.2``
+``flask-login``                             ``>=0.6.2; python_version < "3.14"``
+``flask-login``                             ``>=0.6.3; python_version >= "3.14"``
 ``flask-session``                           ``>=0.8.0``
 ``msgpack``                                 ``>=1.0.0``
 ``flask-sqlalchemy``                        ``>=3.0.5``

@@ -78,7 +78,8 @@ dependencies = [
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
-    "flask-login>=0.6.2",
+    "flask-login>=0.6.2; python_version < '3.14'",
+    "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
     "msgpack>=1.0.0",
     "flask-sqlalchemy>=3.0.5",
