@@ -1,6 +1,6 @@
-Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix addition removed from ``container_extra_envs``
+Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix addition removed from ``container_extra_envs`` and ``custom_airflow_environment``
 
-The automatic prefix addition for Kubernetes Executor environment variables has been removed from the ``container_extra_envs`` helper function.
+The automatic prefix addition for Kubernetes Executor environment variables has been removed from both the ``container_extra_envs`` and ``custom_airflow_environment`` helper functions.
 
 **What changed:**
 
@@ -38,14 +38,14 @@ Now only ``MY_VAR=my_value`` is created for the apiServer. The ``AIRFLOW__KUBERN
 
 If you need to pass environment variables specifically to Kubernetes Executor worker pods, use one of the following approaches:
 
-**Option 1: Use ``.Values.env`` (recommended)**
+**Option 1: Use ``.Values.env``**
 .. code-block:: yaml
 
    env:
      - name: my_var
        value: "my_value"
 
-Environment variables in ``.Values.env`` still automatically get the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix via the ``custom_airflow_environment`` helper function.
+Environment variables in ``.Values.env`` are now passed as-is without the automatic prefix (same behavior as component-specific env).
 
 **Option 2: Use ``.Values.config.kubernetes_environment_variables``**
 .. code-block:: yaml
