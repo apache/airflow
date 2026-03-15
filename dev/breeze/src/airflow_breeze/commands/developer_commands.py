@@ -689,6 +689,10 @@ def start_airflow(
 
     get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
 
+    if worker_types != () and executor != EDGE_EXECUTOR:
+        get_console().print(f"[error]Worker type {worker_types} requires executor: {EDGE_EXECUTOR}")
+        sys.exit(1)
+
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
