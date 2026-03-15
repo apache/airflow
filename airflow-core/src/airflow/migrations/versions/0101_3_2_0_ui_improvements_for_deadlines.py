@@ -363,9 +363,6 @@ def bulk_update_deadline_alert_ids(
     """
     Efficiently update deadline.deadline_alert_id using bulk operations.
     
-    This replaces the N+1 UPDATE pattern with a single efficient operation.
-    Performance improvement: ~33x faster for large datasets based on testing.
-    
     :param conn: Database connection
     :param mappings: List of (deadline_alert_id, serialized_dag_id) tuples
     :param dialect: Database dialect (postgresql, mysql, sqlite)
@@ -480,7 +477,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
 
-    # OPTIMIZATION: Collect all mappings for bulk update instead of N+1 pattern
     alert_to_dag_mappings: list[tuple[str, str]] = []
 
     last_dag_id = ""
@@ -609,8 +605,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                 migrated_alert_ids.append(deadline_alert_id)
                                 migrated_alerts_count += 1
 
-                                # OPTIMIZATION: Collect mapping instead of immediate UPDATE (N+1 pattern)
-                                # Bulk update will be performed after all processing
                                 alert_to_dag_mappings.append((deadline_alert_id, serialized_dag_id))
                             except Exception as e:
                                 dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
@@ -656,7 +650,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
-    # OPTIMIZATION: Perform bulk UPDATE of deadline table
     if alert_to_dag_mappings:
         log.info("Performing bulk UPDATE", mapping_count=len(alert_to_dag_mappings))
         bulk_update_deadline_alert_ids(conn, alert_to_dag_mappings, dialect)
