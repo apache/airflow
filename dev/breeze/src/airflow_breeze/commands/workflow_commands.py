@@ -102,6 +102,11 @@ def workflow_run_group():
     default="main",
     type=str,
 )
+@click.option(
+    "--ignore-missing-inventories",
+    help="Do not fail the build on missing third-party inventories.",
+    is_flag=True,
+)
 @argument_doc_packages
 def workflow_run_publish(
     ref: str,
@@ -114,6 +119,7 @@ def workflow_run_publish(
     airflow_base_version: str | None = None,
     apply_commits: str | None = None,
     workflow_branch: str = "main",
+    ignore_missing_inventories: bool = False,
 ):
     if len(doc_packages) == 0:
         console_print(
@@ -191,6 +197,7 @@ def workflow_run_publish(
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
         "build-sboms": "true" if "apache-airflow" in doc_packages else "false",
         "apply-commits": apply_commits if apply_commits else "",
+        "ignore-missing-inventories": str(ignore_missing_inventories).lower(),
     }
 
     if airflow_version:
