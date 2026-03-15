@@ -91,7 +91,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             "job_names": JOB_NAMES,
             "poll_interval": POLL_INTERVAL,
             "gcp_conn_id": GCP_CONN_ID,
-            "files": [],
+            "files": None,
         }
 
     def test_get_async_hook(self, trigger):

@@ -59,7 +59,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.job_names = job_names
         self.poll_interval = poll_interval
-        self.files = files or []
+        self.files = files
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize StorageTransferJobsTrigger arguments and classpath."""
@@ -127,7 +127,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                     "status": "success",
                     "message": f"Transfer job{s} {job_names_str} completed successfully",
                 }
-                if self.files:
+                if self.files is not None:
                     event_payload["files"] = self.files
                 yield TriggerEvent(event_payload)
                 return
