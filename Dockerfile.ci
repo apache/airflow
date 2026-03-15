@@ -1273,12 +1273,14 @@ function determine_airflow_to_use() {
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        # Use uv sync --frozen to install exactly what is pinned in uv.lock.
-        # --no-cache is needed - otherwise there is possibility of overriding temporary
-        # environments by multiple parallel processes
-        uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
-            --group leveldb --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python --no-cache
+        # Generate constraints from uv.lock and use them to install development dependencies
+        # via the Python script. --no-cache is needed - otherwise there is possibility of
+        # overriding temporary environments by multiple parallel processes
+        local constraint_file="/tmp/constraints-from-lock.txt"
+        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+            --no-annotate > "${constraint_file}" 2>/dev/null || true
+        uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
+           --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
