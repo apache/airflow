@@ -1,0 +1,1 @@
+Fix security iframe navigation when AIRFLOW__API__BASE_URL basename is configured

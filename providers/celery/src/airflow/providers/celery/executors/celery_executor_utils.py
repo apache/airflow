@@ -23,6 +23,7 @@ Much of this code is expensive to import/load, be careful where this module is i
 from __future__ import annotations
 
 import contextlib
+import gc
 import logging
 import math
 import os
@@ -37,7 +38,7 @@ from typing import TYPE_CHECKING, Any
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules
+from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
 
 from airflow.configuration import AirflowConfigParser, conf
@@ -173,6 +174,15 @@ def on_celery_import_modules(*args, **kwargs):
 
     with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
+
+    # To prevent memory increase by COW in celery's ForkPoolWorker.
+    gc.freeze()
+
+
+@worker_ready.connect
+def on_celery_worker_ready(*args, **kwargs):
+    # Unfreeze the objects from gc freeze when the ForkPoolWorker is all loaded.
+    gc.unfreeze()
 
 
 # Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation

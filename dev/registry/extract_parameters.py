@@ -53,6 +53,8 @@ from pathlib import Path
 
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
+from registry_contract_models import validate_modules_catalog, validate_provider_parameters
+from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -322,33 +324,6 @@ def find_json(candidates: list[Path], name: str) -> Path:
 
 
 log = logging.getLogger(__name__)
-
-# Base class import paths, ordered so more-specific types are checked first
-# (sensor before operator, since BaseSensorOperator inherits BaseOperator).
-BASE_CLASS_IMPORTS: list[tuple[str, str]] = [
-    ("sensor", "airflow.sdk.bases.sensor.BaseSensorOperator"),
-    ("trigger", "airflow.triggers.base.BaseTrigger"),
-    ("hook", "airflow.sdk.bases.hook.BaseHook"),
-    ("bundle", "airflow.dag_processing.bundles.base.BaseDagBundle"),
-    ("operator", "airflow.sdk.bases.operator.BaseOperator"),
-]
-
-# provider.yaml sections that list python-modules (module-level)
-MODULE_LEVEL_SECTIONS: dict[str, str] = {
-    "operators": "operator",
-    "hooks": "hook",
-    "sensors": "sensor",
-    "triggers": "trigger",
-    "bundles": "bundle",
-}
-
-# provider.yaml sections that list full class paths (class-level)
-CLASS_LEVEL_SECTIONS: dict[str, str] = {
-    "notifications": "notifier",
-    "secrets-backends": "secret",
-    "logging": "logging",
-    "executors": "executor",
-}
 
 
 def load_base_classes() -> dict[str, type]:
@@ -794,13 +769,15 @@ def _write_parameter_files(
             version_dir = output_dir / "versions" / pid / version
             version_dir.mkdir(parents=True, exist_ok=True)
 
-            provider_data = {
-                "provider_id": pid,
-                "provider_name": provider_names.get(pid, pid),
-                "version": version,
-                "generated_at": generated_at,
-                "classes": classes,
-            }
+            provider_data = validate_provider_parameters(
+                {
+                    "provider_id": pid,
+                    "provider_name": provider_names.get(pid, pid),
+                    "version": version,
+                    "generated_at": generated_at,
+                    "classes": classes,
+                }
+            )
             with open(version_dir / "parameters.json", "w") as f:
                 json.dump(provider_data, f, separators=(",", ":"))
             written += 1
@@ -947,7 +924,7 @@ def _main_discover(
     # With --provider, the output would be incomplete and would clobber the
     # full modules.json from a previous build.
     if not only_provider:
-        modules_json = {"modules": all_discovered}
+        modules_json = validate_modules_catalog({"modules": all_discovered})
         output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
         for out_dir in output_dirs:
             if not out_dir.parent.exists():
