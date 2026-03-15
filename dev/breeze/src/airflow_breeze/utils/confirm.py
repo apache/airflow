@@ -20,7 +20,7 @@ import os
 import sys
 from enum import Enum
 
-from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.shared_options import get_forced_answer
 
 STANDARD_TIMEOUT = 10
@@ -143,11 +143,73 @@ class TriageAction(Enum):
     DRAFT = "d"
     COMMENT = "c"
     CLOSE = "x"
+    REBASE = "b"
     RERUN = "r"
+    PING = "p"
     OPEN = "o"
+    SHOW = "w"
     READY = "m"
     SKIP = "s"
     QUIT = "q"
+
+
+def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: str | None) -> None:
+    """Fetch and display a nicely formatted diff for a PR."""
+    import requests
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+
+    console = get_console()
+    console.print(f"  Fetching diff for PR #{pr_number}...")
+    url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}"
+    try:
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3.diff"},
+            timeout=60,
+        )
+    except Exception as e:
+        console.print(f"  [warning]Failed to fetch diff: {e}[/]")
+        return
+
+    if response.status_code != 200:
+        console.print(
+            f"  [warning]Could not fetch diff (HTTP {response.status_code}). "
+            f"Review manually at: {pr_url}/files[/]"
+        )
+        return
+
+    diff_text = response.text
+    if not diff_text.strip():
+        console.print("  [info]Diff is empty (no file changes).[/]")
+        return
+
+    pr_link = f"[link={pr_url}]#{pr_number}[/link]" if pr_url else f"#{pr_number}"
+    console.print(
+        Panel(
+            Syntax(diff_text, "diff", theme="monokai", word_wrap=True),
+            title=f"Diff for PR {pr_link}",
+            border_style="bright_cyan",
+        )
+    )
+
+    # Warn about sensitive file changes
+    import re
+
+    sensitive_paths: list[str] = []
+    for match in re.finditer(r"^diff --git a/\S+ b/(\S+)", diff_text, re.MULTILINE):
+        path = match.group(1)
+        if path.startswith((".github/", "scripts/")):
+            if path not in sensitive_paths:
+                sensitive_paths.append(path)
+    if sensitive_paths:
+        console.print()
+        console.print(
+            "[bold red]WARNING: This PR contains changes to sensitive files — please review carefully![/]"
+        )
+        for f in sensitive_paths:
+            console.print(f"  [bold red]  - {f}[/]")
+        console.print()
 
 
 def prompt_triage_action(
@@ -157,6 +219,9 @@ def prompt_triage_action(
     forced_answer: str | None = None,
     exclude: set[TriageAction] | None = None,
     pr_url: str | None = None,
+    token: str | None = None,
+    github_repository: str | None = None,
+    pr_number: int | None = None,
 ) -> TriageAction:
     """Prompt the user to choose a triage action for a flagged PR.
 
@@ -168,6 +233,9 @@ def prompt_triage_action(
     :param timeout: seconds before auto-selecting default (None = no timeout)
     :param forced_answer: explicit override for forced answer (bypasses global --answer)
     :param pr_url: URL of the PR (used by OPEN action to open in browser)
+    :param token: GitHub token (used by SHOW action to fetch diff)
+    :param github_repository: GitHub repository (used by SHOW action to fetch diff)
+    :param pr_number: PR number (used by SHOW action to fetch diff)
     """
     import webbrowser
 
@@ -175,8 +243,11 @@ def prompt_triage_action(
         TriageAction.DRAFT: "draft",
         TriageAction.COMMENT: "comment",
         TriageAction.CLOSE: "close",
+        TriageAction.REBASE: "rebase",
         TriageAction.RERUN: "rerun checks",
+        TriageAction.PING: "ping reviewer",
         TriageAction.OPEN: "open in browser",
+        TriageAction.SHOW: "show diff",
         TriageAction.READY: "mark as ready",
         TriageAction.SKIP: "skip",
         TriageAction.QUIT: "quit",
@@ -243,6 +314,12 @@ def prompt_triage_action(
                 else:
                     console_print("  [warning]No PR URL available to open.[/]")
                 continue  # re-prompt after opening browser
+            if matched == TriageAction.SHOW:
+                if token and github_repository and pr_number:
+                    _show_pr_diff(token, github_repository, pr_number, pr_url)
+                else:
+                    get_console().print("  [warning]Diff context not available.[/]")
+                continue  # re-prompt after showing diff
             return matched
 
         valid = "/".join(a.value for a in available_actions)

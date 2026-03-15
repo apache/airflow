@@ -128,13 +128,24 @@ Setup your project
         $ uv run dev/ide_setup/setup_idea.py --single-module
 
    ``--confirm``
-     Skip the interactive confirmation prompt that asks whether PyCharm/IntelliJ IDEA has been
-     closed.  Useful for non-interactive or scripted runs where you have already ensured the IDE
-     is not running.
+     Automatically answer yes to all interactive confirmation prompts (IDE close, process kill,
+     file overwrite).  Useful for non-interactive, scripted, or agent-driven runs.
 
       .. code-block:: bash
 
         $ uv run dev/ide_setup/setup_idea.py --confirm
+
+   ``--open-ide``
+     Open IntelliJ IDEA or PyCharm in the project directory after setup completes.  On macOS
+     uses ``open -a``, on Linux looks for JetBrains Toolbox launcher scripts and falls back to
+     commands on ``PATH``.  Prefers IntelliJ IDEA when both IDEs are installed.
+
+      .. code-block:: bash
+
+        $ uv run dev/ide_setup/setup_idea.py --open-ide
+
+        # Combine with --confirm for fully non-interactive setup + open
+        $ uv run dev/ide_setup/setup_idea.py --confirm --open-ide
 
    ``--no-kill``
      Do not attempt to detect and kill running PyCharm/IntelliJ IDEA processes.  By default,
